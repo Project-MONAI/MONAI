@@ -60,6 +60,7 @@ from monai.transforms.utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    TorchIO,
     TorchVision,
     ToTensor,
     Transpose,
@@ -136,6 +137,9 @@ __all__ = [
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
+    "RandTorchIOd",
+    "RandTorchIOD",
+    "RandTorchIODict",
     "RandTorchVisionD",
     "RandTorchVisionDict",
     "RandTorchVisiond",
@@ -172,6 +176,9 @@ __all__ = [
     "ToTensorD",
     "ToTensorDict",
     "ToTensord",
+    "TorchIOD",
+    "TorchIODict",
+    "TorchIOd",
     "TorchVisionD",
     "TorchVisionDict",
     "TorchVisiond",
@@ -1445,6 +1452,64 @@ class RandTorchVisiond(MapTransform, RandomizableTrait):
         return d
 
 
+class TorchIOd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchIO` for non-randomized transforms.
+    For randomized transforms of TorchIO use :py:class:`monai.transforms.RandTorchIOd`.
+    """
+
+    backend = TorchIO.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchIO package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.name = name
+        kwargs["include"] = self.keys
+
+        self.trans = TorchIO(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        return dict(self.trans(data))
+
+
+class RandTorchIOd(MapTransform, RandomizableTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchIO` for randomized transforms.
+    For non-randomized transforms of TorchIO use :py:class:`monai.transforms.TorchIOd`.
+    """
+
+    backend = TorchIO.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchIO package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.name = name
+        kwargs["include"] = self.keys
+
+        self.trans = TorchIO(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        return dict(self.trans(data))
+
+
 class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
@@ -1871,8 +1936,10 @@ ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsCla
     ConvertToMultiChannelBasedOnBratsClassesd
 )
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
+TorchIOD = TorchIODict = TorchIOd
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
+RandTorchIOD = RandTorchIODict = RandTorchIOd
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd

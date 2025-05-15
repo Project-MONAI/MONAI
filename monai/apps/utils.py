@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tarfile
@@ -30,7 +31,9 @@ from urllib.request import urlopen, urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
+requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
+BeautifulSoup, has_bs4 = optional_import("bs4", name="BeautifulSoup")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -298,6 +301,29 @@ def extractall(
     )
 
 
+def get_filename_from_url(data_url: str) -> str:
+    """
+    Get the filename from the URL link.
+    """
+    try:
+        response = requests.head(data_url, allow_redirects=True)
+        content_disposition = response.headers.get("Content-Disposition")
+        if content_disposition:
+            filename = re.findall('filename="?([^";]+)"?', content_disposition)
+            if filename:
+                return str(filename[0])
+        if "drive.google.com" in data_url:
+            response = requests.get(data_url)
+            if "text/html" in response.headers.get("Content-Type", ""):
+                soup = BeautifulSoup(response.text, "html.parser")
+                filename_div = soup.find("span", {"class": "uc-name-size"})
+                if filename_div:
+                    return str(filename_div.find("a").text)
+        return _basename(data_url)
+    except Exception as e:
+        raise Exception(f"Error processing URL: {e}") from e
+
+
 def download_and_extract(
     url: str,
     filepath: PathLike = "",
@@ -327,7 +353,18 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
+    url_filename_ext = "".join(Path(get_filename_from_url(url)).suffixes)
+    filepath_ext = "".join(Path(_basename(filepath)).suffixes)
+    if filepath not in ["", "."]:
+        if filepath_ext == "":
+            new_filepath = Path(filepath).with_suffix(url_filename_ext)
+            logger.warning(
+                f"filepath={filepath}, which missing file extension. Auto-appending extension to: {new_filepath}"
+            )
+            filepath = new_filepath
+    if filepath_ext and filepath_ext != url_filename_ext:
+        raise ValueError(f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or Path(tmp_dir, _basename(url)).resolve()
+        filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)

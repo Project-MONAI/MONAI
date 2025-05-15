@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
-from typing import Final
 
 import numpy as np
 import torch
@@ -26,7 +25,6 @@ from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
-from monai.utils.deprecate_utils import deprecated_arg
 
 rearrange, _ = optional_import("einops", name="rearrange")
 
@@ -51,49 +49,47 @@ class SwinUNETR(nn.Module):
     <https://arxiv.org/abs/2201.01266>"
     """
 
-    patch_size: Final[int] = 2
-
-    @deprecated_arg(
-        name="img_size",
-        since="1.3",
-        removed="1.5",
-        msg_suffix="The img_size argument is not required anymore and "
-        "checks on the input size are run during forward().",
-    )
     def __init__(
         self,
-        img_size: Sequence[int] | int,
         in_channels: int,
         out_channels: int,
+        patch_size: int = 2,
         depths: Sequence[int] = (2, 2, 2, 2),
         num_heads: Sequence[int] = (3, 6, 12, 24),
+        window_size: Sequence[int] | int = 7,
+        qkv_bias: bool = True,
+        mlp_ratio: float = 4.0,
         feature_size: int = 24,
         norm_name: tuple | str = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
         normalize: bool = True,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
+        patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
-        downsample="merging",
-        use_v2=False,
+        downsample: str | nn.Module = "merging",
+        use_v2: bool = False,
     ) -> None:
         """
         Args:
-            img_size: spatial dimension of input image.
-                This argument is only used for checking that the input image size is divisible by the patch size.
-                The tensor passed to forward() can have a dynamic shape as long as its spatial dimensions are divisible by 2**5.
-                It will be removed in an upcoming version.
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
+            patch_size: size of the patch token.
             feature_size: dimension of network feature size.
             depths: number of layers in each stage.
             num_heads: number of attention heads.
+            window_size: local window size.
+            qkv_bias: add a learnable bias to query, key, value.
+            mlp_ratio: ratio of mlp hidden dim to embedding dim.
             norm_name: feature normalization type and arguments.
             drop_rate: dropout rate.
             attn_drop_rate: attention dropout rate.
             dropout_path_rate: drop path rate.
             normalize: normalize output intermediate features in each stage.
+            norm_layer: normalization layer.
+            patch_norm: whether to apply normalization to the patch embedding. Default is False.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
             spatial_dims: number of spatial dims.
             downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
@@ -104,26 +100,25 @@ class SwinUNETR(nn.Module):
         Examples::
 
             # for 3D single channel input with size (96,96,96), 4-channel output and feature size of 48.
-            >>> net = SwinUNETR(img_size=(96,96,96), in_channels=1, out_channels=4, feature_size=48)
+            >>> net = SwinUNETR(in_channels=1, out_channels=4, feature_size=48)
 
             # for 3D 4-channel input with size (128,128,128), 3-channel output and (2,4,2,2) layers in each stage.
-            >>> net = SwinUNETR(img_size=(128,128,128), in_channels=4, out_channels=3, depths=(2,4,2,2))
+            >>> net = SwinUNETR(in_channels=4, out_channels=3, depths=(2,4,2,2))
 
             # for 2D single channel input with size (96,96), 2-channel output and gradient checkpointing.
-            >>> net = SwinUNETR(img_size=(96,96), in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
+            >>> net = SwinUNETR(in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
 
         """
 
         super().__init__()
 
-        img_size = ensure_tuple_rep(img_size, spatial_dims)
-        patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
-        window_size = ensure_tuple_rep(7, spatial_dims)
-
         if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
 
-        self._check_input_size(img_size)
+        self.patch_size = patch_size
+
+        patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
+        window_size = ensure_tuple_rep(window_size, spatial_dims)
 
         if not (0 <= drop_rate <= 1):
             raise ValueError("dropout rate should be between 0 and 1.")
@@ -146,12 +141,13 @@ class SwinUNETR(nn.Module):
             patch_size=patch_sizes,
             depths=depths,
             num_heads=num_heads,
-            mlp_ratio=4.0,
-            qkv_bias=True,
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
             drop_rate=drop_rate,
             attn_drop_rate=attn_drop_rate,
             drop_path_rate=dropout_path_rate,
-            norm_layer=nn.LayerNorm,
+            norm_layer=norm_layer,
+            patch_norm=patch_norm,
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
             downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
@@ -260,53 +256,50 @@ class SwinUNETR(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
+        layers1_0: BasicLayer = self.swinViT.layers1[0]  # type: ignore[assignment]
+        layers2_0: BasicLayer = self.swinViT.layers2[0]  # type: ignore[assignment]
+        layers3_0: BasicLayer = self.swinViT.layers3[0]  # type: ignore[assignment]
+        layers4_0: BasicLayer = self.swinViT.layers4[0]  # type: ignore[assignment]
+        wstate = weights["state_dict"]
+
         with torch.no_grad():
-            self.swinViT.patch_embed.proj.weight.copy_(weights["state_dict"]["module.patch_embed.proj.weight"])
-            self.swinViT.patch_embed.proj.bias.copy_(weights["state_dict"]["module.patch_embed.proj.bias"])
-            for bname, block in self.swinViT.layers1[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers1")
-            self.swinViT.layers1[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers1[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers1[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers2[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers2")
-            self.swinViT.layers2[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers2[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers2[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers3[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers3")
-            self.swinViT.layers3[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers3[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers3[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers4[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers4")
-            self.swinViT.layers4[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers4[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers4[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.norm.bias"]
-            )
+            self.swinViT.patch_embed.proj.weight.copy_(wstate["module.patch_embed.proj.weight"])
+            self.swinViT.patch_embed.proj.bias.copy_(wstate["module.patch_embed.proj.bias"])
+            for bname, block in layers1_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers1")  # type: ignore[operator]
+
+            if layers1_0.downsample is not None:
+                d = layers1_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers1.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers1.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers1.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers2_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers2")  # type: ignore[operator]
+
+            if layers2_0.downsample is not None:
+                d = layers2_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers2.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers2.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers2.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers3_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers3")  # type: ignore[operator]
+
+            if layers3_0.downsample is not None:
+                d = layers3_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers3.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers3.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers3.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers4_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers4")  # type: ignore[operator]
+
+            if layers4_0.downsample is not None:
+                d = layers4_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers4.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers4.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers4.0.downsample.norm.bias"])  # type: ignore
 
     @torch.jit.unused
     def _check_input_size(self, spatial_shape):
@@ -520,7 +513,7 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index.clone()[:n, :n].reshape(-1)
+            self.relative_position_index.clone()[:n, :n].reshape(-1)  # type: ignore[operator]
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
@@ -679,7 +672,7 @@ class SwinTransformerBlock(nn.Module):
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
             self.norm1.bias.copy_(weights["state_dict"][root + block_names[1]])
             self.attn.relative_position_bias_table.copy_(weights["state_dict"][root + block_names[2]])
-            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])
+            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])  # type: ignore[operator]
             self.attn.qkv.weight.copy_(weights["state_dict"][root + block_names[4]])
             self.attn.qkv.bias.copy_(weights["state_dict"][root + block_names[5]])
             self.attn.proj.weight.copy_(weights["state_dict"][root + block_names[6]])
@@ -770,9 +763,9 @@ class PatchMerging(PatchMergingV2):
         x1 = x[:, 1::2, 0::2, 0::2, :]
         x2 = x[:, 0::2, 1::2, 0::2, :]
         x3 = x[:, 0::2, 0::2, 1::2, :]
-        x4 = x[:, 1::2, 0::2, 1::2, :]
-        x5 = x[:, 0::2, 1::2, 0::2, :]
-        x6 = x[:, 0::2, 0::2, 1::2, :]
+        x4 = x[:, 1::2, 1::2, 0::2, :]
+        x5 = x[:, 1::2, 0::2, 1::2, :]
+        x6 = x[:, 0::2, 1::2, 1::2, :]
         x7 = x[:, 1::2, 1::2, 1::2, :]
         x = torch.cat([x0, x1, x2, x3, x4, x5, x6, x7], -1)
         x = self.norm(x)
@@ -1100,13 +1093,13 @@ def filter_swinunetr(key, value):
         from monai.networks.utils import copy_model_state
         from monai.networks.nets.swin_unetr import SwinUNETR, filter_swinunetr
 
-        model = SwinUNETR(img_size=(96, 96, 96), in_channels=1, out_channels=3, feature_size=48)
+        model = SwinUNETR(in_channels=1, out_channels=3, feature_size=48)
         resource = (
             "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth"
         )
         ssl_weights_path = "./ssl_pretrained_weights.pth"
         download_url(resource, ssl_weights_path)
-        ssl_weights = torch.load(ssl_weights_path)["model"]
+        ssl_weights = torch.load(ssl_weights_path, weights_only=True)["model"]
 
         dst_dict, loaded, not_loaded = copy_model_state(model, ssl_weights, filter_func=filter_swinunetr)
 

@@ -12,13 +12,14 @@
 from __future__ import annotations
 
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
+from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
 from .f_beta_score import FBetaScore
 from .fid import FIDMetric, compute_frechet_distance
 from .froc import compute_fp_tp_probs, compute_fp_tp_probs_nd, compute_froc_curve_data, compute_froc_score
 from .generalized_dice import GeneralizedDiceScore, compute_generalized_dice
-from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
+from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance
 from .loss_metric import LossMetric
 from .meandice import DiceHelper, DiceMetric, compute_dice
 from .meaniou import MeanIoU, compute_iou

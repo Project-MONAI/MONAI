@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence, Sized
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -90,8 +90,8 @@ class Workflow(Engine):
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
 
     Raises:
         TypeError: When ``data_loader`` is not a ``torch.utils.data.DataLoader``.
@@ -121,24 +121,24 @@ class Workflow(Engine):
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
     ) -> None:
-        if iteration_update is not None:
-            super().__init__(iteration_update)
-        else:
-            super().__init__(self._iteration)
+        super().__init__(self._iteration if iteration_update is None else iteration_update)
 
         if isinstance(data_loader, DataLoader):
-            sampler = data_loader.__dict__["sampler"]
+            sampler = getattr(data_loader, "sampler", None)
+
+            # set the epoch value for DistributedSampler objects when an epoch starts
             if isinstance(sampler, DistributedSampler):
 
                 @self.on(Events.EPOCH_STARTED)
                 def set_sampler_epoch(engine: Engine) -> None:
                     sampler.set_epoch(engine.state.epoch)
 
-            if epoch_length is None:
+        # if the epoch_length isn't given, attempt to get it from the length of the data loader
+        if epoch_length is None and isinstance(data_loader, Sized):
+            try:
                 epoch_length = len(data_loader)
-        else:
-            if epoch_length is None:
-                raise ValueError("If data_loader is not PyTorch DataLoader, must specify the epoch_length.")
+            except TypeError:  # raised when data_loader has an iterable dataset with no length, or is some other type
+                pass  # deliberately leave epoch_length as None
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state: Any = State(
@@ -147,7 +147,7 @@ class Workflow(Engine):
             iteration=0,
             epoch=0,
             max_epochs=max_epochs,
-            epoch_length=epoch_length,
+            epoch_length=epoch_length,  # None when the dataset is iterable and so has no length
             output=None,
             batch=None,
             metrics={},

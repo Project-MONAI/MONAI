@@ -18,10 +18,10 @@ import logging
 import sys
 import time
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 import numpy as np
 import torch
@@ -66,7 +66,6 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
@@ -99,11 +98,14 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "TorchIO",
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
     "CuCIM",
     "RandCuCIM",
+    "RandTorchIO",
+    "RandTorchVision",
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
@@ -936,19 +938,10 @@ class LabelToMask(Transform):
             data = img[[*select_labels]]
         else:
             where: Callable = np.where if isinstance(img, np.ndarray) else torch.where  # type: ignore
-            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
-                data = where(in1d(img, select_labels), True, False).reshape(img.shape)
-            # pre pytorch 1.8.0, need to use 1/0 instead of True/False
-            else:
-                data = where(
-                    in1d(img, select_labels), torch.tensor(1, device=img.device), torch.tensor(0, device=img.device)
-                ).reshape(img.shape)
+            data = where(in1d(img, select_labels), True, False).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
-            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
-                return data.any(0)[None]
-            # pre pytorch 1.8.0 compatibility
-            return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
+            return data.any(0)[None]
 
         return data
 
@@ -1051,12 +1044,11 @@ class ClassesToIndices(Transform, MultiSampleTrait):
 
 class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
-    Convert labels to multi channels based on brats18 classes:
-    label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
-    The possible classes are TC (Tumor core), WT (Whole tumor)
-    and ET (Enhancing tumor).
+    Convert labels to multi channels based on `brats18 <https://www.med.upenn.edu/sbia/brats2018/data.html>`_ classes,
+    which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
+    label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
+    label 2 is the peritumoral edema, which is counted only under WT subregion,
+    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -1136,12 +1128,10 @@ class AddExtremePointsChannel(Randomizable, Transform):
         return concatenate((img, points_image), axis=0)
 
 
-class TorchVision:
+class TorchVision(Transform):
     """
-    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
-    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
-
+    This is a wrapper transform for PyTorch TorchVision non-randomized transform based on the specified transform name and args.
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1170,6 +1160,102 @@ class TorchVision:
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
+
+
+class RandTorchVision(Transform, RandomizableTrait):
+    """
+    This is a wrapper transform for PyTorch TorchVision randomized transform based on the specified transform name and args.
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        img_t, *_ = convert_data_type(img, torch.Tensor)
+
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+        return out
+
+
+class TorchIO(Transform):
+    """
+    This is a wrapper for TorchIO non-randomized transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
+
+        """
+        return self.trans(img)
+
+
+class RandTorchIO(Transform, RandomizableTrait):
+    """
+    This is a wrapper for TorchIO randomized transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    Use this wrapper for all TorchIO transform inheriting from RandomTransform:
+    https://torchio.readthedocs.io/transforms/augmentation.html#randomtransform
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
+
+        """
+        return self.trans(img)
 
 
 class MapLabelValue:

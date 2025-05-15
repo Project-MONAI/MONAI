@@ -11,14 +11,14 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
-from monai.utils import optional_import, pytorch_after
+from monai.utils import optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
@@ -90,11 +90,6 @@ class SABlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
-        if use_flash_attention and not pytorch_after(minor=13, major=1, patch=0):
-            raise ValueError(
-                "use_flash_attention is only supported for PyTorch versions >= 2.0."
-                "Upgrade your PyTorch or set the flag to False."
-            )
         if use_flash_attention and save_attn:
             raise ValueError(
                 "save_attn has been set to True, but use_flash_attention is also set"
@@ -106,7 +101,11 @@ class SABlock(nn.Module):
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        self.out_proj: Union[nn.Linear, nn.Identity]
+        if include_fc:
+            self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        else:
+            self.out_proj = nn.Identity()
 
         self.qkv: Union[nn.Linear, nn.Identity]
         self.to_q: Union[nn.Linear, nn.Identity]
@@ -154,10 +153,12 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x):
+    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
+            attn_mask (torch.Tensor, optional): mask to apply to the attention matrix.
+            B x (s_dim_1 * ... * s_dim_n). Defaults to None.
 
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
@@ -176,7 +177,13 @@ class SABlock(nn.Module):
 
         if self.use_flash_attention:
             x = F.scaled_dot_product_attention(
-                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+                query=q,
+                key=k,
+                value=v,
+                attn_mask=attn_mask,
+                scale=self.scale,
+                dropout_p=self.dropout_rate,
+                is_causal=self.causal,
             )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
@@ -186,10 +193,16 @@ class SABlock(nn.Module):
                 att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
+                if attn_mask is not None:
+                    raise ValueError("Causal attention does not support attention masks.")
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
 
-            att_mat = att_mat.softmax(dim=-1)
+            if attn_mask is not None:
+                attn_mask = attn_mask.unsqueeze(1).unsqueeze(2)
+                attn_mask = attn_mask.expand(-1, self.num_heads, -1, -1)
+                att_mat = att_mat.masked_fill(attn_mask == 0, float("-inf"))
 
+            att_mat = att_mat.softmax(dim=-1)
             if self.save_attn:
                 # no gradients and new tensor;
                 # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html

@@ -821,6 +821,7 @@ class NormalizeIntensity(Transform):
     mean and std on each channel separately.
     When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
     be the number of image channels if they are not None.
+    If the input is not of floating point type, it will be converted to float32
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -906,6 +907,9 @@ class NormalizeIntensity(Transform):
                 raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
             if self.divisor is not None and len(self.divisor) != len(img):
                 raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+
+            if not img.dtype.is_floating_point:
+                img, *_ = convert_data_type(img, dtype=torch.float32)
 
             for i, d in enumerate(img):
                 img[i] = self._normalize(  # type: ignore
@@ -1852,7 +1856,7 @@ class RandHistogramShift(RandomizableTransform):
         indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
         indices = ns.clip(indices, 0, len(m) - 1)
 
-        f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
+        f: NdarrayOrTensor = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
         f[x < xp[0]] = fp[0]
         f[x > xp[-1]] = fp[-1]
         return f

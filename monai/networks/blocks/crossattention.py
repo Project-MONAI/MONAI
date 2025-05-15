@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
-from monai.utils import optional_import, pytorch_after
+from monai.utils import optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
@@ -84,11 +84,6 @@ class CrossAttentionBlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
-        if use_flash_attention and not pytorch_after(minor=13, major=1, patch=0):
-            raise ValueError(
-                "use_flash_attention is only supported for PyTorch versions >= 2.0."
-                "Upgrade your PyTorch or set the flag to False."
-            )
         if use_flash_attention and save_attn:
             raise ValueError(
                 "save_attn has been set to True, but use_flash_attention is also set"

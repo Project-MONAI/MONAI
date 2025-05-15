@@ -80,6 +80,13 @@ Metrics
 .. autoclass:: ROCAUCMetric
     :members:
 
+`Average Precision`
+-------------------
+.. autofunction:: compute_average_precision
+
+.. autoclass:: AveragePrecisionMetric
+    :members:
+
 `Confusion matrix`
 ------------------
 .. autofunction:: get_confusion_matrix
@@ -91,7 +98,6 @@ Metrics
 `Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
-.. autofunction:: compute_percent_hausdorff_distance
 
 .. autoclass:: HausdorffDistanceMetric
     :members:

@@ -192,6 +192,16 @@ class ReferenceResolver:
         """
         return self._resolve_one_item(id=id, **kwargs)
 
+    def remove_resolved_content(self, id: str) -> Any | None:
+        """
+        Remove the resolved ``ConfigItem`` by id.
+
+        Args:
+            id: id name of the expected item.
+
+        """
+        return self.resolved_content.pop(id) if id in self.resolved_content else None
+
     @classmethod
     def normalize_id(cls, id: str | int) -> str:
         """

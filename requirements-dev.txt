@@ -17,17 +17,19 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-black>=22.12
-isort>=5.1
+black>=25.1.0
+isort>=5.1, <6.0
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
 types-setuptools
 mypy>=1.5.0, <1.12.0
 ninja
+torchio
 torchvision
 psutil
 cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
 openslide-python
+openslide-bin
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas

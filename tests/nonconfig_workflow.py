@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.bundle import BundleWorkflow
+from monai.bundle import BundleWorkflow, PythonicWorkflow
 from monai.data import DataLoader, Dataset
 from monai.engines import SupervisedEvaluator
 from monai.inferers import SlidingWindowInferer
@@ -26,8 +26,9 @@ from monai.transforms import (
     LoadImaged,
     SaveImaged,
     ScaleIntensityd,
+    ScaleIntensityRanged,
 )
-from monai.utils import BundleProperty, set_determinism
+from monai.utils import BundleProperty, CommonKeys, set_determinism
 
 
 class NonConfigWorkflow(BundleWorkflow):
@@ -64,7 +65,7 @@ class NonConfigWorkflow(BundleWorkflow):
             self._monai_version = "1.1.0"
 
         if self._pytorch_version is None:
-            self._pytorch_version = "1.13.1"
+            self._pytorch_version = "2.3.0"
 
         if self._numpy_version is None:
             self._numpy_version = "1.22.2"
@@ -176,3 +177,62 @@ class NonConfigWorkflow(BundleWorkflow):
             self._numpy_version = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
+
+
+class PythonicWorkflowImpl(PythonicWorkflow):
+    """
+    Test class simulates the bundle workflow defined by Python script directly.
+    """
+
+    def __init__(
+        self,
+        workflow_type: str = "inference",
+        config_file: str | None = None,
+        properties_path: str | None = None,
+        meta_file: str | None = None,
+    ):
+        super().__init__(
+            workflow_type=workflow_type, properties_path=properties_path, config_file=config_file, meta_file=meta_file
+        )
+        self.dataflow: dict = {}
+
+    def initialize(self):
+        self._props_vals = {}
+        self._is_initialized = True
+        self.net = UNet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=2,
+            channels=(16, 32, 64, 128),
+            strides=(2, 2, 2),
+            num_res_units=2,
+        ).to(self.device)
+        preprocessing = Compose(
+            [
+                EnsureChannelFirstd(keys=["image"]),
+                ScaleIntensityd(keys="image"),
+                ScaleIntensityRanged(keys="image", a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+            ]
+        )
+        self.dataset = Dataset(data=[self.dataflow], transform=preprocessing)
+        self.postprocessing = Compose([Activationsd(keys="pred", softmax=True), AsDiscreted(keys="pred", argmax=True)])
+
+    def run(self):
+        data = self.dataset[0]
+        inputs = data[CommonKeys.IMAGE].unsqueeze(0).to(self.device)
+        self.net.eval()
+        with torch.no_grad():
+            data[CommonKeys.PRED] = self.inferer(inputs, self.net)
+        self.dataflow.update({CommonKeys.PRED: self.postprocessing(data)[CommonKeys.PRED]})
+
+    def finalize(self):
+        pass
+
+    def get_bundle_root(self):
+        return "."
+
+    def get_device(self):
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    def get_inferer(self):
+        return SlidingWindowInferer(roi_size=self.parser.roi_size, sw_batch_size=1, overlap=0)

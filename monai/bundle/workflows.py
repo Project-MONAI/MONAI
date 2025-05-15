@@ -27,7 +27,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.config import PathLike
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, ensure_tuple
+from monai.utils import BundleProperty, BundlePropertyConfig, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -44,12 +44,14 @@ class BundleWorkflow(ABC):
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `train` for train workflow.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+            default to `None` for only using meta properties.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "meta". If `properties_path` is None, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
@@ -59,17 +61,9 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         workflow_type: str | None = None,
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
@@ -96,30 +90,50 @@ class BundleWorkflow(ABC):
                         )
                         meta_file = None
 
-        workflow_type = workflow if workflow is not None else workflow_type
-        if workflow_type is None and properties_path is None:
-            self.properties = copy(MetaProperties)
-            self.workflow_type = None
-            self.meta_file = meta_file
-            return
+        if workflow_type is not None:
+            if workflow_type.lower() in self.supported_train_type:
+                workflow_type = "train"
+            elif workflow_type.lower() in self.supported_infer_type:
+                workflow_type = "infer"
+            else:
+                raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+
         if properties_path is not None:
             properties_path = Path(properties_path)
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
             with open(properties_path) as json_file:
-                self.properties = json.load(json_file)
-            self.workflow_type = None
-            self.meta_file = meta_file
-            return
-        if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
-            self.properties = {**TrainProperties, **MetaProperties}
-            self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
-            self.properties = {**InferProperties, **MetaProperties}
-            self.workflow_type = "infer"
+                try:
+                    properties = json.load(json_file)
+                    self.properties: dict = {}
+                    if workflow_type is not None and workflow_type in properties:
+                        self.properties = properties[workflow_type]
+                        if "meta" in properties:
+                            self.properties.update(properties["meta"])
+                    elif workflow_type is None:
+                        if "meta" in properties:
+                            self.properties = properties["meta"]
+                            logger.info(
+                                "No workflow type specified, default to load meta properties from property file."
+                            )
+                        else:
+                            logger.warning("No 'meta' key found in properties while workflow_type is None.")
+                except KeyError as e:
+                    raise ValueError(f"{workflow_type} not found in property file {properties_path}") from e
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Error decoding JSON from property file {properties_path}") from e
         else:
-            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+            if workflow_type == "train":
+                self.properties = {**TrainProperties, **MetaProperties}
+            elif workflow_type == "infer":
+                self.properties = {**InferProperties, **MetaProperties}
+            elif workflow_type is None:
+                self.properties = copy(MetaProperties)
+                logger.info("No workflow type and property file specified, default to 'meta' properties.")
+            else:
+                raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
+        self.workflow_type = workflow_type
         self.meta_file = meta_file
 
     @abstractmethod
@@ -226,6 +240,124 @@ class BundleWorkflow(ABC):
         return [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
 
 
+class PythonicWorkflow(BundleWorkflow):
+    """
+    Base class for the pythonic workflow specification in bundle, it can be a training, evaluation or inference workflow.
+    It defines the basic interfaces for the bundle workflow behavior: `initialize`, `finalize`, etc.
+    This also provides the interface to get / set public properties to interact with a bundle workflow through
+    defined `get_<property>` accessor methods or directly defining members of the object.
+    For how to set the properties, users can define the `_set_<property>` methods or directly set the members of the object.
+    The `initialize` method is called to set up the workflow before running. This method sets up internal state
+    and prepares properties. If properties are modified after the workflow has been initialized, `self._is_initialized`
+    is set to `False`. Before running the workflow again, `initialize` should be called to ensure that the workflow is
+    properly set up with the new property values.
+
+    Args:
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for only using meta properties.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "meta". If `properties_path` is None, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
+        config_file: path to the config file, typically used to store hyperparameters.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+
+    """
+
+    supported_train_type: tuple = ("train", "training")
+    supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
+
+    def __init__(
+        self,
+        workflow_type: str | None = None,
+        properties_path: PathLike | None = None,
+        config_file: str | Sequence[str] | None = None,
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
+        **override: Any,
+    ):
+        meta_file = str(Path(os.getcwd()) / "metadata.json") if meta_file is None else meta_file
+        super().__init__(
+            workflow_type=workflow_type, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file
+        )
+        self._props_vals: dict = {}
+        self._set_props_vals: dict = {}
+        self.parser = ConfigParser()
+        if config_file is not None:
+            self.parser.read_config(f=config_file)
+        if self.meta_file is not None:
+            self.parser.read_meta(f=self.meta_file)
+
+        # the rest key-values in the _args are to override config content
+        self.parser.update(pairs=override)
+        self._is_initialized: bool = False
+
+    def initialize(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Initialize the bundle workflow before running.
+        """
+        self._props_vals = {}
+        self._is_initialized = True
+
+    def _get_property(self, name: str, property: dict) -> Any:
+        """
+        With specified property name and information, get the expected property value.
+        If the property is already generated, return from the bucket directly.
+        If user explicitly set the property, return it directly.
+        Otherwise, generate the expected property as a class private property with prefix "_".
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+        """
+        if not self._is_initialized:
+            raise RuntimeError("Please execute 'initialize' before getting any properties.")
+        value = None
+        if name in self._set_props_vals:
+            value = self._set_props_vals[name]
+        elif name in self._props_vals:
+            value = self._props_vals[name]
+        elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
+            id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
+            value = self.parser[id]
+        else:
+            try:
+                value = getattr(self, f"get_{name}")()
+            except AttributeError as e:
+                if property[BundleProperty.REQUIRED]:
+                    raise ValueError(
+                        f"unsupported property '{name}' is required in the bundle properties,"
+                        f"need to implement a method 'get_{name}' to provide the property."
+                    ) from e
+            self._props_vals[name] = value
+        return value
+
+    def _set_property(self, name: str, property: dict, value: Any) -> Any:
+        """
+        With specified property name and information, set value for the expected property.
+        Stores user-reset initialized objects that should not be re-initialized and marks the workflow as not initialized.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+            value: value to set for the property.
+
+        """
+        self._set_props_vals[name] = value
+        self._is_initialized = False
+
+
 class ConfigWorkflow(BundleWorkflow):
     """
     Specification for the config-based bundle workflow.
@@ -258,23 +390,18 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "train". If `properties_path` is None, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
     """
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -285,11 +412,9 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow_type: str | None = "train",
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         **override: Any,
     ) -> None:
-        workflow_type = workflow if workflow is not None else workflow_type
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
             config_root_path = Path(_config_files[0]).parent
@@ -324,7 +449,6 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser.read_config(f=config_file)
         if self.meta_file is not None:
             self.parser.read_meta(f=self.meta_file)
-
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
         self.init_id = init_id
@@ -394,8 +518,23 @@ class ConfigWorkflow(BundleWorkflow):
             ret.extend(wrong_props)
         return ret
 
-    def _run_expr(self, id: str, **kwargs: dict) -> Any:
-        return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
+    def _run_expr(self, id: str, **kwargs: dict) -> list[Any]:
+        """
+        Evaluate the expression or expression list given by `id`. The resolved values from the evaluations are not stored,
+        allowing this to be evaluated repeatedly (eg. in streaming applications) without restarting the hosting process.
+        """
+        ret = []
+        if id in self.parser:
+            # suppose all the expressions are in a list, run and reset the expressions
+            if isinstance(self.parser[id], list):
+                for i in range(len(self.parser[id])):
+                    sub_id = f"{id}{ID_SEP_KEY}{i}"
+                    ret.append(self.parser.get_parsed_content(sub_id, **kwargs))
+                    self.parser.ref_resolver.remove_resolved_content(sub_id)
+            else:
+                ret.append(self.parser.get_parsed_content(id, **kwargs))
+                self.parser.ref_resolver.remove_resolved_content(id)
+        return ret
 
     def _get_prop_id(self, name: str, property: dict) -> Any:
         prop_id = property[BundlePropertyConfig.ID]

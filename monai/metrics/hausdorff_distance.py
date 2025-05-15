@@ -17,18 +17,12 @@ from typing import Any
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_edge_surface_distance,
-    get_surface_distance,
-    ignore_background,
-    prepare_spacing,
-)
-from monai.utils import MetricReduction, convert_data_type, deprecated
+from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
+from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
+__all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance"]
 
 
 class HausdorffDistanceMetric(CumulativeIterationMetric):
@@ -215,32 +209,4 @@ def _compute_percentile_hausdorff_distance(
 
     if 0 <= percentile <= 100:
         return torch.quantile(surface_distance, percentile / 100)
-    raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
-
-
-@deprecated(since="1.3.0", removed="1.5.0")
-def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    distance_metric: str = "euclidean",
-    percentile: float | None = None,
-    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
-) -> float:
-    """
-    This function is used to compute the directed Hausdorff distance.
-    """
-
-    surface_distance: np.ndarray = get_surface_distance(  # type: ignore
-        edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing
-    )
-
-    # for both pred and gt do not have foreground
-    if surface_distance.shape == (0,):
-        return np.nan
-
-    if not percentile:
-        return surface_distance.max()  # type: ignore[no-any-return]
-
-    if 0 <= percentile <= 100:
-        return np.percentile(surface_distance, percentile)  # type: ignore[no-any-return]
     raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

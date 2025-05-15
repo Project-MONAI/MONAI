@@ -1758,13 +1758,13 @@ class AffineGrid(LazyTransform):
         if self.affine is None:
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
-                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
+                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.shear_params:
-                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
+                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.translate_params:
-                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
+                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.scale_params:
-                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
+                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)  # type: ignore[assignment]
         else:
             affine = self.affine  # type: ignore
         affine = to_affine_nd(spatial_dims, affine)
@@ -1780,7 +1780,7 @@ class AffineGrid(LazyTransform):
             grid_ = ((affine @ sc) @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:
             grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
-        return grid_, affine
+        return grid_, affine  # type: ignore[return-value]
 
 
 class RandAffineGrid(Randomizable, LazyTransform):
@@ -3257,7 +3257,7 @@ class GridPatch(Transform, MultiSampleTrait):
             tuple[NdarrayOrTensor, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
-        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)  # type: ignore[operator]
         idx_np = convert_data_type(idx, np.ndarray)[0]
         return image_np[idx], locations[idx_np]
 
