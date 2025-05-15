@@ -275,9 +275,15 @@ class ModelnnUNetWrapper(torch.nn.Module):
         if isinstance(x, MetaTensor):
             if "pixdim" in x.meta:
                 if x.meta["pixdim"].ndim == 1:
-                    properties_or_list_of_properties = {"spacing": x.meta["pixdim"][1:4].tolist()}
+                    if x.meta["pixdim"][0] == 1:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][1:4].tolist()}
+                    else:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][:3].tolist()}
                 else:
-                    properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
+                    if x.meta["pixdim"][0][0] == 1:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
+                    else:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][:3].numpy().tolist()}
             elif "affine" in x.meta:
                 spacing = [
                     abs(x.meta["affine"][0][0].item()),
