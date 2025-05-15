@@ -24,9 +24,9 @@ from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
-from tests.test_utils import dict_product
 from tests.test_utils import (
     assert_allclose,
+    dict_product,
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
