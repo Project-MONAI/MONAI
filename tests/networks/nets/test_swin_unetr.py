@@ -24,7 +24,7 @@ from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
-from tests.test_utils import dict_product  # Added dict_product to imports
+from tests.test_utils import dict_product
 from tests.test_utils import (
     assert_allclose,
     skip_if_downloading_fails,
@@ -71,7 +71,7 @@ TEST_CASE_SWIN_UNETR = [
 
 TEST_CASE_FILTER = [
     [
-        {"img_size": (96, 96, 96), "in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
+        {"in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
         "swinViT.layers1.0.blocks.0.norm1.weight",
         torch.tensor([0.9473, 0.9343, 0.8566, 0.8487, 0.8065, 0.7779, 0.6333, 0.5555]),
     ]
@@ -89,30 +89,13 @@ class TestSWINUNETR(unittest.TestCase):
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
-            SwinUNETR(
-                in_channels=1,
-                out_channels=3,
-                img_size=(128, 128, 128),
-                feature_size=24,
-                norm_name="instance",
-                attn_drop_rate=4,
-            )
+            SwinUNETR(spatial_dims=1, in_channels=1, out_channels=2, feature_size=48, norm_name="instance")
 
         with self.assertRaises(ValueError):
-            SwinUNETR(in_channels=1, out_channels=2, img_size=(96, 96), feature_size=48, norm_name="instance")
+            SwinUNETR(in_channels=1, out_channels=4, feature_size=50, norm_name="instance")
 
         with self.assertRaises(ValueError):
-            SwinUNETR(in_channels=1, out_channels=4, img_size=(96, 96, 96), feature_size=50, norm_name="instance")
-
-        with self.assertRaises(ValueError):
-            SwinUNETR(
-                in_channels=1,
-                out_channels=3,
-                img_size=(85, 85, 85),
-                feature_size=24,
-                norm_name="instance",
-                drop_rate=0.4,
-            )
+            SwinUNETR(in_channels=1, out_channels=3, feature_size=24, norm_name="instance", drop_rate=-1)
 
     def test_patch_merging(self):
         dim = 10
