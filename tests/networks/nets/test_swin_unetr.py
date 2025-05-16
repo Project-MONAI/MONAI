@@ -44,7 +44,6 @@ TEST_CASE_SWIN_UNETR = [
             "spatial_dims": len(params["img_size"]),
             "in_channels": params["in_channels"],
             "out_channels": params["out_channels"],
-            "img_size": params["img_size"],
             "feature_size": params["feature_size"],
             "depths": params["depth"],
             "norm_name": params["norm_name"],
