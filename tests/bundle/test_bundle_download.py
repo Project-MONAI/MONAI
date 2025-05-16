@@ -311,13 +311,11 @@ class TestLoad(unittest.TestCase):
                     progress=False,
                     device=device,
                     source="github",
-                    return_state_dict=False,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-                # test compatibility with return_state_dict=True.
                 model_3 = load(
                     name=bundle_name,
                     model_file=model_file,
@@ -326,7 +324,6 @@ class TestLoad(unittest.TestCase):
                     device=device,
                     net_name=model_name,
                     source="github",
-                    return_state_dict=False,
                     **net_args,
                 )
                 model_3.eval()
