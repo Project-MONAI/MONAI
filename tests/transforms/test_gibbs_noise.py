@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import unittest
 from copy import deepcopy
+from itertools import product
 
 import numpy as np
 from parameterized import parameterized
@@ -21,13 +22,13 @@ from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import GibbsNoise
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
-from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
 shapes = ((128, 64), (64, 48, 80))
 input_types = TEST_NDARRAYS if has_torch_fft else [np.array]
-TEST_CASES = [[p_dict["shape"], p_dict["input_type"]] for p_dict in dict_product(shape=shapes, input_type=input_types)]
+TEST_CASES = list(map(list, product(shape=shapes, input_type=input_types)))
 
 
 class TestGibbsNoise(unittest.TestCase):
