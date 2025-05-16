@@ -239,6 +239,7 @@ def prepare_data_folder_api(data_dir,
         "dataroot": str(data_dir),
     }
     if labels is not None:
+        print("Labels: ", labels)
         data_src["labels"] = labels
     if regions_class_order is not None:
         data_src["regions_class_order"] = regions_class_order
@@ -502,9 +503,12 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
             train_config["train_postprocessing"] = train_config["train_postprocessing_region_based"]
         if is_federated:
             train_config["val_additional_metrics"]["Val_Dice_per_class_Local"]["include_background"] = True
+            train_config["val_key_metric"]["Val_Dice_Local"]["include_background"] = True
         else:
             train_config["val_additional_metrics"]["Val_Dice_per_class"]["include_background"] = True
+            train_config["val_key_metric"]["Val_Dice"]["include_background"] = True
         train_config["train_additional_metrics"]["Train_Dice_per_class"]["include_background"] = True
+        train_config["train_key_metric"]["Train_Dice"]["include_background"] = True
 
     
     train_config["num_classes"] = len(train_config["label_dict"])
