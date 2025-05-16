@@ -333,7 +333,6 @@ class TestLoad(unittest.TestCase):
                 output_3 = model_3.forward(input_tensor)
                 assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
     @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
@@ -342,13 +341,7 @@ class TestLoad(unittest.TestCase):
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(
-                    name=bundle_name,
-                    bundle_dir=tempdir,
-                    source="monaihosting",
-                    progress=False,
-                    device=device,
-                )
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
