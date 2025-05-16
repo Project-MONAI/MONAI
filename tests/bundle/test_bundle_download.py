@@ -268,11 +268,10 @@ class TestLoad(unittest.TestCase):
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
-            # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 bundle_root = os.path.join(tempdir, bundle_name)
                 # load weights
-                weights = load(
+                model_1 = load(
                     name=bundle_name,
                     model_file=model_file,
                     bundle_dir=tempdir,
@@ -288,7 +287,7 @@ class TestLoad(unittest.TestCase):
                 del net_args["_target_"]
                 model = getattr(nets, model_name)(**net_args)
                 model.to(device)
-                model.load_state_dict(weights)
+                model.load_state_dict(model_1)
                 model.eval()
 
                 # prepare data and test
@@ -334,6 +333,7 @@ class TestLoad(unittest.TestCase):
                 output_3 = model_3.forward(input_tensor)
                 assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
+
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
     @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
@@ -369,7 +369,6 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    return_state_dict=False,
                     net_override=net_override,
                 )
 

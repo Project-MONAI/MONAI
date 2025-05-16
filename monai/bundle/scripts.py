@@ -702,8 +702,6 @@ def load(
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
-        4. If `return_state_dict` is True, return model weights, only used for compatibility
-            when `model` and `net_name` are all `None`.
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
