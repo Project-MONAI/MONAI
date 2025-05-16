@@ -280,7 +280,6 @@ class TestLoad(unittest.TestCase):
                     source="github",
                     progress=False,
                     device=device,
-                    return_state_dict=True,
                 )
                 # prepare network
                 with open(os.path.join(bundle_root, bundle_files[2])) as f:
@@ -349,7 +348,6 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    return_state_dict=False,
                 )
 
                 # prepare data and test
