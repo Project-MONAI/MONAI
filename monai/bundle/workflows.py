@@ -27,7 +27,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.config import PathLike
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, ensure_tuple
+from monai.utils import BundleProperty, BundlePropertyConfig, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -45,10 +45,6 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for only using meta properties.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
             properties will default to loading from "meta". If `properties_path` is None, default properties
@@ -65,17 +61,9 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         workflow_type: str | None = None,
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
@@ -102,7 +90,6 @@ class BundleWorkflow(ABC):
                         )
                         meta_file = None
 
-        workflow_type = workflow if workflow is not None else workflow_type
         if workflow_type is not None:
             if workflow_type.lower() in self.supported_train_type:
                 workflow_type = "train"
@@ -403,10 +390,6 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
             properties will default to loading from "train". If `properties_path` is None, default properties
@@ -419,13 +402,6 @@ class ConfigWorkflow(BundleWorkflow):
 
     """
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -436,11 +412,9 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow_type: str | None = "train",
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         **override: Any,
     ) -> None:
-        workflow_type = workflow if workflow is not None else workflow_type
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
             config_root_path = Path(_config_files[0]).parent
