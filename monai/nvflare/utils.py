@@ -496,7 +496,11 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
         if k != "0":
             train_config["label_dict"][str(v)] = k
 
-
+    if "nnUNet_n_proc_DA" in os.environ and int(os.environ["nnUNet_n_proc_DA"]) == 0:
+        train_config["train"]["train_data"] = "$[{'case_identifier':k} for k in @nnunet_trainer.dataloader_train.data_loader._data.identifiers]" 
+    else:
+        train_config["train"]["train_data"] = "$[{'case_identifier':k} for k in @nnunet_trainer.dataloader_train.generator._data.identifiers]"
+        
     if "region_based" in train_extra_configs:
         if "train_postprocessing_label_based" not in train_config:
             train_config["train_postprocessing_label_based"] = train_config["train_postprocessing"]
