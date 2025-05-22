@@ -1,0 +1,4 @@
+/monai/ @Project-MONAI/core-reviewers
+/docs/ @Project-MONAI/core-reviewers
+/tests/ @Project-MONAI/core-reviewers
+/.github/ @KumoLiu
