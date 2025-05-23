@@ -416,6 +416,56 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
+    def test_sample_shape_with_cfg(
+        self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
+    ):
+        stage_1 = None
+
+        if ae_model_type == "AutoencoderKL":
+            stage_1 = AutoencoderKL(**autoencoder_params)
+        if ae_model_type == "VQVAE":
+            stage_1 = VQVAE(**autoencoder_params)
+        if dm_model_type == "SPADEDiffusionModelUNet":
+            stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
+        else:
+            stage_2 = DiffusionModelUNet(**stage_2_params)
+
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        stage_1.to(device)
+        stage_2.to(device)
+        stage_1.eval()
+        stage_2.eval()
+
+        noise = torch.randn(latent_shape).to(device)
+
+        for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
+            inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
+            scheduler.set_timesteps(num_inference_steps=10)
+
+            if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
+                input_shape_seg = list(input_shape)
+                if "label_nc" in stage_2_params.keys():
+                    input_shape_seg[1] = stage_2_params["label_nc"]
+                else:
+                    input_shape_seg[1] = autoencoder_params["label_nc"]
+                input_seg = torch.randn(input_shape_seg).to(device)
+                sample = inferer.sample(
+                    input_noise=noise,
+                    autoencoder_model=stage_1,
+                    diffusion_model=stage_2,
+                    scheduler=scheduler,
+                    seg=input_seg,
+                    cfg=5
+                )
+            else:
+                sample = inferer.sample(
+                    input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler,
+                    cfg=5
+                )
+            self.assertEqual(sample.shape, input_shape)
+
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
