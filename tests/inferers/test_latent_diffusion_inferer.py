@@ -455,12 +455,11 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                     diffusion_model=stage_2,
                     scheduler=scheduler,
                     seg=input_seg,
-                    cfg=5
+                    cfg=5,
                 )
             else:
                 sample = inferer.sample(
-                    input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler,
-                    cfg=5
+                    input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler, cfg=5
                 )
             self.assertEqual(sample.shape, input_shape)
 
