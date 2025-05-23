@@ -892,8 +892,8 @@ class DiffusionInferer(Inferer):
             else:
                 model_input = image
                 conditioning_input = conditioning
-            if mode == "concat" and conditioning is not None:
-                model_input = torch.cat([model_input, conditioning], dim=1)
+            if mode == "concat" and conditioning_input is not None:
+                model_input = torch.cat([model_input, conditioning_input], dim=1)
                 model_output = diffusion_model(
                     model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=None
                 )
