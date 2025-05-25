@@ -322,7 +322,7 @@ class TestLoad(unittest.TestCase):
                     bundle_dir=tempdir,
                     progress=False,
                     device=device,
-                    net_name=model_name,
+                    # net_name=model_name,
                     source="github",
                     **net_args,
                 )
