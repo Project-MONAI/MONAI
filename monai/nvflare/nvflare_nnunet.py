@@ -642,7 +642,10 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
                 mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
-                        label_name = labels[label]
+                        label_id = label
+                        if "(" in label:
+                            label_id = label.replace("(", "[").replace(")", "]")
+                        label_name = labels[label_id]
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
         return validation_summary_dict
