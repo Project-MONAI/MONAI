@@ -593,7 +593,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         trains a single model, and logs validation metrics to MLflow.
     - The function creates and saves nnUNet-compatible checkpoints in the `models` directory.
     """
-    finalize_bundle_api(nnunet_root_dir, bundle_root, trainer_class_name, fold)
+    finalize_bundle_api(nnunet_root_dir, bundle_root, trainer_class_name, fold, is_federated=True)
    
     
     if validate_with_nnunet:
