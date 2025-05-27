@@ -626,7 +626,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         if dataset_name is not None:
             tags["dataset_name"] = dataset_name
 
-
+        print(labels)
         if len(runs) == 0:
             with mlflow.start_run(run_name=f"run_validation_{client_name}", tags=tags):
                 mlflow.log_dict(validation_summary_dict, "validation_summary.json")
