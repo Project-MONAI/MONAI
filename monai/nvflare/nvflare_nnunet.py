@@ -626,13 +626,15 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         if dataset_name is not None:
             tags["dataset_name"] = dataset_name
 
-        print(labels)
         if len(runs) == 0:
             with mlflow.start_run(run_name=f"run_validation_{client_name}", tags=tags):
                 mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
-                        label_name = labels[label]
+                        label_id = label
+                        if "(" in label:
+                            label_id = label.replace("(", "[").replace(")", "]")
+                        label_name = labels[label_id]
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
         else:
