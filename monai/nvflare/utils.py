@@ -199,14 +199,21 @@ def prepare_data_folder_api(data_dir,
             modality_id = list(modality_dict.keys())[0]
             case_id = Path(case[modality_id]).name[: -len(modality_dict[modality_id])]
             data_list["training"][idx]["label"] = str(Path("labelsTr").joinpath(case_id + modality_dict["label"]))
+    elif dataset_format == "monai-label":
+        data_list = data_dir
     else:
         raise ValueError("Dataset format not supported")
 
     for idx, train_case in enumerate(data_list["training"]):
         for modality_id in modality_dict:
-            data_list["training"][idx][modality_id + "_is_file"] = (
-                Path(data_dir).joinpath(data_list["training"][idx][modality_id]).is_file()
-            )
+            if dataset_format == "monai-label":
+                data_list["training"][idx][modality_id + "_is_file"] = (
+                    Path(data_list["training"][idx][modality_id]).is_file()
+                )
+            else:
+                data_list["training"][idx][modality_id + "_is_file"] = (
+                    Path(data_dir).joinpath(data_list["training"][idx][modality_id]).is_file()
+                )
             if "image" not in data_list["training"][idx] and modality_id != "label":
                 data_list["training"][idx]["image"] = data_list["training"][idx][modality_id]
         data_list["training"][idx]["fold"] = 0
@@ -222,7 +229,13 @@ def prepare_data_folder_api(data_dir,
         for j in range(fold_size):
             data_list["training"][i * fold_size + j]["fold"] = i
 
-    datalist_file = Path(data_dir).joinpath(f"{experiment_name}_folds.json")
+    if dataset_format == "monai-label":
+        monai_label_data_dir = Path(data_list["training"][0]["image"]).parent
+        datalist_file = Path(monai_label_data_dir).joinpath(f"{experiment_name}_folds.json")
+        dataroot = str(monai_label_data_dir)
+    else:
+        datalist_file = Path(data_dir).joinpath(f"{experiment_name}_folds.json")
+        dataroot = str(data_dir)
     with open(datalist_file, "w", encoding="utf-8") as f:
         json.dump(data_list, f, ensure_ascii=False, indent=4)
 
@@ -236,11 +249,14 @@ def prepare_data_folder_api(data_dir,
         "modality": modality_list,
         "dataset_name_or_id": dataset_name_or_id,
         "datalist": str(datalist_file),
-        "dataroot": str(data_dir),
+        "dataroot": dataroot,
     }
     if labels is not None:
         print("Labels: ", labels)
         data_src["labels"] = labels
+        for label in labels:
+            if isinstance(labels[label], str):
+                labels[label] = labels[label].split(",")
     if regions_class_order is not None:
         data_src["regions_class_order"] = regions_class_order
 
@@ -429,6 +445,43 @@ def plan_and_preprocess_api(nnunet_root_dir, dataset_name_or_id, trainer_class_n
     return nnunet_plans
 
 def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=False):
+    """
+    Prepare and update MONAI bundle configuration files for training and evaluation, supporting both standard and federated workflows.
+    This function loads, modifies, and saves configuration files (YAML/JSON) for MONAI nnUNet bundles, injecting runtime parameters,
+    handling federated learning specifics, and updating label dictionaries and metrics. It also manages MLflow tracking parameters
+    and ensures all necessary configuration files are present and up-to-date.
+    Parameters
+    ----------
+    bundle_config : dict
+        Dictionary containing bundle configuration parameters. Expected keys:
+            - bundle_root (str): Root directory of the bundle.
+            - tracking_uri (str): URI for MLflow tracking.
+            - mlflow_experiment_name (str): MLflow experiment name.
+            - mlflow_run_name (str): MLflow run name.
+            - dataset_name_or_id (str): Dataset identifier or name.
+            - label_dict (dict): Mapping of label indices to label names.
+            - nnunet_plans_identifier (str, optional): Identifier for nnUNet plans.
+            - nnunet_trainer_class_name (str, optional): Name of the nnUNet trainer class.
+            - dataset_name (str, optional): Human-readable dataset name.
+    train_extra_configs : dict, optional
+        Additional training configuration parameters. May include:
+            - resume_epoch (int): Epoch to resume training from.
+            - region_based (bool): Whether to use region-based postprocessing and metrics.
+        Any other keys will be injected into the training configuration.
+    is_federated : bool, default=False
+        Whether to prepare the configuration for federated learning.
+    Returns
+    -------
+    dict
+        Dictionary containing the updated configuration objects:
+            - "evaluate_config": The evaluation configuration dictionary.
+            - "train_config": The training configuration dictionary.
+    Notes
+    -----
+    - This function modifies and overwrites configuration files in-place within the bundle directory.
+    - Handles both standard and federated learning scenarios, including metric renaming and handler removal for federated mode.
+    - Updates label dictionaries and ensures consistency across all configuration files.
+    """
     with open(Path(bundle_config["bundle_root"]).joinpath("configs", "train.yaml")) as f:
         train_config = yaml.safe_load(f)
         train_config["bundle_root"] = bundle_config["bundle_root"]
@@ -501,7 +554,7 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
     else:
         train_config["train"]["train_data"] = "$[{'case_identifier':k} for k in @nnunet_trainer.dataloader_train.generator._data.identifiers]"
         
-    if "region_based" in train_extra_configs:
+    if train_extra_configs is not None and "region_based" in train_extra_configs:
         if "train_postprocessing_label_based" not in train_config:
             train_config["train_postprocessing_label_based"] = train_config["train_postprocessing"]
             train_config["train_postprocessing"] = train_config["train_postprocessing_region_based"]
@@ -563,8 +616,8 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
         if "nnunet_trainer_class_name" in bundle_config:
             mlflow_params["nnunet_trainer_class_name"] = bundle_config["nnunet_trainer_class_name"]
         
-        if "dataset_name" in bundle_config:
-            mlflow_params["dataset_name"] = bundle_config["dataset_name"]
+        if "dataset_name_or_id" in bundle_config:
+            mlflow_params["dataset_name_or_id"] = bundle_config["dataset_name_or_id"]
 
     with open(Path(bundle_config["bundle_root"]).joinpath("nnUNet", "params.yaml"), "w") as f:
         yaml.dump(mlflow_params, f)
