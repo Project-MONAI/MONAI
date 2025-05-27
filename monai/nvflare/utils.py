@@ -378,7 +378,6 @@ def compute_validation_metrics(gt_folder, pred_folder, n_labels=1):
                     {
                         "prediction_file": os.path.join(pred_folder, file),
                         "metrics": {
-                        "1": {}
                         }
                     }
                 )
@@ -408,6 +407,7 @@ def compute_validation_metrics(gt_folder, pred_folder, n_labels=1):
         )
         dice = dice_fn(to_onehot(pred_array[None])[None], to_onehot(gt_array[None])[None])
         for label_id in range(1,1+n_labels):
+            summary['metric_per_case'][idx]["metrics"][str(label_id)] = {}
             summary['metric_per_case'][idx]["metrics"][str(label_id)]["HD95"] = hd_95[label_id-1][0].item()
             summary['metric_per_case'][idx]["metrics"][str(label_id)]["ASD"] = asd[label_id-1][0].item()
             summary['metric_per_case'][idx]["metrics"][str(label_id)]["Dice"] = dice[label_id-1][0].item()
