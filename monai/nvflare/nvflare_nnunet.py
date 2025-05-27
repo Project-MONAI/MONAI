@@ -634,6 +634,9 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
                         label_id = label
                         if "(" in label:
                             label_id = label.replace("(", "[").replace(")", "]")
+                        if label_id not in labels:
+                            logging.warning(f"Label {label_id} not found in labels dictionary. Skipping metric logging.")
+                            continue
                         label_name = labels[label_id]
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
@@ -645,6 +648,9 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
                         label_id = label
                         if "(" in label:
                             label_id = label.replace("(", "[").replace(")", "]")
+                        if label_id not in labels:
+                            logging.warning(f"Label {label_id} not found in labels dictionary. Skipping metric logging.")
+                            continue
                         label_name = labels[label_id]
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
