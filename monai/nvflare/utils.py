@@ -407,13 +407,10 @@ def compute_validation_metrics(gt_folder, pred_folder, n_labels=1):
         )
         dice = dice_fn(to_onehot(pred_array[None])[None], to_onehot(gt_array[None])[None])
         for label_id in range(1,1+n_labels):
-            print(hd_95)
-            print(asd)
-            print(dice)
             summary['metric_per_case'][idx]["metrics"][str(label_id)] = {}
-            summary['metric_per_case'][idx]["metrics"][str(label_id)]["HD95"] = hd_95[label_id-1][0].item()
-            summary['metric_per_case'][idx]["metrics"][str(label_id)]["ASD"] = asd[label_id-1][0].item()
-            summary['metric_per_case'][idx]["metrics"][str(label_id)]["Dice"] = dice[label_id-1][0].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["HD95"] = hd_95[0][label_id-1].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["ASD"] = asd[0][label_id-1].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["Dice"] = dice[0][label_id-1].item()
 
     for label_id in range(1,1+n_labels):
         summary["mean"] = {}
@@ -663,7 +660,7 @@ def train_api(nnunet_root_dir, dataset_name_or_id, experiment_name, trainer_clas
 def validation_api(nnunet_root_dir, dataset_name_or_id, trainer_class_name="nnUNetTrainer", nnunet_plans_name="nnUNetPlans", fold=0):
     data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
-    #runner.train_single_model(config="3d_fullres", fold=fold, val="")
+    runner.train_single_model(config="3d_fullres", fold=fold, val="")
     dataset_file = os.path.join(
         runner.nnunet_results,
         runner.dataset_name,
