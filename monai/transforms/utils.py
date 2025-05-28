@@ -27,6 +27,7 @@ from torch import Tensor
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_obj import get_meta_dict_name
 from monai.data.utils import to_affine_nd
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
@@ -2142,7 +2143,11 @@ def sync_meta_info(key, data_dict, t: bool = True):
     d = dict(data_dict)
 
     # update meta dicts
-    meta_dict_key = PostFix.meta(key)
+    default_meta_dict_key = PostFix.meta(key)
+    if default_meta_dict_key not in d:
+        meta_dict_key = get_meta_dict_name(key, d)
+    else:
+        meta_dict_key = default_meta_dict_key
     if meta_dict_key not in d:
         d[meta_dict_key] = monai.data.MetaTensor.get_default_meta()
     if not isinstance(d[key], monai.data.MetaTensor):

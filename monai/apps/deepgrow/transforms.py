@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import IndexSelection, KeysCollection, NdarrayOrTensor
+from monai.data.meta_obj import get_meta_dict_name
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
@@ -546,7 +547,12 @@ class AddGuidanceFromPointsd(Transform):
 
     def __call__(self, data):
         d = dict(data)
-        meta_dict_key = self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"
+        meta_dict_key = self.meta_keys
+        if not meta_dict_key:
+            candidate_meta_key = f"{self.ref_image}_{self.meta_key_postfix}"
+            meta_dict = d.get(candidate_meta_key, None)
+            if meta_dict is None:
+                meta_dict_key = get_meta_dict_name(self.ref_image, d)
         if meta_dict_key not in d:
             raise RuntimeError(f"Missing meta_dict {meta_dict_key} in data!")
         if "spatial_shape" not in d[meta_dict_key]:
@@ -742,7 +748,10 @@ class ResizeGuidanced(Transform):
     def __call__(self, data: Any) -> dict:
         d = dict(data)
         guidance = d[self.guidance]
-        meta_dict: dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
+        # meta_dict: dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: dict = d.get(self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}", None)
+        if meta_dict is None:
+            meta_dict = d[get_meta_dict_name(self.ref_image, d)]
         current_shape = d[self.ref_image].shape[1:]
         cropped_shape = meta_dict[self.cropped_shape_key][1:]
         factor = np.divide(current_shape, cropped_shape)
@@ -852,7 +861,8 @@ class RestoreLabeld(MapTransform):
 
     def __call__(self, data: Any) -> dict:
         d = dict(data)
-        meta_dict: dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: dict = d.get(f"{self.ref_image}_{self.meta_key_postfix}",
+                                d[get_meta_dict_name(self.ref_image, d)])
 
         for key, mode, align_corners, meta_key in self.key_iterator(d, self.mode, self.align_corners, self.meta_keys):
             image = d[key]
@@ -969,5 +979,8 @@ class Fetch2DSliced(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             img_slice, idx = self._apply(d[key], guidance)
             d[key] = img_slice
-            d[meta_key or f"{key}_{meta_key_postfix}"]["slice_idx"] = idx
+            # d[meta_key or f"{key}_{meta_key_postfix}"]["slice_idx"] = idx
+            if meta_key not in d:
+                meta_key = get_meta_dict_name(key, d)
+            d[meta_key] = idx
         return d

@@ -41,6 +41,7 @@ from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
+from monai.data.meta_obj import get_meta_dict_name
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.data.utils import orientation_ras_lps
 from monai.transforms import Flip, RandFlip, RandZoom, Rotate90, SpatialCrop, Zoom
@@ -308,7 +309,9 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         elif meta_key in d:
             meta_dict = d[meta_key]
         else:
-            raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
+            meta_key = get_meta_dict_name(self.box_ref_image_keys, d)
+            if meta_key not in d:
+                raise ValueError(f"{self.image_meta_key} is not found. Please check whether it is the correct the image meta key.")
         if "affine" not in meta_dict:
             raise ValueError(
                 f"'affine' is not found in {meta_key}. \

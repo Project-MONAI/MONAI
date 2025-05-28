@@ -24,7 +24,7 @@ import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import get_track_meta
+from monai.data.meta_obj import get_meta_dict_name, get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
     ClipIntensityPercentiles,
@@ -358,6 +358,8 @@ class ShiftIntensityd(MapTransform):
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            if meta_key not in d:
+                meta_key = get_meta_dict_name(key, d)
             factor: float | None = d[meta_key].get(factor_key) if meta_key in d else None
             offset = None if factor is None else self.shifter.offset * factor
             d[key] = self.shifter(d[key], offset=offset)
