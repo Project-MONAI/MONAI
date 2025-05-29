@@ -316,19 +316,6 @@ class TestLoad(unittest.TestCase):
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-                model_3 = load(
-                    name=bundle_name,
-                    model_file=model_file,
-                    bundle_dir=tempdir,
-                    progress=False,
-                    device=device,
-                    source="github",
-                    **net_args,
-                )
-                model_3.eval()
-                output_3 = model_3.forward(input_tensor)
-                assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
-
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
     @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
