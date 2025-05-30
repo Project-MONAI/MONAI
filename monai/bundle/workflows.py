@@ -226,7 +226,7 @@ class BundleWorkflow(ABC):
         if self.properties is None:
             self.properties = {}
         if name in self.properties:
-            logger.warn(f"property '{name}' already exists in the properties list, overriding it.")
+            logger.warning(f"property '{name}' already exists in the properties list, overriding it.")
         self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
 
     def check_properties(self) -> list[str] | None:
@@ -421,7 +421,7 @@ class ConfigWorkflow(BundleWorkflow):
             for _config_file in _config_files:
                 _config_file = Path(_config_file)
                 if _config_file.parent != config_root_path:
-                    logger.warn(
+                    logger.warning(
                         f"Not all config files are in {config_root_path}. If logging_file and meta_file are"
                         f"not specified, {config_root_path} will be used as the default config root directory."
                     )
@@ -434,11 +434,11 @@ class ConfigWorkflow(BundleWorkflow):
         self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is False:
-            logger.warn(f"Logging file is set to {logging_file}, skipping logging.")
+            logger.warning(f"Logging file is set to {logging_file}, skipping logging.")
         else:
             if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
-                    logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
+                    logger.warning(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
@@ -503,17 +503,17 @@ class ConfigWorkflow(BundleWorkflow):
         """
         ret = super().check_properties()
         if self.properties is None:
-            logger.warn("No available properties had been set, skipping check.")
+            logger.warning("No available properties had been set, skipping check.")
             return None
         if ret:
-            logger.warn(f"Loaded bundle does not contain the following required properties: {ret}")
+            logger.warning(f"Loaded bundle does not contain the following required properties: {ret}")
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
         for n, p in self.properties.items():
             if not p.get(BundleProperty.REQUIRED, False) and not self._check_optional_id(name=n, property=p):
                 wrong_props.append(n)
         if wrong_props:
-            logger.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+            logger.warning(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
         if ret is not None:
             ret.extend(wrong_props)
         return ret
