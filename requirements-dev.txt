@@ -20,7 +20,7 @@ pyflakes
 black>=25.1.0
 isort>=5.1, <6.0
 ruff
-pytype>=2020.6.1; platform_system != "Windows"
+pytype>=2020.6.1, <=2024.4.11; platform_system != "Windows"
 types-setuptools
 mypy>=1.5.0, <1.12.0
 ninja

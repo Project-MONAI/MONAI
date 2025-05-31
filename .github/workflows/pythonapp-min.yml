@@ -124,7 +124,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: ['2.4.1', '2.5.1', '2.6.0']  # FIXME: add 'latest' back once PyTorch 2.7 issues are resolved
+        pytorch-version: ['2.4.1', '2.5.1', '2.6.0', 'latest']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4

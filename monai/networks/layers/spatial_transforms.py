@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Sequence
 
 import torch
@@ -526,6 +527,11 @@ class AffineTransform(nn.Module):
             ValueError: When affine and image batch dimension differ.
 
         """
+
+        # In some cases it's necessary to convert inputs to grid_sample from float64 to float32 to work around known
+        # issues with PyTorch, see https://github.com/Project-MONAI/MONAI/pull/8429
+        convert_f32 = sys.platform == "win32" and src.dtype == torch.float64 and src.device == torch.device("cpu")
+
         # validate `theta`
         if not isinstance(theta, torch.Tensor):
             raise TypeError(f"theta must be torch.Tensor but is {type(theta).__name__}.")
@@ -582,11 +588,17 @@ class AffineTransform(nn.Module):
             )
 
         grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
+
+        _input = src.contiguous()
+        if convert_f32:
+            _input = _input.to(torch.float32)
+            grid = grid.to(torch.float32)
+
         dst = nn.functional.grid_sample(
-            input=src.contiguous(),
-            grid=grid,
-            mode=self.mode,
-            padding_mode=self.padding_mode,
-            align_corners=self.align_corners,
+            input=_input, grid=grid, mode=self.mode, padding_mode=self.padding_mode, align_corners=self.align_corners
         )
+
+        if convert_f32:
+            dst = dst.to(torch.float64)
+
         return dst
