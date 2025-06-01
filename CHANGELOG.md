@@ -5,6 +5,164 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2025-06-06
+
+## Supported Dependency Versions
+
+This release adds support for NumPy 2.0 and PyTorch 2.6. We plan to add support for PyTorch 2.7 in an upcoming version once some compatibility issues have been addressed. 
+
+As stated in the updated [README.md](./README.md) file, MONAI's policy for the support of dependency versions has been updated for clarity. 
+
+MONAI will continue to support [currently supported versions of Python](https://devguide.python.org/versions), and for other dependencies the following apply:
+
+* Major releases of MONAI will have dependency versions stated for them. The current state of the `dev` branch in this repository is the unreleased development version of MONAI which typically will support current versions of dependencies and include updates and bug fixes to do so.
+* PyTorch support covers [the current version](https://github.com/pytorch/pytorch/releases) plus three previous minor versions. If compatibility issues with a PyTorch version and other dependencies arise, support for a version may be delayed until a major release.
+* Our support policy for other dependencies adheres for the most part to [SPEC0](https://scientific-python.org/specs/spec-0000), where dependency versions are supported where possible for up to two years. Discovered vulnerabilities or defects may require certain versions to be explicitly not supported.
+* See the `requirements*.txt` files for dependency version information.
+
+## MAISI Update: Introducing MAISI Version maisi3d-rflow
+We are excited to announce the release of MAISI Version _maisi3d-rflow_. This update brings significant improvements over the previous version, _maisi3d-ddpm_, with a remarkable 33x acceleration in latent diffusion model inference speed. The MAISI VAE remains unchanged. Here are the key differences:
+  1. Scheduler Update:
+  
+     * _maisi3d-ddpm_: Uses the basic DDPM noise scheduler.
+
+     * _maisi3d-rflow_: Introduces the Rectified Flow scheduler, allowing diffusion model inference to be 33 times faster.
+  2. Training Data Preparation:
+    
+     * _maisi3d-ddpm_: Requires training images to be labeled with body regions (specifically “top_region_index” and “bottom_region_index”).
+
+     * _maisi3d-rflow_: No such labeling is required, making it easier to prepare the training data.
+  3. Image Quality:
+    
+     * For the released model weights, _maisi3d-rflow_ generates better-quality images for head regions and smaller output volumes compared to _maisi3d-ddpm_. For other regions, the image quality is comparable.
+  4. Modality Input:
+    
+     * _maisi3d-rflow_ adds a new modality input to the diffusion model, offering flexibility for future extensions to other modalities. Currently, this input is set to always equal 1, as this version supports CT generation exclusively.
+
+
+## What's Changed
+### Added
+* Add platform-specific constraints to setup.cfg (#8260)
+* Add PythonicWorkflow (#8151)
+* Add SM architecture version check (#8199)
+* Add MedNext implementation (#8004)
+* Added a top button to CONSTRIBUTING.md by @Akhsuna07 in https://github.com/Project-MONAI/MONAI/pull/8163
+* Add wendell-hom to user list to trigger blossom-ci [skip ci] by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8184
+* Adding CODEOWNERS by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8457
+* Restormer Implementation by @phisanti in https://github.com/Project-MONAI/MONAI/pull/8312
+* Add rectified flow noise scheduler for accelerated diffusion model by @Can-Zhao in https://github.com/Project-MONAI/MONAI/pull/8374
+* add prediction type for rflow scheduler by @Can-Zhao in https://github.com/Project-MONAI/MONAI/pull/8386
+* Enable gpu load nifti by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8188
+* Add Average Precision to metrics by @thibaultdvx in https://github.com/Project-MONAI/MONAI/pull/8089
+* Implementation of a Masked Autoencoder for representation learning by @Lucas-rbnt in https://github.com/Project-MONAI/MONAI/pull/8152
+* Implement TorchIO transforms wrapper analogous to TorchVision transfo… by @SomeUserName1 in https://github.com/Project-MONAI/MONAI/pull/7579
+* 8328 nnunet bundle integration by @SimoneBendazzoli93 in https://github.com/Project-MONAI/MONAI/pull/8329
+* Adding Support Policy + Doc Updates by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8458
+* Classifier free guidance by @virginiafdez in https://github.com/Project-MONAI/MONAI/pull/8460
+
+### Fixed
+* Fix unittest by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8161
+* Fix Ruff Numpy2 deprecation rules by @jamesobutler in https://github.com/Project-MONAI/MONAI/pull/8179
+* Fix `torch.load()` frequently warning in PersistentDataset and GDSDataset by @bnbqq8 in https://github.com/Project-MONAI/MONAI/pull/8177
+* Fix the logging of a nested dictionary metric in MLflow by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8169
+* Fix ImageFilter to allow Gaussian filter without filter_size by @EloiNavet in https://github.com/Project-MONAI/MONAI/pull/8189
+* Fixed fold_constants, test_handler switched to onnx by @borisfom in https://github.com/Project-MONAI/MONAI/pull/8211
+* Fixing a minor bug in a test by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8223
+* Fix TypeError in meshgrid by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8252
+* bug: Fix PatchMerging duplicate merging by @pooya-mohammadi in https://github.com/Project-MONAI/MONAI/pull/8285
+* Fix test load image issue by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8297
+* Fix bundle download error from ngc source by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8307
+* Fix deprecated usage in zarr by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8313
+* 8201 Fix DataFrame subsets indexing in CSVDataset() by @bartosz-grabowski in https://github.com/Project-MONAI/MONAI/pull/8351
+* Fix `packaging` imports in version comparison logic by @nkaenzig in https://github.com/Project-MONAI/MONAI/pull/8347
+* Fix CommonKeys docstring by @bartosz-grabowski in https://github.com/Project-MONAI/MONAI/pull/8342
+* Fix: correctly apply fftshift to real-valued data inputs by @XwK-P in https://github.com/Project-MONAI/MONAI/pull/8407
+* Fix OptionalImportError: required package `openslide` is not installed by @dzenanz in https://github.com/Project-MONAI/MONAI/pull/8419
+* :bug: fix cosine noise scheduler by @slavaheroes in https://github.com/Project-MONAI/MONAI/pull/8427
+* Fix AutoencoderKL docstrings. by @virginiafdez in https://github.com/Project-MONAI/MONAI/pull/8445
+* Inverse Threading Fix by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8418
+* 8267 fix normalize intensity by @advcu987 in https://github.com/Project-MONAI/MONAI/pull/8286
+* 8354 fix path at test onnx trt export by @garciadias in https://github.com/Project-MONAI/MONAI/pull/8361
+
+### Changed
+* [DOC] Update README.md by @Smoothengineer in https://github.com/Project-MONAI/MONAI/pull/8157
+* Streamlined Rearrange in SpatialAttentionBlock by @borisfom in https://github.com/Project-MONAI/MONAI/pull/8130
+* Optimize VISTA3D by @binliunls in https://github.com/Project-MONAI/MONAI/pull/8123
+* Skip torch trt convert test with torch newer than or equal to 2.5.0 by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8165
+* Enable redirection of all loggers by configuring a FileHandler within the bundle by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8142
+* Apply pyupgrade fixes for Python 3.9+ syntax by @jamesobutler in https://github.com/Project-MONAI/MONAI/pull/8150
+* Update base image to 2410 by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8164
+* TRT support for MAISI by @borisfom in https://github.com/Project-MONAI/MONAI/pull/8153
+* 8134 Add unit test for responsive inference by @Nic-Ma in https://github.com/Project-MONAI/MONAI/pull/8146
+* SwinUNETR refactor to accept additional parameters by @EloiNavet in https://github.com/Project-MONAI/MONAI/pull/8212
+* Allow an arbitrary mask to be used in the self attention by @Lucas-rbnt in https://github.com/Project-MONAI/MONAI/pull/8235
+* Bump codecov/codecov-action from 4 to 5 by @dependabot in https://github.com/Project-MONAI/MONAI/pull/8245
+* Docs: update brats classes description by @vectorvp in https://github.com/Project-MONAI/MONAI/pull/8246
+* Change default value of `patch_norm` to False in `SwinUNETR` by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8249
+* Modify Dice, Jaccard and Tversky losses by @zifuwanggg in https://github.com/Project-MONAI/MONAI/pull/8138
+* Modify Workflow to Allow IterableDataset Inputs by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8263
+* enhance download_and_extract by @Jerome-Hsieh in https://github.com/Project-MONAI/MONAI/pull/8216
+* 8274-mitigate-gpu-load-check by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8275
+* 8274 Relax gpu load check by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8282
+* Using LocalStore in  Zarr v3 by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8299
+* update pydicom reader to enable gpu load by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8283
+* Zarr compression tests only with versions before 3.0 by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8319
+* Changing utils.py to test_utils.py by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8335
+* 8185 - Refactor test by @garciadias in https://github.com/Project-MONAI/MONAI/pull/8231
+* Recursive Item Mapping for Nested Lists in Compose  by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8187
+* Bump min torch to 1.13.1 to mitigate CVE-2022-45907 unsafe usage of eval by @jamesobutler in https://github.com/Project-MONAI/MONAI/pull/8296
+* Inferer modification - save_intermediates clashes with latent shape adjustment in latent diffusion inferers by @virginiafdez in https://github.com/Project-MONAI/MONAI/pull/8343
+* Removed outdated `torch` version checks from transform functions by @nkaenzig in https://github.com/Project-MONAI/MONAI/pull/8359
+* Solves path problem in test_bundle_trt_export.py by @garciadias in https://github.com/Project-MONAI/MONAI/pull/8357
+* Modify ControlNet inferer so that it takes in context when the diffus… by @virginiafdez in https://github.com/Project-MONAI/MONAI/pull/8360
+* Update monaihosting download method by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8364
+* Bump torch minimum to mitigate CVE-2024-31580 & CVE-2024-31583 and enable numpy 2 compatibility by @jamesobutler in https://github.com/Project-MONAI/MONAI/pull/8368
+* Auto3DSeg algo_template hash update by @monai-bot in https://github.com/Project-MONAI/MONAI/pull/8378
+* Enable Pytorch 2.6 by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8309
+* Auto3DSeg algo_template hash update by @monai-bot in https://github.com/Project-MONAI/MONAI/pull/8393
+* Auto3DSeg algo_template hash update by @monai-bot in https://github.com/Project-MONAI/MONAI/pull/8397
+* Update Dice Metric Docs by @ericspod in https://github.com/Project-MONAI/MONAI/pull/8388
+* Auto3DSeg algo_template hash update by @monai-bot in https://github.com/Project-MONAI/MONAI/pull/8406
+* 8394 Update bundle download API by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8403
+* Add Skip test in TestTranschex by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8416
+* Update get latest bundle version function by @yiheng-wang-nv in https://github.com/Project-MONAI/MONAI/pull/8420
+* Temporarily Restrict setuptools Version to 79.0.1 by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8441
+* Update default overlap value in occlusion_sensitivity to 0.6 by @kavin2003 in https://github.com/Project-MONAI/MONAI/pull/8446
+* Enable code coverage comments on PRs in codecov configuration by @chrislevn in https://github.com/Project-MONAI/MONAI/pull/8402
+* Migrate to modern Python Logger API by @emmanuel-ferdman in https://github.com/Project-MONAI/MONAI/pull/8449
+
+### Deprecated
+### Removed
+* Remove deprecated functionality for v1.5 by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8430
+* Remove deprecated `return_state_dict ` in bundle `load` by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8454
+* Remove deprecated `net_name` in test file by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8461
+* Remove unused test cases in bundle load by @KumoLiu in https://github.com/Project-MONAI/MONAI/pull/8463
+* selfattention block: Remove the fc linear layer if it is not used by @johnzielke in https://github.com/Project-MONAI/MONAI/pull/8325
+
+
+## New Contributors
+* @Smoothengineer made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8157
+* @Akhsuna07 made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8163
+* @bnbqq8 made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8177
+* @EloiNavet made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8189
+* @vectorvp made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8246
+* @zifuwanggg made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8138
+* @Jerome-Hsieh made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8216
+* @pooya-mohammadi made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8285
+* @advcu987 made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8286
+* @garciadias made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8231
+* @nkaenzig made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8347
+* @bartosz-grabowski made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8342
+* @thibaultdvx made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8089
+* @phisanti made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8312
+* @SimoneBendazzoli93 made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8329
+* @XwK-P made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8407
+* @slavaheroes made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8427
+* @kavin2003 made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8446
+* @chrislevn made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8402
+* @emmanuel-ferdman made their first contribution in https://github.com/Project-MONAI/MONAI/pull/8449
+
+
 ## [1.4.0] - 2024-10-17
 ## What's Changed
 ### Added
