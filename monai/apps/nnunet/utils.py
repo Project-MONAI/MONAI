@@ -157,7 +157,10 @@ def create_new_dataset_json(
         new_json_data["channel_names"][str(_j)] = modality[_j]
 
     new_json_data["labels"] = {}
-
+    new_json_data["labels"]["background"] = 0
+    for _j in range(num_foreground_classes):
+        new_json_data["labels"][f"class{_j + 1}"] = _j + 1
+        
     # new_json_data["numTraining"] = len(datalist_json["training"])
     new_json_data["numTraining"] = num_training_data
     new_json_data["file_ending"] = ".nii.gz"
