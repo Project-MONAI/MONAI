@@ -168,7 +168,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
     Notes
     -----
-    This class integrates nnUNet model with MONAI framework by loading necessary configurations,
+    This class integrates nnUNet model with MONAI framework by loading configurations,
     restoring network architecture, and setting up the predictor for inference.
     """
 
