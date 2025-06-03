@@ -225,7 +225,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 parameters.append(monai_checkpoint)
 
         configuration_manager = plans_manager.get_configuration(configuration_name)
-        
+
         import nnunetv2
         from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
         from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
