@@ -83,12 +83,7 @@ class TestNgcBundleDownload(unittest.TestCase):
                 self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
 
                 model = load(
-                    name=bundle_name,
-                    source="ngc",
-                    version=version,
-                    bundle_dir=tempdir,
-                    remove_prefix=remove_prefix,
-                    return_state_dict=False,
+                    name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
                 )
                 assert_allclose(
                     model.state_dict()[TESTCASE_WEIGHTS["key"]],

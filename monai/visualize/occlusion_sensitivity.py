@@ -80,7 +80,7 @@ class OcclusionSensitivity:
         n_batch: int = 16,
         verbose: bool = True,
         mode: str | float | Callable = "gaussian",
-        overlap: float = 0.25,
+        overlap: float = 0.6,
         activate: bool | Callable = True,
     ) -> None:
         """

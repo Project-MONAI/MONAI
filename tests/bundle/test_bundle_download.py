@@ -63,6 +63,8 @@ TEST_CASE_5 = [
 
 TEST_CASE_6 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
 
+TEST_CASE_6_HF = [["models/model.pt", "configs/train.yaml"], "mednist_ddpm", "1.0.1"]
+
 TEST_CASE_7 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
@@ -193,6 +195,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
@@ -239,6 +242,7 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(_list_latest_versions(data), ["1.1", "1.0"])
 
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
     def test_download_monaihosting(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
@@ -264,11 +268,10 @@ class TestLoad(unittest.TestCase):
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
-            # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 bundle_root = os.path.join(tempdir, bundle_name)
                 # load weights
-                weights = load(
+                model_1 = load(
                     name=bundle_name,
                     model_file=model_file,
                     bundle_dir=tempdir,
@@ -276,7 +279,6 @@ class TestLoad(unittest.TestCase):
                     source="github",
                     progress=False,
                     device=device,
-                    return_state_dict=True,
                 )
                 # prepare network
                 with open(os.path.join(bundle_root, bundle_files[2])) as f:
@@ -285,7 +287,7 @@ class TestLoad(unittest.TestCase):
                 del net_args["_target_"]
                 model = getattr(nets, model_name)(**net_args)
                 model.to(device)
-                model.load_state_dict(weights)
+                model.load_state_dict(model_1)
                 model.eval()
 
                 # prepare data and test
@@ -309,43 +311,20 @@ class TestLoad(unittest.TestCase):
                     progress=False,
                     device=device,
                     source="github",
-                    return_state_dict=False,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-                # test compatibility with return_state_dict=True.
-                model_3 = load(
-                    name=bundle_name,
-                    model_file=model_file,
-                    bundle_dir=tempdir,
-                    progress=False,
-                    device=device,
-                    net_name=model_name,
-                    source="github",
-                    return_state_dict=False,
-                    **net_args,
-                )
-                model_3.eval()
-                output_3 = model_3.forward(input_tensor)
-                assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
-
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_load_weights_with_net_override(self, bundle_name, device, net_override):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(
-                    name=bundle_name,
-                    bundle_dir=tempdir,
-                    source="monaihosting",
-                    progress=False,
-                    device=device,
-                    return_state_dict=False,
-                )
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
@@ -366,7 +345,6 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    return_state_dict=False,
                     net_override=net_override,
                 )
 

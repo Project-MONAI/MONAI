@@ -135,7 +135,13 @@ def create_new_data_copy(
 
 
 def create_new_dataset_json(
-    modality: str, num_foreground_classes: int, num_input_channels: int, num_training_data: int, output_filepath: str
+    modality: str,
+    num_foreground_classes: int,
+    num_input_channels: int,
+    num_training_data: int,
+    output_filepath: str,
+    labels: dict = None,
+    regions_class_order: list = None,
 ) -> None:
     """
     Create a new copy of dataset .json to meet the requirements of nnU-Net V2
@@ -157,9 +163,16 @@ def create_new_dataset_json(
         new_json_data["channel_names"][str(_j)] = modality[_j]
 
     new_json_data["labels"] = {}
-    new_json_data["labels"]["background"] = 0
-    for _j in range(num_foreground_classes):
-        new_json_data["labels"][f"class{_j + 1}"] = _j + 1
+
+    if labels is not None:
+        new_json_data["labels"] = labels
+    else:
+        new_json_data["labels"]["background"] = 0
+        for _j in range(num_foreground_classes):
+            new_json_data["labels"][f"class{_j + 1}"] = _j + 1
+
+    if regions_class_order is not None:
+        new_json_data["regions_class_order"] = regions_class_order
 
     # new_json_data["numTraining"] = len(datalist_json["training"])
     new_json_data["numTraining"] = num_training_data
