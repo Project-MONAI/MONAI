@@ -177,9 +177,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
         predictor: object,
         model_folder: Union[str, Path],
         model_name: str = "model.pt",
-        dataset_json: dict = None,
-        plans: dict = None,
-        nnunet_config: dict = None,
+        dataset_json: Optional[dict] = None,
+        plans: Optional[dict] = None,
+        nnunet_config: Optional[dict] = None,
     ):  # type: ignore
         super().__init__()
         self.predictor = predictor
@@ -331,9 +331,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
 def get_nnunet_monai_predictor(
     model_folder: Union[str, Path],
     model_name: str = "model.pt",
-    dataset_json: dict = None,
-    plans: dict = None,
-    nnunet_config: dict = None,
+    dataset_json: Optional[dict] = None,
+    plans: Optional[dict] = None,
+    nnunet_config: Optional[dict] = None,
 ) -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
