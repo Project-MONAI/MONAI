@@ -152,6 +152,12 @@ class ModelnnUNetWrapper(torch.nn.Module):
         The folder path where the model and related files are stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
+    dataset_json : dict, optional
+        The dataset JSON file containing dataset information.
+    plans : dict, optional
+        The plans JSON file containing model configuration.
+    nnunet_config : dict, optional
+        The nnUNet configuration dictionary containing model parameters.
 
     Attributes
     ----------
@@ -166,7 +172,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
     restoring network architecture, and setting up the predictor for inference.
     """
 
-    def __init__(self, predictor: object, model_folder: Union[str, Path], model_name: str = "model.pt"):  # type: ignore
+    def __init__(self, predictor: object, model_folder: Union[str, Path], model_name: str = "model.pt", dataset_json: dict = None, plans: dict = None, nnunet_config: dict = None):  # type: ignore
         super().__init__()
         self.predictor = predictor
 
@@ -175,23 +181,31 @@ class ModelnnUNetWrapper(torch.nn.Module):
         from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
         # Block Added from nnUNet/nnunetv2/inference/predict_from_raw_data.py#nnUNetPredictor
-        dataset_json = load_json(join(Path(model_training_output_dir).parent, "dataset.json"))
-        plans = load_json(join(Path(model_training_output_dir).parent, "plans.json"))
+        if dataset_json is None:
+            dataset_json = load_json(join(Path(model_training_output_dir).parent, "dataset.json"))
+        if plans is None:
+            plans = load_json(join(Path(model_training_output_dir).parent, "plans.json"))
         plans_manager = PlansManager(plans)
 
         parameters = []
 
-        checkpoint = torch.load(
-            join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"), map_location=torch.device("cpu")
-        )
-        trainer_name = checkpoint["trainer_name"]
-        configuration_name = checkpoint["init_args"]["configuration"]
-        inference_allowed_mirroring_axes = (
-            checkpoint["inference_allowed_mirroring_axes"]
-            if "inference_allowed_mirroring_axes" in checkpoint.keys()
-            else None
-        )
-        if Path(model_training_output_dir).joinpath(model_name).is_file():
+        if nnunet_config is None:
+            checkpoint = torch.load(
+                join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"), map_location=torch.device("cpu")
+            )
+            trainer_name = checkpoint["trainer_name"]
+            configuration_name = checkpoint["init_args"]["configuration"]
+            inference_allowed_mirroring_axes = (
+                checkpoint["inference_allowed_mirroring_axes"]
+                if "inference_allowed_mirroring_axes" in checkpoint.keys()
+                else None
+            )
+        else:
+            trainer_name = nnunet_config["trainer_name"]
+            configuration_name = nnunet_config["configuration"]
+            inference_allowed_mirroring_axes = nnunet_config["inference_allowed_mirroring_axes"]
+
+        if Path(model_training_output_dir).joinpath(model_name).is_file() and model_name.endswith(".pt"):
             monai_checkpoint = torch.load(join(model_training_output_dir, model_name), map_location=torch.device("cpu"))
             if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
@@ -255,7 +269,16 @@ class ModelnnUNetWrapper(torch.nn.Module):
         """
         if isinstance(x, MetaTensor):
             if "pixdim" in x.meta:
-                properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
+                if x.meta["pixdim"].ndim == 1:
+                    if x.meta["pixdim"][0] == 1:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][1:4].tolist()}
+                    else:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][:3].tolist()}
+                else:
+                    if x.meta["pixdim"][0][0] == 1:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
+                    else:
+                        properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][:3].numpy().tolist()}
             elif "affine" in x.meta:
                 spacing = [
                     abs(x.meta["affine"][0][0].item()),
@@ -269,6 +292,8 @@ class ModelnnUNetWrapper(torch.nn.Module):
             raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
 
         image_or_list_of_images = x.cpu().numpy()[0, :]
+        image_or_list_of_images = np.transpose(image_or_list_of_images, (0, 3, 2, 1))
+        properties_or_list_of_properties["spacing"] = properties_or_list_of_properties["spacing"][::-1]
 
         # input_files should be a list of file paths, one per modality
         prediction_output = self.predictor.predict_from_list_of_npy_arrays(  # type: ignore
@@ -286,11 +311,11 @@ class ModelnnUNetWrapper(torch.nn.Module):
         for out in prediction_output:  # Add batch and channel dimensions
             out_tensors.append(torch.from_numpy(np.expand_dims(np.expand_dims(out, 0), 0)))
         out_tensor = torch.cat(out_tensors, 0)  # Concatenate along batch dimension
-
+        out_tensor = out_tensor.permute(0, 1, 4, 3, 2)
         return MetaTensor(out_tensor, meta=x.meta)
 
 
-def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str = "model.pt") -> ModelnnUNetWrapper:
+def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str = "model.pt", dataset_json: dict = None, plans: dict = None, nnunet_config: dict = None) -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
     The model folder should contain the following files, created during training:
@@ -321,6 +346,12 @@ def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str =
         The folder where the model is stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
+    dataset_json : dict, optional
+        The dataset JSON file containing dataset information.
+    plans : dict, optional
+        The plans JSON file containing model configuration.
+    nnunet_config : dict, optional
+        The nnUNet configuration dictionary containing model parameters.
 
     Returns
     -------
@@ -335,12 +366,12 @@ def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str =
         use_gaussian=True,
         use_mirroring=False,
         device=torch.device("cuda", 0),
-        verbose=False,
-        verbose_preprocessing=False,
+        verbose=True,
+        verbose_preprocessing=True,
         allow_tqdm=True,
     )
     # initializes the network architecture, loads the checkpoint
-    wrapper = ModelnnUNetWrapper(predictor, model_folder, model_name)
+    wrapper = ModelnnUNetWrapper(predictor, model_folder, model_name, dataset_json, plans, nnunet_config)
     return wrapper
 
 
@@ -561,7 +592,8 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
         f"{bundle_root_folder}/models/fold_{fold}/checkpoint_key_metric={best_key_metric}.pt"
     )
 
-    nnunet_checkpoint["optimizer_state"] = monai_last_checkpoint["optimizer_state"]
+    if "optimizer_state" in monai_last_checkpoint:
+        nnunet_checkpoint["optimizer_state"] = monai_last_checkpoint["optimizer_state"]
 
     nnunet_checkpoint["network_weights"] = odict()
 
@@ -577,7 +609,8 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
 
     nnunet_checkpoint["network_weights"] = odict()
 
-    nnunet_checkpoint["optimizer_state"] = monai_best_checkpoint["optimizer_state"]
+    if "optimizer_state" in monai_last_checkpoint:
+        nnunet_checkpoint["optimizer_state"] = monai_best_checkpoint["optimizer_state"]
 
     for key in monai_best_checkpoint["network_weights"]:
         nnunet_checkpoint["network_weights"][key] = monai_best_checkpoint["network_weights"][key]
