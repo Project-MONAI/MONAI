@@ -2,14 +2,14 @@
 requires = [
   "wheel",
   "setuptools",
-  "torch>=2.3.0",
+  "torch>=2.4.1, <2.7.0",
   "ninja",
   "packaging"
 ]
 
 [tool.black]
 line-length = 120
-target-version = ['py38', 'py39', 'py310']
+target-version = ['py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 exclude = '''
 (

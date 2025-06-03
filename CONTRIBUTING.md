@@ -105,9 +105,9 @@ MONAI tests are located under `tests/`.
 A bash script (`runtests.sh`) is provided to run all tests locally.
 Please run ``./runtests.sh -h`` to see all options.
 
-To run a particular test, for example `tests/test_dice_loss.py`:
+To run a particular test, for example `tests/losses/test_dice_loss.py`:
 ```
-python -m tests.test_dice_loss
+python -m tests.losses.test_dice_loss
 ```
 
 Before submitting a pull request, we recommend that all linting and unit tests
