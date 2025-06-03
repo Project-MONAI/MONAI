@@ -605,7 +605,7 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
         mlflow_params = yaml.safe_load(f)
 
         mlflow_params["dataset_name_or_id"] = bundle_config["dataset_name_or_id"]
-        mlflow_params["experiment_name"] = bundle_config["mlflow_experiment_name"]
+        mlflow_params["mlflow_experiment_name"] = bundle_config["mlflow_experiment_name"]
         mlflow_params["mlflow_run_name"] = bundle_config["mlflow_run_name"]
         mlflow_params["tracking_uri"] = bundle_config["tracking_uri"]
         mlflow_params["num_classes"] = len(train_config["label_dict"])
@@ -617,8 +617,6 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
         if "nnunet_trainer_class_name" in bundle_config:
             mlflow_params["nnunet_trainer_class_name"] = bundle_config["nnunet_trainer_class_name"]
         
-        if "dataset_name_or_id" in bundle_config:
-            mlflow_params["dataset_name_or_id"] = bundle_config["dataset_name_or_id"]
 
     with open(Path(bundle_config["bundle_root"]).joinpath("nnUNet", "params.yaml"), "w") as f:
         yaml.dump(mlflow_params, f)
