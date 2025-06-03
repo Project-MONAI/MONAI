@@ -210,7 +210,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             configuration_name = nnunet_config["configuration"]
             inference_allowed_mirroring_axes = nnunet_config["inference_allowed_mirroring_axes"]
 
-        if Path(model_training_output_dir).joinpath(model_name).is_file():
+        if Path(model_training_output_dir).joinpath(model_name).is_file() and model_name.endswith(".pt"):
             monai_checkpoint = torch.load(join(model_training_output_dir, model_name), map_location=torch.device("cpu"))
             if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
