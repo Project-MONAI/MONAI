@@ -878,6 +878,7 @@ class DiffusionInferer(Inferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -890,6 +891,7 @@ class DiffusionInferer(Inferer):
             mode: Conditioning mode for the network.
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -916,15 +918,31 @@ class DiffusionInferer(Inferer):
                 if isinstance(diffusion_model, SPADEDiffusionModelUNet)
                 else diffusion_model
             )
-            if mode == "concat" and conditioning is not None:
-                model_input = torch.cat([image, conditioning], dim=1)
+            if (
+                cfg is not None
+            ):  # if classifier-free guidance is used, a conditioned and unconditioned bit is generated.
+                model_input = torch.cat([image] * 2, dim=0)
+                if conditioning is not None:
+                    uncondition = torch.ones_like(conditioning)
+                    uncondition.fill_(-1)
+                    conditioning_input = torch.cat([uncondition, conditioning], dim=0)
+                else:
+                    conditioning_input = None
+            else:
+                model_input = image
+                conditioning_input = conditioning
+            if mode == "concat" and conditioning_input is not None:
+                model_input = torch.cat([model_input, conditioning_input], dim=1)
                 model_output = diffusion_model(
                     model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=None
                 )
             else:
                 model_output = diffusion_model(
-                    image, timesteps=torch.Tensor((t,)).to(input_noise.device), context=conditioning
+                    model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=conditioning_input
                 )
+            if cfg is not None:
+                model_output_uncond, model_output_cond = model_output.chunk(2)
+                model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
 
             # 2. compute previous image: x_t -> x_t-1
             if not isinstance(scheduler, RFlowScheduler):
@@ -1205,6 +1223,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1219,6 +1238,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
         """
 
         if (
@@ -1242,6 +1262,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             mode=mode,
             verbose=verbose,
             seg=seg,
+            cfg=cfg,
         )
 
         if save_intermediates:
@@ -1420,6 +1441,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1434,6 +1456,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             mode: Conditioning mode for the network.
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
+                        cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -1452,14 +1475,31 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
 
+        if cfg is not None:
+            cn_cond = torch.cat([cn_cond] * 2, dim=0)
+
         for t, next_t in progress_bar:
+            # Controlnet prediction
+            if cfg is not None:
+                model_input = torch.cat([image] * 2, dim=0)
+                if conditioning is not None:
+                    uncondition = torch.ones_like(conditioning)
+                    uncondition.fill_(-1)
+                    conditioning_input = torch.cat([uncondition, conditioning], dim=0)
+                else:
+                    conditioning_input = None
+            else:
+                model_input = image
+                conditioning_input = conditioning
+
+            # Diffusion model prediction
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
                 diffuse = partial(diffusion_model, seg=seg)
 
-            if mode == "concat" and conditioning is not None:
+            if mode == "concat" and conditioning_input is not None:
                 # 1. Conditioning
-                model_input = torch.cat([image, conditioning], dim=1)
+                model_input = torch.cat([model_input, conditioning_input], dim=1)
                 # 2. ControlNet forward
                 down_block_res_samples, mid_block_res_sample = controlnet(
                     x=model_input,
@@ -1476,19 +1516,27 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                     mid_block_additional_residual=mid_block_res_sample,
                 )
             else:
+                # 1. Controlnet forward
                 down_block_res_samples, mid_block_res_sample = controlnet(
-                    x=image,
+                    x=model_input,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
                     controlnet_cond=cn_cond,
-                    context=conditioning,
+                    context=conditioning_input,
                 )
+                # 2. predict noise model_output
                 model_output = diffuse(
-                    image,
+                    model_input,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
-                    context=conditioning,
+                    context=conditioning_input,
                     down_block_additional_residuals=down_block_res_samples,
                     mid_block_additional_residual=mid_block_res_sample,
                 )
+
+            # If classifier-free guidance isn't None, we split and compute the weighting between
+            # conditioned and unconditioned output.
+            if cfg is not None:
+                model_output_uncond, model_output_cond = model_output.chunk(2)
+                model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
 
             # 3. compute previous image: x_t -> x_t-1
             if not isinstance(scheduler, RFlowScheduler):
@@ -1753,6 +1801,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1769,6 +1818,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
         """
 
         if (
@@ -1796,6 +1846,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             mode=mode,
             verbose=verbose,
             seg=seg,
+            cfg=cfg,
         )
 
         if save_intermediates:

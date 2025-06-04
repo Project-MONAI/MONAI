@@ -1,0 +1,17 @@
+/monai/ @KumoLiu @ericspod @Nic-Ma
+/docs/ @KumoLiu @ericspod @Nic-Ma
+/tests/ @KumoLiu @ericspod @Nic-Ma
+/.github/ @KumoLiu
+/monai/networks/schedulers/ @virginiafdez
+/monai/inferers/inferer.py @virginiafdez
+/monai/losses/adversarial_loss.py @virginiafdez
+/monai/losses/perceptual.py @virginiafdez
+/monai/networks/blocks/spade_norm.py @virginiafdez
+/monai/networks/nets/autoencoderkl.py @virginiafdez
+/monai/networks/nets/controlnet.py @virginiafdez
+/monai/networks/nets/diffusion_model_unet.py @virginiafdez
+/monai/networks/nets/patchgan_discriminator.py @virginiafdez
+/monai/networks/nets/spade_autoencoderkl.py @virginiafdez
+/monai/networks/nets/spade_diffusion_model_unet.py @virginiafdez
+/monai/networks/nets/spade_network.py @virginiafdez
+/monai/networks/nets/vqvae.py @virginiafdez

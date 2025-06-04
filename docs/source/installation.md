@@ -58,10 +58,10 @@ pip install monai-weekly
 ```
 
 The weekly build is released to PyPI every Sunday with a pre-release build number `dev[%y%U]`.
-To report any issues on the weekly preview, please include the version and commit information:
+To report any issues on the weekly preview, please include the version information:
 
 ```bash
-python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+python -c "import monai; print(monai.__version__)"
 ```
 
 Coexistence of package `monai` and `monai-weekly` in a system may cause namespace conflicts
@@ -101,20 +101,20 @@ for the latest features:
 ### Option 1 (as a part of your system-wide module):
 
 ```bash
-pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
+pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 or, to build with MONAI C++/CUDA extensions:
 
 ```bash
-BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
+BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 To build the extensions, if the system environment already has a version of Pytorch installed,
 `--no-build-isolation` might be preferred:
 
 ```bash
-BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI#egg=monai
+BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
 ```
 
 this command will download and install the current `dev` branch of [MONAI from

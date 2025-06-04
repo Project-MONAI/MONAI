@@ -31,7 +31,6 @@ from torch.cuda import is_available
 
 from monai._version import get_versions
 from monai.apps.utils import _basename, download_url, extractall, get_logger
-from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -48,7 +47,6 @@ from monai.networks import (
 from monai.utils import (
     IgniteInfo,
     check_parent_dir,
-    deprecated_arg,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -629,9 +627,6 @@ def download(
     _check_monai_version(bundle_dir_, name_)
 
 
-@deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("return_state_dict", since="1.2", removed="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -650,10 +645,7 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
-    return_state_dict: bool = True,
     net_override: dict | None = None,
-    net_name: str | None = None,
-    **net_kwargs: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -699,12 +691,7 @@ def load(
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
-        return_state_dict: whether to return state dict, if True, return state_dict, else a corresponding network
-            from `_workflow.network_def` will be instantiated and load the achieved weights.
         net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
@@ -715,13 +702,8 @@ def load(
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
-        4. If `return_state_dict` is True, return model weights, only used for compatibility
-            when `model` and `net_name` are all `None`.
 
     """
-    if return_state_dict and (model is not None or net_name is not None):
-        warnings.warn("Incompatible values: model and net_name are all specified, return state dict instead.")
-
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
@@ -757,11 +739,8 @@ def load(
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if return_state_dict:
-        return model_dict
-
     _workflow = None
-    if model is None and net_name is None:
+    if model is None:
         bundle_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if bundle_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
@@ -781,10 +760,6 @@ def load(
                 return model_dict
             else:
                 model = _workflow.network_def
-    elif net_name is not None:
-        net_kwargs["_target_"] = net_name
-        configer = ConfigComponent(config=net_kwargs)
-        model = configer.instantiate()  # type: ignore
 
     model.to(device)  # type: ignore
 
