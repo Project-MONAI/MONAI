@@ -9,9 +9,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## Supported Dependency Versions
 
-This release adds support for NumPy 2.0 and PyTorch 2.6. We plan to add support for PyTorch 2.7 in an upcoming version once some compatibility issues have been addressed. 
+This release adds support for NumPy 2.0 and PyTorch 2.6. We plan to add support for PyTorch 2.7 in an upcoming version once some compatibility issues have been addressed.
 
-As stated in the updated [README.md](./README.md) file, MONAI's policy for the support of dependency versions has been updated for clarity. 
+As stated in the updated [README.md](./README.md) file, MONAI's policy for the support of dependency versions has been updated for clarity.
 
 MONAI will continue to support [currently supported versions of Python](https://devguide.python.org/versions), and for other dependencies the following apply:
 
@@ -23,20 +23,20 @@ MONAI will continue to support [currently supported versions of Python](https://
 ## MAISI Update: Introducing MAISI Version maisi3d-rflow
 We are excited to announce the release of MAISI Version _maisi3d-rflow_. This update brings significant improvements over the previous version, _maisi3d-ddpm_, with a remarkable 33x acceleration in latent diffusion model inference speed. The MAISI VAE remains unchanged. Here are the key differences:
   1. Scheduler Update:
-  
+
      * _maisi3d-ddpm_: Uses the basic DDPM noise scheduler.
 
      * _maisi3d-rflow_: Introduces the Rectified Flow scheduler, allowing diffusion model inference to be 33 times faster.
   2. Training Data Preparation:
-    
+
      * _maisi3d-ddpm_: Requires training images to be labeled with body regions (specifically “top_region_index” and “bottom_region_index”).
 
      * _maisi3d-rflow_: No such labeling is required, making it easier to prepare the training data.
   3. Image Quality:
-    
+
      * For the released model weights, _maisi3d-rflow_ generates better-quality images for head regions and smaller output volumes compared to _maisi3d-ddpm_. For other regions, the image quality is comparable.
   4. Modality Input:
-    
+
      * _maisi3d-rflow_ adds a new modality input to the diffusion model, offering flexibility for future extensions to other modalities. Currently, this input is set to always equal 1, as this version supports CT generation exclusively.
 
 
