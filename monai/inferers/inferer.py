@@ -322,10 +322,14 @@ class PatchInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
+            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
 
         """
         # check if there is a conditioning signal
         condition = kwargs.pop("condition", None)
+        # shape check for condition
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
 
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
@@ -541,8 +545,13 @@ class SlidingWindowInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
+            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
 
         """
+        # shape check for condition
+        condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
 
         device = kwargs.pop("device", self.device)
         buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
@@ -750,6 +759,7 @@ class SliceInferer(SlidingWindowInferer):
             network: 2D model to execute inference on slices in the 3D input
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
+            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
         """
         if self.spatial_dim > 2:
             raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
@@ -764,8 +774,12 @@ class SliceInferer(SlidingWindowInferer):
                 f"Currently, only 2D `roi_size` ({self.orig_roi_size}) with 3D `inputs` tensor (shape={inputs.shape}) is supported."
             )
 
-        # check if there is a conditioning signal
+        # shape check for condition
         condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
+
+        # check if there is a conditioning signal
         if condition is not None:
             return super().__call__(
                 inputs=inputs,
