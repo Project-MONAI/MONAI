@@ -322,14 +322,35 @@ class PatchInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
 
         """
         # check if there is a conditioning signal
         condition = kwargs.pop("condition", None)
         # shape check for condition
-        if condition is not None and condition.shape != inputs.shape:
-            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
+        if condition is not None:
+            if isinstance(inputs, torch.Tensor) and isinstance(condition, torch.Tensor):
+                if condition.shape != inputs.shape:
+                    raise ValueError(
+                        f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}"
+                    )
+            elif isinstance(inputs, list) and isinstance(condition, list):
+                if len(inputs) != len(condition):
+                    raise ValueError(
+                        f"Length of `condition` must match `inputs`. Got {len(inputs)} and {len(condition)}."
+                    )
+                for (in_patch, _), (cond_patch, _) in zip(inputs, condition):
+                    if cond_patch.shape != in_patch.shape:
+                        raise ValueError(
+                            "Each `condition` patch must match the shape of the corresponding input patch. "
+                            f"Got {cond_patch.shape} and {in_patch.shape}."
+                        )
+            else:
+                raise ValueError(
+                    "`condition` and `inputs` must be of the same type (both Tensor or both list of patches)."
+                )
 
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
@@ -545,8 +566,9 @@ class SlidingWindowInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
-
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
         """
         # shape check for condition
         condition = kwargs.get("condition", None)
@@ -759,8 +781,9 @@ class SliceInferer(SlidingWindowInferer):
             network: 2D model to execute inference on slices in the 3D input
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-            condition (torch.Tensor, optional): If provided via `**kwargs`, this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs. The resulting segments will be passed to the model together with the corresponding input segments.
-        """
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments."""
         if self.spatial_dim > 2:
             raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
 
