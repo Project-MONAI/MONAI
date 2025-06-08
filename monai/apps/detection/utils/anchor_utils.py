@@ -253,7 +253,7 @@ class AnchorGenerator(nn.Module):
             # compute anchor centers regarding to the image.
             # shifts_centers is [x_center, y_center] or [x_center, y_center, z_center]
             shifts_centers = [
-                torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis]
+                torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis] + stride[axis] // 2
                 for axis in range(self.spatial_dims)
             ]
 
