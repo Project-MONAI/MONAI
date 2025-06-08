@@ -7,38 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [1.5.0] - 2025-06-06
 
-## Supported Dependency Versions
-
-This release adds support for NumPy 2.0 and PyTorch 2.6. We plan to add support for PyTorch 2.7 in an upcoming version once some compatibility issues have been addressed.
-
-As stated in the updated [README.md](./README.md) file, MONAI's policy for the support of dependency versions has been updated for clarity.
-
-MONAI will continue to support [currently supported versions of Python](https://devguide.python.org/versions), and for other dependencies the following apply:
-
-* Major releases of MONAI will have dependency versions stated for them. The current state of the `dev` branch in this repository is the unreleased development version of MONAI which typically will support current versions of dependencies and include updates and bug fixes to do so.
-* PyTorch support covers [the current version](https://github.com/pytorch/pytorch/releases) plus three previous minor versions. If compatibility issues with a PyTorch version and other dependencies arise, support for a version may be delayed until a major release.
-* Our support policy for other dependencies adheres for the most part to [SPEC0](https://scientific-python.org/specs/spec-0000), where dependency versions are supported where possible for up to two years. Discovered vulnerabilities or defects may require certain versions to be explicitly not supported.
-* See the `requirements*.txt` files for dependency version information.
-
-## MAISI Update: Introducing MAISI Version maisi3d-rflow
-We are excited to announce the release of MAISI Version _maisi3d-rflow_. This update brings significant improvements over the previous version, _maisi3d-ddpm_, with a remarkable 33x acceleration in latent diffusion model inference speed. The MAISI VAE remains unchanged. Here are the key differences:
-  1. Scheduler Update:
-
-     * _maisi3d-ddpm_: Uses the basic DDPM noise scheduler.
-
-     * _maisi3d-rflow_: Introduces the Rectified Flow scheduler, allowing diffusion model inference to be 33 times faster.
-  2. Training Data Preparation:
-
-     * _maisi3d-ddpm_: Requires training images to be labeled with body regions (specifically “top_region_index” and “bottom_region_index”).
-
-     * _maisi3d-rflow_: No such labeling is required, making it easier to prepare the training data.
-  3. Image Quality:
-
-     * For the released model weights, _maisi3d-rflow_ generates better-quality images for head regions and smaller output volumes compared to _maisi3d-ddpm_. For other regions, the image quality is comparable.
-  4. Modality Input:
-
-     * _maisi3d-rflow_ adds a new modality input to the diffusion model, offering flexibility for future extensions to other modalities. Currently, this input is set to always equal 1, as this version supports CT generation exclusively.
-
 ## What's Changed
 ### Added
 * Add platform-specific constraints to setup.cfg (#8260)
@@ -132,29 +100,6 @@ We are excited to announce the release of MAISI Version _maisi3d-rflow_. This up
 * Remove unused test cases in bundle load (#8463)
 * selfattention block: Remove the fc linear layer if it is not used (#8325)
 * Removed outdated `torch` version checks from transform functions (#8359)
-
-## New Contributors
-* @Smoothengineer made their first contribution in #8157
-* @Akhsuna07 made their first contribution in #8163
-* @bnbqq8 made their first contribution in #8177
-* @EloiNavet made their first contribution in #8189
-* @vectorvp made their first contribution in #8246
-* @zifuwanggg made their first contribution in #8138
-* @Jerome-Hsieh made their first contribution in #8216
-* @pooya-mohammadi made their first contribution in #8285
-* @advcu987 made their first contribution in #8286
-* @garciadias made their first contribution in #8231
-* @nkaenzig made their first contribution in #8347
-* @bartosz-grabowski made their first contribution in #8342
-* @thibaultdvx made their first contribution in #8089
-* @phisanti made their first contribution in #8312
-* @SimoneBendazzoli93 made their first contribution in #8329
-* @XwK-P made their first contribution in #8407
-* @slavaheroes made their first contribution in #8427
-* @kavin2003 made their first contribution in #8446
-* @chrislevn made their first contribution in #8402
-* @emmanuel-ferdman made their first contribution in #8449
-
 
 ## [1.4.0] - 2024-10-17
 ## What's Changed
