@@ -274,7 +274,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.output_dtype,
-            compressor=self.compressor,
+            compressor=None,
             store=self.store,
             overwrite=True,
         )
@@ -282,7 +282,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.value_dtype,
-            compressor=self.value_compressor,
+            compressor=None,
             store=self.value_store,
             overwrite=True,
         )
@@ -290,7 +290,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.count_dtype,
-            compressor=self.count_compressor,
+            compressor=None,
             store=self.count_store,
             overwrite=True,
         )
