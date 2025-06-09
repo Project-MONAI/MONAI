@@ -45,9 +45,9 @@ class TestAnchorGenerator(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2D)
     def test_anchor_2d(self, input_param, image_shape, feature_maps_shapes):
         torch_anchor_utils, _ = optional_import("torchvision.models.detection.anchor_utils")
-        image_list, _ = optional_import("torchvision.models.detection.image_list")
 
-        # test it behaves the same with torchvision for 2d
+        # test it behaves for new functionality of centered anchors
+        # pytorch does not follow this functionality
         anchor = AnchorGenerator(**input_param, indexing="xy")
         anchor_ref = torch_anchor_utils.AnchorGenerator(**input_param)
         for a, a_f in zip(anchor.cell_anchors, anchor_ref.cell_anchors):
