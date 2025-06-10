@@ -1,9 +1,9 @@
 
 # What's new in 1.5 🎉🎉
 
-- MAISI inference accelerate
 - Support numpy 2.x and Pytorch 2.6
-- bundles storage changed to huggingface and correspoinding api updated in core
+- MAISI inference accelerate
+- Bundles storage changed to huggingface and correspoinding api updated in core
 - Ported remaining generative tutorials and bundles
 - New tutorials:
   - [2d_regression/image_restoration.ipynb](https://github.com/Project-MONAI/tutorials/blob/main/2d_regression/image_restoration.ipynb)

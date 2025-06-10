@@ -1,4 +1,4 @@
-# What's new in 1.4 🎉🎉
+# What's new in 1.4
 
 - MAISI: state-of-the-art 3D Latent Diffusion Model
 - VISTA-3D: interactive foundation model for segmenting and anotating human anatomies
