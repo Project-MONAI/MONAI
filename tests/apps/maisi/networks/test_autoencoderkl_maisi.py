@@ -83,7 +83,11 @@ if device.type == "cuda":
 DTYPE_CASES = []
 for dtype in test_dtypes:
     for case in CASES:
-        DTYPE_CASES.append(case + [dtype])
+        for norm_float in [False, None]:
+            if dtype != torch.float32 and norm_float is not None:
+                continue
+            new_case = [{**case[0], "norm_float16": norm_float}, case[1], case[2], case[3]]
+            DTYPE_CASES.append(new_case + [dtype])
 
 
 class TestAutoencoderKlMaisi(unittest.TestCase):
