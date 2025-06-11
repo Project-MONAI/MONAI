@@ -86,7 +86,7 @@ for dtype in test_dtypes:
         for norm_float in [False, None]:
             if dtype != torch.float32 and norm_float is not None:
                 continue
-            new_case = [{**case[0], "norm_float16": norm_float}, case[1], case[2], case[3]]
+            new_case = [{**case[0], "norm_float16": norm_float}, case[1], case[2], case[3]]  # type: ignore[dict-item]
             DTYPE_CASES.append(new_case + [dtype])
 
 
@@ -95,6 +95,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
     @parameterized.expand(DTYPE_CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape, dtype):
         net = AutoencoderKlMaisi(**input_param).to(device=device, dtype=dtype)
+        print(input_param)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device=device, dtype=dtype))
             self.assertEqual(result[0].shape, expected_shape)
