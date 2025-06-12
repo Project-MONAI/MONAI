@@ -454,5 +454,3 @@ class ZarrAvgMergerTests(unittest.TestCase):
             self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
             expected_message_part = "The `count_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'count_codecs' instead."
             self.assertTrue(expected_message_part in str(w[-1].message))
-
-
