@@ -481,5 +481,3 @@ class ZarrAvgMergerTests(unittest.TestCase):
 
                 # Only check for warnings under zarr v2
                 self.assertTrue(any("count_compressor" in str(warning.message) for warning in w))
-
-
