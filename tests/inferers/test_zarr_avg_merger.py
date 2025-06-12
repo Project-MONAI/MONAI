@@ -434,7 +434,10 @@ class ZarrAvgMergerTests(unittest.TestCase):
             ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, compressor="LZ4")
             self.assertTrue(len(w) == 1)
             self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = "The `compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'codecs' instead."
+            expected_message_part = (
+                "The `compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
+                "Please use 'codecs' instead."
+            )
             self.assertTrue(expected_message_part in str(w[-1].message))
 
     def test_deprecated_value_compressor_warning(self):
@@ -443,7 +446,10 @@ class ZarrAvgMergerTests(unittest.TestCase):
             ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, value_compressor="LZ4")
             self.assertTrue(len(w) == 1)
             self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = "The `value_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'value_codecs' instead."
+            expected_message_part = (
+                "The `value_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
+                "Please use 'value_codecs' instead."
+            )
             self.assertTrue(expected_message_part in str(w[-1].message))
 
     def test_deprecated_count_compressor_warning(self):
@@ -452,5 +458,8 @@ class ZarrAvgMergerTests(unittest.TestCase):
             ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, count_compressor="LZ4")
             self.assertTrue(len(w) == 1)
             self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = "The `count_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'count_codecs' instead."
+            expected_message_part = (
+                "The `count_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
+                "Please use 'count_codecs' instead."
+            )
             self.assertTrue(expected_message_part in str(w[-1].message))
