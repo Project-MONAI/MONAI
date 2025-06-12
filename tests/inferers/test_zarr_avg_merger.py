@@ -203,7 +203,7 @@ TEST_CASE_12_CHUNKS = [
 
 # test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4") if not version_geq(get_package_version("zarr"), "3.0.0") 
+    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4") if not version_geq(get_package_version("zarr"), "3.0.0")
     else dict(merged_shape=TENSOR_4x4.shape, codecs=[{"id": "blosc", "cname": "lz4"}]),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -334,7 +334,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
         is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
         codec_reg = numcodecs.registry.codec_registry
-        
+
         # Handle compressor/codecs based on zarr version
         if "compressor" in arguments and is_zarr_v3:
             # For zarr v3, convert compressor to codecs
@@ -352,7 +352,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
             # For zarr v2, use the compressor registry
             if arguments["compressor"] != "default" and arguments["compressor"] is not None:
                 arguments["compressor"] = codec_reg[arguments["compressor"].lower()]()
-                
+
         # Same for value_compressor
         if "value_compressor" in arguments and is_zarr_v3:
             if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
@@ -367,7 +367,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
         elif "value_compressor" in arguments and not is_zarr_v3:
             if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
                 arguments["value_compressor"] = codec_reg[arguments["value_compressor"].lower()]()
-                
+
         # Same for count_compressor
         if "count_compressor" in arguments and is_zarr_v3:
             if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
@@ -382,7 +382,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
         elif "count_compressor" in arguments and not is_zarr_v3:
             if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
                 arguments["count_compressor"] = codec_reg[arguments["count_compressor"].lower()]()
-                
+
         merger = ZarrAvgMerger(**arguments)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
@@ -405,7 +405,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None)
-            
+
     def test_deprecated_compressor_warning(self):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -414,7 +414,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
             self.assertTrue(any("1.5.0" in str(warning.message) for warning in w))
             self.assertTrue(any("1.7.0" in str(warning.message) for warning in w))
             self.assertTrue(any("codecs" in str(warning.message) for warning in w))
-            
+
     def test_deprecated_value_compressor_warning(self):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -423,7 +423,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
             self.assertTrue(any("1.5.0" in str(warning.message) for warning in w))
             self.assertTrue(any("1.7.0" in str(warning.message) for warning in w))
             self.assertTrue(any("value_codecs" in str(warning.message) for warning in w))
-            
+
     def test_deprecated_count_compressor_warning(self):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
