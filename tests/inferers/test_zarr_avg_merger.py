@@ -90,8 +90,8 @@ TEST_CASE_3_DEFAULT_DTYPE = [
         (TENSOR_4x4_WITH_NAN[..., 1:3, 1:3], (1, 1)),
         (TENSOR_4x4_WITH_NAN[..., 1:3, 2:4], (1, 2)),
         (TENSOR_4x4_WITH_NAN[..., 2:4, 0:2], (2, 0)),
-        (TENSOR_4x4_WITH_NAN[..., 2:4, 1:3], (2, 1)),
-        (TENSOR_4x4_WITH_NAN[..., 2:4, 2:4], (2, 2)),
+        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
     ],
     TENSOR_4x4_WITH_NAN,
 ]
@@ -429,55 +429,30 @@ class ZarrAvgMergerTests(unittest.TestCase):
             ZarrAvgMerger(merged_shape=None)
 
     def test_deprecated_compressor_warning(self):
-        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
-        codec_reg = numcodecs.registry.codec_registry
-
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-
-            # For zarr v3, use a valid codec configuration
-            if is_zarr_v3:
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZ4_CODECS)
-            else:
-                # For zarr v2, use Codec object
-                compressor = codec_reg["lz4"]()
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, compressor=compressor)
-
-                # Only check for warnings under zarr v2
-                self.assertTrue(any("compressor" in str(warning.message) for warning in w))
+            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, compressor="LZ4")
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+            expected_message_part = "The `compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'codecs' instead."
+            self.assertTrue(expected_message_part in str(w[-1].message))
 
     def test_deprecated_value_compressor_warning(self):
-        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
-        codec_reg = numcodecs.registry.codec_registry
-
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-
-            # For zarr v3, use a valid codec configuration
-            if is_zarr_v3:
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, value_codecs=ZARR_V3_LZ4_CODECS)
-            else:
-                # For zarr v2, use Codec object
-                value_compressor = codec_reg["lz4"]()
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, value_compressor=value_compressor)
-
-                # Only check for warnings under zarr v2
-                self.assertTrue(any("value_compressor" in str(warning.message) for warning in w))
+            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, value_compressor="LZ4")
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+            expected_message_part = "The `value_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'value_codecs' instead."
+            self.assertTrue(expected_message_part in str(w[-1].message))
 
     def test_deprecated_count_compressor_warning(self):
-        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
-        codec_reg = numcodecs.registry.codec_registry
-
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
+            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, count_compressor="LZ4")
+            self.assertTrue(len(w) == 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+            expected_message_part = "The `count_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. Please use 'count_codecs' instead."
+            self.assertTrue(expected_message_part in str(w[-1].message))
 
-            # For zarr v3, use a valid codec configuration
-            if is_zarr_v3:
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, count_codecs=ZARR_V3_LZ4_CODECS)
-            else:
-                # For zarr v2, use Codec object
-                count_compressor = codec_reg["lz4"]()
-                ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, count_compressor=count_compressor)
 
-                # Only check for warnings under zarr v2
-                self.assertTrue(any("count_compressor" in str(warning.message) for warning in w))
