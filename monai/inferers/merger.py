@@ -21,7 +21,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple_size, get_package_version, optional_import, require_pkg, version_geq, deprecated_arg
+from monai.utils import (
+    deprecated_arg,
+    ensure_tuple_size,
+    get_package_version,
+    optional_import,
+    require_pkg,
+    version_geq,
+)
 
 if TYPE_CHECKING:
     import zarr
@@ -237,25 +244,21 @@ class ZarrAvgMerger(Merger):
     """
 
     @deprecated_arg(
-        name="compressor",
-        since="1.5.0",
-        removed="1.7.0",
-        new_name="codecs",
-        msg_suffix="Please use 'codecs' instead."
+        name="compressor", since="1.5.0", removed="1.7.0", new_name="codecs", msg_suffix="Please use 'codecs' instead."
     )
     @deprecated_arg(
         name="value_compressor",
         since="1.5.0",
         removed="1.7.0",
         new_name="value_codecs",
-        msg_suffix="Please use 'value_codecs' instead."
+        msg_suffix="Please use 'value_codecs' instead.",
     )
     @deprecated_arg(
         name="count_compressor",
         since="1.5.0",
         removed="1.7.0",
         new_name="count_codecs",
-        msg_suffix="Please use 'count_codecs' instead."
+        msg_suffix="Please use 'count_codecs' instead.",
     )
     def __init__(
         self,

@@ -202,25 +202,19 @@ TEST_CASE_12_CHUNKS = [
 ]
 
 # Define zarr v3 codec configurations with proper bytes codec
-ZARR_V3_LZ4_CODECS = [
-    {"name": "bytes", "configuration": {}},
-    {"name": "blosc", "configuration": {"cname": "lz4"}}
-]
+ZARR_V3_LZ4_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "lz4"}}]
 
-ZARR_V3_PICKLE_CODECS = [
-    {"name": "bytes", "configuration": {}},
-    {"name": "pickle", "configuration": {}}
-]
+ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "pickle", "configuration": {}}]
 
-ZARR_V3_LZMA_CODECS = [
-    {"name": "bytes", "configuration": {}},
-    {"name": "lzma", "configuration": {}}
-]
+ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "lzma", "configuration": {}}]
 
 # test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4") if not version_geq(get_package_version("zarr"), "3.0.0")
-    else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZ4_CODECS),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZ4_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -232,8 +226,11 @@ TEST_CASE_13_COMPRESSOR_LZ4 = [
 
 # test for pickle compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_14_COMPRESSOR_PICKLE = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="Pickle") if not version_geq(get_package_version("zarr"), "3.0.0")
-    else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_PICKLE_CODECS),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="Pickle")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_PICKLE_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -245,8 +242,11 @@ TEST_CASE_14_COMPRESSOR_PICKLE = [
 
 # test for LZMA compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_15_COMPRESSOR_LZMA = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="LZMA") if not version_geq(get_package_version("zarr"), "3.0.0")
-    else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZMA_CODECS),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="LZMA")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZMA_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -294,10 +294,10 @@ TEST_CASE_18_CODECS = [
 
 # test with value_codecs for zarr v3
 TEST_CASE_19_VALUE_CODECS = [
-    dict(merged_shape=TENSOR_4x4.shape, value_codecs=[
-        {"name": "bytes", "configuration": {}},
-        {"name": "blosc", "configuration": {"cname": "zstd"}}
-    ]),
+    dict(
+        merged_shape=TENSOR_4x4.shape,
+        value_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}],
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -309,10 +309,10 @@ TEST_CASE_19_VALUE_CODECS = [
 
 # test with count_codecs for zarr v3
 TEST_CASE_20_COUNT_CODECS = [
-    dict(merged_shape=TENSOR_4x4.shape, count_codecs=[
-        {"name": "bytes", "configuration": {}},
-        {"name": "blosc", "configuration": {"cname": "zlib"}}
-    ]),
+    dict(
+        merged_shape=TENSOR_4x4.shape,
+        count_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}],
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
