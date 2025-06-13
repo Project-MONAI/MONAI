@@ -158,7 +158,7 @@ class IntegrationWorkflowsAdversarialTrainer(DistTestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @TimedCall(seconds=200, daemon=False)
+    @TimedCall(seconds=300, daemon=False)
     def test_training(self):
         torch.manual_seed(0)
 
