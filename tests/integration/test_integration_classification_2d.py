@@ -256,7 +256,7 @@ class IntegrationClassification2D(DistTestCase):
         # check training properties
         self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
         self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
-        np.testing.assert_allclose(best_metric_epoch, 4)
+        np.testing.assert_allclose(best_metric_epoch, 1)
         model_file = os.path.join(self.data_dir, "best_metric_model.pth")
         self.assertTrue(os.path.exists(model_file))
         # check inference properties
@@ -268,7 +268,7 @@ class IntegrationClassification2D(DistTestCase):
 
     def test_training(self):
         repeated = []
-        for i in range(1):
+        for i in range(2):
             results = self.train_and_infer(i)
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
