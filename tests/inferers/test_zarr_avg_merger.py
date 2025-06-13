@@ -90,8 +90,8 @@ TEST_CASE_3_DEFAULT_DTYPE = [
         (TENSOR_4x4_WITH_NAN[..., 1:3, 1:3], (1, 1)),
         (TENSOR_4x4_WITH_NAN[..., 1:3, 2:4], (1, 2)),
         (TENSOR_4x4_WITH_NAN[..., 2:4, 0:2], (2, 0)),
-        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
-        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
+        (TENSOR_4x4_WITH_NAN[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4_WITH_NAN[..., 2:4, 2:4], (2, 2)),
     ],
     TENSOR_4x4_WITH_NAN,
 ]
