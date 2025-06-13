@@ -435,7 +435,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
             warnings.simplefilter("always")
             kwargs = {"merged_shape": TENSOR_4x4.shape, param_name: value}
             ZarrAvgMerger(**kwargs)
-            
+
             self.assertTrue(len(w) > 0)
             self.assertTrue(issubclass(w[-1].category, FutureWarning))
             expected_message = (
