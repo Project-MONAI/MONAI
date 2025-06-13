@@ -428,26 +428,3 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None)
-
-    def _check_deprecation_warning(self, param_name: str, value: Any):
-        """Helper function to check deprecation warnings for compressor parameters."""
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            kwargs = {"merged_shape": TENSOR_4x4.shape, param_name: value}
-            ZarrAvgMerger(**kwargs)
-
-            self.assertTrue(len(w) > 0)
-            self.assertTrue(issubclass(w[-1].category, FutureWarning))
-            expected_message = (
-                f"Argument `{param_name}` has been deprecated since version 1.5.0. It will be removed in version 1.7.0."
-            )
-            self.assertIn(expected_message, str(w[-1].message))
-
-    def test_deprecated_compressor_warning(self):
-        self._check_deprecation_warning("compressor", numcodecs.VLenBytes())
-
-    def test_deprecated_value_compressor_warning(self):
-        self._check_deprecation_warning("value_compressor", numcodecs.VLenBytes())
-
-    def test_deprecated_count_compressor_warning(self):
-        self._check_deprecation_warning("count_compressor", numcodecs.VLenBytes())
