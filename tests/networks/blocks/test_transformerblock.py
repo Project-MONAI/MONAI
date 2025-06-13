@@ -21,26 +21,29 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.utils import optional_import
+from tests.test_utils import dict_product
 
 einops, has_einops = optional_import("einops")
-TEST_CASE_TRANSFORMERBLOCK = []
-for dropout_rate in np.linspace(0, 1, 4):
-    for hidden_size in [360, 480, 600, 768]:
-        for num_heads in [4, 8, 12]:
-            for mlp_dim in [1024, 3072]:
-                for cross_attention in [False, True]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "mlp_dim": mlp_dim,
-                            "dropout_rate": dropout_rate,
-                            "with_cross_attention": cross_attention,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_TRANSFORMERBLOCK.append(test_case)
+TEST_CASE_TRANSFORMERBLOCK = [
+    [
+        {
+            "hidden_size": params["hidden_size"],
+            "num_heads": params["num_heads"],
+            "mlp_dim": params["mlp_dim"],
+            "dropout_rate": params["dropout_rate"],
+            "with_cross_attention": params["with_cross_attention"],
+        },
+        (2, 512, params["hidden_size"]),
+        (2, 512, params["hidden_size"]),
+    ]
+    for params in dict_product(
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 8, 12],
+        mlp_dim=[1024, 3072],
+        with_cross_attention=[False, True],
+    )
+]
 
 
 class TestTransformerBlock(unittest.TestCase):

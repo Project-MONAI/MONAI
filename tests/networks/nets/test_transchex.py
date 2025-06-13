@@ -18,31 +18,33 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.transchex import Transchex
-from tests.test_utils import skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import dict_product, skip_if_downloading_fails, skip_if_quick
 
-TEST_CASE_TRANSCHEX = []
-for drop_out in [0.4]:
-    for in_channels in [3]:
-        for img_size in [224]:
-            for patch_size in [16, 32]:
-                for num_language_layers in [2]:
-                    for num_vision_layers in [4]:
-                        for num_mixed_layers in [3]:
-                            for num_classes in [8]:
-                                test_case = [
-                                    {
-                                        "in_channels": in_channels,
-                                        "img_size": (img_size,) * 2,
-                                        "patch_size": (patch_size,) * 2,
-                                        "num_vision_layers": num_vision_layers,
-                                        "num_mixed_layers": num_mixed_layers,
-                                        "num_language_layers": num_language_layers,
-                                        "num_classes": num_classes,
-                                        "drop_out": drop_out,
-                                    },
-                                    (2, num_classes),
-                                ]
-                                TEST_CASE_TRANSCHEX.append(test_case)
+TEST_CASE_TRANSCHEX = [
+    [
+        {
+            "in_channels": params["in_channels"],
+            "img_size": (params["img_size"],) * 2,
+            "patch_size": (params["patch_size"],) * 2,
+            "num_vision_layers": params["num_vision_layers"],
+            "num_mixed_layers": params["num_mixed_layers"],
+            "num_language_layers": params["num_language_layers"],
+            "num_classes": params["num_classes"],
+            "drop_out": params["drop_out"],
+        },
+        (2, params["num_classes"]),
+    ]
+    for params in dict_product(
+        drop_out=[0.4],
+        in_channels=[3],
+        img_size=[224],
+        patch_size=[16, 32],
+        num_language_layers=[2],
+        num_vision_layers=[4],
+        num_mixed_layers=[3],
+        num_classes=[8],
+    )
+]
 
 
 @skip_if_quick

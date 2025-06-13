@@ -18,54 +18,52 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.masked_autoencoder_vit import MaskedAutoEncoderViT
-from tests.test_utils import skip_if_quick
+from tests.test_utils import dict_product, skip_if_quick
 
 TEST_CASE_MaskedAutoEncoderViT = []
-for masking_ratio in [0.5]:
-    for dropout_rate in [0.6]:
-        for in_channels in [4]:
-            for hidden_size in [768]:
-                for img_size in [96, 128]:
-                    for patch_size in [16]:
-                        for num_heads in [12]:
-                            for mlp_dim in [3072]:
-                                for num_layers in [4]:
-                                    for decoder_hidden_size in [384]:
-                                        for decoder_mlp_dim in [512]:
-                                            for decoder_num_layers in [4]:
-                                                for decoder_num_heads in [16]:
-                                                    for pos_embed_type in ["sincos", "learnable"]:
-                                                        for proj_type in ["conv", "perceptron"]:
-                                                            for nd in (2, 3):
-                                                                test_case = [
-                                                                    {
-                                                                        "in_channels": in_channels,
-                                                                        "img_size": (img_size,) * nd,
-                                                                        "patch_size": (patch_size,) * nd,
-                                                                        "hidden_size": hidden_size,
-                                                                        "mlp_dim": mlp_dim,
-                                                                        "num_layers": num_layers,
-                                                                        "decoder_hidden_size": decoder_hidden_size,
-                                                                        "decoder_mlp_dim": decoder_mlp_dim,
-                                                                        "decoder_num_layers": decoder_num_layers,
-                                                                        "decoder_num_heads": decoder_num_heads,
-                                                                        "pos_embed_type": pos_embed_type,
-                                                                        "masking_ratio": masking_ratio,
-                                                                        "decoder_pos_embed_type": pos_embed_type,
-                                                                        "num_heads": num_heads,
-                                                                        "proj_type": proj_type,
-                                                                        "dropout_rate": dropout_rate,
-                                                                    },
-                                                                    (2, in_channels, *([img_size] * nd)),
-                                                                    (
-                                                                        2,
-                                                                        (img_size // patch_size) ** nd,
-                                                                        in_channels * (patch_size**nd),
-                                                                    ),
-                                                                ]
-                                                                if nd == 2:
-                                                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                                                TEST_CASE_MaskedAutoEncoderViT.append(test_case)
+
+for base_params in dict_product(
+    masking_ratio=[0.5],
+    dropout_rate=[0.6],
+    in_channels=[4],
+    hidden_size=[768],
+    img_size_scalar=[96, 128],
+    patch_size_scalar=[16],
+    num_heads=[12],
+    mlp_dim=[3072],
+    num_layers=[4],
+    decoder_hidden_size=[384],
+    decoder_mlp_dim=[512],
+    decoder_num_layers=[4],
+    decoder_num_heads=[16],
+    pos_embed_type=["sincos", "learnable"],
+    proj_type=["conv", "perceptron"],
+):
+    img_size_scalar = base_params.pop("img_size_scalar")
+    patch_size_scalar = base_params.pop("patch_size_scalar")
+    for nd in (2, 3):
+        # Parameters for the MaskedAutoEncoderViT model
+        model_params = base_params.copy()
+        model_params["img_size"] = (img_size_scalar,) * nd
+        model_params["patch_size"] = (patch_size_scalar,) * nd
+        model_params["decoder_pos_embed_type"] = model_params["pos_embed_type"]
+
+        # Expected input and output shapes
+        input_shape = (2, model_params["in_channels"], *([img_size_scalar] * nd))
+        # N, num_patches, patch_dim_product
+        # num_patches = (img_size // patch_size) ** nd
+        # patch_dim_product = in_channels * (patch_size**nd)
+        expected_shape = (
+            2,
+            (img_size_scalar // patch_size_scalar) ** nd,
+            model_params["in_channels"] * (patch_size_scalar**nd),
+        )
+
+        if nd == 2:
+            model_params["spatial_dims"] = 2
+
+        test_case = [model_params, input_shape, expected_shape]
+        TEST_CASE_MaskedAutoEncoderViT.append(test_case)
 
 TEST_CASE_ill_args = [
     [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (16, 16, 16), "dropout_rate": 5.0}],

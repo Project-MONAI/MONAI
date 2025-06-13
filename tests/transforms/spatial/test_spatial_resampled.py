@@ -22,7 +22,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.spatial.dictionary import SpatialResampled
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.test_utils import TEST_DEVICES, assert_allclose
+from tests.test_utils import TEST_DEVICES, assert_allclose, dict_product
 
 ON_AARCH64 = platform.machine() == "aarch64"
 if ON_AARCH64:
@@ -42,27 +42,30 @@ expected_3d = [
 ]
 
 for dst, expct in zip(destinations_3d, expected_3d):
-    for device in TEST_DEVICES:
-        for align in (True, False):
-            for dtype in (torch.float32, torch.float64):
-                interp = ("nearest", "bilinear")
-                for interp_mode in interp:
-                    for padding_mode in ("zeros", "border", "reflection"):
-                        TESTS.append(
-                            [
-                                np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
-                                *device,
-                                dst,
-                                {
-                                    "dst_keys": "dst_affine",
-                                    "dtype": dtype,
-                                    "align_corners": align,
-                                    "mode": interp_mode,
-                                    "padding_mode": padding_mode,
-                                },
-                                expct,
-                            ]
-                        )
+    TESTS.extend(
+        [
+            [
+                np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
+                *params["device"],
+                dst,
+                {
+                    "dst_keys": "dst_affine",
+                    "dtype": params["dtype"],
+                    "align_corners": params["align"],
+                    "mode": params["interp_mode"],
+                    "padding_mode": params["padding_mode"],
+                },
+                expct,
+            ]
+            for params in dict_product(
+                device=TEST_DEVICES,
+                align=[True, False],
+                dtype=[torch.float32, torch.float64],
+                interp_mode=["nearest", "bilinear"],
+                padding_mode=["zeros", "border", "reflection"],
+            )
+        ]
+    )
 
 destinations_2d = [
     torch.tensor([[1.0, 0.0, 0.0], [0.0, -1.0, 1.0], [0.0, 0.0, 1.0]]),  # flip the second
@@ -72,25 +75,29 @@ destinations_2d = [
 expected_2d = [torch.tensor([[[2.0, 1.0], [4.0, 3.0]]]), torch.tensor([[[3.0, 4.0], [1.0, 2.0]]])]
 
 for dst, expct in zip(destinations_2d, expected_2d):
-    for device in TEST_DEVICES:
-        for align in (False, True):
-            for dtype in (torch.float32, torch.float64):
-                for interp_mode in ("nearest", "bilinear"):
-                    TESTS.append(
-                        [
-                            np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-                            *device,
-                            dst,
-                            {
-                                "dst_keys": "dst_affine",
-                                "dtype": dtype,
-                                "align_corners": align,
-                                "mode": interp_mode,
-                                "padding_mode": "zeros",
-                            },
-                            expct,
-                        ]
-                    )
+    TESTS.extend(
+        [
+            [
+                np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+                *params["device"],
+                dst,
+                {
+                    "dst_keys": "dst_affine",
+                    "dtype": params["dtype"],
+                    "align_corners": params["align"],
+                    "mode": params["interp_mode"],
+                    "padding_mode": "zeros",
+                },
+                expct,
+            ]
+            for params in dict_product(
+                device=TEST_DEVICES,
+                align=[False, True],
+                dtype=[torch.float32, torch.float64],
+                interp_mode=["nearest", "bilinear"],
+            )
+        ]
+    )
 
 
 class TestSpatialResample(unittest.TestCase):

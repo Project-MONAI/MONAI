@@ -21,14 +21,14 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
-from tests.test_utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
+from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product, make_nifti_image, make_rand_affine
 
-TESTS = []
-for p in TEST_NDARRAYS:
-    for keepdim in (True, False):
-        for update_meta in (True, False):
-            for list_output in (True, False):
-                TESTS.append((keepdim, p, update_meta, list_output))
+TESTS = [
+    (params["keepdim"], params["p"], params["update_meta"], params["list_output"])
+    for params in dict_product(
+        p=TEST_NDARRAYS, keepdim=[True, False], update_meta=[True, False], list_output=[True, False]
+    )
+]
 
 
 class TestSplitDimd(unittest.TestCase):

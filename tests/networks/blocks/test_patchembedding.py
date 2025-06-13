@@ -21,58 +21,41 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_PATCHEMBEDDINGBLOCK = []
-for dropout_rate in (0.5,):
-    for in_channels in [1, 4]:
-        for hidden_size in [96, 288]:
-            for img_size in [32, 64]:
-                for patch_size in [8, 16]:
-                    for num_heads in [8, 12]:
-                        for proj_type in ["conv", "perceptron"]:
-                            for pos_embed_type in ["none", "learnable", "sincos"]:
-                                # for classification in (False, True):  # TODO: add classification tests
-                                for nd in (2, 3):
-                                    test_case = [
-                                        {
-                                            "in_channels": in_channels,
-                                            "img_size": (img_size,) * nd,
-                                            "patch_size": (patch_size,) * nd,
-                                            "hidden_size": hidden_size,
-                                            "num_heads": num_heads,
-                                            "proj_type": proj_type,
-                                            "pos_embed_type": pos_embed_type,
-                                            "dropout_rate": dropout_rate,
-                                        },
-                                        (2, in_channels, *([img_size] * nd)),
-                                        (2, (img_size // patch_size) ** nd, hidden_size),
-                                    ]
-                                    if nd == 2:
-                                        test_case[0]["spatial_dims"] = 2  # type: ignore
-                                    TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
 
-TEST_CASE_PATCHEMBED = []
-for patch_size in [2]:
-    for in_chans in [1, 4]:
-        for img_size in [96]:
-            for embed_dim in [6, 12]:
-                for norm_layer in [nn.LayerNorm]:
-                    for nd in [2, 3]:
-                        test_case = [
-                            {
-                                "patch_size": (patch_size,) * nd,
-                                "in_chans": in_chans,
-                                "embed_dim": embed_dim,
-                                "norm_layer": norm_layer,
-                                "spatial_dims": nd,
-                            },
-                            (2, in_chans, *([img_size] * nd)),
-                            (2, embed_dim, *([img_size // patch_size] * nd)),
-                        ]
-                        TEST_CASE_PATCHEMBED.append(test_case)
+TEST_CASE_PATCHEMBEDDINGBLOCK = [
+    [
+        params,
+        (2, params["in_channels"], *([params["img_size"]] * params["spatial_dims"])),
+        (2, (params["img_size"] // params["patch_size"]) ** params["spatial_dims"], params["hidden_size"]),
+    ]
+    for params in dict_product(
+        dropout_rate=[0.5],
+        in_channels=[1, 4],
+        hidden_size=[96, 288],
+        img_size=[32, 64],
+        patch_size=[8, 16],
+        num_heads=[8, 12],
+        proj_type=["conv", "perceptron"],
+        pos_embed_type=["none", "learnable", "sincos"],
+        spatial_dims=[2, 3],
+    )
+]
+
+img_size = 96
+TEST_CASE_PATCHEMBED = [
+    [
+        params,
+        (2, params["in_chans"], *([img_size] * params["spatial_dims"])),
+        (2, params["embed_dim"], *([img_size // params["patch_size"]]) * params["spatial_dims"]),
+    ]
+    for params in dict_product(
+        patch_size=[2], in_chans=[1, 4], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], spatial_dims=[2, 3]
+    )
+]
 
 
 @SkipIfBeforePyTorchVersion((1, 11, 1))

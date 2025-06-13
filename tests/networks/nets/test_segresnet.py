@@ -19,67 +19,70 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNet, SegResNetVAE
 from monai.utils import UpsampleMode
-from tests.test_utils import test_script_save
+from tests.test_utils import dict_product, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_SEGRESNET = []
-for spatial_dims in range(2, 4):
-    for init_filters in [8, 16]:
-        for dropout_prob in [None, 0.2]:
-            for norm in [("GROUP", {"num_groups": 8}), ("batch", {"track_running_stats": False}), "instance"]:
-                for upsample_mode in UpsampleMode:
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "init_filters": init_filters,
-                            "dropout_prob": dropout_prob,
-                            "norm": norm,
-                            "upsample_mode": upsample_mode,
-                            "use_conv_final": False,
-                        },
-                        (2, 1, *([16] * spatial_dims)),
-                        (2, init_filters, *([16] * spatial_dims)),
-                    ]
-                    TEST_CASE_SEGRESNET.append(test_case)
+TEST_CASE_SEGRESNET = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "dropout_prob": params["dropout_prob"],
+            "norm": params["norm"],
+            "upsample_mode": params["upsample_mode"],
+            "use_conv_final": False,
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["init_filters"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4),
+        init_filters=[8, 16],
+        dropout_prob=[None, 0.2],
+        norm=[("GROUP", {"num_groups": 8}), ("batch", {"track_running_stats": False}), "instance"],
+        upsample_mode=list(UpsampleMode),
+    )
+]
 
-TEST_CASE_SEGRESNET_2 = []
-for spatial_dims in range(2, 4):
-    for init_filters in [8, 16]:
-        for out_channels in range(1, 3):
-            for upsample_mode in UpsampleMode:
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "init_filters": init_filters,
-                        "out_channels": out_channels,
-                        "upsample_mode": upsample_mode,
-                    },
-                    (2, 1, *([16] * spatial_dims)),
-                    (2, out_channels, *([16] * spatial_dims)),
-                ]
-                TEST_CASE_SEGRESNET_2.append(test_case)
+TEST_CASE_SEGRESNET_2 = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "out_channels": params["out_channels"],
+            "upsample_mode": params["upsample_mode"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["out_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4), init_filters=[8, 16], out_channels=range(1, 3), upsample_mode=list(UpsampleMode)
+    )
+]
 
-TEST_CASE_SEGRESNET_VAE = []
-for spatial_dims in range(2, 4):
-    for init_filters in [8, 16]:
-        for out_channels in range(1, 3):
-            for upsample_mode in UpsampleMode:
-                for vae_estimate_std in [True, False]:
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "init_filters": init_filters,
-                            "out_channels": out_channels,
-                            "upsample_mode": upsample_mode,
-                            "act": ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-                            "input_image_size": ([16] * spatial_dims),
-                            "vae_estimate_std": vae_estimate_std,
-                        },
-                        (2, 1, *([16] * spatial_dims)),
-                        (2, out_channels, *([16] * spatial_dims)),
-                    ]
-                TEST_CASE_SEGRESNET_VAE.append(test_case)
+TEST_CASE_SEGRESNET_VAE = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "out_channels": params["out_channels"],
+            "upsample_mode": params["upsample_mode"],
+            "act": ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+            "input_image_size": ([16] * params["spatial_dims"]),
+            "vae_estimate_std": params["vae_estimate_std"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["out_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4),
+        init_filters=[8, 16],
+        out_channels=range(1, 3),
+        upsample_mode=list(UpsampleMode),
+        vae_estimate_std=[True, False],
+    )
+]
 
 
 class TestResNet(unittest.TestCase):

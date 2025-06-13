@@ -18,38 +18,44 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNetDS, SegResNetDS2
-from tests.test_utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-TEST_CASE_SEGRESNET_DS = []
-for spatial_dims in range(2, 4):
-    for init_filters in [8, 16]:
-        for act in ["relu", "leakyrelu"]:
-            for norm in ["BATCH", ("instance", {"affine": True})]:
-                for upsample_mode in ["deconv", "nontrainable"]:
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "init_filters": init_filters,
-                            "act": act,
-                            "norm": norm,
-                            "upsample_mode": upsample_mode,
-                        },
-                        (2, 1, *([16] * spatial_dims)),
-                        (2, 2, *([16] * spatial_dims)),
-                    ]
-                    TEST_CASE_SEGRESNET_DS.append(test_case)
 
-TEST_CASE_SEGRESNET_DS2 = []
-for spatial_dims in range(2, 4):
-    for out_channels in [1, 2]:
-        for dsdepth in [1, 2, 3]:
-            test_case = [
-                {"spatial_dims": spatial_dims, "init_filters": 8, "out_channels": out_channels, "dsdepth": dsdepth},
-                (2, 1, *([16] * spatial_dims)),
-                (2, out_channels, *([16] * spatial_dims)),
-            ]
-            TEST_CASE_SEGRESNET_DS2.append(test_case)
+TEST_CASE_SEGRESNET_DS = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "act": params["act"],
+            "norm": params["norm"],
+            "upsample_mode": params["upsample_mode"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, 2, *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4),
+        init_filters=[8, 16],
+        act=["relu", "leakyrelu"],
+        norm=["BATCH", ("instance", {"affine": True})],
+        upsample_mode=["deconv", "nontrainable"],
+    )
+]
+
+TEST_CASE_SEGRESNET_DS2 = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": 8,
+            "out_channels": params["out_channels"],
+            "dsdepth": params["dsdepth"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["out_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(spatial_dims=range(2, 4), out_channels=[1, 2], dsdepth=[1, 2, 3])
+]
 
 TEST_CASE_SEGRESNET_DS3 = [
     ({"init_filters": 8, "dsdepth": 2, "resolution": None}, (2, 1, 16, 16, 16), ((2, 2, 16, 16, 16), (2, 2, 8, 8, 8))),

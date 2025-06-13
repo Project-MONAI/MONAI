@@ -22,30 +22,32 @@ from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose
+from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_product
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_CABLOCK = []
-for dropout_rate in np.linspace(0, 1, 4):
-    for hidden_size in [360, 480, 600, 768]:
-        for num_heads in [4, 6, 8, 12]:
-            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
-                for input_size in [(16, 32), (8, 8, 8)]:
-                    for flash_attn in [True, False]:
-                        test_case = [
-                            {
-                                "hidden_size": hidden_size,
-                                "num_heads": num_heads,
-                                "dropout_rate": dropout_rate,
-                                "rel_pos_embedding": rel_pos_embedding if not flash_attn else None,
-                                "input_size": input_size,
-                                "use_flash_attention": flash_attn,
-                            },
-                            (2, 512, hidden_size),
-                            (2, 512, hidden_size),
-                        ]
-                        TEST_CASE_CABLOCK.append(test_case)
+TEST_CASE_CABLOCK = [
+    [
+        {
+            "hidden_size": params["hidden_size"],
+            "num_heads": params["num_heads"],
+            "dropout_rate": params["dropout_rate"],
+            "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["flash_attn"] else None,
+            "input_size": params["input_size"],
+            "use_flash_attention": params["flash_attn"],
+        },
+        (2, 512, params["hidden_size"]),
+        (2, 512, params["hidden_size"]),
+    ]
+    for params in dict_product(
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 6, 8, 12],
+        rel_pos_embedding_val=[None, RelPosEmbedding.DECOMPOSED],
+        input_size=[(16, 32), (8, 8, 8)],
+        flash_attn=[True, False],
+    )
+]
 
 
 class TestResBlock(unittest.TestCase):

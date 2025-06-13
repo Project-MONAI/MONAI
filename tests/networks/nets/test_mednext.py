@@ -18,57 +18,56 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import MedNeXt, MedNeXtL, MedNeXtM, MedNeXtS
+from tests.test_utils import dict_product  # Import dict_product
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_MEDNEXT = []
-for spatial_dims in range(2, 4):
-    for init_filters in [8, 16]:
-        for deep_supervision in [False, True]:
-            for do_res in [False, True]:
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "init_filters": init_filters,
-                        "deep_supervision": deep_supervision,
-                        "use_residual_connection": do_res,
-                    },
-                    (2, 1, *([16] * spatial_dims)),
-                    (2, 2, *([16] * spatial_dims)),
-                ]
-                TEST_CASE_MEDNEXT.append(test_case)
+TEST_CASE_MEDNEXT = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "deep_supervision": params["deep_supervision"],
+            "use_residual_connection": params["do_res"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, 2, *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4), init_filters=[8, 16], deep_supervision=[False, True], do_res=[False, True]
+    )
+]
+TEST_CASE_MEDNEXT_2 = [
+    [
+        {
+            "spatial_dims": params["spatial_dims"],
+            "init_filters": params["init_filters"],
+            "out_channels": params["out_channels"],
+            "deep_supervision": params["deep_supervision"],
+        },
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["out_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4), out_channels=[1, 2], deep_supervision=[False, True], init_filters=[8]
+    )
+]
 
-TEST_CASE_MEDNEXT_2 = []
-for spatial_dims in range(2, 4):
-    for out_channels in [1, 2]:
-        for deep_supervision in [False, True]:
-            test_case = [
-                {
-                    "spatial_dims": spatial_dims,
-                    "init_filters": 8,
-                    "out_channels": out_channels,
-                    "deep_supervision": deep_supervision,
-                },
-                (2, 1, *([16] * spatial_dims)),
-                (2, out_channels, *([16] * spatial_dims)),
-            ]
-            TEST_CASE_MEDNEXT_2.append(test_case)
 
-TEST_CASE_MEDNEXT_VARIANTS = []
-for model in [MedNeXtS, MedNeXtM, MedNeXtL]:
-    for spatial_dims in range(2, 4):
-        for out_channels in [1, 2]:
-            test_case = [
-                model,  # type: ignore
-                {"spatial_dims": spatial_dims, "in_channels": 1, "out_channels": out_channels},
-                (2, 1, *([16] * spatial_dims)),
-                (2, out_channels, *([16] * spatial_dims)),
-            ]
-            TEST_CASE_MEDNEXT_VARIANTS.append(test_case)
+TEST_CASE_MEDNEXT_VARIANTS = [
+    [
+        params["model"],
+        {"spatial_dims": params["spatial_dims"], "in_channels": 1, "out_channels": params["out_channels"]},
+        (2, 1, *([16] * params["spatial_dims"])),
+        (2, params["out_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        model=[MedNeXtS, MedNeXtM, MedNeXtL], spatial_dims=range(2, 4), out_channels=[1, 2], in_channels=[1]
+    )
+]
 
 
 class TestMedNeXt(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_MEDNEXT)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = MedNeXt(**input_param).to(device)

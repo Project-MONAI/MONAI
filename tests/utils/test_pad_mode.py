@@ -18,21 +18,27 @@ import torch
 
 from monai.transforms import CastToType, Pad
 from monai.utils import NumpyPadMode, PytorchPadMode
-from tests.test_utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product
 
 
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestPadMode(unittest.TestCase):
     def test_pad(self):
         expected_shapes = {3: (1, 15, 10), 4: (1, 10, 6, 7)}
-        for t in (float, int, np.uint8, np.int16, np.float32, bool):
-            for d in ("cuda:0", "cpu") if torch.cuda.is_available() else ("cpu",):
-                for s in ((1, 10, 10), (1, 5, 6, 7)):
-                    for m in list(PytorchPadMode) + list(NumpyPadMode):
-                        a = torch.rand(s)
-                        to_pad = [(0, 0), (2, 3)] if len(s) == 3 else [(0, 0), (2, 3), (0, 0), (0, 0)]
-                        out = Pad(to_pad=to_pad, mode=m)(CastToType(dtype=t)(a).to(d))
-                        self.assertEqual(out.shape, expected_shapes[len(s)])
+        devices = ("cuda:0", "cpu") if torch.cuda.is_available() else ("cpu",)
+        shapes = ((1, 10, 10), (1, 5, 6, 7))
+        types = (float, int, np.uint8, np.int16, np.float32, bool)
+        modes = list(PytorchPadMode) + list(NumpyPadMode)
+
+        for params in dict_product(t=types, d=devices, s=shapes, m=modes):
+            t = params["t"]
+            d = params["d"]
+            s = params["s"]
+            m = params["m"]
+            a = torch.rand(s)
+            to_pad = [(0, 0), (2, 3)] if len(s) == 3 else [(0, 0), (2, 3), (0, 0), (0, 0)]
+            out = Pad(to_pad=to_pad, mode=m)(CastToType(dtype=t)(a).to(d))
+            self.assertEqual(out.shape, expected_shapes[len(s)])
 
 
 if __name__ == "__main__":
