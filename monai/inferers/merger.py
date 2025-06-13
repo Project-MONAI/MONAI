@@ -310,17 +310,56 @@ class ZarrAvgMerger(Merger):
         self.chunks = chunks
 
         # Handle compressor/codecs based on zarr version
-        self.codecs = codecs
-        self.value_codecs = value_codecs
-        self.count_codecs = count_codecs
+        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
 
-        # For backward compatibility
-        if compressor is not None and codecs is None:
-            self.codecs = compressor if isinstance(compressor, (list, tuple)) else [compressor]
-        if value_compressor is not None and value_codecs is None:
-            self.value_codecs = value_compressor if isinstance(value_compressor, (list, tuple)) else [value_compressor]
-        if count_compressor is not None and count_codecs is None:
-            self.count_codecs = count_compressor if isinstance(count_compressor, (list, tuple)) else [count_compressor]
+        if is_zarr_v3:
+            # For zarr v3, use codecs or convert compressor to codecs
+            if codecs is not None:
+                self.codecs = codecs
+            elif compressor is not None:
+                # Convert compressor to codec format
+                if isinstance(compressor, (list, tuple)):
+                    self.codecs = compressor
+            else:
+                self.codecs = None
+
+            if value_codecs is not None:
+                self.value_codecs = value_codecs
+            elif value_compressor is not None:
+                if isinstance(value_compressor, (list, tuple)):
+                    self.value_codecs = value_compressor
+            else:
+                self.value_codecs = None
+
+            if count_codecs is not None:
+                self.count_codecs = count_codecs
+            elif count_compressor is not None:
+                if isinstance(count_compressor, (list, tuple)):
+                    self.count_codecs = count_compressor
+                else:
+                    self.count_codecs = [
+                        {"name": "bytes", "configuration": {}},
+                        {"name": count_compressor.lower(), "configuration": {}},
+                    ]
+            else:
+                self.count_codecs = None
+        else:
+            # For zarr v2, use compressors
+            if codecs is not None:
+                # If codecs are specified in v2, use the first codec as compressor
+                self.codecs = codecs[0] if isinstance(codecs, (list, tuple)) else codecs
+            else:
+                self.codecs = compressor
+
+            if value_codecs is not None:
+                self.value_codecs = value_codecs[0] if isinstance(value_codecs, (list, tuple)) else value_codecs
+            else:
+                self.value_codecs = value_compressor
+
+            if count_codecs is not None:
+                self.count_codecs = count_codecs[0] if isinstance(count_codecs, (list, tuple)) else count_codecs
+            else:
+                self.count_codecs = count_compressor
 
         # Create zarr arrays with appropriate parameters based on version
         if is_zarr_v3:

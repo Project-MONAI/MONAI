@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import unittest
 import warnings
+from typing import Any
 
 import numpy as np
 import torch
@@ -428,38 +429,24 @@ class ZarrAvgMergerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None)
 
-    def test_deprecated_compressor_warning(self):
+    def _check_deprecation_warning(self, param_name: str, value: Any):
+        """Helper function to check deprecation warnings for compressor parameters."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, compressor="LZ4")
+            kwargs = {"merged_shape": TENSOR_4x4.shape, param_name: value}
+            ZarrAvgMerger(**kwargs)
             self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = (
-                "The `compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
-                "Please use 'codecs' instead."
+            self.assertTrue(issubclass(w[-1].category, FutureWarning))
+            expected_message = (
+                f"Argument `{param_name}` has been deprecated since version 1.5.0. It will be removed in version 1.7.0."
             )
-            self.assertTrue(expected_message_part in str(w[-1].message))
+            self.assertIn(expected_message, str(w[-1].message))
+
+    def test_deprecated_compressor_warning(self):
+        self._check_deprecation_warning("compressor", numcodecs.VLenBytes())
 
     def test_deprecated_value_compressor_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, value_compressor="LZ4")
-            self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = (
-                "The `value_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
-                "Please use 'value_codecs' instead."
-            )
-            self.assertTrue(expected_message_part in str(w[-1].message))
+        self._check_deprecation_warning("value_compressor", numcodecs.VLenBytes())
 
     def test_deprecated_count_compressor_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            ZarrAvgMerger(merged_shape=TENSOR_4x4.shape, count_compressor="LZ4")
-            self.assertTrue(len(w) == 1)
-            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
-            expected_message_part = (
-                "The `count_compressor` argument is deprecated since 1.5.0 and will be removed in 1.7.0. "
-                "Please use 'count_codecs' instead."
-            )
-            self.assertTrue(expected_message_part in str(w[-1].message))
+        self._check_deprecation_warning("count_compressor", numcodecs.VLenBytes())
