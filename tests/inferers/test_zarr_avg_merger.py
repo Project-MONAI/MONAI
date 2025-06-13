@@ -24,6 +24,7 @@ from tests.test_utils import assert_allclose
 
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
+print(version_geq(get_package_version("zarr"), "3.0.0"))
 if has_zarr:
     if version_geq(get_package_version("zarr"), "3.0.0"):
         directory_store = zarr.storage.LocalStore("test.zarr")
@@ -200,9 +201,20 @@ TEST_CASE_12_CHUNKS = [
     TENSOR_4x4,
 ]
 
-# test for LZ4 compressor
+# Define zarr v3 codec configurations with proper bytes codec
+ZARR_V3_LZ4_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "lz4"}}]
+
+ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}]
+
+ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}]
+
+# test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4"),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZ4_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -212,9 +224,13 @@ TEST_CASE_13_COMPRESSOR_LZ4 = [
     TENSOR_4x4,
 ]
 
-# test for pickle compressor
+# test for pickle compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_14_COMPRESSOR_PICKLE = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="Pickle"),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="Pickle")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_PICKLE_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -224,9 +240,13 @@ TEST_CASE_14_COMPRESSOR_PICKLE = [
     TENSOR_4x4,
 ]
 
-# test for LZMA compressor
+# test for LZMA compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_15_COMPRESSOR_LZMA = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor="LZMA"),
+    (
+        dict(merged_shape=TENSOR_4x4.shape, compressor="LZMA")
+        if not version_geq(get_package_version("zarr"), "3.0.0")
+        else dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZMA_CODECS)
+    ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -260,6 +280,48 @@ TEST_CASE_17_WITHOUT_LOCK = [
     TENSOR_4x4,
 ]
 
+# test with codecs for zarr v3
+TEST_CASE_18_CODECS = [
+    dict(merged_shape=TENSOR_4x4.shape, codecs=ZARR_V3_LZ4_CODECS),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# test with value_codecs for zarr v3
+TEST_CASE_19_VALUE_CODECS = [
+    dict(
+        merged_shape=TENSOR_4x4.shape,
+        value_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}],
+    ),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# test with count_codecs for zarr v3
+TEST_CASE_20_COUNT_CODECS = [
+    dict(
+        merged_shape=TENSOR_4x4.shape,
+        count_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}],
+    ),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
 ALL_TESTS = [
     TEST_CASE_0_DEFAULT_DTYPE,
     TEST_CASE_1_DEFAULT_DTYPE,
@@ -276,11 +338,15 @@ ALL_TESTS = [
     TEST_CASE_12_CHUNKS,
     TEST_CASE_16_WITH_LOCK,
     TEST_CASE_17_WITHOUT_LOCK,
+    # Add compression/codec tests regardless of zarr version - they're now version-aware
+    TEST_CASE_13_COMPRESSOR_LZ4,
+    TEST_CASE_14_COMPRESSOR_PICKLE,
+    TEST_CASE_15_COMPRESSOR_LZMA,
 ]
 
-# add compression tests only when using Zarr version before 3.0
-if not version_geq(get_package_version("zarr"), "3.0.0"):
-    ALL_TESTS += [TEST_CASE_13_COMPRESSOR_LZ4, TEST_CASE_14_COMPRESSOR_PICKLE, TEST_CASE_15_COMPRESSOR_LZMA]
+# Add zarr v3 specific codec tests only when using Zarr version 3.0 or later
+if version_geq(get_package_version("zarr"), "3.0.0"):
+    ALL_TESTS += [TEST_CASE_18_CODECS, TEST_CASE_19_VALUE_CODECS, TEST_CASE_20_COUNT_CODECS]
 
 
 @unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
@@ -288,16 +354,57 @@ class ZarrAvgMergerTests(unittest.TestCase):
 
     @parameterized.expand(ALL_TESTS)
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
+        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
         codec_reg = numcodecs.registry.codec_registry
-        if "compressor" in arguments:
-            if arguments["compressor"] != "default":
+
+        # Handle compressor/codecs based on zarr version
+        if "compressor" in arguments and is_zarr_v3:
+            # For zarr v3, convert compressor to codecs
+            if arguments["compressor"] != "default" and arguments["compressor"] is not None:
+                compressor_name = arguments["compressor"].lower()
+                if compressor_name == "lz4":
+                    arguments["codecs"] = ZARR_V3_LZ4_CODECS
+                elif compressor_name == "pickle":
+                    arguments["codecs"] = ZARR_V3_PICKLE_CODECS
+                elif compressor_name == "lzma":
+                    arguments["codecs"] = ZARR_V3_LZMA_CODECS
+                # Remove compressor as it's not supported in zarr v3
+                del arguments["compressor"]
+        elif "compressor" in arguments and not is_zarr_v3:
+            # For zarr v2, use the compressor registry
+            if arguments["compressor"] != "default" and arguments["compressor"] is not None:
                 arguments["compressor"] = codec_reg[arguments["compressor"].lower()]()
-        if "value_compressor" in arguments:
-            if arguments["value_compressor"] != "default":
+
+        # Same for value_compressor
+        if "value_compressor" in arguments and is_zarr_v3:
+            if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
+                compressor_name = arguments["value_compressor"].lower()
+                if compressor_name == "lz4":
+                    arguments["value_codecs"] = ZARR_V3_LZ4_CODECS
+                elif compressor_name == "pickle":
+                    arguments["value_codecs"] = ZARR_V3_PICKLE_CODECS
+                elif compressor_name == "lzma":
+                    arguments["value_codecs"] = ZARR_V3_LZMA_CODECS
+                del arguments["value_compressor"]
+        elif "value_compressor" in arguments and not is_zarr_v3:
+            if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
                 arguments["value_compressor"] = codec_reg[arguments["value_compressor"].lower()]()
-        if "count_compressor" in arguments:
-            if arguments["count_compressor"] != "default":
+
+        # Same for count_compressor
+        if "count_compressor" in arguments and is_zarr_v3:
+            if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
+                compressor_name = arguments["count_compressor"].lower()
+                if compressor_name == "lz4":
+                    arguments["count_codecs"] = ZARR_V3_LZ4_CODECS
+                elif compressor_name == "pickle":
+                    arguments["count_codecs"] = ZARR_V3_PICKLE_CODECS
+                elif compressor_name == "lzma":
+                    arguments["count_codecs"] = ZARR_V3_LZMA_CODECS
+                del arguments["count_compressor"]
+        elif "count_compressor" in arguments and not is_zarr_v3:
+            if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
                 arguments["count_compressor"] = codec_reg[arguments["count_compressor"].lower()]()
+
         merger = ZarrAvgMerger(**arguments)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
@@ -320,7 +427,3 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None)
-
-
-if __name__ == "__main__":
-    unittest.main()
