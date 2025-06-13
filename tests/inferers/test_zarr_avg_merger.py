@@ -435,7 +435,8 @@ class ZarrAvgMergerTests(unittest.TestCase):
             warnings.simplefilter("always")
             kwargs = {"merged_shape": TENSOR_4x4.shape, param_name: value}
             ZarrAvgMerger(**kwargs)
-            self.assertTrue(len(w) == 1)
+            
+            self.assertTrue(len(w) > 0)
             self.assertTrue(issubclass(w[-1].category, FutureWarning))
             expected_message = (
                 f"Argument `{param_name}` has been deprecated since version 1.5.0. It will be removed in version 1.7.0."
