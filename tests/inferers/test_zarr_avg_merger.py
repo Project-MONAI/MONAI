@@ -26,6 +26,7 @@ from tests.test_utils import assert_allclose
 
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
+print(version_geq(get_package_version("zarr"), "3.0.0"))
 if has_zarr:
     if version_geq(get_package_version("zarr"), "3.0.0"):
         directory_store = zarr.storage.LocalStore("test.zarr")
@@ -205,9 +206,9 @@ TEST_CASE_12_CHUNKS = [
 # Define zarr v3 codec configurations with proper bytes codec
 ZARR_V3_LZ4_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "lz4"}}]
 
-ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "pickle", "configuration": {}}]
+ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}]
 
-ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "lzma", "configuration": {}}]
+ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}]
 
 # test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
