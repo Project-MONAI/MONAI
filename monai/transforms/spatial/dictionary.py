@@ -550,7 +550,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         keys: KeysCollection,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        labels: Sequence[tuple[str, str]] | None = None,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -564,7 +564,9 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+                Defaults to using the ``"space"`` attribute of a metatensor,
+                where appliable, or (('L', 'R'), ('P', 'A'), ('I', 'S'))``
+                otherwise (i.e. for plain tensors).
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
