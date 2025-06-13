@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.5.0] - 2025-06-06
+## [1.5.0] - 2025-06-13
 
 ## What's Changed
 ### Added
@@ -35,7 +35,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Fix PatchMerging duplicate merging (#8285)
 * Fix test load image issue (#8297)
 * Fix bundle download error from ngc source (#8307)
-* Fix deprecated usage in zarr (#8313)
+* Fix deprecated usage in zarr (#8313, #8477)
 * Fix DataFrame subsets indexing in CSVDataset() (#8351)
 * Fix `packaging` imports in version comparison logic (#8347)
 * Fix CommonKeys docstring (#8342)
@@ -46,6 +46,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Inverse Threading Fix (#8418)
 * Fix normalize intensity (#8286)
 * Fix path at test onnx trt export (#8361)
+* Fix broken urls (#8481, #8483)
 
 ### Changed
 * [DOC] Update README.md (#8157)
@@ -1228,7 +1229,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...1.4.0
 [1.3.2]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1
