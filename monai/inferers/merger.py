@@ -316,11 +316,11 @@ class ZarrAvgMerger(Merger):
 
         # For backward compatibility
         if compressor is not None and codecs is None:
-            self.codecs = list(compressor)
+            self.codecs = compressor if isinstance(compressor, (list, tuple)) else [compressor]
         if value_compressor is not None and value_codecs is None:
-            self.value_codecs = list(value_compressor)
+            self.value_codecs = value_compressor if isinstance(value_compressor, (list, tuple)) else [value_compressor]
         if count_compressor is not None and count_codecs is None:
-            self.count_codecs = list(count_compressor)
+            self.count_codecs = count_compressor if isinstance(count_compressor, (list, tuple)) else [count_compressor]
 
         # Create zarr arrays with appropriate parameters based on version
         if is_zarr_v3:
