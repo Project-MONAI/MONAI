@@ -271,8 +271,8 @@ def spatial_average_3d(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
     return x.mean([2, 3, 4], keepdim=keepdim)
 
 
-def normalize_tensor(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
-    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True))
+def normalize_tensor(x: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True) + eps)
     return x / (norm_factor + eps)
 
 
