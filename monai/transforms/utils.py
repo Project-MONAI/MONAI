@@ -983,7 +983,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         out = eye_func(3)
-        out[0, 1], out[1, 0] = coefs[0], coefs[1]
+        out[0, 1], out[1, 0], out[1, 1] = coefs[0], coefs[1], 1 + coefs[0] * coefs[1]
         return out  # type: ignore
     if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
