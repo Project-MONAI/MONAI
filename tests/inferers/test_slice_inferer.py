@@ -53,5 +53,39 @@ class TestSliceInferer(unittest.TestCase):
         result = inferer(input_volume, model)
 
 
+class TestSliceInfererCond(unittest.TestCase):
+
+    @parameterized.expand(TEST_CASES)
+    def test_shape(self, spatial_dim):
+        spatial_dim = int(spatial_dim)
+
+        model = UNet(
+            spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16), strides=(2, 2), num_res_units=2
+        )
+
+        # overwrite the forward method to test the inferer with a model that takes a condition
+        model.forward = lambda x, condition: x + condition if condition is not None else x
+
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+
+        # Initialize a dummy 3D tensor volume with shape (N,C,D,H,W)
+        input_volume = torch.ones(1, 1, 64, 256, 256, device=device)
+        condition_volume = torch.ones(1, 1, 64, 256, 256, device=device)
+        # Remove spatial dim to slide across from the roi_size
+        roi_size = list(input_volume.shape[2:])
+        roi_size.pop(spatial_dim)
+
+        # Initialize and run inferer
+        inferer = SliceInferer(roi_size=roi_size, spatial_dim=spatial_dim, sw_batch_size=1, cval=-1)
+        result = inferer(input_volume, model, condition=condition_volume)
+
+        self.assertTupleEqual(result.shape, input_volume.shape)
+        self.assertEqual(result.sum(), (input_volume + condition_volume).sum())
+        # test that the inferer can be run multiple times
+        result = inferer(input_volume, model, condition=condition_volume)
+
+
 if __name__ == "__main__":
     unittest.main()

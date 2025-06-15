@@ -305,5 +305,231 @@ class PatchInfererTests(unittest.TestCase):
             inferer(inputs=inputs, network=lambda x: x)
 
 
+# ----------------------------------------------------------------------------
+# Error test cases with conditionign
+# ----------------------------------------------------------------------------
+
+# no-overlapping 2x2 patches
+TEST_CASE_0_TENSOR_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# no-overlapping 2x2 patches using all default parameters (except for splitter)
+TEST_CASE_1_TENSOR_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2))),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# divisible batch_size
+TEST_CASE_2_TENSOR_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, batch_size=2),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# non-divisible batch_size
+TEST_CASE_3_TENSOR_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, batch_size=3),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# patches that are already split (Splitter should be None)
+TEST_CASE_4_SPLIT_LIST_c = [
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    dict(splitter=None, merger_cls=AvgMerger, merged_shape=(2, 3, 4, 4)),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# using all default parameters (patches are already split)
+TEST_CASE_5_SPLIT_LIST_c = [
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    dict(merger_cls=AvgMerger, merged_shape=(2, 3, 4, 4)),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# output smaller than input patches
+TEST_CASE_6_SMALLER_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
+    lambda x, condition: torch.mean(x, dim=(-1, -2), keepdim=True) + torch.mean(condition, dim=(-1, -2), keepdim=True),
+    TENSOR_2x2 * 2,
+]
+
+# preprocess patches
+TEST_CASE_7_PREPROCESS_c = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 2)),
+        merger_cls=AvgMerger,
+        preprocessing=lambda x: 2 * x,
+        postprocessing=None,
+    ),
+    lambda x, condition: x + condition,
+    2 * TENSOR_4x4 + TENSOR_4x4,
+]
+
+# preprocess patches
+TEST_CASE_8_POSTPROCESS_c = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 2)),
+        merger_cls=AvgMerger,
+        preprocessing=None,
+        postprocessing=lambda x: 4 * x,
+    ),
+    lambda x, condition: x + condition,
+    4 * TENSOR_4x4 * 2,
+]
+
+# str merger as the class name
+TEST_CASE_9_STR_MERGER_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="AvgMerger"),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# str merger as dotted patch
+TEST_CASE_10_STR_MERGER_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="monai.inferers.merger.AvgMerger"),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# non-divisible patch_size leading to larger image (without matching spatial shape)
+TEST_CASE_11_PADDING_c = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode="constant", pad_value=0.0),
+        merger_cls=AvgMerger,
+        match_spatial_shape=False,
+    ),
+    lambda x, condition: x + condition,
+    pad(TENSOR_4x4, (0, 2), value=0.0) * 2,
+]
+
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_12_MATCHING_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode=None), merger_cls=AvgMerger),
+    lambda x, condition: x + condition,
+    pad(TENSOR_4x4[..., :3], (0, 1), value=float("nan")) * 2,
+]
+
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_13_PADDING_MATCHING_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3)), merger_cls=AvgMerger),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# multi-threading
+TEST_CASE_14_MULTITHREAD_BUFFER_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=2),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# multi-threading with batch
+TEST_CASE_15_MULTITHREADD_BUFFER_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=4, batch_size=4),
+    lambda x, condition: x + condition,
+    TENSOR_4x4 * 2,
+]
+
+# list of tensor output
+TEST_CASE_0_LIST_TENSOR_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
+    lambda x, condition: (x + condition, x + condition),
+    (TENSOR_4x4 * 2, TENSOR_4x4 * 2),
+]
+
+# list of tensor output
+TEST_CASE_0_DICT_c = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
+    lambda x, condition: {"model_output": x + condition},
+    {"model_output": TENSOR_4x4 * 2},
+]
+
+
+class PatchInfererTestsCond(unittest.TestCase):
+    @parameterized.expand(
+        [
+            TEST_CASE_0_TENSOR_c,
+            TEST_CASE_1_TENSOR_c,
+            TEST_CASE_2_TENSOR_c,
+            TEST_CASE_3_TENSOR_c,
+            TEST_CASE_4_SPLIT_LIST_c,
+            TEST_CASE_5_SPLIT_LIST_c,
+            TEST_CASE_6_SMALLER_c,
+            TEST_CASE_7_PREPROCESS_c,
+            TEST_CASE_8_POSTPROCESS_c,
+            TEST_CASE_9_STR_MERGER_c,
+            TEST_CASE_10_STR_MERGER_c,
+            TEST_CASE_11_PADDING_c,
+            TEST_CASE_12_MATCHING_c,
+            TEST_CASE_13_PADDING_MATCHING_c,
+            TEST_CASE_14_MULTITHREAD_BUFFER_c,
+            TEST_CASE_15_MULTITHREADD_BUFFER_c,
+        ]
+    )
+    def test_patch_inferer_tensor(self, inputs, arguments, network, expected):
+        if isinstance(inputs, list):  # case 4 and 5
+            condition = [(x[0].clone(), x[1]) for x in inputs]
+        else:
+            condition = inputs.clone()
+        inferer = PatchInferer(**arguments)
+        output = inferer(inputs=inputs, network=network, condition=condition)
+        assert_allclose(output, expected)
+
+    @parameterized.expand([TEST_CASE_0_LIST_TENSOR_c])
+    def test_patch_inferer_list_tensor(self, inputs, arguments, network, expected):
+        if isinstance(inputs, list):  # case 4 and 5
+            condition = [(x[0].clone(), x[1]) for x in inputs]
+        else:
+            condition = inputs.clone()
+        inferer = PatchInferer(**arguments)
+        output = inferer(inputs=inputs, network=network, condition=condition)
+        for out, exp in zip(output, expected):
+            assert_allclose(out, exp)
+
+    @parameterized.expand([TEST_CASE_0_DICT_c])
+    def test_patch_inferer_dict(self, inputs, arguments, network, expected):
+        if isinstance(inputs, list):  # case 4 and 5
+            condition = [(x[0].clone(), x[1]) for x in inputs]
+        else:
+            condition = inputs.clone()
+        inferer = PatchInferer(**arguments)
+        output = inferer(inputs=inputs, network=network, condition=condition)
+        for k in expected:
+            assert_allclose(output[k], expected[k])
+
+
 if __name__ == "__main__":
     unittest.main()
