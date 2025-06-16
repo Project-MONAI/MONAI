@@ -21,6 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientation, create_rotate, create_translate
+from monai.utils import SpaceKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES, assert_allclose
 
@@ -33,6 +34,18 @@ for device in TEST_DEVICES:
             torch.eye(4),
             torch.arange(12).reshape((2, 1, 2, 3)),
             "RAS",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"axcodes": "LPS"},
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.eye(4),
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            "LPS",
+            True,
             *device,
         ]
     )
@@ -43,6 +56,18 @@ for device in TEST_DEVICES:
             torch.as_tensor(np.diag([-1, -1, 1, 1])),
             torch.tensor([[[[3, 4, 5]], [[0, 1, 2]]], [[[9, 10, 11]], [[6, 7, 8]]]]),
             "ALS",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"axcodes": "PRS"},
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(np.diag([-1, -1, 1, 1])),
+            torch.tensor([[[[3, 4, 5]], [[0, 1, 2]]], [[[9, 10, 11]], [[6, 7, 8]]]]),
+            "PRS",
+            True,
             *device,
         ]
     )
@@ -53,6 +78,18 @@ for device in TEST_DEVICES:
             torch.as_tensor(np.diag([-1, -1, 1, 1])),
             torch.tensor([[[[3, 4, 5], [0, 1, 2]]], [[[9, 10, 11], [6, 7, 8]]]]),
             "RAS",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"axcodes": "LPS"},
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(np.diag([-1, -1, 1, 1])),
+            torch.tensor([[[[3, 4, 5], [0, 1, 2]]], [[[9, 10, 11], [6, 7, 8]]]]),
+            "LPS",
+            True,
             *device,
         ]
     )
@@ -63,6 +100,18 @@ for device in TEST_DEVICES:
             torch.eye(3),
             torch.tensor([[[0], [1], [2]], [[3], [4], [5]]]),
             "AL",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"axcodes": "PR"},
+            torch.arange(6).reshape((2, 1, 3)),
+            torch.eye(3),
+            torch.tensor([[[0], [1], [2]], [[3], [4], [5]]]),
+            "PR",
+            True,
             *device,
         ]
     )
@@ -73,6 +122,18 @@ for device in TEST_DEVICES:
             torch.eye(2),
             torch.tensor([[2, 1, 0], [5, 4, 3]]),
             "L",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"axcodes": "R"},
+            torch.arange(6).reshape((2, 3)),
+            torch.eye(2),
+            torch.tensor([[2, 1, 0], [5, 4, 3]]),
+            "R",
+            True,
             *device,
         ]
     )
@@ -83,6 +144,7 @@ for device in TEST_DEVICES:
             torch.eye(2),
             torch.tensor([[2, 1, 0], [5, 4, 3]]),
             "L",
+            False,
             *device,
         ]
     )
@@ -93,6 +155,7 @@ for device in TEST_DEVICES:
             torch.as_tensor(np.diag([-1, 1])),
             torch.arange(6).reshape((2, 3)),
             "L",
+            False,
             *device,
         ]
     )
@@ -107,6 +170,7 @@ for device in TEST_DEVICES:
             ),
             torch.tensor([[[[2, 5]], [[1, 4]], [[0, 3]]], [[[8, 11]], [[7, 10]], [[6, 9]]]]),
             "LPS",
+            False,
             *device,
         ]
     )
@@ -121,6 +185,7 @@ for device in TEST_DEVICES:
             ),
             torch.tensor([[[[0, 3]], [[1, 4]], [[2, 5]]], [[[6, 9]], [[7, 10]], [[8, 11]]]]),
             "RAS",
+            False,
             *device,
         ]
     )
@@ -131,6 +196,7 @@ for device in TEST_DEVICES:
             torch.as_tensor(create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])),
             torch.tensor([[[3, 0], [4, 1], [5, 2]]]),
             "RA",
+            False,
             *device,
         ]
     )
@@ -141,6 +207,7 @@ for device in TEST_DEVICES:
             torch.as_tensor(create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])),
             torch.tensor([[[2, 5], [1, 4], [0, 3]]]),
             "LP",
+            False,
             *device,
         ]
     )
@@ -151,6 +218,7 @@ for device in TEST_DEVICES:
             torch.as_tensor(np.diag([-1, -0.2, -1, 1, 1])),
             torch.zeros((1, 2, 3, 4, 5)),
             "LPID",
+            False,
             *device,
         ]
     )
@@ -161,6 +229,7 @@ for device in TEST_DEVICES:
             torch.as_tensor(np.diag([-1, -0.2, -1, 1, 1])),
             torch.zeros((1, 2, 3, 4, 5)),
             "RASD",
+            False,
             *device,
         ]
     )
@@ -175,6 +244,11 @@ ILL_CASES = [
     [{"axcodes": "RA"}, torch.arange(12).reshape((2, 1, 2, 3)), torch.eye(4)]
 ]
 
+TESTS_INVERSE = []
+for device in TEST_DEVICES:
+    TESTS_INVERSE.append([True, *device])
+    TESTS_INVERSE.append([False, *device])
+
 
 class TestOrientationCase(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -185,9 +259,11 @@ class TestOrientationCase(unittest.TestCase):
         affine: torch.Tensor,
         expected_data: torch.Tensor,
         expected_code: str,
+        lps_convention: bool,
         device,
     ):
-        img = MetaTensor(img, affine=affine).to(device)
+        meta = {"space": SpaceKeys.LPS} if lps_convention else None
+        img = MetaTensor(img, affine=affine, meta=meta).to(device)
         ornt = Orientation(**init_param)
         call_param = {"data_array": img}
         res = ornt(**call_param)  # type: ignore[arg-type]
@@ -195,7 +271,8 @@ class TestOrientationCase(unittest.TestCase):
             test_resampler_lazy(ornt, res, init_param, call_param)
 
         assert_allclose(res, expected_data.to(device))
-        new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)  # type: ignore
+        labels = (("R", "L"), ("A", "P"), ("I", "S")) if lps_convention else ornt.labels
+        new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=labels)  # type: ignore
         self.assertEqual("".join(new_code), expected_code)
 
     @parameterized.expand(TESTS_TORCH)
@@ -224,13 +301,13 @@ class TestOrientationCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             Orientation(**init_param)(img)
 
-    @parameterized.expand(TEST_DEVICES)
-    def test_inverse(self, device):
+    @parameterized.expand(TESTS_INVERSE)
+    def test_inverse(self, lps_convention: bool, device):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
         affine = torch.tensor(
             [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
         )
-        meta = {"fname": "somewhere"}
+        meta = {"fname": "somewhere", "space": SpaceKeys.LPS if lps_convention else SpaceKeys.RAS}
         img = MetaTensor(img_t, affine=affine, meta=meta)
         tr = Orientation("LPS")
         # check that image and affine have changed
