@@ -12,12 +12,12 @@
 from __future__ import annotations
 
 import unittest
+from typing import cast
 
 import nibabel as nib
 import numpy as np
 import torch
 from parameterized import parameterized
-from typing import cast
 
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
