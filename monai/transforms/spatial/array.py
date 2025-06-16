@@ -64,6 +64,7 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    SpaceKeys,
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
@@ -560,7 +561,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         self,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        labels: Sequence[tuple[str, str]] | None = None,
         lazy: bool = False,
     ) -> None:
         """
@@ -573,7 +574,9 @@ class Orientation(InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+                Defaults to using the ``"space"`` attribute of a metatensor,
+                where appliable, or (('L', 'R'), ('P', 'A'), ('I', 'S'))``
+                otherwise (i.e. for plain tensors).
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
@@ -619,9 +622,15 @@ class Orientation(InvertibleTransform, LazyTransform):
             raise ValueError(f"data_array must have at least one spatial dimension, got {spatial_shape}.")
         affine_: np.ndarray
         affine_np: np.ndarray
+        labels = self.labels
         if isinstance(data_array, MetaTensor):
             affine_np, *_ = convert_data_type(data_array.peek_pending_affine(), np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
+
+            # Set up "labels" such that LPS tensors are handled correctly by default
+            if self.labels is None and SpaceKeys(data_array.meta["space"]) == SpaceKeys.LPS:
+                labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
         else:
             warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -640,7 +649,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"{self.__class__.__name__}: spatial shape = {spatial_shape}, channels = {data_array.shape[0]},"
                     "please make sure the input is in the channel-first format."
                 )
-            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
+            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=labels)
             if len(dst) < sr:
                 raise ValueError(
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
@@ -653,8 +662,18 @@ class Orientation(InvertibleTransform, LazyTransform):
         transform = self.pop_transform(data)
         # Create inverse transform
         orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
-        orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
-        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
+        labels = self.labels
+
+        # Set up "labels" such that LPS tensors are handled correctly by default
+        if (
+            isinstance(data, MetaTensor) and
+            self.labels is None and
+            SpaceKeys(data.meta["space"]) == SpaceKeys.LPS
+        ):
+            labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
+        orig_axcodes = nib.orientations.aff2axcodes(orig_affine, labels=labels)
+        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=labels)
         # Apply inverse
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data)
