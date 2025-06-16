@@ -665,11 +665,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         labels = self.labels
 
         # Set up "labels" such that LPS tensors are handled correctly by default
-        if (
-            isinstance(data, MetaTensor) and
-            self.labels is None and
-            SpaceKeys(data.meta["space"]) == SpaceKeys.LPS
-        ):
+        if isinstance(data, MetaTensor) and self.labels is None and SpaceKeys(data.meta["space"]) == SpaceKeys.LPS:
             labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
 
         orig_axcodes = nib.orientations.aff2axcodes(orig_affine, labels=labels)
