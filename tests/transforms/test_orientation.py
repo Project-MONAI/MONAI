@@ -17,6 +17,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from parameterized import parameterized
+from typing import cast
 
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -311,13 +312,13 @@ class TestOrientationCase(unittest.TestCase):
         img = MetaTensor(img_t, affine=affine, meta=meta)
         tr = Orientation("LPS")
         # check that image and affine have changed
-        img = tr(img)
+        img = cast(MetaTensor, tr(img))
         self.assertNotEqual(img.shape, img_t.shape)
-        self.assertGreater((affine - img.affine).max(), 0.5)
+        self.assertGreater(float((affine - img.affine).max()), 0.5)
         # check that with inverse, image affine are back to how they were
-        img = tr.inverse(img)
+        img = cast(MetaTensor, tr.inverse(img))
         self.assertEqual(img.shape, img_t.shape)
-        self.assertLess((affine - img.affine).max(), 1e-2)
+        self.assertLess(float((affine - img.affine).max()), 1e-2)
 
 
 if __name__ == "__main__":
