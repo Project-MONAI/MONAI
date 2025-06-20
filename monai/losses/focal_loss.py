@@ -276,7 +276,7 @@ def focal_loss_with_probs(
     log_pt = torch.log(torch.clamp(pt, min=1e-8))  # Avoid log(0)
     focal_factor = (1 - pt).pow(gamma)  # (1 - pt)**gamma
 
-    loss = -focal_factor * log_pt
+    loss: torch.Tensor = -focal_factor * log_pt
 
     if alpha is not None:
         # alpha if t==1; (1-alpha) if t==0
