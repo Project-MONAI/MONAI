@@ -74,6 +74,7 @@ class FocalLoss(_Loss):
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
         use_softmax: bool = False,
+        use_sigmoid: bool = True,
     ) -> None:
         """
         Args:
@@ -96,7 +97,9 @@ class FocalLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
             use_softmax: whether to use softmax to transform the original logits into probabilities.
-                If True, softmax is used. If False, sigmoid is used. Defaults to False.
+                If True, softmax is used. Defaults to False.
+            use_sigmoid: whether to use sigmoid to transform the original logits into probabilities.
+                If True, sigmoid is used. Defaults to True.
 
         Example:
             >>> import torch
@@ -113,6 +116,7 @@ class FocalLoss(_Loss):
         self.alpha = alpha
         self.weight = weight
         self.use_softmax = use_softmax
+        self.use_sigmoid = use_sigmoid
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
@@ -161,8 +165,10 @@ class FocalLoss(_Loss):
                 self.alpha = None
                 warnings.warn("`include_background=False`, `alpha` ignored when using softmax.")
             loss = softmax_focal_loss(input, target, self.gamma, self.alpha)
-        else:
+        elif self.use_sigmoid:
             loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
+        else:
+            loss = focal_loss_with_probs(input, target, self.gamma, self.alpha)
 
         num_of_classes = target.shape[1]
         if self.class_weight is not None and num_of_classes != 1:
@@ -250,6 +256,31 @@ def sigmoid_focal_loss(
     if alpha is not None:
         # alpha if t==1; (1-alpha) if t==0
         alpha_factor = target * alpha + (1 - target) * (1 - alpha)
+        loss = alpha_factor * loss
+
+    return loss
+
+
+def focal_loss_with_probs(
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: Optional[float] = None
+) -> torch.Tensor:
+    """
+    FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
+
+    where p = x, pt = p if label is 1 or 1 - p if label is 0
+    """
+    # Compute pt (probability of true class)
+    pt = torch.where(target == 1, input, 1 - input)
+
+    # Compute focal loss components
+    log_pt = torch.log(torch.clamp(pt, min=1e-8))  # Avoid log(0)
+    focal_factor = (1 - pt).pow(gamma)             # (1 - pt)**gamma
+
+    loss = -focal_factor * log_pt
+
+    if alpha is not None:
+        # alpha if t==1; (1-alpha) if t==0
+        alpha_factor = torch.where(target == 1, alpha, 1 - alpha)
         loss = alpha_factor * loss
 
     return loss
