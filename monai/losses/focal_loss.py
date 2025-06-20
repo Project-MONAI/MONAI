@@ -274,7 +274,7 @@ def focal_loss_with_probs(
 
     # Compute focal loss components
     log_pt = torch.log(torch.clamp(pt, min=1e-8))  # Avoid log(0)
-    focal_factor = (1 - pt).pow(gamma)             # (1 - pt)**gamma
+    focal_factor = (1 - pt).pow(gamma)  # (1 - pt)**gamma
 
     loss = -focal_factor * log_pt
 

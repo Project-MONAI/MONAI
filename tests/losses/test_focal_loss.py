@@ -311,7 +311,9 @@ class TestFocalLoss(unittest.TestCase):
                 # The prediction here are probabilities, not logits.
                 pred_very_good = target_one_hot.clone().float()
             else:
-                pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float() - 500.0
+                pred_very_good = (
+                    1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float() - 500.0
+                )
 
             # initialize the mean dice loss
             loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
