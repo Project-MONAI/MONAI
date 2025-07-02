@@ -217,7 +217,7 @@ class ImageStats(Analyzer):
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
     def __call__(self, data):
-        #Input Validation Addition
+        # Input Validation Addition
         if not isinstance(data, dict):
             raise TypeError(f"Input data must be a dict, but got {type(data).__name__}.")
         if self.image_key not in data:
@@ -235,8 +235,7 @@ class ImageStats(Analyzer):
             )
         if image.ndim < 3:
             raise ValueError(
-                f"Image data under '{self.image_key}' must have at least 3 dimensions, "
-                f"but got shape {image.shape}."
+                f"Image data under '{self.image_key}' must have at least 3 dimensions, " f"but got shape {image.shape}."
             )
             # --- End of validation ---
         """
