@@ -21,7 +21,7 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10"]
     runs-on: ${{ matrix.os }}
-    timeout: 46 # minutes, equal to max + 3*std over the last 600 successful runs
+    timeout-minutes: 46 # equal to max + 3*std over the last 600 successful runs
     env:
       QUICKTEST: True
     steps:
