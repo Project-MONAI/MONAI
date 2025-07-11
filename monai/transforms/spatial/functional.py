@@ -411,7 +411,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info, **kwargs):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
@@ -450,7 +450,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     if keep_size:
         do_pad_crop = not np.allclose(output_size, im_shape)
         if do_pad_crop and lazy:  # update for lazy evaluation
-            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode, **kwargs)
             _pad_crop.lazy = True
             _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
             _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
@@ -486,7 +486,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         out = out.copy_meta_from(meta_info)
     do_pad_crop = not np.allclose(output_size, zoomed.shape[1:])
     if do_pad_crop:
-        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
+        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode, **kwargs)
         out = _pad_crop(out)
     if get_track_meta() and do_pad_crop:
         padcrop_xform = out.applied_operations.pop()
