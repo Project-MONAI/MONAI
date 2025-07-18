@@ -28,7 +28,10 @@ einops, has_einops = optional_import("einops")
 
 TEST_CASE_CABLOCK = [
     [
-        {**params, "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["flash_attn"] else None},
+        {
+            **{param: value for param, value in params.items() if param != "rel_pos_embedding_val"},
+            "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["use_flash_attention"] else None,
+        },
         (2, 512, params["hidden_size"]),
         (2, 512, params["hidden_size"]),
     ]
@@ -64,9 +67,7 @@ class TestResBlock(unittest.TestCase):
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
-            CrossAttentionBlock(
-                hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
-            )
+            CrossAttentionBlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
 
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_rel_pos_embedding_with_flash_attention(self):
@@ -111,9 +112,7 @@ class TestResBlock(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_causal(self):
-        block = CrossAttentionBlock(
-            hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True
-        )
+        block = CrossAttentionBlock(hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True)
         input_shape = (1, 16, 128)
         block(torch.randn(input_shape))
         # check upper triangular part of the attention matrix is zero
@@ -145,9 +144,7 @@ class TestResBlock(unittest.TestCase):
         input_shape = (2, 256, hidden_size)
 
         # be  not able to access the matrix
-        no_matrix_acess_blk = CrossAttentionBlock(
-            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate
-        )
+        no_matrix_acess_blk = CrossAttentionBlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate)
         no_matrix_acess_blk(torch.randn(input_shape))
         assert isinstance(no_matrix_acess_blk.att_mat, torch.Tensor)
         # no of elements is zero
