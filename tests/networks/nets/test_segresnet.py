@@ -48,10 +48,7 @@ TEST_CASE_SEGRESNET = [
 TEST_CASE_SEGRESNET_2 = [
     [
         {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "out_channels": params["out_channels"],
-            "upsample_mode": params["upsample_mode"],
+            **params,
         },
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["out_channels"], *([16] * params["spatial_dims"])),
@@ -64,13 +61,9 @@ TEST_CASE_SEGRESNET_2 = [
 TEST_CASE_SEGRESNET_VAE = [
     [
         {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "out_channels": params["out_channels"],
-            "upsample_mode": params["upsample_mode"],
+            **params,
             "act": ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
             "input_image_size": ([16] * params["spatial_dims"]),
-            "vae_estimate_std": params["vae_estimate_std"],
         },
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["out_channels"], *([16] * params["spatial_dims"])),

@@ -32,27 +32,15 @@ def _get_out_size(params):
     return int((in_size + 2 * padding - kernel_size) / stride) + 1
 
 
-TEST_CASE_UNETR_BASIC_BLOCK = [
-    [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "in_channels": 16,
-            "out_channels": 16,
-            "kernel_size": params["kernel_size"],
-            "norm_name": params["norm_name"],
-            "stride": params["stride"],
-        },
-        (1, 16, *([params["in_size"]] * params["spatial_dims"])),
-        (1, 16, *([_get_out_size(params)] * params["spatial_dims"])),
-    ]
-    for params in dict_product(
-        spatial_dims=range(1, 4),
-        kernel_size=[1, 3],
-        stride=[2],
-        norm_name=[("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"],
-        in_size=[15, 16],
-    )
-]
+norm_names = [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]
+param_dicts = dict_product(spatial_dims=range(1, 4), kernel_size=[1, 3], stride=[2], norm_name=norm_names, in_size=[15, 16])
+TEST_CASE_UNETR_BASIC_BLOCK = []
+for params in param_dicts:
+    input_param = {**{k: v for k, v in params.items() if k != "in_size"}, "in_channels": 16, "out_channels": 16}
+    input_shape = (1, 16, *([params["in_size"]] * params["spatial_dims"]))
+    expected_shape = (1, 16, *([_get_out_size(params)] * params["spatial_dims"]))
+    TEST_CASE_UNETR_BASIC_BLOCK.append([input_param, input_shape, expected_shape])
+
 
 TEST_UP_BLOCK = [
     [

@@ -26,13 +26,7 @@ from tests.test_utils import dict_product
 einops, has_einops = optional_import("einops")
 TEST_CASE_TRANSFORMERBLOCK = [
     [
-        {
-            "hidden_size": params["hidden_size"],
-            "num_heads": params["num_heads"],
-            "mlp_dim": params["mlp_dim"],
-            "dropout_rate": params["dropout_rate"],
-            "with_cross_attention": params["with_cross_attention"],
-        },
+        params,
         (2, 512, params["hidden_size"]),
         (2, 512, params["hidden_size"]),
     ]

@@ -42,30 +42,26 @@ expected_3d = [
 ]
 
 for dst, expct in zip(destinations_3d, expected_3d):
-    TESTS.extend(
+    TESTS.extend([
         [
-            [
-                np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
-                *params["device"],
-                dst,
-                {
-                    "dst_keys": "dst_affine",
-                    "dtype": params["dtype"],
-                    "align_corners": params["align"],
-                    "mode": params["interp_mode"],
-                    "padding_mode": params["padding_mode"],
-                },
-                expct,
-            ]
-            for params in dict_product(
-                device=TEST_DEVICES,
-                align=[True, False],
-                dtype=[torch.float32, torch.float64],
-                interp_mode=["nearest", "bilinear"],
-                padding_mode=["zeros", "border", "reflection"],
-            )
+            np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
+            *params["device"],
+            dst,
+            {
+                **{k: v for k, v in params.items() if k not in ["device", "interp_mode"]},
+                "dst_keys": "dst_affine",
+                "padding_mode": "zeros",
+            },
+            expct,
         ]
-    )
+        for params in dict_product(
+            device=TEST_DEVICES,
+            align_corners=[True, False],
+            dtype=[torch.float32, torch.float64],
+            interp_mode=["nearest", "bilinear"],
+            padding_mode=["zeros", "border", "reflection"],
+        )
+    ])
 
 destinations_2d = [
     torch.tensor([[1.0, 0.0, 0.0], [0.0, -1.0, 1.0], [0.0, 0.0, 1.0]]),  # flip the second
@@ -75,29 +71,25 @@ destinations_2d = [
 expected_2d = [torch.tensor([[[2.0, 1.0], [4.0, 3.0]]]), torch.tensor([[[3.0, 4.0], [1.0, 2.0]]])]
 
 for dst, expct in zip(destinations_2d, expected_2d):
-    TESTS.extend(
+    TESTS += [
         [
-            [
-                np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-                *params["device"],
-                dst,
-                {
-                    "dst_keys": "dst_affine",
-                    "dtype": params["dtype"],
-                    "align_corners": params["align"],
-                    "mode": params["interp_mode"],
-                    "padding_mode": "zeros",
-                },
-                expct,
-            ]
-            for params in dict_product(
-                device=TEST_DEVICES,
-                align=[False, True],
-                dtype=[torch.float32, torch.float64],
-                interp_mode=["nearest", "bilinear"],
-            )
+            np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+            *params.pop("device"),
+            dst,
+            {
+                **{k: v for k, v in params.items() if k not in ["align", "interp_mode"]},
+                "dst_keys": "dst_affine",
+                "padding_mode": "zeros",
+            },
+            expct,
         ]
-    )
+        for params in dict_product(
+            device=TEST_DEVICES,
+            align=[False, True],
+            dtype=[torch.float32, torch.float64],
+            interp_mode=["nearest", "bilinear"],
+        )
+    ]
 
 
 class TestSpatialResample(unittest.TestCase):

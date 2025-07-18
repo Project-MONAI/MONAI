@@ -23,12 +23,7 @@ from monai.transforms import LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
 from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product, make_nifti_image, make_rand_affine
 
-TESTS = [
-    (params["keepdim"], params["p"], params["update_meta"], params["list_output"])
-    for params in dict_product(
-        p=TEST_NDARRAYS, keepdim=[True, False], update_meta=[True, False], list_output=[True, False]
-    )
-]
+TESTS = list(dict_product(keepdim=[True, False], p=TEST_NDARRAYS, update_meta=[True, False], list_output=[True, False]))
 
 
 class TestSplitDimd(unittest.TestCase):
@@ -44,9 +39,8 @@ class TestSplitDimd(unittest.TestCase):
         cls.data = loader(data)
 
     @parameterized.expand(TESTS)
-    def test_correct(self, keepdim, im_type, update_meta, list_output):
+    def test_correct(self, keepdim, _, update_meta, list_output):
         data = deepcopy(self.data)
-        data["i"] = im_type(data["i"])
         arr = data["i"]
         for dim in range(arr.ndim):
             out = SplitDimd("i", dim=dim, keepdim=keepdim, update_meta=update_meta, list_output=list_output)(data)

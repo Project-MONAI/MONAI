@@ -22,12 +22,7 @@ from tests.test_utils import dict_product
 
 TEST_CASE_RESBLOCK = [
     [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "in_channels": params["in_channels"],
-            "kernel_size": params["kernel_size"],
-            "norm": params["norm"],
-        },
+        params,
         (2, params["in_channels"], *([16] * params["spatial_dims"])),
         (2, params["in_channels"], *([16] * params["spatial_dims"])),
     ]
@@ -41,7 +36,6 @@ TEST_CASE_RESBLOCK = [
 
 
 class TestResBlock(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_RESBLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ResBlock(**input_param)
