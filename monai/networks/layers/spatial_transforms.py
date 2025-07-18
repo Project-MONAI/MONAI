@@ -526,7 +526,6 @@ class AffineTransform(nn.Module):
             ValueError: When affine and image batch dimension differ.
 
         """
-
         # validate `theta`
         if not isinstance(theta, torch.Tensor):
             raise TypeError(f"theta must be torch.Tensor but is {type(theta).__name__}.")
@@ -584,10 +583,12 @@ class AffineTransform(nn.Module):
 
         grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
 
-        _input = src.contiguous()
-
         dst = nn.functional.grid_sample(
-            input=_input, grid=grid, mode=self.mode, padding_mode=self.padding_mode, align_corners=self.align_corners
+            input=src.contiguous(),
+            grid=grid,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
+            align_corners=self.align_corners,
         )
 
         return dst

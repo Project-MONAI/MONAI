@@ -2107,17 +2107,13 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
                     grid_t[0, ..., i] *= 2.0 / max(2, dim)
-
-            _img_t = img_t.unsqueeze(0)
-
             out = torch.nn.functional.grid_sample(
-                _img_t,
+                img_t.unsqueeze(0),
                 grid_t,
                 mode=_interp_mode,
                 padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
             )[0]
-
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
 
