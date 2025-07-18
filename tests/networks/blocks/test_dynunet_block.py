@@ -55,33 +55,22 @@ for params in dict_product(
 
 TEST_UP_BLOCK = []
 in_channels, out_channels = 4, 2
-for params in dict_product(
+param_dicts = dict_product(
     spatial_dims=range(2, 4),
     kernel_size=[1, 3],
-    stride=[1, 2],
+    upsample_kernel_size=[1, 2],
     norm_name=["batch", "instance"],
     in_size=[15, 16],
     trans_bias=[True, False],
-):
+)
+for params in param_dicts:
     spatial_dims = params["spatial_dims"]
-    kernel_size = params["kernel_size"]
-    stride = params["stride"]
-    norm_name = params["norm_name"]
-    in_size = params["in_size"]
-    trans_bias = params["trans_bias"]
-
+    stride = params["upsample_kernel_size"]
+    in_size = params.pop("in_size") # don't want in_size in the dictionary below
     out_size = in_size * stride
+    
     test_case = [
-        {
-            "spatial_dims": spatial_dims,
-            "in_channels": in_channels,
-            "out_channels": out_channels,
-            "kernel_size": kernel_size,
-            "norm_name": norm_name,
-            "stride": stride,
-            "upsample_kernel_size": stride,
-            "trans_bias": trans_bias,
-        },
+        {**params, "in_channels": in_channels, "out_channels": out_channels},
         (1, in_channels, *([in_size] * spatial_dims)),
         (1, out_channels, *([out_size] * spatial_dims)),
         (1, out_channels, *([in_size * stride] * spatial_dims)),
