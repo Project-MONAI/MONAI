@@ -29,12 +29,8 @@ einops, has_einops = optional_import("einops")
 TEST_CASE_CABLOCK = [
     [
         {
-            "hidden_size": params["hidden_size"],
-            "num_heads": params["num_heads"],
-            "dropout_rate": params["dropout_rate"],
+            **params,
             "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["flash_attn"] else None,
-            "input_size": params["input_size"],
-            "use_flash_attention": params["flash_attn"],
         },
         (2, 512, params["hidden_size"]),
         (2, 512, params["hidden_size"]),
@@ -45,7 +41,7 @@ TEST_CASE_CABLOCK = [
         num_heads=[4, 6, 8, 12],
         rel_pos_embedding_val=[None, RelPosEmbedding.DECOMPOSED],
         input_size=[(16, 32), (8, 8, 8)],
-        flash_attn=[True, False],
+        use_flash_attention=[True, False],
     )
 ]
 
