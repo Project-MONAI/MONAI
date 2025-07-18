@@ -20,6 +20,6 @@ reviews:
     enabled: true
     # Review draft PRs/MRs.
     drafts: false
-        
+
 knowledge_base:
   opt_out: true
