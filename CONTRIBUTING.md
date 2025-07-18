@@ -50,6 +50,7 @@ To collaborate efficiently, please read through this section and follow them.
 * [Signing your work](#signing-your-work)
 
 #### Checking the coding style
+
 Coding style is checked and enforced by flake8, black, isort, and ruff, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
