@@ -582,7 +582,6 @@ class AffineTransform(nn.Module):
             )
 
         grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
-
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
@@ -590,5 +589,4 @@ class AffineTransform(nn.Module):
             padding_mode=self.padding_mode,
             align_corners=self.align_corners,
         )
-
         return dst
