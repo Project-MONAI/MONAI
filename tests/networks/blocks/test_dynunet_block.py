@@ -68,7 +68,7 @@ for params in param_dicts:
     stride = params["upsample_kernel_size"]
     in_size = params.pop("in_size") # don't want in_size in the dictionary below
     out_size = in_size * stride
-    
+
     test_case = [
         {**params, "in_channels": in_channels, "out_channels": out_channels},
         (1, in_channels, *([in_size] * spatial_dims)),
