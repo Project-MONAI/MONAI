@@ -4,7 +4,6 @@ tone_instructions: "Be terse and to the point in all statements and commentary."
 reviews:
   profile: chill
   high_level_summary: false
-  # This placeholder doesn't exist, so this effectively disables the summary in the description.
   high_level_summary_placeholder: "@coderabbitai summary"
   sequence_diagrams: false
   auto_apply_labels: false
