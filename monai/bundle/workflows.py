@@ -27,7 +27,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.config import PathLike
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, ensure_tuple
+from monai.utils import BundleProperty, BundlePropertyConfig, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -45,10 +45,6 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for only using meta properties.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
             properties will default to loading from "meta". If `properties_path` is None, default properties
@@ -65,17 +61,9 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         workflow_type: str | None = None,
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
@@ -102,7 +90,6 @@ class BundleWorkflow(ABC):
                         )
                         meta_file = None
 
-        workflow_type = workflow if workflow is not None else workflow_type
         if workflow_type is not None:
             if workflow_type.lower() in self.supported_train_type:
                 workflow_type = "train"
@@ -239,7 +226,7 @@ class BundleWorkflow(ABC):
         if self.properties is None:
             self.properties = {}
         if name in self.properties:
-            logger.warn(f"property '{name}' already exists in the properties list, overriding it.")
+            logger.warning(f"property '{name}' already exists in the properties list, overriding it.")
         self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
 
     def check_properties(self) -> list[str] | None:
@@ -403,10 +390,6 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
-            or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
             properties will default to loading from "train". If `properties_path` is None, default properties
@@ -419,13 +402,6 @@ class ConfigWorkflow(BundleWorkflow):
 
     """
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -436,18 +412,16 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow_type: str | None = "train",
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         **override: Any,
     ) -> None:
-        workflow_type = workflow if workflow is not None else workflow_type
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
             config_root_path = Path(_config_files[0]).parent
             for _config_file in _config_files:
                 _config_file = Path(_config_file)
                 if _config_file.parent != config_root_path:
-                    logger.warn(
+                    logger.warning(
                         f"Not all config files are in {config_root_path}. If logging_file and meta_file are"
                         f"not specified, {config_root_path} will be used as the default config root directory."
                     )
@@ -460,11 +434,11 @@ class ConfigWorkflow(BundleWorkflow):
         self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is False:
-            logger.warn(f"Logging file is set to {logging_file}, skipping logging.")
+            logger.warning(f"Logging file is set to {logging_file}, skipping logging.")
         else:
             if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
-                    logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
+                    logger.warning(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
@@ -529,17 +503,17 @@ class ConfigWorkflow(BundleWorkflow):
         """
         ret = super().check_properties()
         if self.properties is None:
-            logger.warn("No available properties had been set, skipping check.")
+            logger.warning("No available properties had been set, skipping check.")
             return None
         if ret:
-            logger.warn(f"Loaded bundle does not contain the following required properties: {ret}")
+            logger.warning(f"Loaded bundle does not contain the following required properties: {ret}")
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
         for n, p in self.properties.items():
             if not p.get(BundleProperty.REQUIRED, False) and not self._check_optional_id(name=n, property=p):
                 wrong_props.append(n)
         if wrong_props:
-            logger.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+            logger.warning(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
         if ret is not None:
             ret.extend(wrong_props)
         return ret

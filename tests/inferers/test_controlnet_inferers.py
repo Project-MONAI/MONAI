@@ -482,16 +482,20 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = ControlNetDiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
-        sample, intermediates = inferer.sample(
-            input_noise=noise,
-            diffusion_model=model,
-            scheduler=scheduler,
-            controlnet=controlnet,
-            cn_cond=mask,
-            save_intermediates=True,
-            intermediate_steps=1,
-        )
-        self.assertEqual(len(intermediates), 10)
+
+        for cfg in [5, None]:
+            sample, intermediates = inferer.sample(
+                input_noise=noise,
+                diffusion_model=model,
+                scheduler=scheduler,
+                controlnet=controlnet,
+                cn_cond=mask,
+                save_intermediates=True,
+                intermediate_steps=1,
+                cfg=cfg,
+            )
+
+            self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(CNDM_TEST_CASES)
     @skipUnless(has_einops, "Requires einops")

@@ -1109,6 +1109,7 @@ class Zoom(InvertibleTransform, LazyTransform):
             _dtype,
             lazy=lazy_,
             transform_info=self.get_transform_info(),
+            **self.kwargs,
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

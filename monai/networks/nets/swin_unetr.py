@@ -25,7 +25,6 @@ from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
-from monai.utils.deprecate_utils import deprecated_arg
 
 rearrange, _ = optional_import("einops", name="rearrange")
 
@@ -50,16 +49,8 @@ class SwinUNETR(nn.Module):
     <https://arxiv.org/abs/2201.01266>"
     """
 
-    @deprecated_arg(
-        name="img_size",
-        since="1.3",
-        removed="1.5",
-        msg_suffix="The img_size argument is not required anymore and "
-        "checks on the input size are run during forward().",
-    )
     def __init__(
         self,
-        img_size: Sequence[int] | int,
         in_channels: int,
         out_channels: int,
         patch_size: int = 2,
@@ -83,10 +74,6 @@ class SwinUNETR(nn.Module):
     ) -> None:
         """
         Args:
-            img_size: spatial dimension of input image.
-                This argument is only used for checking that the input image size is divisible by the patch size.
-                The tensor passed to forward() can have a dynamic shape as long as its spatial dimensions are divisible by 2**5.
-                It will be removed in an upcoming version.
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
             patch_size: size of the patch token.
@@ -113,13 +100,13 @@ class SwinUNETR(nn.Module):
         Examples::
 
             # for 3D single channel input with size (96,96,96), 4-channel output and feature size of 48.
-            >>> net = SwinUNETR(img_size=(96,96,96), in_channels=1, out_channels=4, feature_size=48)
+            >>> net = SwinUNETR(in_channels=1, out_channels=4, feature_size=48)
 
             # for 3D 4-channel input with size (128,128,128), 3-channel output and (2,4,2,2) layers in each stage.
-            >>> net = SwinUNETR(img_size=(128,128,128), in_channels=4, out_channels=3, depths=(2,4,2,2))
+            >>> net = SwinUNETR(in_channels=4, out_channels=3, depths=(2,4,2,2))
 
             # for 2D single channel input with size (96,96), 2-channel output and gradient checkpointing.
-            >>> net = SwinUNETR(img_size=(96,96), in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
+            >>> net = SwinUNETR(in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
 
         """
 
@@ -130,11 +117,8 @@ class SwinUNETR(nn.Module):
 
         self.patch_size = patch_size
 
-        img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
         window_size = ensure_tuple_rep(window_size, spatial_dims)
-
-        self._check_input_size(img_size)
 
         if not (0 <= drop_rate <= 1):
             raise ValueError("dropout rate should be between 0 and 1.")
@@ -1109,7 +1093,7 @@ def filter_swinunetr(key, value):
         from monai.networks.utils import copy_model_state
         from monai.networks.nets.swin_unetr import SwinUNETR, filter_swinunetr
 
-        model = SwinUNETR(img_size=(96, 96, 96), in_channels=1, out_channels=3, feature_size=48)
+        model = SwinUNETR(in_channels=1, out_channels=3, feature_size=48)
         resource = (
             "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth"
         )
