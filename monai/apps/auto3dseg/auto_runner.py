@@ -570,7 +570,7 @@ class AutoRunner:
             self.device_setting["CUDA_VISIBLE_DEVICES"] = ",".join([str(x) for x in cuda_visible_devices])
             self.device_setting["n_devices"] = len(cuda_visible_devices)
         else:
-            logger.warn(f"Wrong format of cuda_visible_devices {cuda_visible_devices}, devices not set")
+            logger.warning(f"Wrong format of cuda_visible_devices {cuda_visible_devices}, devices not set")
 
         if num_nodes is None:
             num_nodes = int(os.environ.get("NUM_NODES", 1))

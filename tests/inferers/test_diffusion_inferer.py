@@ -90,6 +90,27 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
+    def test_sample_cfg(self, model_params, input_shape):
+        model = DiffusionModelUNet(**model_params)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        noise = torch.randn(input_shape).to(device)
+        scheduler = DDPMScheduler(num_train_timesteps=10)
+        inferer = DiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise,
+            diffusion_model=model,
+            scheduler=scheduler,
+            save_intermediates=True,
+            intermediate_steps=1,
+            cfg=5,
+        )
+        self.assertEqual(sample.shape, noise.shape)
+
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_ddpm_sampler(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -241,6 +262,38 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             intermediate_steps=1,
             conditioning=conditioning,
             mode="concat",
+        )
+        self.assertEqual(len(intermediates), 10)
+
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_sampler_conditioned_concat_cfg(self, model_params, input_shape):
+        # copy the model_params dict to prevent from modifying test cases
+        model_params = model_params.copy()
+        n_concat_channel = 2
+        model_params["in_channels"] = model_params["in_channels"] + n_concat_channel
+        model_params["cross_attention_dim"] = None
+        model_params["with_conditioning"] = False
+        model = DiffusionModelUNet(**model_params)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        noise = torch.randn(input_shape).to(device)
+        conditioning_shape = list(input_shape)
+        conditioning_shape[1] = n_concat_channel
+        conditioning = torch.randn(conditioning_shape).to(device)
+        scheduler = DDIMScheduler(num_train_timesteps=1000)
+        inferer = DiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise,
+            diffusion_model=model,
+            scheduler=scheduler,
+            save_intermediates=True,
+            intermediate_steps=1,
+            conditioning=conditioning,
+            mode="concat",
+            cfg=5,
         )
         self.assertEqual(len(intermediates), 10)
 
