@@ -28,52 +28,43 @@ for params in dict_product(
     norm_name=[("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"],
     in_size=[15, 16],
 ):
-    spatial_dims = params["spatial_dims"]
-    kernel_size = params["kernel_size"]
-    stride = params["stride"]
-    norm_name = params["norm_name"]
-    in_size = params["in_size"]
-
-    padding = get_padding(kernel_size, stride)
+    padding = get_padding(params["kernel_size"], params["stride"])
     if not isinstance(padding, int):
         padding = padding[0]
-    out_size = int((in_size + 2 * padding - kernel_size) / stride) + 1
+    out_size = int((params["in_size"] + 2 * padding - params["kernel_size"]) / params["stride"]) + 1
     test_case = [
         {
-            "spatial_dims": spatial_dims,
+            **{k: v for k, v in params.items() if k != "in_size"},
             "in_channels": 16,
             "out_channels": 16,
-            "kernel_size": kernel_size,
-            "norm_name": norm_name,
             "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.1}),
-            "stride": stride,
         },
-        (1, 16, *([in_size] * spatial_dims)),
-        (1, 16, *([out_size] * spatial_dims)),
+        (1, 16, *([params["in_size"]] * params["spatial_dims"])),
+        (1, 16, *([out_size] * params["spatial_dims"])),
     ]
     TEST_CASE_RES_BASIC_BLOCK.append(test_case)
 
 TEST_UP_BLOCK = []
 in_channels, out_channels = 4, 2
-param_dicts = dict_product(
+for params in dict_product(
     spatial_dims=range(2, 4),
     kernel_size=[1, 3],
-    upsample_kernel_size=[1, 2],
+    stride=[1, 2],
     norm_name=["batch", "instance"],
     in_size=[15, 16],
     trans_bias=[True, False],
-)
-for params in param_dicts:
-    spatial_dims = params["spatial_dims"]
-    stride = params["upsample_kernel_size"]
-    in_size = params.pop("in_size")  # don't want in_size in the dictionary below
-    out_size = in_size * stride
-
+):
+    out_size = params["in_size"] * params["stride"]
     test_case = [
-        {**params, "in_channels": in_channels, "out_channels": out_channels},
-        (1, in_channels, *([in_size] * spatial_dims)),
-        (1, out_channels, *([out_size] * spatial_dims)),
-        (1, out_channels, *([in_size * stride] * spatial_dims)),
+        {
+            **{k: v for k, v in params.items() if k != "in_size"},
+            "in_channels": in_channels,
+            "out_channels": out_channels,
+            "upsample_kernel_size": params["stride"],
+        },
+        (1, in_channels, *([params["in_size"]] * params["spatial_dims"])),
+        (1, out_channels, *([out_size] * params["spatial_dims"])),
+        (1, out_channels, *([params["in_size"] * params["stride"]] * params["spatial_dims"])),
     ]
     TEST_UP_BLOCK.append(test_case)
 
