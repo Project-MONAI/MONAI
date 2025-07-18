@@ -29,7 +29,7 @@ einops, has_einops = optional_import("einops")
 TEST_CASE_CABLOCK = [
     [
         {
-            **{param: value for param, value in params.items() if param != "rel_pos_embedding_val"},
+            **{k: v for k, v in params.items() if k not in ["rel_pos_embedding_val"]},
             "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["use_flash_attention"] else None,
         },
         (2, 512, params["hidden_size"]),

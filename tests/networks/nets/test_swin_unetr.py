@@ -41,15 +41,9 @@ checkpoint_vals = [True, False]
 TEST_CASE_SWIN_UNETR = [
     [
         {
+            **{k: v for k, v in params.items() if k != "img_size"},
             "spatial_dims": len(params["img_size"]),
-            "in_channels": params["in_channels"],
-            "out_channels": params["out_channels"],
-            "feature_size": params["feature_size"],
-            "depths": params["depth"],
-            "norm_name": params["norm_name"],
-            "attn_drop_rate": params["attn_drop_rate"],
             "downsample": test_merging_mode[i % len(test_merging_mode)],
-            "use_checkpoint": params["use_checkpoint"],
         },
         (2, params["in_channels"], *params["img_size"]),
         (2, params["out_channels"], *params["img_size"]),
@@ -57,12 +51,12 @@ TEST_CASE_SWIN_UNETR = [
     for i, params in enumerate(
         dict_product(
             attn_drop_rate=[0.4],
-            in_channels=[1],
-            depth=[[2, 1, 1, 1], [1, 2, 1, 1]],
-            out_channels=[2],
-            img_size=((64, 32, 192), (96, 32)),
+            depths=[[2, 1, 1, 1], [1, 2, 1, 1]],
             feature_size=[12],
+            img_size=((64, 32, 192), (96, 32)),
+            in_channels=[1],
             norm_name=["instance"],
+            out_channels=[2],
             use_checkpoint=checkpoint_vals,
         )
     )

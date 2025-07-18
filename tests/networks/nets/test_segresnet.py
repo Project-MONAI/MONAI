@@ -25,14 +25,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_SEGRESNET = [
     [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "dropout_prob": params["dropout_prob"],
-            "norm": params["norm"],
-            "upsample_mode": params["upsample_mode"],
-            "use_conv_final": False,
-        },
+        {**params, "use_conv_final": False},
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["init_filters"], *([16] * params["spatial_dims"])),
     ]
@@ -47,9 +40,7 @@ TEST_CASE_SEGRESNET = [
 
 TEST_CASE_SEGRESNET_2 = [
     [
-        {
-            **params,
-        },
+        {**params},
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["out_channels"], *([16] * params["spatial_dims"])),
     ]

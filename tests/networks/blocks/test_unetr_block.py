@@ -33,7 +33,9 @@ def _get_out_size(params):
 
 
 norm_names = [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]
-param_dicts = dict_product(spatial_dims=range(1, 4), kernel_size=[1, 3], stride=[2], norm_name=norm_names, in_size=[15, 16])
+param_dicts = dict_product(
+    spatial_dims=range(1, 4), kernel_size=[1, 3], stride=[2], norm_name=norm_names, in_size=[15, 16]
+)
 TEST_CASE_UNETR_BASIC_BLOCK = []
 for params in param_dicts:
     input_param = {**{k: v for k, v in params.items() if k != "in_size"}, "in_channels": 16, "out_channels": 16}
@@ -45,12 +47,7 @@ for params in param_dicts:
 TEST_UP_BLOCK = [
     [
         {
-            "spatial_dims": params["spatial_dims"],
-            "in_channels": params["in_channels"],
-            "out_channels": params["out_channels"],
-            "kernel_size": params["kernel_size"],
-            "norm_name": params["norm_name"],
-            "res_block": params["res_block"],
+            **{k: v for k, v in params.items() if k not in ["in_size", "stride", "upsample_kernel_size"]},
             "upsample_kernel_size": params["stride"],
         },
         (1, params["in_channels"], *([params["in_size"]] * params["spatial_dims"])),
@@ -82,31 +79,20 @@ for params in dict_product(
     in_size_scalar=[15, 16],
     num_layer=[0, 2],
 ):
-    spatial_dims_val = params["spatial_dims"]
-    in_size_val = params["in_size_scalar"]
-    upsample_kernel_size_val = params["upsample_kernel_size"]
-    num_layer_val = params["num_layer"]
-
-    in_size_tmp = in_size_val
+    in_size_tmp = params["in_size_scalar"]
     out_size = 0  # Initialize out_size
-    for _ in range(num_layer_val + 1):
-        out_size = in_size_tmp * upsample_kernel_size_val
+    for _ in range(params["num_layer"] + 1):
+        out_size = in_size_tmp * params["upsample_kernel_size"]
         in_size_tmp = out_size
 
     test_case = [
         {
-            "spatial_dims": spatial_dims_val,
+            **{k: v for k, v in params.items() if k != "in_size_scalar"},
             "in_channels": in_channels,
             "out_channels": out_channels,
-            "num_layer": num_layer_val,
-            "kernel_size": params["kernel_size"],
-            "norm_name": params["norm_name"],
-            "stride": params["stride"],
-            "res_block": params["res_block"],
-            "upsample_kernel_size": upsample_kernel_size_val,
         },
-        (1, in_channels, *([in_size_val] * spatial_dims_val)),
-        (1, out_channels, *([out_size] * spatial_dims_val)),
+        (1, in_channels, *([params["in_size_scalar"]] * params["spatial_dims"])),
+        (1, out_channels, *([out_size] * params["spatial_dims"])),
     ]
     TEST_PRUP_BLOCK.append(test_case)
 

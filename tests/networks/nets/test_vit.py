@@ -21,19 +21,21 @@ from monai.networks.nets.vit import ViT
 from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_quick, test_script_save
 
 TEST_CASE_Vit = [
-    ([
-        {
-            **{k: v for k, v in params.items() if k not in ["nd"]},
-            **({"spatial_dims": 2} if params["nd"] == 2 else {}),
-            **({"post_activation": False} if params["nd"] == 2 and params["classification"] else {}),
-        },
-        (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
-        (
-            (2, params["num_classes"])
-            if params["classification"]
-            else (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"])
-        ),
-    ])
+    (
+        [
+            {
+                **{k: v for k, v in params.items() if k not in ["nd"]},
+                **({"spatial_dims": 2} if params["nd"] == 2 else {}),
+                **({"post_activation": False} if params["nd"] == 2 and params["classification"] else {}),
+            },
+            (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+            (
+                (2, params["num_classes"])
+                if params["classification"]
+                else (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"])
+            ),
+        ]
+    )
     for params in dict_product(
         dropout_rate=[0.6],
         in_channels=[4],
@@ -60,13 +62,15 @@ class TestViT(unittest.TestCase):
             result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand([
-        (1, (128, 128, 128), (16, 16, 16), 128, 3072, 12, 12, "conv", False, 5.0),
-        (1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", False, 0.3),
-        (1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", False, 0.3),
-        (1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", True, 0.3),
-        (4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", False, 0.3),
-    ])
+    @parameterized.expand(
+        [
+            (1, (128, 128, 128), (16, 16, 16), 128, 3072, 12, 12, "conv", False, 5.0),
+            (1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", False, 0.3),
+            (1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", False, 0.3),
+            (1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", True, 0.3),
+            (4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", False, 0.3),
+        ]
+    )
     def test_ill_arg(
         self,
         in_channels,

@@ -23,26 +23,21 @@ from tests.test_utils import dict_product, skip_if_downloading_fails, skip_if_qu
 TEST_CASE_TRANSCHEX = [
     [
         {
-            "in_channels": params["in_channels"],
+            **{k: v for k, v in params.items() if k != "img_size"},
             "img_size": (params["img_size"],) * 2,
             "patch_size": (params["patch_size"],) * 2,
-            "num_vision_layers": params["num_vision_layers"],
-            "num_mixed_layers": params["num_mixed_layers"],
-            "num_language_layers": params["num_language_layers"],
-            "num_classes": params["num_classes"],
-            "drop_out": params["drop_out"],
         },
         (2, params["num_classes"]),
     ]
     for params in dict_product(
         drop_out=[0.4],
-        in_channels=[3],
         img_size=[224],
-        patch_size=[16, 32],
-        num_language_layers=[2],
-        num_vision_layers=[4],
-        num_mixed_layers=[3],
+        in_channels=[3],
         num_classes=[8],
+        num_language_layers=[2],
+        num_mixed_layers=[3],
+        num_vision_layers=[4],
+        patch_size=[16, 32],
     )
 ]
 

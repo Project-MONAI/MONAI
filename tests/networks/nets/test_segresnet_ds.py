@@ -23,17 +23,7 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, test_scri
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_SEGRESNET_DS = [
-    [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "act": params["act"],
-            "norm": params["norm"],
-            "upsample_mode": params["upsample_mode"],
-        },
-        (2, 1, *([16] * params["spatial_dims"])),
-        (2, 2, *([16] * params["spatial_dims"])),
-    ]
+    [params, (2, 1, *([16] * params["spatial_dims"])), (2, 2, *([16] * params["spatial_dims"]))]
     for params in dict_product(
         spatial_dims=range(2, 4),
         init_filters=[8, 16],
@@ -45,12 +35,7 @@ TEST_CASE_SEGRESNET_DS = [
 
 TEST_CASE_SEGRESNET_DS2 = [
     [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": 8,
-            "out_channels": params["out_channels"],
-            "dsdepth": params["dsdepth"],
-        },
+        {**params, "init_filters": 8},
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["out_channels"], *([16] * params["spatial_dims"])),
     ]

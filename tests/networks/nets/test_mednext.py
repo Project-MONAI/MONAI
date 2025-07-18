@@ -24,12 +24,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_MEDNEXT = [
     [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "deep_supervision": params["deep_supervision"],
-            "use_residual_connection": params["do_res"],
-        },
+        {**{k: v for k, v in params.items() if k != "do_res"}, "use_residual_connection": params["do_res"]},
         (2, 1, *([16] * params["spatial_dims"])),
         (2, 2, *([16] * params["spatial_dims"])),
     ]
@@ -38,16 +33,7 @@ TEST_CASE_MEDNEXT = [
     )
 ]
 TEST_CASE_MEDNEXT_2 = [
-    [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "init_filters": params["init_filters"],
-            "out_channels": params["out_channels"],
-            "deep_supervision": params["deep_supervision"],
-        },
-        (2, 1, *([16] * params["spatial_dims"])),
-        (2, params["out_channels"], *([16] * params["spatial_dims"])),
-    ]
+    [params, (2, 1, *([16] * params["spatial_dims"])), (2, params["out_channels"], *([16] * params["spatial_dims"]))]
     for params in dict_product(
         spatial_dims=range(2, 4), out_channels=[1, 2], deep_supervision=[False, True], init_filters=[8]
     )

@@ -23,18 +23,10 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_q
 TEST_CASE_UNETR = [
     [
         {
-            "in_channels": params["in_channels"],
-            "out_channels": params["out_channels"],
-            "img_size": (params["img_size"],) * params["nd"],
-            "hidden_size": params["hidden_size"],
-            "feature_size": params["feature_size"],
-            "norm_name": params["norm_name"],
-            "mlp_dim": params["mlp_dim"],
-            "num_heads": params["num_heads"],
-            "proj_type": params["proj_type"],
-            "dropout_rate": params["dropout_rate"],
+            **{k: v for k, v in params.items() if k not in ["img_size", "nd"]},
             "conv_block": True,
             "res_block": False,
+            "img_size": (params["img_size"],) * params["nd"],
             **({"spatial_dims": 2} if params["nd"] == 2 else {}),
         },
         (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
@@ -42,16 +34,16 @@ TEST_CASE_UNETR = [
     ]
     for params in dict_product(
         dropout_rate=[0.4],
-        in_channels=[1],
-        out_channels=[2],
+        feature_size=[16],
         hidden_size=[768],
         img_size=[96, 128],
-        feature_size=[16],
-        num_heads=[8],
+        in_channels=[1],
         mlp_dim=[3072],
-        norm_name=["instance"],
-        proj_type=["perceptron"],
         nd=[2, 3],
+        norm_name=["instance"],
+        num_heads=[8],
+        out_channels=[2],
+        proj_type=["perceptron"],
     )
 ]
 
