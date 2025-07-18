@@ -21,7 +21,9 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt upgrade -y && \
     apt install -y --no-install-recommends ca-certificates python3-pip python-is-python3 git wget && \
     apt clean && \
-    rm -rf /var/lib/apt/lists/* /usr/lib/python*/EXTERNALLY-MANAGED /usr/lib/x86_64-linux-gnu/*_static.a 
+    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED
+        
+#rm -rf /var/lib/apt/lists/* /usr/lib/python*/EXTERNALLY-MANAGED /usr/lib/x86_64-linux-gnu/*_static.a 
 
 WORKDIR /opt/monai
 
