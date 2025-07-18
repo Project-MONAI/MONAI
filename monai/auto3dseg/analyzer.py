@@ -235,7 +235,7 @@ class ImageStats(Analyzer):
             )
         if image.ndim < 3:
             raise ValueError(
-                f"Image data under '{self.image_key}' must have at least 3 dimensions, " f"but got shape {image.shape}."
+                f"Image data under '{self.image_key}' must have at least 3 dimensions, but got shape {image.shape}."
             )
             # --- End of validation ---
         """
