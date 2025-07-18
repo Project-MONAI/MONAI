@@ -66,7 +66,7 @@ param_dicts = dict_product(
 for params in param_dicts:
     spatial_dims = params["spatial_dims"]
     stride = params["upsample_kernel_size"]
-    in_size = params.pop("in_size") # don't want in_size in the dictionary below
+    in_size = params.pop("in_size")  # don't want in_size in the dictionary below
     out_size = in_size * stride
 
     test_case = [
