@@ -26,13 +26,7 @@ einops, has_einops = optional_import("einops")
 
 TEST_CASES_CAB = [
     [
-        {
-            "spatial_dims": params["spatial_dims"],
-            "dim": params["dim"],
-            "num_heads": params["num_heads"],
-            "bias": params["bias"],
-            "flash_attention": False,
-        },
+        {**params, "flash_attention": False},
         (2, params["dim"], *([16] * params["spatial_dims"])),
         (2, params["dim"], *([16] * params["spatial_dims"])),
     ]
