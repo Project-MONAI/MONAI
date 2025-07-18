@@ -15,5 +15,11 @@ reviews:
   path_instructions:
     - path: '**/*.md'
       instructions: Remember that markdown documentation must be updated with the latest information.
+  auto_review:
+    # Automatic Review | Automatic code review
+    enabled: true
+    # Review draft PRs/MRs.
+    drafts: false
+        
 knowledge_base:
   opt_out: true
