@@ -23,13 +23,12 @@ from tests.test_utils import dict_product  # Import dict_product
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_MEDNEXT = [
-    [
-        params,
-        (2, 1, *([16] * params["spatial_dims"])),
-        (2, 2, *([16] * params["spatial_dims"])),
-    ]
+    [params, (2, 1, *([16] * params["spatial_dims"])), (2, 2, *([16] * params["spatial_dims"]))]
     for params in dict_product(
-        spatial_dims=range(2, 4), init_filters=[8, 16], deep_supervision=[False, True], use_residual_connection=[False, True]
+        spatial_dims=range(2, 4),
+        init_filters=[8, 16],
+        deep_supervision=[False, True],
+        use_residual_connection=[False, True],
     )
 ]
 TEST_CASE_MEDNEXT_2 = [

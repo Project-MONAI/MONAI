@@ -39,11 +39,7 @@ TEST_CASE_SEGRESNET = [
 ]
 
 TEST_CASE_SEGRESNET_2 = [
-    [
-        params,
-        (2, 1, *([16] * params["spatial_dims"])),
-        (2, params["out_channels"], *([16] * params["spatial_dims"])),
-    ]
+    [params, (2, 1, *([16] * params["spatial_dims"])), (2, params["out_channels"], *([16] * params["spatial_dims"]))]
     for params in dict_product(
         spatial_dims=range(2, 4), init_filters=[8, 16], out_channels=range(1, 3), upsample_mode=list(UpsampleMode)
     )
