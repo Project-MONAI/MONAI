@@ -40,7 +40,7 @@ TEST_CASE_SEGRESNET = [
 
 TEST_CASE_SEGRESNET_2 = [
     [
-        {**params},
+        params,
         (2, 1, *([16] * params["spatial_dims"])),
         (2, params["out_channels"], *([16] * params["spatial_dims"])),
     ]
