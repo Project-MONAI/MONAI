@@ -76,6 +76,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
@@ -557,6 +558,15 @@ class Orientation(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
+    @deprecated_arg_default(
+        name="labels",
+        old_default=(("L", "R"), ("P", "A"), ("I", "S")),
+        new_default=None,
+        msg_suffix=(
+            "Default value changed to None meaning that the transform now uses the 'space' of a "
+            "meta-tensor, if applicable, to determine appropriate axis labels."
+        ),
+    )
     def __init__(
         self,
         axcodes: str | None = None,
@@ -574,9 +584,14 @@ class Orientation(InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to using the ``"space"`` attribute of a metatensor,
-                where appliable, or (('L', 'R'), ('P', 'A'), ('I', 'S'))``
-                otherwise (i.e. for plain tensors).
+                If ``None``, an appropriate value is chosen depending on the
+                value of the ``"space"`` metadata item of a metatensor: if
+                ``"space"`` is ``"LPS"``, the value used is ``(('R', 'L'),
+                ('A', 'P'), ('I', 'S'))``, if ``"space"`` is ``"RPS"`` or the
+                input is not a meta-tensor or has no ``"space"`` item, the
+                value ``(('L', 'R'), ('P', 'A'), ('I', 'S'))`` is used. If not
+                ``None``, the provided value is always used and the ``"space"``
+                metadata item (if any) of the intput is ignored.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
@@ -628,7 +643,11 @@ class Orientation(InvertibleTransform, LazyTransform):
             affine_ = to_affine_nd(sr, affine_np)
 
             # Set up "labels" such that LPS tensors are handled correctly by default
-            if self.labels is None and SpaceKeys(data_array.meta["space"]) == SpaceKeys.LPS:
+            if (
+                self.labels is None
+                and "space" in data_array.meta
+                and SpaceKeys(data_array.meta["space"]) == SpaceKeys.LPS
+            ):
                 labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
 
         else:
@@ -665,7 +684,12 @@ class Orientation(InvertibleTransform, LazyTransform):
         labels = self.labels
 
         # Set up "labels" such that LPS tensors are handled correctly by default
-        if isinstance(data, MetaTensor) and self.labels is None and SpaceKeys(data.meta["space"]) == SpaceKeys.LPS:
+        if (
+            isinstance(data, MetaTensor)
+            and self.labels is None
+            and "space" in data.meta
+            and SpaceKeys(data.meta["space"]) == SpaceKeys.LPS
+        ):
             labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
 
         orig_axcodes = nib.orientations.aff2axcodes(orig_affine, labels=labels)
