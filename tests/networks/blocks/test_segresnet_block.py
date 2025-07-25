@@ -18,27 +18,24 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.segresnet_block import ResBlock
+from tests.test_utils import dict_product
 
-TEST_CASE_RESBLOCK = []
-for spatial_dims in range(2, 4):
-    for in_channels in range(1, 4):
-        for kernel_size in [1, 3]:
-            for norm in [("group", {"num_groups": 1}), "batch", "instance"]:
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "in_channels": in_channels,
-                        "kernel_size": kernel_size,
-                        "norm": norm,
-                    },
-                    (2, in_channels, *([16] * spatial_dims)),
-                    (2, in_channels, *([16] * spatial_dims)),
-                ]
-                TEST_CASE_RESBLOCK.append(test_case)
+TEST_CASE_RESBLOCK = [
+    [
+        params,
+        (2, params["in_channels"], *([16] * params["spatial_dims"])),
+        (2, params["in_channels"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(2, 4),
+        in_channels=range(1, 4),
+        kernel_size=[1, 3],
+        norm=[("group", {"num_groups": 1}), "batch", "instance"],
+    )
+]
 
 
 class TestResBlock(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_RESBLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ResBlock(**input_param)
