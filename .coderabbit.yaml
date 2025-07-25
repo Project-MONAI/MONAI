@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# This file configures CodeRabbit with the various options described in https://docs.coderabbit.ai/configure-coderabbit.
+# CodeRabbit also has a set of commands here: https://docs.coderabbit.ai/guides/commands/
+
+language: "en-US"
+early_access: false
+tone_instructions: "Be terse and to the point in all statements and commentary."
+reviews:
+  # chill is less verbose, assertive is more verbose with more nitpick feedback
+  profile: chill
+  high_level_summary: false
+  high_level_summary_placeholder: "@coderabbitai summary"
+  sequence_diagrams: false
+  auto_apply_labels: false
+  suggested_reviewers: false
+  changed_files_summary: false
+  suggested_labels: false
+  abort_on_close: true
+  poem: false
+  path_instructions:
+    - path: '**/*.md'
+      instructions: Remember that documentation must be updated with the latest information.
+    - path: '**/*.rst'
+      instructions: Remember that documentation must be updated with the latest information.
+    - path: '**/*.py'
+      instructions: >-
+        Review the Python code for quality and correctness. Ensure variable names adhere to PEP8 style guides, are
+        sensible and informative in regards to their function, though permitting simple names for loop and comprehension
+        variables. Ensure routine names are meaningful in regards to their function and use verbs, adjectives, and
+        nouns in a semantically appropriate way. Docstrings should be present for all definition which describe each
+        variable, return value, and raised exception in the appropriate section of the Google-style of docstrings.
+        Examine code for logical error or inconsistencies, and suggest what may be changed to addressed these. Suggest
+        any enhancements for code improving efficiency, maintainability, comprehensibility, and correctness. Ensure new
+        or modified definitions will be covered by existing or new unit tests.
+
+  auto_review:
+    # Automatic Review | Automatic code review
+    enabled: true
+    # Review draft PRs/MRs.
+    drafts: false
+    # ignore PRs with these in the title, these sorts of PRs should be drafts anyway
+    ignore_title_keywords:
+    - "WIP"
+    - "DO NOT MERGE"
+
+# opt out for now until it's clear this isn't too much info and is useful
+knowledge_base:
+  opt_out: true
+
+# chat is allowed
+chat:
+  auto_reply: true
