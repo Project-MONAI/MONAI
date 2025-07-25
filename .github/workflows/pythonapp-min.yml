@@ -124,7 +124,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: ['2.4.1', '2.5.1', '2.6.0']  # FIXME: add 'latest' back once PyTorch 2.7 issues are resolved
+        pytorch-version: ['2.4.1', '2.5.1', '2.6.0', '2.7.1']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4
@@ -151,11 +151,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
-          python -m pip install torch
-        else
-          python -m pip install torch==${{ matrix.pytorch-version }}
-        fi
+        python -m pip install torch==${{ matrix.pytorch-version }}
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
