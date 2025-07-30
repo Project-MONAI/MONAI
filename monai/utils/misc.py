@@ -374,23 +374,18 @@ def set_determinism(
         for func in additional_settings:
             func(seed)
 
-    if torch.backends.flags_frozen():
-        warnings.warn("PyTorch global flag support of backends is disabled, enable it to set global `cudnn` flags.")
-        torch.backends.__allow_nonbracketed_mutation_flag = True
+    with torch.backends.__allow_nonbracketed_mutation():  # FIXME: better method without accessing private member
+        if seed is not None:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:  # restore the original flags
+            torch.backends.cudnn.deterministic = _flag_deterministic
+            torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
-    if seed is not None:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-    else:  # restore the original flags
-        torch.backends.cudnn.deterministic = _flag_deterministic
-        torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
     if use_deterministic_algorithms is not None:
-        if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
-            torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
-            torch.set_deterministic(use_deterministic_algorithms)
-        else:
-            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
+        # environment variable must be set to enable determinism for algorithms, alternative value is ":16:8"
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(use_deterministic_algorithms)
 
 
 def list_to_dict(items):
