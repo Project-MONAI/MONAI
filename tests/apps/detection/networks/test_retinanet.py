@@ -20,7 +20,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_onnx_save, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_quick, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -86,15 +86,12 @@ TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
     (2, 1, 32, 64),
 ]
 
-TEST_CASES = []
-for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
-    for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
-        TEST_CASES.append([model, *case])
+# Create all test case combinations using dict_product
+CASE_LIST = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]
+MODEL_LIST = [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 
-TEST_CASES_TS = []
-for case in [TEST_CASE_1]:
-    for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
-        TEST_CASES_TS.append([model, *case])
+TEST_CASES = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=CASE_LIST)]
+TEST_CASES_TS = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=[TEST_CASE_1])]
 
 
 @SkipIfBeforePyTorchVersion((1, 12))
