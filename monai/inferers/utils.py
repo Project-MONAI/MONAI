@@ -60,6 +60,7 @@ def sliding_window_inference(
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+    
     """
     Sliding window inference on `inputs` with `predictor`.
 
@@ -134,6 +135,14 @@ def sliding_window_inference(
         - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
+
+    # auto transform (N,D,H,W,C) → (N,C,D,H,W)
+    if isinstance(inputs, torch.Tensor) and inputs.ndim == 5 and inputs.shape[-1] in (1, 3, 4):
+        inputs = inputs.permute(0, 4, 1, 2, 3).contiguous()
+
+
+
+
     buffered = buffer_steps is not None and buffer_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
     if buffered:
