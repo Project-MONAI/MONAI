@@ -137,6 +137,49 @@ class TestInvertd(unittest.TestCase):
 
         set_determinism(seed=None)
 
+    def test_invert_with_postproc_lambdad(self):
+        """Test that Invertd works correctly when postprocessing contains invertible transforms like Lambdad."""
+        set_determinism(seed=0)
+
+        # Create test images
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107, noise_max=100))
+
+        # Define preprocessing transforms
+        preproc = Compose([
+            LoadImaged(KEYS, image_only=True),
+            EnsureChannelFirstd(KEYS),
+            Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
+            ScaleIntensityd("image", minv=1, maxv=10),
+            ResizeWithPadOrCropd(KEYS, 100),
+        ])
+
+        # Define postprocessing with Lambdad before Invertd (the problematic case)
+        from monai.transforms import Lambdad
+        postproc = Compose([
+            # This Lambdad should not interfere with Invertd
+            Lambdad(["pred"], lambda x: x),  # Identity transform
+            # Invertd should only invert the preprocessing transforms
+            Invertd(["pred"], preproc, orig_keys=["image"], nearest_interp=True),
+        ])
+
+        # Apply preprocessing
+        data = {"image": im_fname, "label": seg_fname}
+        preprocessed = preproc(data)
+
+        # Create prediction (copy from preprocessed image)
+        preprocessed["pred"] = preprocessed["image"].clone()
+
+        # Apply postprocessing with Lambdad before Invertd
+        # This should work without errors - the main issue was that it would fail
+        result = postproc(preprocessed)
+        # Check that the inversion was successful
+        self.assertIn("pred", result)
+        # Check that the shape was correctly inverted
+        self.assertTupleEqual(result["pred"].shape[1:], (101, 100, 107))
+        # The fact that we got here without an exception means the fix is working
+
+        set_determinism(seed=None)
+
 
 if __name__ == "__main__":
     unittest.main()

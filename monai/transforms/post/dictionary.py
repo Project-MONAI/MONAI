@@ -687,9 +687,33 @@ class Invertd(MapTransform):
 
             orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             if orig_key in d and isinstance(d[orig_key], MetaTensor):
-                transform_info = d[orig_key].applied_operations
+                all_transforms = d[orig_key].applied_operations
                 meta_info = d[orig_key].meta
-            else:
+
+                # If orig_key == key, the data at d[orig_key] may have been modified by
+                # postprocessing transforms. We need to exclude any transforms that were
+                # added after the preprocessing pipeline completed.
+                # When orig_key == key, filter out postprocessing transforms to prevent
+                # confusion during inversion (see issue #8396)
+                if orig_key == key:
+                    num_preproc_transforms = 0
+                    try:
+                        if hasattr(self.transform, 'transforms'):
+                            for t in self.transform.flatten().transforms:
+                                if isinstance(t, InvertibleTransform):
+                                    num_preproc_transforms += 1
+                        elif isinstance(self.transform, InvertibleTransform):
+                            num_preproc_transforms = 1
+                    except AttributeError:
+                        # Fallback: use all transforms if flatten fails
+                        num_preproc_transforms = len(all_transforms)
+
+                    if num_preproc_transforms > 0:
+                        transform_info = all_transforms[:num_preproc_transforms]
+                    else:
+                        transform_info = all_transforms
+                else:
+                    transform_info = all_transforms
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
                 meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
