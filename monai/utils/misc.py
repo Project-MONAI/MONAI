@@ -102,6 +102,10 @@ _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
 NP_MAX = np.iinfo(np.uint32).max
 MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
 
+# Environment variable must be set to enable determinism for algorithms (alternative value is ":16:8").
+# This needs to be here to ensure it's set before deterministic algorithms are used/initialised.
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 
 def zip_with(op, *vals, mapfunc=map):
     """
@@ -383,8 +387,6 @@ def set_determinism(
             torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
     if use_deterministic_algorithms is not None:
-        # environment variable must be set to enable determinism for algorithms, alternative value is ":16:8"
-        os.environ["CUBLAS_WORKSPACE_CONFIG"] = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.use_deterministic_algorithms(use_deterministic_algorithms)
 
 
