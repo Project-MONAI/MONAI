@@ -92,8 +92,34 @@ def load_decathlon_datalist(
 ) -> list[dict]:
     """Load image/label paths of decathlon challenge from JSON file
 
-    Json file is similar to what you get from http://medicaldecathlon.com/
-    Those dataset.json files
+    JSON file should follow the format of the Medical Segmentation Decathlon
+    datalist.json files. The files are structured as follows:
+    {
+        "metadata_key_0": "metadata_value_0",
+        "metadata_key_1": "metadata_value_1",
+        ...,
+        "training": [
+            {"image": "path/to/image_1.nii.gz", "label": "path/to/label_1.nii.gz"},
+            {"image": "path/to/image_2.nii.gz", "label": "path/to/label_2.nii.gz"},
+            ...
+        ],
+        "test": [
+            "path/to/image_3.nii.gz",
+            "path/to/image_4.nii.gz",
+            ...
+        ]
+    }
+
+    The metadata keys are optional for loading the datalist, but include the following
+    string items:
+    "name", "description", "reference", "licence", "release", "tensorImageSize",
+    two dict items, "modality" (keyed by channel index), and "labels" (keyed by label index),
+    and two integer items, "numTraining" and "numTest", with the number of items.
+
+    The "training" key contains a list of direcitonaries, each of which has at least
+    the "image" and "label" keys, the latter of which is a path for segmentation data.
+    Each item can also include a "fold" key for cross-validation purposes.
+    The "test" key contains a list of image paths, without labels.
 
     Args:
         data_list_file_path: the path to the json file of datalist.
