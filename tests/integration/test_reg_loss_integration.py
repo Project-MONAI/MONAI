@@ -19,6 +19,7 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
+from monai.utils import set_determinism
 from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
@@ -33,14 +34,11 @@ TEST_CASES = [
 
 class TestRegLossIntegration(unittest.TestCase):
     def setUp(self):
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.manual_seed(0)
+        set_determinism(0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        torch.backends.cudnn.deterministic = False
-        torch.backends.cudnn.benchmark = True
+        set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
     @SkipIfBeforePyTorchVersion((1, 9))
