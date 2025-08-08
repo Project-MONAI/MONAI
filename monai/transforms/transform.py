@@ -143,7 +143,7 @@ def apply_transform(
     try:
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
         if isinstance(data, (list, tuple)) and map_items_ > 0:
-            res: list[ReturnType] = []
+            res: list[Any] = []
             for item in data:
                 res_item = apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
                 # Only extend if we're at the leaf level (map_items_ == 1) and the transform
