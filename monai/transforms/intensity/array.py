@@ -921,7 +921,7 @@ class NormalizeIntensity(Transform):
         else:
             img_t = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
 
-        out = convert_to_dst_type(img_t, img, dtype=dtype)[0]
+        out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
         return out
 
 
