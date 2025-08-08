@@ -1795,8 +1795,9 @@ class DiffusionModelUNet(nn.Module):
 
         # 6. up
         for upsample_block in self.up_blocks:
-            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
-            down_block_res_samples = down_block_res_samples[: -len(upsample_block.resnets)]
+            idx: int = -len(upsample_block.resnets)  # type: ignore
+            res_samples = down_block_res_samples[idx:]
+            down_block_res_samples = down_block_res_samples[:idx]
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
