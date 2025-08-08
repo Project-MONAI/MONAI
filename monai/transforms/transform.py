@@ -153,12 +153,12 @@ def apply_transform(
     try:
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
         if isinstance(data, (list, tuple)) and map_items_ > 0:
-            res = []
+            res: list[ReturnType] = []
             for item in data:
                 res_item = _apply_transform(
                     transform, item, unpack_items, lazy, overrides, log_stats
                 )
-                if isinstance(res_item, list | tuple):
+                if isinstance(res_item, (list, tuple)):
                     res.extend(res_item)
                 else:
                     res.append(res_item)
