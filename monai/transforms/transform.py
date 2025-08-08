@@ -155,9 +155,7 @@ def apply_transform(
         if isinstance(data, (list, tuple)) and map_items_ > 0:
             res: list[ReturnType] = []
             for item in data:
-                res_item = _apply_transform(
-                    transform, item, unpack_items, lazy, overrides, log_stats
-                )
+                res_item = _apply_transform(transform, item, unpack_items, lazy, overrides, log_stats)
                 if isinstance(res_item, (list, tuple)):
                     res.extend(res_item)
                 else:
