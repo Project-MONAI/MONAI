@@ -357,7 +357,7 @@ class RetinaNetDetector(nn.Module):
             num_candidates: number of positions to select candidates from.
                 Smaller value will result in a higher matcher threshold and less matched candidates.
             center_in_gt: If False (default), matched anchor center points do not need
-                to lie withing the ground truth box. Recommend False for small objects.
+                to lie within the ground truth box. Recommend False for small objects.
                 If True, will result in a strict matcher and less matched candidates.
         """
         self.proposal_matcher = ATSSMatcher(num_candidates, self.box_overlap_metric, center_in_gt, debug=self.debug)
@@ -611,7 +611,7 @@ class RetinaNetDetector(nn.Module):
             elif self.spatial_dims == 3:
                 reshaped_result_map = reshaped_result_map.permute(0, 3, 4, 5, 1, 2)
             else:
-                ValueError("Images can only be 2D or 3D.")
+                raise ValueError("Images can only be 2D or 3D.")
 
             # reshaped_result_map will become (B, HWA, num_channel) or (B, HWDA, num_channel)
             reshaped_result_map = reshaped_result_map.reshape(batch_size, -1, num_channel)

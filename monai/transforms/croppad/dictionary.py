@@ -694,7 +694,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
         lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(dict(data)):
-            self.cropper.set_random_state(seed=self.sub_seed)
+            self.cropper.set_random_state(seed=int(self.sub_seed))
             for i, im in enumerate(self.cropper(data[key], lazy=lazy_)):
                 ret[i][key] = im
         return ret
