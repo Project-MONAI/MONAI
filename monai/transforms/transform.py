@@ -90,22 +90,12 @@ def _apply_transform(
     """
     from monai.transforms.lazy.functional import apply_pending_transforms_in_order
 
-    data = apply_pending_transforms_in_order(
-        transform, data, lazy, overrides, logger_name
-    )
+    data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
     if isinstance(data, tuple) and unpack_parameters:
-        return (
-            transform(*data, lazy=lazy)
-            if isinstance(transform, LazyTrait)
-            else transform(*data)
-        )
+        return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
 
-    return (
-        transform(data, lazy=lazy)
-        if isinstance(transform, LazyTrait)
-        else transform(data)
-    )
+    return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
 
 
 def apply_transform(
@@ -155,45 +145,38 @@ def apply_transform(
         if isinstance(data, (list, tuple)) and map_items_ > 0:
             res: list[ReturnType] = []
             for item in data:
-                res_item = _apply_transform(transform, item, unpack_items, lazy, overrides, log_stats)
-                if isinstance(res_item, (list, tuple)):
-                    res.extend(res_item)
+                res_item = apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
+                # Only extend if we're at the leaf level (map_items_ == 1) and the transform
+                # actually returned a list (not preserving nested structure)
+                if isinstance(res_item, list) and map_items_ == 1:
+                    if not isinstance(item, (list, tuple)):
+                        res.extend(res_item)
+                    else:
+                        res.append(res_item)
                 else:
                     res.append(res_item)
             return res
-        return _apply_transform(
-            transform, data, unpack_items, lazy, overrides, log_stats
-        )
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
         if MONAIEnvVars.debug():
             raise
-        if log_stats is not False and not isinstance(
-            transform, transforms.compose.Compose
-        ):
+        if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             if isinstance(log_stats, str):
-                datastats = transforms.utility.array.DataStats(
-                    data_shape=False, value_range=False, name=log_stats
-                )
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=log_stats)
             else:
-                datastats = transforms.utility.array.DataStats(
-                    data_shape=False, value_range=False
-                )
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
-            logger.error(
-                f"\n=== Transform input info -- {type(transform).__name__} ==="
-            )
+            logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
             def _log_stats(data, prefix: str | None = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
-                    datastats(
-                        img=data, data_shape=True, value_range=True, prefix=prefix
-                    )
+                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
                     # log data type and value for other metadata
                     datastats(img=data, data_value=True, prefix=prefix)
@@ -220,9 +203,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> Randomizable:
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Randomizable:
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -240,20 +221,14 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
 
         """
         if seed is not None:
-            _seed = np.int64(
-                id(seed) if not isinstance(seed, (int, np.integer)) else seed
-            )
-            _seed = (
-                _seed % MAX_SEED
-            )  # need to account for Numpy2.0 which doesn't silently convert to int64
+            _seed = np.int64(id(seed) if not isinstance(seed, (int, np.integer)) else seed)
+            _seed = _seed % MAX_SEED  # need to account for Numpy2.0 which doesn't silently convert to int64
             self.R = np.random.RandomState(_seed)
             return self
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
-                raise TypeError(
-                    f"state must be None or a np.random.RandomState but is {type(state).__name__}."
-                )
+                raise TypeError(f"state must be None or a np.random.RandomState but is {type(state).__name__}.")
             self.R = state
             return self
 
@@ -272,9 +247,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
         Raises:
             NotImplementedError: When the subclass does not override this method.
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method."
-        )
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Transform(ABC):
@@ -330,9 +303,7 @@ class Transform(ABC):
             NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method."
-        )
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class LazyTransform(Transform, LazyTrait):
@@ -435,15 +406,11 @@ class MapTransform(Transform):
     def __new__(cls, *args, **kwargs):
         if config.USE_META_DICT:
             # call_update after MapTransform.__call__
-            cls.__call__ = transforms.attach_hook(
-                cls.__call__, MapTransform.call_update, "post"
-            )  # type: ignore
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")  # type: ignore
 
             if hasattr(cls, "inverse"):
                 # inverse_update before InvertibleTransform.inverse
-                cls.inverse: Any = transforms.attach_hook(
-                    cls.inverse, transforms.InvertibleTransform.inverse_update
-                )
+                cls.inverse: Any = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
@@ -454,9 +421,7 @@ class MapTransform(Transform):
             raise ValueError("keys must be non empty.")
         for key in self.keys:
             if not isinstance(key, Hashable):
-                raise TypeError(
-                    f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}."
-                )
+                raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
 
     def call_update(self, data):
         """
@@ -476,9 +441,7 @@ class MapTransform(Transform):
             for k in dict_i:
                 if not isinstance(dict_i[k], MetaTensor):
                     continue
-                list_d[idx] = transforms.sync_meta_info(
-                    k, dict_i, t=not isinstance(self, transforms.InvertD)
-                )
+                list_d[idx] = transforms.sync_meta_info(k, dict_i, t=not isinstance(self, transforms.InvertD))
         return list_d[0] if is_dict else list_d
 
     @abstractmethod
@@ -506,13 +469,9 @@ class MapTransform(Transform):
             An updated dictionary version of ``data`` by applying the transform.
 
         """
-        raise NotImplementedError(
-            f"Subclass {self.__class__.__name__} must implement this method."
-        )
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(
-        self, data: Mapping[Hashable, Any], *extra_iterables: Iterable | None
-    ) -> Generator:
+    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Iterable | None) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -532,8 +491,7 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(
-                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
-                    " and allow_missing_keys==False."
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data and allow_missing_keys==False."
                 )
 
     def first_key(self, data: dict[Hashable, Any]):
