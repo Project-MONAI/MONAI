@@ -165,3 +165,4 @@ runs
 *.pth
 
 *zarr/*
+issue38366/
