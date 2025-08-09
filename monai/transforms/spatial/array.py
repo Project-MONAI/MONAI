@@ -591,7 +591,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                 input is not a meta-tensor or has no ``"space"`` item, the
                 value ``(('L', 'R'), ('P', 'A'), ('I', 'S'))`` is used. If not
                 ``None``, the provided value is always used and the ``"space"``
-                metadata item (if any) of the intput is ignored.
+                metadata item (if any) of the input is ignored.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
