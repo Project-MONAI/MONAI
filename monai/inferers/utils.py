@@ -38,7 +38,39 @@ _nearest_mode = "nearest-exact"
 
 __all__ = ["sliding_window_inference"]
 
+def ensure_channel_first(x: torch.Tensor, spatial_ndim: Optional[int] = None) -> Tuple[torch.Tensor, int]:
+    """
+    將張量標準化為 channel-first（N,C,spatial...）。
+    回傳 (可能已轉換的張量, 原本 channel 維度：1 表示本來就在 dim=1；-1 表示本來在最後一維)。
 
+    支援常見情況：
+      - [N, C, *spatial] -> 原樣返回
+      - [N, *spatial, C] -> 移動最後一維到 dim=1
+    其他模糊情況則丟出 ValueError，避免悄悄算錯。
+    """
+    if not isinstance(x, torch.Tensor):
+        raise TypeError(f"expect torch.Tensor, got {type(x)}")
+    if x.ndim < 3:
+        raise ValueError(f"expect >=3 dims (N,C,spatial...), got shape={tuple(x.shape)}")
+
+    # 若未指定，估個常見的 2D/3D 空間維度數，僅用於錯誤訊息與判斷參考
+    if spatial_ndim is None:
+        spatial_ndim = max(2, min(3, x.ndim - 2))
+
+    # 簡單啟發式：C 通常不會太大（<=512）
+    c_first_ok = x.shape[1] <= 512
+    c_last_ok = x.shape[-1] <= 512
+
+    # 優先保留 channel-first
+    if c_first_ok and x.ndim >= 2 + spatial_ndim:
+        return x, 1
+    if c_last_ok:
+        return x.movedim(-1, 1), -1
+
+    raise ValueError(
+        f"cannot infer channel dim for shape={tuple(x.shape)}; "
+        f"expected [N,C,spatial...] or [N,spatial...,C] (spatial_ndim≈{spatial_ndim})"
+    )
 def sliding_window_inference(
     inputs: torch.Tensor | MetaTensor,
     roi_size: Sequence[int] | int,
