@@ -314,7 +314,7 @@ class DiceHelper:
         n_ch = self.num_classes or y_pred.shape[1]
         if y.ndim == y_pred.ndim and y.shape[-1] in (1, n_ch):
             y, _ = ensure_channel_first(y)
-        
+
 
         _apply_argmax, _threshold = self.apply_argmax, self.threshold
         if self.num_classes is None:
