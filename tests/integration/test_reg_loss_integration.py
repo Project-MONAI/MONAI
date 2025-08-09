@@ -41,7 +41,7 @@ class TestRegLossIntegration(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
-    @SkipIfBeforePyTorchVersion((1, 9))
+    
     def test_convergence(self, loss_type, loss_args, forward_args, pred_channels=1):
         """
         The goal of this test is to assess if the gradient of the loss function

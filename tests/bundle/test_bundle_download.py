@@ -28,7 +28,7 @@ from monai.bundle import ConfigParser, create_workflow, load
 from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
+    
     assert_allclose,
     command_line_tests,
     skip_if_downloading_fails,
@@ -398,7 +398,7 @@ class TestLoad(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_9])
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 7, 1))
+    
     def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):
         with skip_if_downloading_fails():
             # load ts module

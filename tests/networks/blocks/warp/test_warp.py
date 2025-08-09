@@ -23,7 +23,7 @@ from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
 from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
+    
     SkipIfNoModule,
     download_url_or_skip_test,
     skip_if_quick,
@@ -144,7 +144,7 @@ class TestWarp(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
-    @SkipIfBeforePyTorchVersion((1, 8))
+    
     def test_grad(self):
         for b in GridSampleMode:
             for p in GridSamplePadMode:

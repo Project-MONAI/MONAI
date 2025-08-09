@@ -26,7 +26,7 @@ from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from monai.utils.enums import AlgoKeys
 from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
+    
     get_testing_algo_template_path,
     skip_if_downloading_fails,
     skip_if_no_cuda,
@@ -76,7 +76,7 @@ fake_datalist: dict[str, list[dict]] = {
 }
 
 
-@SkipIfBeforePyTorchVersion((1, 11, 1))
+
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
