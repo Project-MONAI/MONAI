@@ -24,7 +24,6 @@ from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import (
     TEST_NDARRAYS_ALL,
     NumpyImageTestCase2D,
-    SkipIfAtLeastPyTorchVersion,
     assert_allclose,
     test_local_inversion,
 )
@@ -64,7 +63,6 @@ TEST_CORRECT_CASES = [
 ]
 
 
-@SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class TestResized(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
         with self.assertRaises(ValueError):

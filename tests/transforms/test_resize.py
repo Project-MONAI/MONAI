@@ -24,7 +24,6 @@ from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import (
     TEST_NDARRAYS_ALL,
     NumpyImageTestCase2D,
-    SkipIfAtLeastPyTorchVersion,
     assert_allclose,
     is_tf32_env,
 )
@@ -117,7 +116,6 @@ class TestResize(NumpyImageTestCase2D):
             )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_1, TEST_CASE_3, TEST_CASE_4])
-    @SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
     def test_longest_shape(self, input_param, expected_shape):
         input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
         input_param["size_mode"] = "longest"
