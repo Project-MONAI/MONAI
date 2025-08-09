@@ -124,7 +124,7 @@ class DiceMetric(CumulativeIterationMetric):
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
         )
-    
+
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -299,7 +299,7 @@ class DiceHelper:
         if denorm <= 0:
             return torch.tensor(1.0, device=y_o.device)
         return torch.tensor(0.0, device=y_o.device)
-    
+
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the metric for the given prediction and ground truth.
