@@ -15,6 +15,8 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
+from monai.metrics.utils import ensure_channel_first
+
 
 from .metric import CumulativeIterationMetric
 
@@ -122,6 +124,7 @@ class DiceMetric(CumulativeIterationMetric):
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
         )
+    
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -296,7 +299,7 @@ class DiceHelper:
         if denorm <= 0:
             return torch.tensor(1.0, device=y_o.device)
         return torch.tensor(0.0, device=y_o.device)
-
+    
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the metric for the given prediction and ground truth.
@@ -306,6 +309,10 @@ class DiceHelper:
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
         """
+        y_pred, _ = ensure_channel_first(y_pred)
+        if y.ndim == y_pred.ndim and (y.shape[-1] == y_pred.shape[1] or y.shape[-1] == 1):
+            y, _ = ensure_channel_first(y)
+
         _apply_argmax, _threshold = self.apply_argmax, self.threshold
         if self.num_classes is None:
             n_pred_ch = y_pred.shape[1]  # y_pred is in one-hot format or multi-channel scores
