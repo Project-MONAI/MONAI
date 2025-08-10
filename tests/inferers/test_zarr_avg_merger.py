@@ -368,6 +368,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
         is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
         codec_reg = numcodecs.registry.codec_registry
+        arguments = dict(arguments)
 
         # Handle compressor/codecs based on zarr version
         if "compressor" in arguments and is_zarr_v3:

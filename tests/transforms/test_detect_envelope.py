@@ -52,7 +52,7 @@ TEST_CASE_3D_SINE = [
 ]
 
 TEST_CASE_2D_SINE_AXIS_1 = [
-    {"axis": 2},  # set axis argument to 1
+    {"axis": 2},  # set axis argument to 2
     # Create 10 identical windowed sine waves as a 2D numpy array
     np.expand_dims(np.stack([hann_windowed_sine] * 10, axis=1), 0),
     # Expected output: absolute value of each sample of the waveform, repeated (i.e. flat envelopes)

@@ -142,7 +142,7 @@ class TestGaussianFilterBackprop(unittest.TestCase):
 
         # train
         optimizer = torch.optim.Adam(trainable.parameters(), lr=lr)
-        for s in range(1000):
+        for _ in range(1000):
             optimizer.zero_grad()
             pred = trainable(base)
             loss = torch.pow(pred - target, 2).mean()
