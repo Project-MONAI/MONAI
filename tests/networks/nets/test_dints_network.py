@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
-from tests.test_utils import  skip_if_quick, test_script_save
+from tests.test_utils import skip_if_quick, test_script_save
 
 TEST_CASES_3D = [
     [
@@ -151,7 +151,6 @@ class TestDints(unittest.TestCase):
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
         self.assertTrue(isinstance(net.weight_parameters(), list))
-
 
 
 class TestDintsTS(unittest.TestCase):

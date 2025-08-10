@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DeepSupervisionLoss, DiceCELoss, DiceFocalLoss, DiceLoss
-from tests.test_utils import  test_script_save
+from tests.test_utils import test_script_save
 
 TEST_CASES_DICECE = [
     [
@@ -151,12 +151,10 @@ class TestDSLossDiceCE(unittest.TestCase):
             loss = DeepSupervisionLoss(DiceCELoss(reduction="none"))
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
-    
     def test_script(self):
         loss = DeepSupervisionLoss(DiceCELoss())
         test_input = torch.ones(2, 2, 8, 8)
         test_script_save(loss, test_input, test_input)
-
 
 
 class TestDSLossDiceCE2(unittest.TestCase):
@@ -167,14 +165,12 @@ class TestDSLossDiceCE2(unittest.TestCase):
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
 
-
 class TestDSLossDice(unittest.TestCase):
     @parameterized.expand(TEST_CASES_DICE)
     def test_result(self, input_param, input_data, expected_val):
         loss = DeepSupervisionLoss(DiceLoss(**input_param))
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
-
 
 
 class TestDSLossDiceFocal(unittest.TestCase):

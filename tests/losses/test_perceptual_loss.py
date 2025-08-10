@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.utils import optional_import
-from tests.test_utils import  assert_allclose, skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
 
 _, has_torchvision = optional_import("torchvision")
 TEST_CASES = [
@@ -71,7 +71,6 @@ TEST_CASES = [
         (2, 1, 64, 64, 64),
     ],
 ]
-
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")

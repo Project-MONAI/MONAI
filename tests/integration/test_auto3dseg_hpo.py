@@ -25,12 +25,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from monai.utils.enums import AlgoKeys
-from tests.test_utils import (
-    
-    get_testing_algo_template_path,
-    skip_if_downloading_fails,
-    skip_if_no_cuda,
-)
+from tests.test_utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 optuna, has_optuna = optional_import("optuna")
@@ -74,7 +69,6 @@ fake_datalist: dict[str, list[dict]] = {
         {"fold": 2, "image": "tr_image_012.fake.nii.gz", "label": "tr_label_012.fake.nii.gz"},
     ],
 }
-
 
 
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")

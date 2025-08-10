@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
-from tests.test_utils import  dict_product
+from tests.test_utils import dict_product
 
 einops, has_einops = optional_import("einops")
 
@@ -56,7 +56,6 @@ TEST_CASE_PATCHEMBED = [
         patch_size=[2], in_chans=[1, 4], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], spatial_dims=[2, 3]
     )
 ]
-
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):

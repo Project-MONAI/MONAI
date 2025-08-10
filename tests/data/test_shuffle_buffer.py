@@ -21,7 +21,6 @@ from monai.utils import convert_data_type
 from tests.test_utils import SkipIfBeforePyTorchVersion
 
 
-
 class TestShuffleBuffer(unittest.TestCase):
     def test_shape(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0)

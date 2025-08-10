@@ -127,7 +127,6 @@ TEST_CASES_ERROR = [
 ]
 
 
-
 class TestControlNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")

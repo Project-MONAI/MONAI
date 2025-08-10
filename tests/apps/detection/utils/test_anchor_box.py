@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator, AnchorGeneratorWithAnchorShape
 from monai.utils import optional_import
-from tests.test_utils import  assert_allclose, test_script_save
+from tests.test_utils import assert_allclose, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -37,7 +37,6 @@ TEST_CASES_SHAPE_3D = [
         ((5, 7, 64, 32, 32), (5, 7, 32, 16, 16)),
     ]
 ]
-
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")

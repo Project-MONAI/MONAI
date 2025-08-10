@@ -21,12 +21,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.test_utils import (
-    TEST_NDARRAYS_ALL,
-    NumpyImageTestCase2D,
-    assert_allclose,
-    is_tf32_env,
-)
+from tests.test_utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 

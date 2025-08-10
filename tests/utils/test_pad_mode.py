@@ -18,8 +18,7 @@ import torch
 
 from monai.transforms import CastToType, Pad
 from monai.utils import NumpyPadMode, PytorchPadMode
-from tests.test_utils import  dict_product
-
+from tests.test_utils import dict_product
 
 
 class TestPadMode(unittest.TestCase):

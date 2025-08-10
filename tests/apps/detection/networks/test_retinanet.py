@@ -20,7 +20,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.test_utils import  dict_product, skip_if_quick, test_onnx_save, test_script_save
+from tests.test_utils import dict_product, skip_if_quick, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -92,7 +92,6 @@ MODEL_LIST = [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resn
 
 TEST_CASES = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=CASE_LIST)]
 TEST_CASES_TS = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=[TEST_CASE_1])]
-
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
