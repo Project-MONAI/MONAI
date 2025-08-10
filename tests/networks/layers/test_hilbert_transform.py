@@ -18,8 +18,6 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import HilbertTransform
-from monai.utils import OptionalImportError
-from tests.test_utils import SkipIfModule, SkipIfNoModule
 
 
 def create_expected_numpy_output(input_datum, **kwargs):
@@ -112,19 +110,12 @@ else:
 # TESTS CHECKING PADDING, AXIS SELECTION ETC ARE COVERED BY test_detect_envelope.py
 
 
-@SkipIfNoModule("torch.fft")
 class TestHilbertTransformCPU(unittest.TestCase):
     @parameterized.expand(TEST_CASES_CPU + TEST_CASES_GPU)
     def test_value(self, arguments, image, expected_data, atol):
         result = HilbertTransform(**arguments)(image)
         result = np.squeeze(result.cpu().numpy())
         np.testing.assert_allclose(result, expected_data.squeeze(), atol=atol)
-
-
-@SkipIfModule("torch.fft")
-class TestHilbertTransformNoFFTMod(unittest.TestCase):
-    def test_no_fft_module_error(self):
-        self.assertRaises(OptionalImportError, HilbertTransform(), torch.randn(1, 1, 10))
 
 
 if __name__ == "__main__":
