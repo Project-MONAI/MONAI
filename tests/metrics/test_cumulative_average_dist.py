@@ -18,7 +18,7 @@ import torch
 import torch.distributed as dist
 
 from monai.metrics import CumulativeAverage
-from tests.test_utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
+from tests.test_utils import DistCall, DistTestCase
 
 
 class DistributedCumulativeAverage(DistTestCase):

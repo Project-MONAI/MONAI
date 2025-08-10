@@ -20,7 +20,6 @@ from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from monai.utils import set_determinism
-from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"], 3],
