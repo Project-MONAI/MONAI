@@ -219,9 +219,9 @@ class SegResEncoder(nn.Module):
         x = self.conv_init(x)
 
         for level in self.layers:
-            x = level["blocks"](x)
+            x = level["blocks"](x)  # type: ignore
             outputs.append(x)
-            x = level["downsample"](x)
+            x = level["downsample"](x)  # type: ignore
 
         if self.head_module is not None:
             outputs = self.head_module(outputs)
@@ -407,12 +407,12 @@ class SegResNetDS(nn.Module):
 
         i = 0
         for level in self.up_layers:
-            x = level["upsample"](x)
+            x = level["upsample"](x)  # type: ignore
             x += x_down.pop(0)
-            x = level["blocks"](x)
+            x = level["blocks"](x)  # type: ignore
 
             if len(self.up_layers) - i <= self.dsdepth:
-                outputs.append(level["head"](x))
+                outputs.append(level["head"](x))  # type: ignore
             i = i + 1
 
         outputs.reverse()
@@ -508,12 +508,13 @@ class SegResNetDS2(SegResNetDS):
 
         outputs: list[torch.Tensor] = []
         outputs_auto: list[torch.Tensor] = []
+        level: nn.ModuleDict
         x_ = x
         if with_point:
             if with_label:
                 x_ = x.clone()
             i = 0
-            for level in self.up_layers:
+            for level in self.up_layers:  # type: ignore
                 x = level["upsample"](x)
                 x = x + x_down[i]
                 x = level["blocks"](x)
@@ -526,7 +527,7 @@ class SegResNetDS2(SegResNetDS):
         x = x_
         if with_label:
             i = 0
-            for level in self.up_layers_auto:
+            for level in self.up_layers_auto:  # type: ignore
                 x = level["upsample"](x)
                 x = x + x_down[i]
                 x = level["blocks"](x)

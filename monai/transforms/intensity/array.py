@@ -900,27 +900,28 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t: torch.Tensor = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore[assignment]
         dtype = self.dtype or img.dtype
+        img_len = len(img_t)
         if self.channel_wise:
-            if self.subtrahend is not None and len(self.subtrahend) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
-            if self.divisor is not None and len(self.divisor) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+            if self.subtrahend is not None and len(self.subtrahend) != img_len:
+                raise ValueError(f"img has {img_len} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != img_len:
+                raise ValueError(f"img has {img_len} channels, but divisor has {len(self.divisor)} components.")
 
-            if not img.dtype.is_floating_point:
-                img, *_ = convert_data_type(img, dtype=torch.float32)
+            if not img_t.dtype.is_floating_point:
+                img_t, *_ = convert_data_type(img_t, dtype=torch.float32)
 
-            for i, d in enumerate(img):
-                img[i] = self._normalize(  # type: ignore
+            for i, d in enumerate(img_t):
+                img_t[i] = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
                 )
         else:
-            img = self._normalize(img, self.subtrahend, self.divisor)
+            img_t = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
 
-        out = convert_to_dst_type(img, img, dtype=dtype)[0]
+        out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
         return out
 
 
@@ -2764,7 +2765,7 @@ class ComputeHoVerMaps(Transform):
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor):
-        instance_mask = convert_data_type(mask, np.ndarray)[0]
+        instance_mask: np.ndarray = convert_data_type(mask, np.ndarray)[0]  # type: ignore[assignment]
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)

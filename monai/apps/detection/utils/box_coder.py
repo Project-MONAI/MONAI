@@ -210,7 +210,10 @@ class BoxCoder:
         offset = reference_boxes.shape[-1]
 
         pred_boxes = []
-        boxes_cccwhd = convert_box_mode(reference_boxes, src_mode=StandardMode, dst_mode=CenterSizeMode)
+        boxes_cccwhd: torch.Tensor = convert_box_mode(
+            reference_boxes, src_mode=StandardMode, dst_mode=CenterSizeMode
+        )  # type: ignore[assignment]
+
         for axis in range(self.spatial_dims):
             whd_axis = boxes_cccwhd[:, axis + self.spatial_dims]
             ctr_xyz_axis = boxes_cccwhd[:, axis]

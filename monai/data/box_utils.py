@@ -811,9 +811,9 @@ def _box_inter_union(
 
     # compute size for the intersection region for the NxM combinations
     wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,M,spatial_dims)
-    inter = torch.prod(wh, dim=-1, keepdim=False)  # (N,M)
+    inter: torch.Tensor = torch.prod(wh, dim=-1, keepdim=False)  # (N,M)
 
-    union = area1[:, None] + area2 - inter
+    union: torch.Tensor = area1[:, None] + area2 - inter  # type: ignore
     return inter, union
 
 
@@ -981,7 +981,7 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
     wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,spatial_dims)
     enclosure = torch.prod(wh, dim=-1, keepdim=False)  # (N,)
 
-    giou_t = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)
+    giou_t: torch.Tensor = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)  # type: ignore
     giou_t = giou_t.to(dtype=box_dtype)  # (N,spatial_dims)
     if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
         raise ValueError("Box GIoU is NaN or Inf.")

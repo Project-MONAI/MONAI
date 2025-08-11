@@ -42,7 +42,8 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertEqual(seed, get_seed())
         a = np.random.randint(seed)
         b = torch.randint(seed, (1,))
-        # tset when global flag support is disabled
+
+        # test when global flag support is disabled
         torch.backends.disable_global_flags()
         set_determinism(seed=seed)
         c = np.random.randint(seed)
@@ -60,11 +61,22 @@ class TestSetFlag(unittest.TestCase):
 
     @SkipIfBeforePyTorchVersion((1, 8))  # beta feature
     @skip_if_no_cuda
-    def test_algo(self):
+    def test_algo_not_deterministic(self):
+        """
+        Test `avg_pool3d_backward_cuda` correctly raises an exception since it lacks a deterministic implementation.
+        """
         with self.assertRaises(RuntimeError):
             x = torch.randn(20, 16, 50, 44, 31, requires_grad=True, device="cuda:0")
             y = torch.nn.AvgPool3d((3, 2, 2), stride=(2, 1, 2))(x)
             y.sum().backward()
+
+    @skip_if_no_cuda
+    def test_algo_cublas_env(self):
+        """
+        Test `torch.mm` does not raise an exception with the CUBLAS_WORKSPACE_CONFIG environment variable correctly set.
+        """
+        x = torch.rand(5, 5, device="cuda:0")
+        _ = torch.mm(x, x)
 
     def tearDown(self):
         set_determinism(None, use_deterministic_algorithms=False)

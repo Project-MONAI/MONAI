@@ -508,7 +508,7 @@ def map_classes_to_indices(
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
         check_non_lazy_pending_ops(image, name="map_classes_to_indices")
-        img_flat = ravel((image > image_threshold).any(0))
+        img_flat = ravel((image > image_threshold).any(0))  # type: ignore
 
     # assuming the first dimension is channel
     channels = len(label)
