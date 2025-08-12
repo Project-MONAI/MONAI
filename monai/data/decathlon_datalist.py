@@ -160,8 +160,9 @@ def load_decathlon_datalist(
 
 
 def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Sequence[str] | str) -> dict:
-    """Load the properties from the JSON file contains data property with specified `property_keys`.
-
+    """Extract the properties with the specified keys from the Decathlon JSON file.
+    See under `load_decathlon_datalist` for the expected keys in the Decathlon challenge.
+    
     Args:
         data_property_file_path: the path to the JSON file of data properties.
         property_keys: expected keys to load from the JSON file, for example, we have these keys
