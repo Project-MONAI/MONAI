@@ -43,7 +43,8 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         num_channels: Number of channels for the group norm.
         eps: Epsilon value for numerical stability.
         affine: Whether to use learnable affine parameters, default to `True`.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16, if False convert to float32.
+          If None, convert to the datatype of the input. Defaults to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -54,7 +55,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         num_channels: int,
         eps: float = 1e-5,
         affine: bool = True,
-        norm_float16: bool = False,
+        norm_float16: bool | None = False,
         print_info: bool = False,
         save_mem: bool = True,
     ):
@@ -67,6 +68,8 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         if self.print_info:
             logger.info(f"MaisiGroupNorm3D with input size: {input.size()}")
 
+        target_dtype = input.dtype
+
         if len(input.shape) != 5:
             raise ValueError("Expected a 5D tensor")
 
@@ -75,13 +78,17 @@ class MaisiGroupNorm3D(nn.GroupNorm):
 
         inputs = []
         for i in range(input.size(1)):
-            array = input[:, i : i + 1, ...].to(dtype=torch.float32)
+            array = input[:, i : i + 1, ...]
+            if self.norm_float16 is not None:
+                array = array.to(dtype=torch.float32)
             mean = array.mean([2, 3, 4, 5], keepdim=True)
             std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
-            if self.norm_float16:
+            if self.norm_float16 is None:
+                inputs.append(((array - mean) / std).to(dtype=target_dtype))
+            elif self.norm_float16:
                 inputs.append(((array - mean) / std).to(dtype=torch.float16))
             else:
-                inputs.append((array - mean) / std)
+                inputs.append(((array - mean) / std).to(dtype=torch.float32))
 
         del input
         _empty_cuda_cache(self.save_mem)
@@ -393,7 +400,8 @@ class MaisiResBlock(nn.Module):
         out_channels: Number of output channels.
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16, if False convert to float32.
+          If None, convert to the datatype of the input. Defaults to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -407,7 +415,7 @@ class MaisiResBlock(nn.Module):
         out_channels: int,
         num_splits: int,
         dim_split: int,
-        norm_float16: bool = False,
+        norm_float16: bool | None = False,
         print_info: bool = False,
         save_mem: bool = True,
     ) -> None:
@@ -524,7 +532,8 @@ class MaisiEncoder(nn.Module):
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16, if False convert to float32.
+          If None, convert to the datatype of the input. Defaults to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -541,7 +550,7 @@ class MaisiEncoder(nn.Module):
         attention_levels: Sequence[bool],
         num_splits: int,
         dim_split: int,
-        norm_float16: bool = False,
+        norm_float16: bool | None = False,
         print_info: bool = False,
         save_mem: bool = True,
         with_nonlocal_attn: bool = True,
@@ -714,7 +723,8 @@ class MaisiDecoder(nn.Module):
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16, if False convert to float32.
+          If None, convert to the datatype of the input. Defaults to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -731,7 +741,7 @@ class MaisiDecoder(nn.Module):
         attention_levels: Sequence[bool],
         num_splits: int,
         dim_split: int,
-        norm_float16: bool = False,
+        norm_float16: bool | None = False,
         print_info: bool = False,
         save_mem: bool = True,
         with_nonlocal_attn: bool = True,
@@ -905,7 +915,8 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16, if False convert to float32.
+          If None, convert to the datatype of the input. Defaults to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -930,7 +941,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_convtranspose: bool = False,
         num_splits: int = 16,
         dim_split: int = 0,
-        norm_float16: bool = False,
+        norm_float16: bool | None = False,
         print_info: bool = False,
         save_mem: bool = True,
     ) -> None:
