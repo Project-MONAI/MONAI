@@ -96,7 +96,7 @@ def load_decathlon_datalist(
     datalist.json files, see http://medicaldecathlon.com.
     The files are structured as follows:
 
-    .. code-block:: json
+    .. code-block:: python
 
         {
             "metadata_key_0": "metadata_value_0",
