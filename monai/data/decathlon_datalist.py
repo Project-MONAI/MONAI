@@ -117,7 +117,7 @@ def load_decathlon_datalist(
     two dict items, "modality" (keyed by channel index), and "labels" (keyed by label index),
     and two integer items, "numTraining" and "numTest", with the number of items.
 
-    The "training" key contains a list of direcitonaries, each of which has at least
+    The "training" key contains a list of dictionaries, each of which has at least
     the "image" and "label" keys, the latter of which is a path for segmentation data.
     Each item can also include a "fold" key for cross-validation purposes.
     The "test" key contains a list of image paths, without labels.
