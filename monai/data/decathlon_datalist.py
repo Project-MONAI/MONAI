@@ -93,7 +93,8 @@ def load_decathlon_datalist(
     """Load image/label paths of decathlon challenge from JSON file
 
     JSON file should follow the format of the Medical Segmentation Decathlon
-    datalist.json files. The files are structured as follows:
+    datalist.json files, see http://medicaldecathlon.com.
+    The files are structured as follows:
     {
         "metadata_key_0": "metadata_value_0",
         "metadata_key_1": "metadata_value_1",
