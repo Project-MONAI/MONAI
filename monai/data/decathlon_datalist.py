@@ -95,31 +95,34 @@ def load_decathlon_datalist(
     JSON file should follow the format of the Medical Segmentation Decathlon
     datalist.json files, see http://medicaldecathlon.com.
     The files are structured as follows:
-    {
-        "metadata_key_0": "metadata_value_0",
-        "metadata_key_1": "metadata_value_1",
-        ...,
-        "training": [
-            {"image": "path/to/image_1.nii.gz", "label": "path/to/label_1.nii.gz"},
-            {"image": "path/to/image_2.nii.gz", "label": "path/to/label_2.nii.gz"},
-            ...
-        ],
-        "test": [
-            "path/to/image_3.nii.gz",
-            "path/to/image_4.nii.gz",
-            ...
-        ]
-    }
 
-    The metadata keys are optional for loading the datalist, but include the following
-    string items:
-    "name", "description", "reference", "licence", "release", "tensorImageSize",
-    two dict items, "modality" (keyed by channel index), and "labels" (keyed by label index),
-    and two integer items, "numTraining" and "numTest", with the number of items.
+    .. code-block:: json
 
-    The "training" key contains a list of dictionaries, each of which has at least
-    the "image" and "label" keys, the latter of which is a path for segmentation data.
-    Each item can also include a "fold" key for cross-validation purposes.
+        {
+            "metadata_key_0": "metadata_value_0",
+            "metadata_key_1": "metadata_value_1",
+            ...,
+            "training": [
+                {"image": "path/to/image_1.nii.gz", "label": "path/to/label_1.nii.gz"},
+                {"image": "path/to/image_2.nii.gz", "label": "path/to/label_2.nii.gz"},
+                ...
+            ],
+            "test": [
+                "path/to/image_3.nii.gz",
+                "path/to/image_4.nii.gz",
+                ...
+            ]
+        }
+
+
+    The metadata keys are optional for loading the datalist, but include:
+        - some string items: ``name``, ``description``, ``reference``, ``licence``, ``release``, ``tensorImageSize``
+        - two dict items: ``modality`` (keyed by channel index), and ``labels`` (keyed by label index)
+        - and two integer items: ``numTraining`` and ``numTest``, with the number of items.
+
+    The ``training`` key contains a list of dictionaries, each of which has at least
+    the ``image`` and ``label`` keys, the latter of which is a path (for segmentation data).
+    Each item can also include a ``fold`` key for cross-validation purposes.
     The "test" key contains a list of image paths, without labels.
 
     Args:
@@ -134,11 +137,11 @@ def load_decathlon_datalist(
 
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
-    .. code-block::
+    .. code-block:: python
 
         [
-            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0},
-            {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': '/workspace/labels/chest_19.nii.gz},
+            {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/labels/chest_31.nii.gz'},
         ]
 
     """
