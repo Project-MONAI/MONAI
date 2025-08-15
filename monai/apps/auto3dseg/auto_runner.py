@@ -201,7 +201,7 @@ class AutoRunner:
             - ``dataroot``: the root directory of the data files.
 
         For the datalist file format, see the description under :py:func:`monai.data.load_decathlon_datalist`.
-        Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise 
+        Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise
         it will do cross-validation, by default with five folds (this is hardcoded).
     """
 
