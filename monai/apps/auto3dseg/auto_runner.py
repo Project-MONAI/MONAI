@@ -194,13 +194,14 @@ class AutoRunner:
             ├── segresnet2d_0       # network scripts/configs/checkpoints and pickle object of the algo
             └── swinunetr_0         # network scripts/configs/checkpoints and pickle object of the algo
 
-    Notes:
-        The input config requires at least the following keys:
-        - ``modality``: the modality of the data, e.g. "ct", "mri", etc.
-        - ``datalist``: the path to the datalist file in JSON format.
-        - ``dataroot``: the root directory of the data files.
 
-        For the datalist file format, see the description under monai.data.decathlon_datalist.load_decathlon_datalist.
+        The input config requires at least the following keys:
+            - ``modality``: the modality of the data, e.g. "ct", "mri", etc.
+            - ``datalist``: the path to the datalist file in JSON format.
+            - ``dataroot``: the root directory of the data files.
+
+        For the datalist file format, see the description under :py:func:`monai.data.decathlon_datalist.load_decathlon_datalist`.
+        Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise it will do cross-validation, by default with five folds (this is hardcoded).
     """
 
     analyze_params: dict | None
