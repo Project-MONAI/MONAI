@@ -122,9 +122,11 @@ def load_decathlon_datalist(
 
     The ``training`` key contains a list of dictionaries, each of which has at least
     the ``image`` and ``label`` keys.
-    The image and label are loaded by :py:func:`monai.data.transforms.LoadImaged`, so both can be either a single file path or a list of file paths, in which case they are loaded as multi-channel images.
+    The image and label are loaded by :py:func:`monai.transforms.LoadImaged`, so both can be either
+    a single file path or a list of file paths, in which case they are loaded as multi-channel images.
     Each item can also include a ``fold`` key for cross-validation purposes.
-    The "test" key contains a list of image paths, without labels, MONAI also supports a "validation" list with the same format as the "training" list.
+    The "test" key contains a list of image paths, without labels, MONAI also supports a "validation" list
+    with the same format as the "training" list.
 
 
     Args:
