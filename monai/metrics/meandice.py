@@ -15,7 +15,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
-from monai.metrics.utils import ensure_channel_first
+from monai.inferers.utils import ensure_channel_first
 
 
 from .metric import CumulativeIterationMetric
