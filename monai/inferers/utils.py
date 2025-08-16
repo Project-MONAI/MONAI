@@ -90,7 +90,7 @@ def ensure_channel_first(x: torch.Tensor, spatial_ndim: Optional[int] = None) ->
         f"both dim1={s1} and dim-1={sl} look like spatial dims"
     )
 
-    
+
 def sliding_window_inference(
     inputs: torch.Tensor | MetaTensor,
     roi_size: Sequence[int] | int,
