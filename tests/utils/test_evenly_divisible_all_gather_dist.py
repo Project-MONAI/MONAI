@@ -17,9 +17,10 @@ import torch
 import torch.distributed as dist
 
 from monai.utils import evenly_divisible_all_gather
-from tests.test_utils import DistCall, DistTestCase, assert_allclose
+from tests.test_utils import DistCall, DistTestCase, assert_allclose, skip_if_windows
 
 
+@skip_if_windows
 class DistributedEvenlyDivisibleAllGather(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_data(self):

@@ -1740,6 +1740,8 @@ class AffineGrid(LazyTransform):
 
         """
         lazy_ = self.lazy if lazy is None else lazy
+        _device: torch.device | None
+
         if not lazy_:
             if grid is None:  # create grid from spatial_size
                 if spatial_size is None:
@@ -1749,10 +1751,10 @@ class AffineGrid(LazyTransform):
                 grid_ = grid
             _dtype = self.dtype or grid_.dtype
             grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
-            _device = grid_.device  # type: ignore
+            _device = torch.device(grid_.device)  # type: ignore
             spatial_dims = len(grid_.shape) - 1
         else:
-            _device = self.device
+            _device = self.device  # type: ignore[assignment]
             spatial_dims = len(spatial_size)  # type: ignore
         _b = TransformBackends.TORCH
         affine: torch.Tensor
@@ -3309,6 +3311,7 @@ class GridPatch(Transform, MultiSampleTrait):
             **self.pad_kwargs,
         )
         patches = list(zip(*patch_iterator))
+        patched_image: NdarrayOrTensor
         patched_image = np.stack(patches[0]) if isinstance(array, np.ndarray) else torch.stack(patches[0])
         locations = np.stack(patches[1])[:, 1:, 0]  # only keep the starting location
 
@@ -3516,7 +3519,7 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         if self._do_transform:
             input_shape = img.shape[1:]
-            target_shape = np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_)
+            target_shape = tuple(np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_).tolist())
 
             resize_tfm_downsample = Resize(
                 spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False

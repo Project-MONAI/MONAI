@@ -580,7 +580,7 @@ class PydicomReader(ImageReader):
         shape = first_array.shape
         spacing = getattr(first_slice, "PixelSpacing", [1.0] * len(shape))
         prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
-        stack_array = [first_array]
+        stack_array_list: list = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx][0], slices[idx][1])
             slc_shape = slc_array.shape
@@ -592,22 +592,24 @@ class PydicomReader(ImageReader):
                 warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
             average_distance += abs(prev_pos - slc_pos)
             prev_pos = slc_pos
-            stack_array.append(slc_array)
+            stack_array_list.append(slc_array)
 
         if len(slices) > 1:
             average_distance /= len(slices) - 1
             spacing.append(average_distance)
             if self.to_gpu:
-                stack_array = cp.stack(stack_array, axis=-1)
+                stack_array = cp.stack(stack_array_list, axis=-1)
             else:
-                stack_array = np.stack(stack_array, axis=-1)
+                stack_array = np.stack(stack_array_list, axis=-1)
+
+            del stack_array_list[:]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             if hasattr(slices[-1][0], "ImagePositionPatient"):
                 stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1][0].ImagePositionPatient)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
-            stack_array = stack_array[0]
+            stack_array = stack_array_list[0]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape
