@@ -38,13 +38,24 @@ _nearest_mode = "nearest-exact"
 
 __all__ = ["sliding_window_inference"]
 
-def ensure_channel_first(x: torch.Tensor, spatial_ndim: Optional[int] = None) -> Tuple[torch.Tensor, int]:
+dfrom typing import Optional, Tuple
+import torch
+
+def ensure_channel_first(
+    x: torch.Tensor,
+    spatial_ndim: Optional[int] = None,
+    channel_hint: Optional[int] = None,
+    threshold: int = 32,
+) -> Tuple[torch.Tensor, int]:
     """
     Normalize a tensor to channel-first layout (N, C, spatial...).
 
     Args:
         x: Tensor with shape (N, C, spatial...) or (N, spatial..., C).
         spatial_ndim: Number of spatial dimensions. If None, inferred as x.ndim - 2.
+        channel_hint: If provided, the expected channel size (e.g., num_classes). When present,
+            we prioritize matching this size at either dim=1 (channel-first) or dim=-1 (channel-last).
+        threshold: Heuristic upper bound for typical channel counts to disambiguate layouts.
 
     Returns:
         A tuple (x_cf, orig_channel_dim):
@@ -56,40 +67,44 @@ def ensure_channel_first(x: torch.Tensor, spatial_ndim: Optional[int] = None) ->
         ValueError: if x.ndim < 3 or the channel dimension cannot be inferred unambiguously.
 
     Notes:
-        Uses a small-channel heuristic (<=32) typical for segmentation/classification. When ambiguous,
-        prefers preserving the input layout or raises ValueError to avoid silent errors.
+        1. When channel_hint is provided, it is used as a strong signal to decide layout.
+        2. Otherwise, uses a heuristic where channels are usually small (<= threshold).
+        3. In ambiguous cases (both candidate dims small or both large), the input layout
+           is preserved (assumed channel-first) to avoid silent mis-reordering.
     """
     if not isinstance(x, torch.Tensor):
         raise TypeError(f"Expected torch.Tensor, got {type(x)}")
     if x.ndim < 3:
         raise ValueError(f"Expected >=3 dims (N,C,spatial...), got shape={tuple(x.shape)}")
 
-    # Infer spatial dims if not provided (handles 1D/2D/3D uniformly).
     if spatial_ndim is None:
-        spatial_ndim = x.ndim - 2  # not directly used for logic; informative only
+        spatial_ndim = x.ndim - 2  # informative only
 
-    # Heuristic: channels are usually small (e.g., <=32) in segmentation/classification.
-    threshold = 32
-    s1 = int(x.shape[1])   # candidate channel at dim=1 (N, C, ...)
-    sl = int(x.shape[-1])  # candidate channel at last dim (..., C)
+    s1 = int(x.shape[1])   # candidate channel at dim=1
+    sl = int(x.shape[-1])  # candidate channel at dim=-1
 
-    # Unambiguous cases first.
+    # 1) Strong signal: use channel_hint if provided
+    if channel_hint is not None:
+        if s1 == channel_hint and sl != channel_hint:
+            return x, 1
+        if sl == channel_hint and s1 != channel_hint:
+            return x.movedim(-1, 1), -1
+        # if both match or both mismatch, fall back to heuristic
+
+    # 2) Heuristic: channels are usually small
     if s1 <= threshold and sl > threshold:
-        # Looks like NCHW/D already.
         return x, 1
     if sl <= threshold and s1 > threshold:
-        # Looks like NHWC/D: move last dim to channel dim.
         return x.movedim(-1, 1), -1
 
-    # Ambiguous: both sides small (or both large). Prefer preserving to avoid silent mis-reordering.
-    if s1 <= threshold and sl <= threshold:
+    # 3) Ambiguous: both sides small OR both sides large → preserve as channel-first
+    if (s1 <= threshold and sl <= threshold) or (s1 > threshold and sl > threshold):
         return x, 1
 
+    # 4) Should not reach here under normal cases
     raise ValueError(
-        f"cannot infer channel dim for shape={tuple(x.shape)}; expected [N,C,spatial...] or [N,spatial...,C]; "
-        f"both dim1={s1} and dim-1={sl} look like spatial dims"
+        f"cannot infer channel dim for shape={tuple(x.shape)}; expected [N,C,spatial...] or [N,spatial...,C]"
     )
-
 
 def sliding_window_inference(
     inputs: torch.Tensor | MetaTensor,
