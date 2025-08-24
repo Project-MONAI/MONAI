@@ -309,7 +309,7 @@ class DiceHelper:
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
         """
-       
+
 
         # --- Normalize layout to channel-first (N, C, spatial...) ---
         # Prefer a strong signal when available.
