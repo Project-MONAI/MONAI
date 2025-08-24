@@ -38,9 +38,6 @@ _nearest_mode = "nearest-exact"
 
 __all__ = ["sliding_window_inference"]
 
-dfrom typing import Optional, Tuple
-import torch
-
 def ensure_channel_first(
     x: torch.Tensor,
     spatial_ndim: Optional[int] = None,
@@ -105,6 +102,8 @@ def ensure_channel_first(
     raise ValueError(
         f"cannot infer channel dim for shape={tuple(x.shape)}; expected [N,C,spatial...] or [N,spatial...,C]"
     )
+    
+
 
 def sliding_window_inference(
     inputs: torch.Tensor | MetaTensor,
