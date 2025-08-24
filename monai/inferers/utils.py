@@ -36,14 +36,14 @@ from monai.utils import (
 tqdm, _ = optional_import("tqdm", name="tqdm")
 _nearest_mode = "nearest-exact"
 
-__all__ = ["sliding_window_inference"]
+__all__ = ["ensure_channel_first","sliding_window_inference"]
 
 def ensure_channel_first(
     x: torch.Tensor,
     spatial_ndim: Optional[int] = None,
     channel_hint: Optional[int] = None,
     threshold: int = 32,
-) -> Tuple[torch.Tensor, int]:
+) -> tuple[torch.Tensor, int]:
     """
     Normalize a tensor to channel-first layout (N, C, spatial...).
 

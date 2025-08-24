@@ -309,17 +309,21 @@ class DiceHelper:
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
         """
+       
+
         # --- Normalize layout to channel-first (N, C, spatial...) ---
+        # Prefer a strong signal when available.
+        if self.num_classes is not None:
+            y_pred, _ = ensure_channel_first(y_pred, channel_hint=self.num_classes)
+        else:
+            y_pred, _ = ensure_channel_first(y_pred)
+
+        # Infer channels after normalization (or use provided).
         n_ch = self.num_classes or y_pred.shape[1]
 
-        # Always normalize y_pred with hint
-        y_pred, _ = ensure_channel_first(y_pred, channel_hint=n_ch)
-
-        # Normalize y if it looks like channel-last (last dim = 1 or n_ch)
+        # Normalize y if it plausibly is channel-last.
         if y.ndim == y_pred.ndim and y.shape[-1] in (1, n_ch):
             y, _ = ensure_channel_first(y, channel_hint=n_ch)
-
-
 
         _apply_argmax, _threshold = self.apply_argmax, self.threshold
         if self.num_classes is None:
