@@ -102,7 +102,7 @@ def ensure_channel_first(
     raise ValueError(
         f"cannot infer channel dim for shape={tuple(x.shape)}; expected [N,C,spatial...] or [N,spatial...,C]"
     )
-    
+
 
 
 def sliding_window_inference(
