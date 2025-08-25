@@ -314,9 +314,15 @@ class DiceHelper:
         # --- Normalize layout to channel-first (N, C, spatial...) ---
         # Prefer a strong signal when available.
         if self.num_classes is not None:
-            y_pred, _ = ensure_channel_first(y_pred, channel_hint=self.num_classes)
+                y_pred, _ = ensure_channel_first(y_pred, channel_hint=self.num_classes)
         else:
+            # First pass: heuristic only.
             y_pred, _ = ensure_channel_first(y_pred)
+            # Fallback: if implausible vs y's layout, retry with a hint from y's last dim.
+            if y.ndim == y_pred.ndim:
+                plausible = {1, y.shape[1], y.shape[-1]}
+                if y_pred.shape[1] not in plausible:
+                    y_pred, _ = ensure_channel_first(y_pred, channel_hint=int(y.shape[-1]))
 
         # Infer channels after normalization (or use provided).
         n_ch = self.num_classes or y_pred.shape[1]
