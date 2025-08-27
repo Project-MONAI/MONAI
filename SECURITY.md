@@ -15,4 +15,4 @@ Please do not create public issues for security-related reports.
 * We will not publicly disclose vulnerabilities until a fix has been developed and released.
 * Credit will be given to researchers who responsibly disclose vulnerabilities, if requested.
 # Acknowledgements
-We greatly appreciate contributions from the security community and strive to recognize all researchers who help keep Cherry Studio safe.
+We greatly appreciate contributions from the security community and strive to recognize all researchers who help keep MONAI safe.
