@@ -32,7 +32,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from tests.test_utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, dict_product, skip_if_no_cuda
+from tests.test_utils import TEST_DEVICES, assert_allclose, dict_product, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
 
@@ -297,7 +297,6 @@ class TestMetaTensor(unittest.TestCase):
             self.check(im, ims[i], ids=True)
 
     @parameterized.expand(DTYPES)
-    @SkipIfBeforePyTorchVersion((1, 8))
     def test_dataloader(self, dtype):
         batch_size = 5
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
@@ -314,7 +313,6 @@ class TestMetaTensor(unittest.TestCase):
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
             self.assertEqual(len(batch.applied_operations), batch_size)
 
-    @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):
         """
         Check the metadata is returned in the expected format depending on whether
@@ -406,7 +404,6 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
 
     @parameterized.expand(DTYPES)
-    @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
         batch_size = 3
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]

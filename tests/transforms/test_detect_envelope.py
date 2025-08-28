@@ -18,8 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
-from monai.utils import OptionalImportError
-from tests.test_utils import TEST_NDARRAYS, SkipIfModule, SkipIfNoModule, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 n_samples = 500
 hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.hanning(n_samples)
@@ -53,7 +52,7 @@ TEST_CASE_3D_SINE = [
 ]
 
 TEST_CASE_2D_SINE_AXIS_1 = [
-    {"axis": 2},  # set axis argument to 1
+    {"axis": 2},  # set axis argument to 2
     # Create 10 identical windowed sine waves as a 2D numpy array
     np.expand_dims(np.stack([hann_windowed_sine] * 10, axis=1), 0),
     # Expected output: absolute value of each sample of the waveform, repeated (i.e. flat envelopes)
@@ -114,7 +113,6 @@ TEST_CASE_INVALID_IMG_LEN = [
 TEST_CASE_INVALID_OBJ = [{}, "a string", "__call__"]  # method expected to raise exception
 
 
-@SkipIfNoModule("torch.fft")
 class TestDetectEnvelope(unittest.TestCase):
     @parameterized.expand(
         [
@@ -147,12 +145,6 @@ class TestDetectEnvelope(unittest.TestCase):
             self.assertRaises(ValueError, DetectEnvelope(**arguments), image)
         else:
             self.fail("Expected raising method invalid. Should be __init__ or __call__.")
-
-
-@SkipIfModule("torch.fft")
-class TestHilbertTransformNoFFTMod(unittest.TestCase):
-    def test_no_fft_module_error(self):
-        self.assertRaises(OptionalImportError, DetectEnvelope(), np.random.rand(1, 10))
 
 
 if __name__ == "__main__":
