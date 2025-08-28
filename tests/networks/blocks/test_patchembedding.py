@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product
+from tests.test_utils import dict_product
 
 einops, has_einops = optional_import("einops")
 
@@ -58,7 +58,6 @@ TEST_CASE_PATCHEMBED = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestPatchEmbeddingBlock(unittest.TestCase):
     def setUp(self):
         self.threads = torch.get_num_threads()

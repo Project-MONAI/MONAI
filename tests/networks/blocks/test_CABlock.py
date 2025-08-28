@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.cablock import CABlock, FeedForward
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_product
+from tests.test_utils import assert_allclose, dict_product
 
 einops, has_einops = optional_import("einops")
 
@@ -71,7 +71,6 @@ class TestCABlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CABlock(spatial_dims=4, dim=64, num_heads=4, bias=True)
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     @skipUnless(has_einops, "Requires einops")
     def test_flash_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -100,7 +99,6 @@ class TestCABlock(unittest.TestCase):
         qkv = block.qkv(x)
         self.assertEqual(qkv.shape, (2, 192, 16, 16, 16))
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     @skipUnless(has_einops, "Requires einops")
     def test_flash_vs_normal_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
