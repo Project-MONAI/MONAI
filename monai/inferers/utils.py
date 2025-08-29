@@ -60,7 +60,7 @@ def sliding_window_inference(
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
-    
+
     """
     Sliding window inference on `inputs` with `predictor`.
 
