@@ -40,6 +40,6 @@ onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
 zarr
 huggingface_hub
-pyamg>=5.0.0
+pyamg>=5.0.0, <5.3.0
 packaging
 polygraphy
