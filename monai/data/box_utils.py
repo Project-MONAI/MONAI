@@ -842,8 +842,10 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 
     inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=COMPUTE_DTYPE)
 
-    # compute IoU and convert back to original box_dtype
+    # compute IoU and convert back to original box_dtype or float32
     iou_t = inter / (union + torch.finfo(COMPUTE_DTYPE).eps)  # (N,M)
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     iou_t = iou_t.to(dtype=box_dtype)
 
     # check if NaN or Inf
@@ -851,7 +853,7 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         raise ValueError("Box IoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    iou, *_ = convert_to_dst_type(src=iou_t, dst=boxes1)
+    iou, *_ = convert_to_dst_type(src=iou_t, dst=boxes1, dtype=box_dtype)
     return iou
 
 
