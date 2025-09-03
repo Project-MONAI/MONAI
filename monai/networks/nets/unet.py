@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from typing import cast
 
 import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
@@ -23,6 +25,15 @@ from monai.networks.layers.simplelayers import SkipConnection
 
 __all__ = ["UNet", "Unet"]
 
+class _ActivationCheckpointWrapper(nn.Module):
+    def __init__(self, module: nn.Module) -> None:
+        super().__init__()
+        self.module = module
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
+        return cast(torch.Tensor, self.module(x))
 
 class UNet(nn.Module):
     """
@@ -118,6 +129,7 @@ class UNet(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         adn_ordering: str = "NDA",
+        use_checkpointing: bool = False,
     ) -> None:
         super().__init__()
 
@@ -146,6 +158,7 @@ class UNet(nn.Module):
         self.dropout = dropout
         self.bias = bias
         self.adn_ordering = adn_ordering
+        self.use_checkpointing = use_checkpointing
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
@@ -192,6 +205,8 @@ class UNet(nn.Module):
             subblock: block defining the next layer in the network.
         Returns: block for this layer: `nn.Sequential(down_path, SkipConnection(subblock), up_path)`
         """
+        if self.use_checkpointing:
+            subblock = _ActivationCheckpointWrapper(subblock)
         return nn.Sequential(down_path, SkipConnection(subblock), up_path)
 
     def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
