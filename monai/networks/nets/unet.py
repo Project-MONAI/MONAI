@@ -25,6 +25,7 @@ from monai.networks.layers.simplelayers import SkipConnection
 
 __all__ = ["UNet", "Unet"]
 
+
 class _ActivationCheckpointWrapper(nn.Module):
     def __init__(self, module: nn.Module) -> None:
         super().__init__()
@@ -34,6 +35,7 @@ class _ActivationCheckpointWrapper(nn.Module):
         if self.training:
             return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
         return cast(torch.Tensor, self.module(x))
+
 
 class UNet(nn.Module):
     """
