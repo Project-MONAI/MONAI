@@ -30,10 +30,19 @@ class _ActivationCheckpointWrapper(nn.Module):
     """Apply activation checkpointing to the wrapped module during training."""
     def __init__(self, module: nn.Module) -> None:
         super().__init__()
+        # Pre-detect BatchNorm presence for fast path
+        self._has_bn = any(isinstance(m, nn.modules.batchnorm._BatchNorm) for m in module.modules())
         self.module = module
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.training and torch.is_grad_enabled() and x.requires_grad:
+            if self._has_bn:
+                warnings.warn(
+                    "Activation checkpointing skipped for a subblock containing BatchNorm to avoid double-updating "
+                    "running statistics during recomputation.",
+                    RuntimeWarning,
+                )
+                return cast(torch.Tensor, self.module(x))
             try:
                 return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
             except TypeError:
