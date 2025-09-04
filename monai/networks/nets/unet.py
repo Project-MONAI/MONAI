@@ -32,8 +32,12 @@ class _ActivationCheckpointWrapper(nn.Module):
         self.module = module
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.training:
-            return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
+        if self.training and torch.is_grad_enabled() and x.requires_grad:
+            try:
+                return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
+            except TypeError:
+                # Fallback for older PyTorch without `use_reentrant`
+                return cast(torch.Tensor, checkpoint(self.module, x))
         return cast(torch.Tensor, self.module(x))
 
 
