@@ -36,7 +36,7 @@ from monai.networks.nets import (
 )
 from monai.networks.schedulers import RFlowScheduler, Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
