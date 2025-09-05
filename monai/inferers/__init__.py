@@ -11,12 +11,15 @@
 
 from __future__ import annotations
 
-from .inferer import (
+from .diffusion_inferer import (
+    BaseDiffusionInferer,
     ControlNetDiffusionInferer,
     ControlNetLatentDiffusionInferer,
     DiffusionInferer,
-    Inferer,
     LatentDiffusionInferer,
+)
+from .inferer import (
+    Inferer,
     PatchInferer,
     SaliencyInferer,
     SimpleInferer,
