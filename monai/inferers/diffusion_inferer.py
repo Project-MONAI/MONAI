@@ -12,10 +12,9 @@
 from __future__ import annotations
 
 import math
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections.abc import Callable
 from functools import partial
-from pydoc import locate
 from typing import Any
 
 import torch
@@ -25,7 +24,6 @@ import torch.nn.functional as F
 from monai.apps.utils import get_logger
 from monai.data import decollate_batch
 from monai.inferers.inferer import Inferer
-from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.networks.nets import (
     VQVAE,
     AutoencoderKL,
@@ -77,7 +75,7 @@ class BaseDiffusionInferer(Inferer):
         condition: torch.Tensor | None = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Any:  # noqa: E501
+    ) -> Any:
         """
         Runs a forward pass on the diffusion model.
 

@@ -15,7 +15,6 @@ import math
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from functools import partial
 from pydoc import locate
 from typing import Any
 
@@ -24,7 +23,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.apps.utils import get_logger
-from monai.data import decollate_batch
 from monai.data.meta_tensor import MetaTensor
 from monai.data.thread_buffer import ThreadBuffer
 from monai.inferers.merger import AvgMerger, Merger
