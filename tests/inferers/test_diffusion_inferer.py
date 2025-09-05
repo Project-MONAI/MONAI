@@ -100,12 +100,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
-            input_noise=noise,
-            network=model,
-            scheduler=scheduler,
-            save_intermediates=True,
-            intermediate_steps=1,
-            cfg=5,
+            input_noise=noise, network=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1, cfg=5
         )
         self.assertEqual(sample.shape, noise.shape)
 

@@ -402,11 +402,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                     input_shape_seg[1] = autoencoder_params["label_nc"]
                 input_seg = torch.randn(input_shape_seg).to(device)
                 sample = inferer.sample(
-                    input_noise=noise,
-                    autoencoder_model=stage_1,
-                    network=stage_2,
-                    scheduler=scheduler,
-                    seg=input_seg,
+                    input_noise=noise, autoencoder_model=stage_1, network=stage_2, scheduler=scheduler, seg=input_seg
                 )
             else:
                 sample = inferer.sample(
@@ -567,11 +563,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             )
         else:
             sample, intermediates = inferer.get_likelihood(
-                inputs=input,
-                autoencoder_model=stage_1,
-                network=stage_2,
-                scheduler=scheduler,
-                save_intermediates=True,
+                inputs=input, autoencoder_model=stage_1, network=stage_2, scheduler=scheduler, save_intermediates=True
             )
         self.assertEqual(len(intermediates), 10)
         self.assertEqual(intermediates[0].shape, latent_shape)
@@ -927,11 +919,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 _ = inferer.sample(
-                    input_noise=noise,
-                    autoencoder_model=stage_1,
-                    network=stage_2,
-                    scheduler=scheduler,
-                    seg=input_seg,
+                    input_noise=noise, autoencoder_model=stage_1, network=stage_2, scheduler=scheduler, seg=input_seg
                 )
 
 
