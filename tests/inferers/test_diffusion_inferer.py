@@ -69,7 +69,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-        sample = inferer(inputs=input, noise=noise, diffusion_model=model, timesteps=timesteps)
+        sample = inferer(inputs=input, noise=noise, network=model, timesteps=timesteps)
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(TEST_CASES)
@@ -84,7 +84,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
-            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+            input_noise=noise, network=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -101,7 +101,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
             input_noise=noise,
-            diffusion_model=model,
+            network=model,
             scheduler=scheduler,
             save_intermediates=True,
             intermediate_steps=1,
@@ -121,7 +121,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
-            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+            input_noise=noise, network=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -137,7 +137,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
-            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+            input_noise=noise, network=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -153,7 +153,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
-            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+            input_noise=noise, network=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
         self.assertEqual(len(intermediates), 10)
 

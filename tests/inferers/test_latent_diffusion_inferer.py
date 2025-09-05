@@ -355,14 +355,14 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 prediction = inferer(
                     inputs=input,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     seg=input_seg,
                     noise=noise,
                     timesteps=timesteps,
                 )
             else:
                 prediction = inferer(
-                    inputs=input, autoencoder_model=stage_1, diffusion_model=stage_2, noise=noise, timesteps=timesteps
+                    inputs=input, autoencoder_model=stage_1, network=stage_2, noise=noise, timesteps=timesteps
                 )
             self.assertEqual(prediction.shape, latent_shape)
 
@@ -404,13 +404,13 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     seg=input_seg,
                 )
             else:
                 sample = inferer.sample(
-                    input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler
+                    input_noise=noise, autoencoder_model=stage_1, network=stage_2, scheduler=scheduler
                 )
             self.assertEqual(sample.shape, input_shape)
 
@@ -452,14 +452,14 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     seg=input_seg,
                     cfg=5,
                 )
             else:
                 sample = inferer.sample(
-                    input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler, cfg=5
+                    input_noise=noise, autoencoder_model=stage_1, network=stage_2, scheduler=scheduler, cfg=5
                 )
             self.assertEqual(sample.shape, input_shape)
 
@@ -503,7 +503,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample, intermediates = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     seg=input_seg,
                     save_intermediates=True,
@@ -513,7 +513,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample, intermediates = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     save_intermediates=True,
                     intermediate_steps=1,
@@ -560,7 +560,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             sample, intermediates = inferer.get_likelihood(
                 inputs=input,
                 autoencoder_model=stage_1,
-                diffusion_model=stage_2,
+                network=stage_2,
                 scheduler=scheduler,
                 save_intermediates=True,
                 seg=input_seg,
@@ -569,7 +569,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             sample, intermediates = inferer.get_likelihood(
                 inputs=input,
                 autoencoder_model=stage_1,
-                diffusion_model=stage_2,
+                network=stage_2,
                 scheduler=scheduler,
                 save_intermediates=True,
             )
@@ -615,7 +615,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             sample, intermediates = inferer.get_likelihood(
                 inputs=input,
                 autoencoder_model=stage_1,
-                diffusion_model=stage_2,
+                network=stage_2,
                 scheduler=scheduler,
                 save_intermediates=True,
                 resample_latent_likelihoods=True,
@@ -625,7 +625,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             sample, intermediates = inferer.get_likelihood(
                 inputs=input,
                 autoencoder_model=stage_1,
-                diffusion_model=stage_2,
+                network=stage_2,
                 scheduler=scheduler,
                 save_intermediates=True,
                 resample_latent_likelihoods=True,
@@ -682,7 +682,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 prediction = inferer(
                     inputs=input,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     noise=noise,
                     timesteps=timesteps,
                     condition=conditioning,
@@ -693,7 +693,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 prediction = inferer(
                     inputs=input,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     noise=noise,
                     timesteps=timesteps,
                     condition=conditioning,
@@ -747,7 +747,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     conditioning=conditioning,
                     mode="concat",
@@ -757,7 +757,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 sample = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     conditioning=conditioning,
                     mode="concat",
@@ -813,14 +813,14 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 prediction = inferer(
                     inputs=input,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     noise=noise,
                     timesteps=timesteps,
                     seg=input_seg,
                 )
             else:
                 prediction = inferer(
-                    inputs=input, autoencoder_model=stage_1, diffusion_model=stage_2, noise=noise, timesteps=timesteps
+                    inputs=input, autoencoder_model=stage_1, network=stage_2, noise=noise, timesteps=timesteps
                 )
             self.assertEqual(prediction.shape, latent_shape)
 
@@ -875,14 +875,14 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 input_seg = torch.randn(input_shape_seg).to(device)
                 prediction, _ = inferer.sample(
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     input_noise=noise,
                     save_intermediates=True,
                     seg=input_seg,
                 )
             else:
                 prediction = inferer.sample(
-                    autoencoder_model=stage_1, diffusion_model=stage_2, input_noise=noise, save_intermediates=False
+                    autoencoder_model=stage_1, network=stage_2, input_noise=noise, save_intermediates=False
                 )
             self.assertEqual(prediction.shape, input_shape)
 
@@ -929,7 +929,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 _ = inferer.sample(
                     input_noise=noise,
                     autoencoder_model=stage_1,
-                    diffusion_model=stage_2,
+                    network=stage_2,
                     scheduler=scheduler,
                     seg=input_seg,
                 )
