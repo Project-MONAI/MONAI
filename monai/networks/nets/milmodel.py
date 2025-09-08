@@ -16,7 +16,7 @@ from typing import cast
 import torch
 import torch.nn as nn
 
-from monai.utils import first, optional_import
+from monai.utils import optional_import
 
 models, _ = optional_import("torchvision.models")
 

@@ -113,7 +113,7 @@ class TorchVisionFCModel(NetAdapter):
         **kwargs,
     ):
         # if pretrained is False, weights is a weight tensor or None for no pretrained loading
-        if pretrained and weights is None: 
+        if pretrained and weights is None:
             weights = "DEFAULT"
 
         model = getattr(models, model_name)(weights=weights, **kwargs)
