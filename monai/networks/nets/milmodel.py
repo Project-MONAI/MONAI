@@ -48,8 +48,6 @@ class MILModel(nn.Module):
             Defaults to ``None`` (necessary only when using a custom backbone)
         trans_blocks: number of the blocks in `TransformEncoder` layer.
         trans_dropout: dropout rate in `TransformEncoder` layer.
-        backbone_weights: name of weight object in torchvision.models to load when `backbone` names a torchvision model
-
     """
 
     def __init__(
