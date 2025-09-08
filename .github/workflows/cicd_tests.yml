@@ -13,11 +13,15 @@ on:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
-  group: build-min-${{ github.event.pull_request.number || github.ref }}
+  group: cicd-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# These jobs run the CICD tests, type checking, and testing packaging and documentation generation. These use the 
+# minimum supported versions of Python and PyTorch in many places hard-coded as literals, so when support is dropped
+# for a version it is important to go through all jobs and check the versions they use are correct.
+
 jobs:
-  static-checks:
+  static-checks:  # Perform static type and other checks using runtests.sh
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,14 +47,14 @@ jobs:
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
-    - name: Lint and type check
+    - name: Lint and type check with "./runtests.sh --build --${{ matrix.opt }}"
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have 2 cores, so parallelize pytype
-        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
+        # Github actions have multiple cores, so parallelize pytype
+        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
         
-  min-dep:  # min dependencies installed tests for different OS
+  min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -124,7 +128,7 @@ jobs:
         NGC_ORG: ${{ secrets.NGC_ORG }}
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
-  full-dep:  # full dependencies installed tests for different OS
+  full-dep:  # Test with full dependencies installed for different OS runners
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -192,7 +196,7 @@ jobs:
         QUICKTEST: True
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
-  packaging:
+  packaging:  # Test package generation
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
@@ -279,7 +283,7 @@ jobs:
       env:
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
-  build-docs:
+  build-docs:  # Test building documentation
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -308,7 +312,7 @@ jobs:
         cd docs/
         make clean
         make html 2>&1 | tee tmp_log
-        if [[ $(grep -c "ERROR:" tmp_log) != 0 ]]; then echo "found errors"; grep "ERROR:" tmp_log; exit 1; fi
+        if [[ $(grep -c "ERROR:" tmp_log) != 0 ]]; then echo "Found errors:"; grep "ERROR:" tmp_log; exit 1; fi
         sed '/WARNING.*pip/d' tmp_log > tmp_log1; mv tmp_log1 tmp_log  # monai#7133
-        if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; grep "WARNING:" tmp_log; exit 1; fi
+        if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "Found warnings:"; grep "WARNING:" tmp_log; exit 1; fi
       shell: bash
