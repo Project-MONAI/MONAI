@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macOS-latest, ubuntu-latest]
+        os: [windows-latest, macOS-latest, ubuntu-latest, linux-gpu-runner]
         python-version: ['3.9']
         pytorch-version: ['2.5.1']
         include:
@@ -110,6 +110,7 @@ jobs:
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies with PyTorch ${{ matrix.pytorch-version }}
       run: |
+        /usr/bin/env nvidia-smi &> /dev/null || echo "No nvidia-smi found"
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
         python -m pip install -r requirements-min.txt
