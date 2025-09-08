@@ -110,7 +110,7 @@ jobs:
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies with PyTorch ${{ matrix.pytorch-version }}
       run: |
-        /usr/bin/env nvidia-smi &> /dev/null || echo "No nvidia-smi found"
+        /usr/bin/env nvidia-smi 2> /dev/null || echo "No nvidia-smi found"
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
         python -m pip install -r requirements-min.txt
