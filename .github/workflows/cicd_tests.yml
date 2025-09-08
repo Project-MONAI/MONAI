@@ -16,7 +16,7 @@ concurrency:
   group: cicd-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# These jobs run the CICD tests, type checking, and testing packaging and documentation generation. These use the 
+# These jobs run the CICD tests, type checking, and testing packaging and documentation generation. These use the
 # minimum supported versions of Python and PyTorch in many places hard-coded as literals, so when support is dropped
 # for a version it is important to go through all jobs and check the versions they use are correct.
 
@@ -53,7 +53,7 @@ jobs:
         $(pwd)/runtests.sh --build --clean
         # Github actions have multiple cores, so parallelize pytype
         $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
-        
+
   min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
     runs-on: ${{ matrix.os }}
     strategy:
