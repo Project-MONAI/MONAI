@@ -963,7 +963,7 @@ class DiffusionInferer(Inferer):
                 model_input = torch.cat([image] * 2, dim=0)
                 if conditioning is not None:
                     uncondition = torch.ones_like(conditioning)
-                    uncondition.fill_(cfg_fill_value) 
+                    uncondition.fill_(cfg_fill_value)
                     conditioning_input = torch.cat([uncondition, conditioning], dim=0)
                 else:
                     conditioning_input = None
