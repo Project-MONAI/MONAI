@@ -18,23 +18,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # caching of these jobs:
-  #   - docker-py3-pip- (shared)
-  #   - ubuntu py37 pip-
-  #   - os-latest-pip- (shared)
-  min-dep-os:  # min dependencies installed tests for different OS
+  min-dep:  # min dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
+        python-version: ['3.9']
+        pytorch-version: ['2.5.1']
+        include:
+        # Test Python versions under Ubuntu with lowest PyTorch version supported
+        - os: ubuntu-latest
+          pytorch-version: '2.5.1'
+          python-version: '3.10'
+        - os: ubuntu-latest
+          pytorch-version: '2.5.1'
+          python-version: '3.11'
+        - os: ubuntu-latest
+          pytorch-version: '2.5.1'
+          python-version: '3.12'
+
+        # test PyTorch versions under Ubuntu and lowest Python version supported
+        - os: ubuntu-latest
+          python-version: '3.9'
+          pytorch-version: '2.6.0'
+        - os: ubuntu-latest
+          python-version: '3.9'
+          pytorch-version: '2.7.1'
+        - os: ubuntu-latest
+          python-version: '3.9'
+          pytorch-version: '2.8.0'
+
+
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.9
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: ${{ matrix.python-version }}
     - name: Prepare pip wheel
       run: |
         which python
@@ -51,104 +73,7 @@ jobs:
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the dependencies
-      run: |
-        # min. requirements
-        python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-        python -m pip install -r requirements-min.txt
-        python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
-      shell: bash
-    - name: Run quick tests (CPU ${{ runner.os }})
-      run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
-        ./runtests.sh --min
-      shell: bash
-      env:
-        QUICKTEST: True
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
-        NGC_ORG: ${{ secrets.NGC_ORG }}
-        NGC_TEAM: ${{ secrets.NGC_TEAM }}
-
-  min-dep-py3:  # min dependencies installed tests for different python
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
-    timeout-minutes: 40
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Prepare pip wheel
-      run: |
-        which python
-        python -m pip install --user --upgrade pip setuptools wheel
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      shell: bash
-    - name: cache for pip
-      uses: actions/cache@v4
-      id: cache
-      with:
-        path: ${{ steps.pip-cache.outputs.dir }}
-        key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the dependencies
-      run: |
-        # min. requirements
-        python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
-        python -m pip install -r requirements-min.txt
-        python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
-      shell: bash
-    - name: Run quick tests (CPU ${{ runner.os }})
-      run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
-        ./runtests.sh --min
-      env:
-        QUICKTEST: True
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
-        NGC_ORG: ${{ secrets.NGC_ORG }}
-        NGC_TEAM: ${{ secrets.NGC_TEAM }}
-
-  min-dep-pytorch:  # min dependencies installed tests for different pytorch
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        pytorch-version: ['2.5.1', '2.6.0', '2.7.1', '2.8.0']
-    timeout-minutes: 40
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-    - name: Prepare pip wheel
-      run: |
-        which python
-        python -m pip install --user --upgrade pip setuptools wheel
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      shell: bash
-    - name: cache for pip
-      uses: actions/cache@v4
-      id: cache
-      with:
-        path: ${{ steps.pip-cache.outputs.dir }}
-        key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the dependencies
+    - name: Install the dependencies with PyTorch ${{ matrix.pytorch-version }}
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
@@ -156,13 +81,163 @@ jobs:
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
-    - name: Run quick tests (pytorch ${{ matrix.pytorch-version }})
+    - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        ./runtests.sh --min
+        # ./runtests.sh --min
+      shell: bash
       env:
         QUICKTEST: True
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
         NGC_ORG: ${{ secrets.NGC_ORG }}
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
+
+  # # caching of these jobs:
+  # #   - docker-py3-pip- (shared)
+  # #   - ubuntu py37 pip-
+  # #   - os-latest-pip- (shared)
+  # min-dep-os:  # min dependencies installed tests for different OS
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [windows-latest, macOS-latest, ubuntu-latest]
+  #   timeout-minutes: 40
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Set up Python 3.9
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.9'
+  #   - name: Prepare pip wheel
+  #     run: |
+  #       which python
+  #       python -m pip install --upgrade pip wheel
+  #   - name: cache weekly timestamp
+  #     id: pip-cache
+  #     run: |
+  #       echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+  #       echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+  #     shell: bash
+  #   - name: cache for pip
+  #     uses: actions/cache@v4
+  #     id: cache
+  #     with:
+  #       path: ${{ steps.pip-cache.outputs.dir }}
+  #       key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
+  #   - name: Install the dependencies
+  #     run: |
+  #       # min. requirements
+  #       python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+  #       python -m pip install -r requirements-min.txt
+  #       python -m pip list
+  #       BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+  #     shell: bash
+  #   - name: Run quick tests (CPU ${{ runner.os }})
+  #     run: |
+  #       python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+  #       python -c "import monai; monai.config.print_config()"
+  #       ./runtests.sh --min
+  #     shell: bash
+  #     env:
+  #       QUICKTEST: True
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
+
+  # min-dep-py3:  # min dependencies installed tests for different python
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version: ['3.9', '3.10', '3.11', '3.12']
+  #   timeout-minutes: 40
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Set up Python ${{ matrix.python-version }}
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: ${{ matrix.python-version }}
+  #   - name: Prepare pip wheel
+  #     run: |
+  #       which python
+  #       python -m pip install --user --upgrade pip setuptools wheel
+  #   - name: cache weekly timestamp
+  #     id: pip-cache
+  #     run: |
+  #       echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+  #       echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+  #     shell: bash
+  #   - name: cache for pip
+  #     uses: actions/cache@v4
+  #     id: cache
+  #     with:
+  #       path: ${{ steps.pip-cache.outputs.dir }}
+  #       key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
+  #   - name: Install the dependencies
+  #     run: |
+  #       # min. requirements
+  #       python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+  #       python -m pip install -r requirements-min.txt
+  #       python -m pip list
+  #       BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+  #     shell: bash
+  #   - name: Run quick tests (CPU ${{ runner.os }})
+  #     run: |
+  #       python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+  #       python -c "import monai; monai.config.print_config()"
+  #       ./runtests.sh --min
+  #     env:
+  #       QUICKTEST: True
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
+
+  # min-dep-pytorch:  # min dependencies installed tests for different pytorch
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       pytorch-version: ['2.5.1', '2.6.0', '2.7.1', '2.8.0']
+  #   timeout-minutes: 40
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Set up Python 3.9
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.9'
+  #   - name: Prepare pip wheel
+  #     run: |
+  #       which python
+  #       python -m pip install --user --upgrade pip setuptools wheel
+  #   - name: cache weekly timestamp
+  #     id: pip-cache
+  #     run: |
+  #       echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+  #       echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+  #     shell: bash
+  #   - name: cache for pip
+  #     uses: actions/cache@v4
+  #     id: cache
+  #     with:
+  #       path: ${{ steps.pip-cache.outputs.dir }}
+  #       key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
+  #   - name: Install the dependencies
+  #     run: |
+  #       # min. requirements
+  #       python -m pip install torch==${{ matrix.pytorch-version }}
+  #       python -m pip install -r requirements-min.txt
+  #       python -m pip list
+  #       BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+  #     shell: bash
+  #   - name: Run quick tests (pytorch ${{ matrix.pytorch-version }})
+  #     run: |
+  #       python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+  #       python -c "import monai; monai.config.print_config()"
+  #       ./runtests.sh --min
+  #     env:
+  #       QUICKTEST: True
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
