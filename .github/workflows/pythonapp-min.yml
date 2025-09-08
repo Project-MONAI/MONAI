@@ -1,4 +1,3 @@
-# Jenkinsfile.monai-premerge
 name: premerge-min
 
 on:
@@ -29,26 +28,19 @@ jobs:
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
-          pytorch-version: '2.5.1'
           python-version: '3.10'
         - os: ubuntu-latest
-          pytorch-version: '2.5.1'
           python-version: '3.11'
         - os: ubuntu-latest
-          pytorch-version: '2.5.1'
           python-version: '3.12'
 
-        # test PyTorch versions under Ubuntu and lowest Python version supported
+        # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
-          python-version: '3.9'
           pytorch-version: '2.6.0'
         - os: ubuntu-latest
-          python-version: '3.9'
           pytorch-version: '2.7.1'
         - os: ubuntu-latest
-          python-version: '3.9'
           pytorch-version: '2.8.0'
-
 
     timeout-minutes: 40
     steps:
