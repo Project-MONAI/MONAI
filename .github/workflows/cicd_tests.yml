@@ -66,7 +66,13 @@ jobs:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
           pytorch-version: '2.5.1'
-          python-version: ['3.10', '3.11', '3.12']
+          python-version: '3.10'
+        - os: ubuntu-latest
+          pytorch-version: '2.5.1'
+          python-version: '3.11'
+        - os: ubuntu-latest
+          pytorch-version: '2.5.1'
+          python-version: '3.12'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
