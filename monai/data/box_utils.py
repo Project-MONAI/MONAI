@@ -826,9 +826,9 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        The output is always floating point:
-        - if ``boxes1`` has a floating point dtype, the same dtype is used.
-        - if ``boxes1`` has an integer dtype, the result is returned as ``float32``.
+        The output is always floating-point:
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     """
 
