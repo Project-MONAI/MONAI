@@ -207,6 +207,10 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
+        Loading is done using `torch.load` with `weights_only=False`, thus the user must ensure the data
+        being loaded is safe. Typically this will be cached data the user has created themselves but if
+        data from external sources is used this should be validated for safetly independently.
+
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
         its documentation to familiarize yourself with the interaction between `PersistentDataset` and
@@ -371,6 +375,7 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
+                # Loading with weights_only=False is expected to be safe as these should be the user's own cached data
                 return torch.load(hashfile, weights_only=False)
             except PermissionError as e:
                 if sys.platform != "win32":
