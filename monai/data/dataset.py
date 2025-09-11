@@ -208,8 +208,8 @@ class PersistentDataset(Dataset):
         errors. If in doubt, it is advisable to clear the cache directory.
 
         Loading is done using `torch.load` with `weights_only=False`, thus the user must ensure the data
-        being loaded is safe. Typically this will be cached data the user has created themselves but if
-        data from external sources is used this should be validated for safetly independently.
+        being loaded is safe. Typically this will be cached data the user created themselves, if data 
+        from external sources is used this should be validated for safely independently.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
