@@ -182,7 +182,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
         parameters = []
 
         checkpoint = torch.load(
-            join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"), map_location=torch.device("cpu"), weights_only=True
+            join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"),
+            map_location=torch.device("cpu"),
+            weights_only=True,
         )
         trainer_name = checkpoint["trainer_name"]
         configuration_name = checkpoint["init_args"]["configuration"]
@@ -192,7 +194,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
             else None
         )
         if Path(model_training_output_dir).joinpath(model_name).is_file():
-            monai_checkpoint = torch.load(join(model_training_output_dir, model_name), map_location=torch.device("cpu"), weights_only=True)
+            monai_checkpoint = torch.load(
+                join(model_training_output_dir, model_name), map_location=torch.device("cpu"), weights_only=True
+            )
             if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
             else:
@@ -383,8 +387,12 @@ def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str,
         dataset_name, f"{nnunet_trainer}__{nnunet_plans}__{nnunet_configuration}"
     )
 
-    nnunet_checkpoint_final = torch.load(Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"), weights_only=True)
-    nnunet_checkpoint_best = torch.load(Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"), weights_only=True)
+    nnunet_checkpoint_final = torch.load(
+        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"), weights_only=True
+    )
+    nnunet_checkpoint_best = torch.load(
+        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"), weights_only=True
+    )
 
     nnunet_checkpoint = {}
     nnunet_checkpoint["inference_allowed_mirroring_axes"] = nnunet_checkpoint_final["inference_allowed_mirroring_axes"]
