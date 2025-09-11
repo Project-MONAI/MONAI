@@ -208,7 +208,7 @@ class PersistentDataset(Dataset):
         errors. If in doubt, it is advisable to clear the cache directory.
 
         Loading is done using `torch.load` with `weights_only=False`, thus the user must ensure the data
-        being loaded is safe. Typically this will be cached data the user created themselves, if data 
+        being loaded is safe. Typically this will be cached data the user created themselves, if data
         from external sources is used this should be validated for safely independently.
 
     Lazy Resampling:
