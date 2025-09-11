@@ -891,7 +891,7 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 
     # we do computation with compute_dtype to avoid overflow
     box_dtype = boxes1_t.dtype
-    
+
     inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=COMPUTE_DTYPE)
     iou = inter / (union + torch.finfo(COMPUTE_DTYPE).eps)  # (N,M)
 
@@ -1001,7 +1001,7 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
         raise ValueError("Box GIoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype= box_dtype)
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype=box_dtype)
     return giou
 
 
