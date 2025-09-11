@@ -826,7 +826,7 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        The output is always floating-point:
+        The output is always floating-point (size: (N, M)):
         - if ``boxes1`` has a floating-point dtype, the same dtype is used.
         - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
@@ -844,7 +844,7 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 
     inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=COMPUTE_DTYPE)
 
-    # compute IoU and convert back to original box_dtype or float32
+    # compute IoU and convert back to original box_dtype or torch.float32
     iou_t = inter / (union + torch.finfo(COMPUTE_DTYPE).eps)  # (N,M)
     if not box_dtype.is_floating_point:
         box_dtype = COMPUTE_DTYPE
@@ -871,7 +871,9 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        GIoU, with size of (N,M) and same data type as ``boxes1``
+        The output is always floating-point (size: (N, M)):
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     Reference:
         https://giou.stanford.edu/GIoU.pdf
@@ -889,7 +891,7 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 
     # we do computation with compute_dtype to avoid overflow
     box_dtype = boxes1_t.dtype
-
+    
     inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=COMPUTE_DTYPE)
     iou = inter / (union + torch.finfo(COMPUTE_DTYPE).eps)  # (N,M)
 
@@ -908,12 +910,15 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 
     # GIoU
     giou_t = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     giou_t = giou_t.to(dtype=box_dtype)
+
     if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
         raise ValueError("Box GIoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype=box_dtype)
     return giou
 
 
@@ -929,7 +934,9 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
         boxes2: bounding boxes, same shape with boxes1. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        paired GIoU, with size of (N,) and same data type as ``boxes1``
+        The output is always floating-point (size: (N,)):
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     Reference:
         https://giou.stanford.edu/GIoU.pdf
@@ -986,12 +993,15 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
     enclosure = torch.prod(wh, dim=-1, keepdim=False)  # (N,)
 
     giou_t: torch.Tensor = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)  # type: ignore
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     giou_t = giou_t.to(dtype=box_dtype)  # (N,spatial_dims)
+
     if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
         raise ValueError("Box GIoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype= box_dtype)
     return giou
 
 
