@@ -210,6 +210,7 @@ class PersistentDataset(Dataset):
         Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
         be converted to tensors, however any other object type returned by transforms will not be loadable since
         `torch.load` will be used with `weights_only=True` to prevent loading of potentially malicious objects.
+        Legacy cache files may not be loadable and may need to be recomputed.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
@@ -375,13 +376,12 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                # Loading with weights_only=False is expected to be safe as these should be the user's own cached data
                 return torch.load(hashfile, weights_only=True)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
-            except RuntimeError as e:
-                if "Invalid magic number; corrupt file" in str(e):
+            except (pickle.UnpicklingError, RuntimeError) as e:  # corrupt or unloadable cached files are recomputed
+                if "Invalid magic number; corrupt file" in str(e) or isinstance(e, pickle.UnpicklingError):
                     warnings.warn(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
                     hashfile.unlink()
                 else:
