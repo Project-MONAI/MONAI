@@ -131,10 +131,9 @@ def safe_extract_member(member, extract_to):
         member_path = str(member)
 
     if hasattr(member, 'issym') and member.issym():
-        raise ValueError(f"Symbolic link detected in archive: {member_path}")
+        raise ValueError(f"Unsafe path: symlink {member_path}")
     if hasattr(member, 'islnk') and member.islnk():
-        raise ValueError(f"Hard link detected in archive: {member_path}")
-
+        raise ValueError(f"Unsafe path: hardlink {member_path}")
     member_path = os.path.normpath(member_path)
 
     if os.path.isabs(member_path) or '..' in member_path.split(os.sep):
