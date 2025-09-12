@@ -130,6 +130,11 @@ def safe_extract_member(member, extract_to):
     else:
         member_path = str(member)
 
+    if hasattr(member, 'issym') and member.issym():  
+        raise ValueError(f"Symbolic link detected in archive: {member_path}")  
+    if hasattr(member, 'islnk') and member.islnk():  
+        raise ValueError(f"Hard link detected in archive: {member_path}")
+        
     member_path = os.path.normpath(member_path)
 
     if os.path.isabs(member_path) or '..' in member_path.split(os.sep):
@@ -313,9 +318,10 @@ def extractall(
     if filepath.name.endswith("zip") or _file_type == "zip":
         with zipfile.ZipFile(filepath, 'r') as zip_file:
             for member in zip_file.infolist():
+                safe_path = safe_extract_member(member, output_dir)
                 if member.is_dir():
                     continue
-                safe_path = safe_extract_member(member, output_dir)
+                
                 os.makedirs(os.path.dirname(safe_path), exist_ok=True)
                 with zip_file.open(member) as source:
                     with open(safe_path, 'wb') as target:
@@ -324,9 +330,10 @@ def extractall(
     if filepath.name.endswith("tar") or filepath.name.endswith("tar.gz") or "tar" in _file_type:
         with tarfile.open(filepath, 'r') as tar_file:
             for member in tar_file.getmembers():
+                safe_path = safe_extract_member(member, output_dir)
                 if not member.isfile():
                     continue
-                safe_path = safe_extract_member(member, output_dir)
+                
                 os.makedirs(os.path.dirname(safe_path), exist_ok=True)
                 source = tar_file.extractfile(member)
                 if source is not None:
