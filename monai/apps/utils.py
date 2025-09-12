@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import hashlib
 import json
 import logging
-import os
 import re
-import shutil
 import sys
 import tarfile
 import tempfile
@@ -80,7 +80,6 @@ def get_logger(
 logger = get_logger("monai.apps")
 __all__.append("logger")
 
-
 def _basename(p: PathLike) -> str:
     """get the last part of the path (removing the trailing slash if it exists)"""
     sep = os.path.sep + (os.path.altsep or "") + "/ "
@@ -121,6 +120,36 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
         logger.error(f"Download failed from {url} to {filepath}.")
         raise e
 
+def safe_extract_member(member, extract_to):
+    """Securely verify compressed package member paths to prevent path traversal attacks"""
+    # Get member path (handle different compression formats)
+    if hasattr(member, 'filename'):
+        member_path = member.filename  # zipfile
+    elif hasattr(member, 'name'):
+        member_path = member.name  # tarfile
+    else:
+        member_path = str(member)
+
+    if hasattr(member, 'issym') and member.issym():  
+        raise ValueError(f"Symbolic link detected in archive: {member_path}")  
+    if hasattr(member, 'islnk') and member.islnk():  
+        raise ValueError(f"Hard link detected in archive: {member_path}")
+        
+    member_path = os.path.normpath(member_path)
+
+    if os.path.isabs(member_path) or '..' in member_path.split(os.sep):
+        raise ValueError(f"Unsafe path detected in archive: {member_path}")
+
+    full_path = os.path.join(extract_to, member_path)
+    full_path = os.path.normpath(full_path)
+
+    extract_to_abs = os.path.abspath(extract_to)
+    full_path_abs = os.path.abspath(full_path)
+
+    if not (full_path_abs == extract_to_abs or full_path_abs.startswith(extract_to_abs + os.sep)):
+        raise ValueError(f"Path traversal attack detected: {member_path}")
+
+    return full_path
 
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
@@ -287,14 +316,30 @@ def extractall(
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
-        zip_file = zipfile.ZipFile(filepath)
-        zip_file.extractall(output_dir)
-        zip_file.close()
+        with zipfile.ZipFile(filepath, 'r') as zip_file:
+            for member in zip_file.infolist():
+                safe_path = safe_extract_member(member, output_dir)
+                if member.is_dir():
+                    continue
+                
+                os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+                with zip_file.open(member) as source:
+                    with open(safe_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
         return
     if filepath.name.endswith("tar") or filepath.name.endswith("tar.gz") or "tar" in _file_type:
-        tar_file = tarfile.open(filepath)
-        tar_file.extractall(output_dir)
-        tar_file.close()
+        with tarfile.open(filepath, 'r') as tar_file:
+            for member in tar_file.getmembers():
+                safe_path = safe_extract_member(member, output_dir)
+                if not member.isfile():
+                    continue
+                
+                os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+                source = tar_file.extractfile(member)
+                if source is not None:
+                    with source:
+                        with open(safe_path, 'wb') as target:
+                            shutil.copyfileobj(source, target)
         return
     raise NotImplementedError(
         f'Unsupported file type, available options are: ["zip", "tar.gz", "tar"]. name={filepath} type={file_type}.'
