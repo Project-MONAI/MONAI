@@ -207,9 +207,9 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
-        Loading is done using `torch.load` with `weights_only=False`, thus the user must ensure the data
-        being loaded is safe. Typically this will be cached data the user created themselves, if data
-        from external sources is used this should be validated for safely independently.
+        Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
+        be converted to tensors, however any other object type returned by transforms will not be loadable since
+        `torch.load` will be used with `weights_only=True` to prevent loading of potentially malicious objects.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
@@ -376,7 +376,7 @@ class PersistentDataset(Dataset):
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
                 # Loading with weights_only=False is expected to be safe as these should be the user's own cached data
-                return torch.load(hashfile, weights_only=False)
+                return torch.load(hashfile, weights_only=True)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -397,7 +397,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=_item_transformed,
+                    obj=convert_to_tensor(_item_transformed),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -1655,7 +1655,7 @@ class GDSDataset(PersistentDataset):
                 meta_hash_file = self.cache_dir / meta_hash_file_name
                 temp_hash_file = Path(tmpdirname) / meta_hash_file_name
                 torch.save(
-                    obj=self._meta_cache[meta_hash_file_name],
+                    obj=convert_to_tensor(self._meta_cache[meta_hash_file_name]),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -1675,4 +1675,4 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
+            return torch.load(self.cache_dir / meta_hash_file_name, weights_only=True)
