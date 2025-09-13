@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import os
 import tarfile
 import tempfile
 import unittest
@@ -96,7 +95,7 @@ class TestPathTraversalProtection(unittest.TestCase):
                 self.assertTrue((extract_dir / "another_file.json").exists())
 
                 # Verify content
-                with open(extract_dir / "normal_file.txt", "r") as f:
+                with open(extract_dir / "normal_file.txt") as f:
                     self.assertEqual(f.read(), "This is a normal file")
 
             except Exception as e:
@@ -150,7 +149,7 @@ class TestPathTraversalProtection(unittest.TestCase):
                 self.assertTrue((extract_dir / "subdir" / "nested_file.txt").exists())
 
                 # Verify content
-                with open(extract_dir / "normal_file.txt", "r") as f:
+                with open(extract_dir / "normal_file.txt") as f:
                     self.assertEqual(f.read(), "This is a normal file")
 
             except Exception as e:
