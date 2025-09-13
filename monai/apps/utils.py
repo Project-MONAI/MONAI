@@ -274,6 +274,32 @@ def download_url(
         )
 
 
+def _extract_zip(filepath, output_dir):
+    with zipfile.ZipFile(filepath, "r") as zip_file:
+        for member in zip_file.infolist():
+            safe_path = safe_extract_member(member, output_dir)
+            if member.is_dir():
+                continue
+            os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+            with zip_file.open(member) as source:
+                with open(safe_path, "wb") as target:
+                    shutil.copyfileobj(source, target)
+
+
+def _extract_tar(filepath, output_dir):
+    with tarfile.open(filepath, "r") as tar_file:
+        for member in tar_file.getmembers():
+            safe_path = safe_extract_member(member, output_dir)
+            if not member.isfile():
+                continue
+            os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+            source = tar_file.extractfile(member)
+            if source is not None:
+                with source:
+                    with open(safe_path, "wb") as target:
+                        shutil.copyfileobj(source, target)
+
+
 def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
@@ -319,30 +345,10 @@ def extractall(
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
-        with zipfile.ZipFile(filepath, "r") as zip_file:
-            for member in zip_file.infolist():
-                safe_path = safe_extract_member(member, output_dir)
-                if member.is_dir():
-                    continue
-
-                os.makedirs(os.path.dirname(safe_path), exist_ok=True)
-                with zip_file.open(member) as source:
-                    with open(safe_path, "wb") as target:
-                        shutil.copyfileobj(source, target)
+        _extract_zip(filepath, output_dir)
         return
     if filepath.name.endswith("tar") or filepath.name.endswith("tar.gz") or "tar" in _file_type:
-        with tarfile.open(filepath, "r") as tar_file:
-            for member in tar_file.getmembers():
-                safe_path = safe_extract_member(member, output_dir)
-                if not member.isfile():
-                    continue
-
-                os.makedirs(os.path.dirname(safe_path), exist_ok=True)
-                source = tar_file.extractfile(member)
-                if source is not None:
-                    with source:
-                        with open(safe_path, "wb") as target:
-                            shutil.copyfileobj(source, target)
+        _extract_tar(filepath, output_dir)
         return
     raise NotImplementedError(
         f'Unsupported file type, available options are: ["zip", "tar.gz", "tar"]. name={filepath} type={file_type}.'
