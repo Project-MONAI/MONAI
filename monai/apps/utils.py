@@ -153,6 +153,7 @@ def safe_extract_member(member, extract_to):
 
     return full_path
 
+
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
