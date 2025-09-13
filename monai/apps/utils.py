@@ -145,14 +145,13 @@ def safe_extract_member(member, extract_to):
     full_path = os.path.join(extract_to, member_path)
     full_path = os.path.normpath(full_path)
 
-    extract_to_abs = os.path.abspath(extract_to)
-    full_path_abs = os.path.abspath(full_path)
-
-    if not (full_path_abs == extract_to_abs or full_path_abs.startswith(extract_to_abs + os.sep)):
-        raise ValueError(f"Path traversal attack detected: {member_path}")
+    extract_root = os.path.realpath(extract_to)
+    target_real = os.path.realpath(full_path)
+    # Ensure the resolved path stays within the extraction root
+    if os.path.commonpath([extract_root, target_real]) != extract_root:
+        raise ValueError(f"Unsafe path: path traversal {member_path}")  # noqa: TRY003
 
     return full_path
-
 
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
