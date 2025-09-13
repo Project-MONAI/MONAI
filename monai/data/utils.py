@@ -93,7 +93,7 @@ __all__ = [
     "remove_keys",
     "remove_extra_metadata",
     "get_extra_metadata_keys",
-    "PICKLE_KEY_SUFFIX",
+    # "PICKLE_KEY_SUFFIX",
     "is_no_channel",
 ]
 
@@ -418,7 +418,7 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
-PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
+# PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
 
 
 # def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
