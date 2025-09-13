@@ -149,7 +149,7 @@ def safe_extract_member(member, extract_to):
     target_real = os.path.realpath(full_path)
     # Ensure the resolved path stays within the extraction root
     if os.path.commonpath([extract_root, target_real]) != extract_root:
-        raise ValueError(f"Unsafe path: path traversal {member_path}")  # noqa: TRY003
+        raise ValueError(f"Unsafe path: path traversal {member_path}")
 
     return full_path
 
