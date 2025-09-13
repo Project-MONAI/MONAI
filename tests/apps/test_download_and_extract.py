@@ -11,10 +11,11 @@
 
 from __future__ import annotations
 
+import os
+import tarfile
 import tempfile
 import unittest
 import zipfile
-import tarfile
 from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
@@ -80,7 +81,7 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create zip with normal file structure
-            with zipfile.ZipFile(zip_path, 'w') as zf:
+            with zipfile.ZipFile(zip_path, "w") as zf:
                 zf.writestr("normal_file.txt", "This is a normal file")
                 zf.writestr("subdir/nested_file.txt", "This is a nested file")
                 zf.writestr("another_file.json", '{"key": "value"}')
@@ -95,7 +96,7 @@ class TestPathTraversalProtection(unittest.TestCase):
                 self.assertTrue((extract_dir / "another_file.json").exists())
 
                 # Verify content
-                with open(extract_dir / "normal_file.txt") as f:
+                with open(extract_dir / "normal_file.txt", "r") as f:
                     self.assertEqual(f.read(), "This is a normal file")
 
             except Exception as e:
@@ -110,7 +111,7 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create zip with malicious paths
-            with zipfile.ZipFile(zip_path, 'w') as zf:
+            with zipfile.ZipFile(zip_path, "w") as zf:
                 # Try to write outside extraction directory
                 zf.writestr("../../../etc/malicious.txt", "malicious content")
                 zf.writestr("normal_file.txt", "normal content")
@@ -130,7 +131,7 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create tar with normal file structure
-            with tarfile.open(tar_path, 'w:gz') as tf:
+            with tarfile.open(tar_path, "w:gz") as tf:
                 # Create temporary files to add to tar
                 temp_file1 = Path(tmp_dir) / "temp1.txt"
                 temp_file1.write_text("This is a normal file")
@@ -149,7 +150,7 @@ class TestPathTraversalProtection(unittest.TestCase):
                 self.assertTrue((extract_dir / "subdir" / "nested_file.txt").exists())
 
                 # Verify content
-                with open(extract_dir / "normal_file.txt") as f:
+                with open(extract_dir / "normal_file.txt", "r") as f:
                     self.assertEqual(f.read(), "This is a normal file")
 
             except Exception as e:
@@ -164,7 +165,7 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create tar with malicious paths
-            with tarfile.open(tar_path, 'w:gz') as tf:
+            with tarfile.open(tar_path, "w:gz") as tf:
                 # Create a temporary file
                 temp_file = Path(tmp_dir) / "temp.txt"
                 temp_file.write_text("malicious content")
@@ -186,9 +187,9 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir = Path(tmp_dir) / "extract"
             extract_dir.mkdir()
 
-            with zipfile.ZipFile(zip_path, 'w') as zf:
+            with zipfile.ZipFile(zip_path, "w") as zf:
                 # Try to use absolute path
-                zf.writestr("/etc/passwd", "malicious content")
+                zf.writestr("/etc/passwd_bad", "malicious content")
 
             # This should raise ValueError due to absolute path detection
             with self.assertRaises(ValueError) as context:
@@ -205,14 +206,14 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create tar with malicious symlink
-            with tarfile.open(tar_path, 'w:gz') as tf:
+            with tarfile.open(tar_path, "w:gz") as tf:
                 temp_file = Path(tmp_dir) / "normal.txt"
                 temp_file.write_text("normal content")
                 tf.add(temp_file, arcname="normal.txt")
 
                 symlink_info = tarfile.TarInfo(name="malicious_symlink.txt")
                 symlink_info.type = tarfile.SYMTYPE
-                symlink_info.linkname = "../../../etc/passwd"
+                symlink_info.linkname = "../../../etc/passwd_bad"
                 symlink_info.size = 0
                 tf.addfile(symlink_info)
 
@@ -231,14 +232,14 @@ class TestPathTraversalProtection(unittest.TestCase):
             extract_dir.mkdir()
 
             # Create tar with malicious hard link
-            with tarfile.open(tar_path, 'w:gz') as tf:
+            with tarfile.open(tar_path, "w:gz") as tf:
                 temp_file = Path(tmp_dir) / "normal.txt"
                 temp_file.write_text("normal content")
                 tf.add(temp_file, arcname="normal.txt")
 
                 hardlink_info = tarfile.TarInfo(name="malicious_hardlink.txt")
                 hardlink_info.type = tarfile.LNKTYPE
-                hardlink_info.linkname = "/etc/passwd"
+                hardlink_info.linkname = "/etc/passwd_bad"
                 hardlink_info.size = 0
                 tf.addfile(hardlink_info)
 
@@ -247,7 +248,6 @@ class TestPathTraversalProtection(unittest.TestCase):
 
             error_msg = str(context.exception).lower()
             self.assertTrue("unsafe path" in error_msg or "hardlink" in error_msg)
-
 
 
 if __name__ == "__main__":
