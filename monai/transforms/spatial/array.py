@@ -64,6 +64,7 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    SpaceKeys,
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
@@ -75,6 +76,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
@@ -556,11 +558,20 @@ class Orientation(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
+    @deprecated_arg_default(
+        name="labels",
+        old_default=(("L", "R"), ("P", "A"), ("I", "S")),
+        new_default=None,
+        msg_suffix=(
+            "Default value changed to None meaning that the transform now uses the 'space' of a "
+            "meta-tensor, if applicable, to determine appropriate axis labels."
+        ),
+    )
     def __init__(
         self,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        labels: Sequence[tuple[str, str]] | None = None,
         lazy: bool = False,
     ) -> None:
         """
@@ -573,7 +584,14 @@ class Orientation(InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+                If ``None``, an appropriate value is chosen depending on the
+                value of the ``"space"`` metadata item of a metatensor: if
+                ``"space"`` is ``"LPS"``, the value used is ``(('R', 'L'),
+                ('A', 'P'), ('I', 'S'))``, if ``"space"`` is ``"RPS"`` or the
+                input is not a meta-tensor or has no ``"space"`` item, the
+                value ``(('L', 'R'), ('P', 'A'), ('I', 'S'))`` is used. If not
+                ``None``, the provided value is always used and the ``"space"``
+                metadata item (if any) of the input is ignored.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
@@ -619,9 +637,19 @@ class Orientation(InvertibleTransform, LazyTransform):
             raise ValueError(f"data_array must have at least one spatial dimension, got {spatial_shape}.")
         affine_: np.ndarray
         affine_np: np.ndarray
+        labels = self.labels
         if isinstance(data_array, MetaTensor):
             affine_np, *_ = convert_data_type(data_array.peek_pending_affine(), np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
+
+            # Set up "labels" such that LPS tensors are handled correctly by default
+            if (
+                self.labels is None
+                and "space" in data_array.meta
+                and SpaceKeys(data_array.meta["space"]) == SpaceKeys.LPS
+            ):
+                labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
         else:
             warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -640,7 +668,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"{self.__class__.__name__}: spatial shape = {spatial_shape}, channels = {data_array.shape[0]},"
                     "please make sure the input is in the channel-first format."
                 )
-            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
+            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=labels)
             if len(dst) < sr:
                 raise ValueError(
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
@@ -653,8 +681,19 @@ class Orientation(InvertibleTransform, LazyTransform):
         transform = self.pop_transform(data)
         # Create inverse transform
         orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
-        orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
-        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
+        labels = self.labels
+
+        # Set up "labels" such that LPS tensors are handled correctly by default
+        if (
+            isinstance(data, MetaTensor)
+            and self.labels is None
+            and "space" in data.meta
+            and SpaceKeys(data.meta["space"]) == SpaceKeys.LPS
+        ):
+            labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
+        orig_axcodes = nib.orientations.aff2axcodes(orig_affine, labels=labels)
+        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=labels)
         # Apply inverse
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data)

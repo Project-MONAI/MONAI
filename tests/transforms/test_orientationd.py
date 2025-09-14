@@ -21,13 +21,17 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientationd
+from monai.utils import SpaceKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES
 
 TESTS = []
 for device in TEST_DEVICES:
     TESTS.append(
-        [{"keys": "seg", "axcodes": "RAS"}, torch.ones((2, 1, 2, 3)), torch.eye(4), (2, 1, 2, 3), "RAS", *device]
+        [{"keys": "seg", "axcodes": "RAS"}, torch.ones((2, 1, 2, 3)), torch.eye(4), (2, 1, 2, 3), "RAS", False, *device]
+    )
+    TESTS.append(
+        [{"keys": "seg", "axcodes": "RAS"}, torch.ones((2, 1, 2, 3)), torch.eye(4), (2, 1, 2, 3), "RAS", True, *device]
     )
     # 3d
     TESTS.append(
@@ -37,15 +41,51 @@ for device in TEST_DEVICES:
             torch.eye(4),
             (2, 2, 1, 3),
             "PLI",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"keys": ["img", "seg"], "axcodes": "PLI"},
+            torch.ones((2, 1, 2, 3)),
+            torch.eye(4),
+            (2, 2, 1, 3),
+            "PLI",
+            True,
             *device,
         ]
     )
     # 2d
     TESTS.append(
-        [{"keys": ["img", "seg"], "axcodes": "PLI"}, torch.ones((2, 1, 3)), torch.eye(4), (2, 3, 1), "PLS", *device]
+        [
+            {"keys": ["img", "seg"], "axcodes": "PLI"},
+            torch.ones((2, 1, 3)),
+            torch.eye(4),
+            (2, 3, 1),
+            "PLS",
+            False,
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
+            {"keys": ["img", "seg"], "axcodes": "PLI"},
+            torch.ones((2, 1, 3)),
+            torch.eye(4),
+            (2, 3, 1),
+            "PLS",
+            True,
+            *device,
+        ]
     )
     # 1d
-    TESTS.append([{"keys": ["img", "seg"], "axcodes": "L"}, torch.ones((2, 3)), torch.eye(4), (2, 3), "LAS", *device])
+    TESTS.append(
+        [{"keys": ["img", "seg"], "axcodes": "L"}, torch.ones((2, 3)), torch.eye(4), (2, 3), "LAS", False, *device]
+    )
+    TESTS.append(
+        [{"keys": ["img", "seg"], "axcodes": "L"}, torch.ones((2, 3)), torch.eye(4), (2, 3), "LPS", True, *device]
+    )
     # canonical
     TESTS.append(
         [
@@ -54,6 +94,7 @@ for device in TEST_DEVICES:
             torch.eye(4),
             (2, 1, 2, 3),
             "RAS",
+            False,
             *device,
         ]
     )
@@ -67,11 +108,19 @@ for track_meta in (False, True):
 class TestOrientationdCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_orntd(
-        self, init_param, img: torch.Tensor, affine: torch.Tensor | None, expected_shape, expected_code, device
+        self,
+        init_param,
+        img: torch.Tensor,
+        affine: torch.Tensor | None,
+        expected_shape,
+        expected_code,
+        lps_convention: bool,
+        device,
     ):
         ornt = Orientationd(**init_param)
         if affine is not None:
-            img = MetaTensor(img, affine=affine)
+            meta = {"space": SpaceKeys.LPS} if lps_convention else None
+            img = MetaTensor(img, affine=affine, meta=meta)
         img = img.to(device)
         call_param = {"data": {k: img.clone() for k in ornt.keys}}
         res = ornt(**call_param)  # type: ignore[arg-type]
@@ -81,7 +130,8 @@ class TestOrientationdCase(unittest.TestCase):
             _im = res[k]
             self.assertIsInstance(_im, MetaTensor)
             np.testing.assert_allclose(_im.shape, expected_shape)
-            code = nib.aff2axcodes(_im.affine.cpu(), ornt.ornt_transform.labels)  # type: ignore
+            labels = (("R", "L"), ("A", "P"), ("I", "S")) if lps_convention else ornt.ornt_transform.labels
+            code = nib.aff2axcodes(_im.affine.cpu(), labels)  # type: ignore
             self.assertEqual("".join(code), expected_code)
 
     @parameterized.expand(TESTS_TORCH)
