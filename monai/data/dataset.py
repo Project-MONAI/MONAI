@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import collections.abc
+from io import BytesIO
 import math
 import pickle
 import shutil
@@ -599,6 +600,16 @@ class LMDBDataset(PersistentDataset):
         super().set_data(data=data)
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
+    def _safe_serialize(self,val):
+        out=BytesIO()
+        torch.save(convert_to_tensor(val), out, protocol=self.pickle_protocol)
+        out.seek(0)
+        return out.read()
+    
+    def _safe_deserialize(self,val):
+        out=BytesIO(val)
+        return torch.load(out,weights_only=True)    
+
     def _fill_cache_start_reader(self, show_progress=True):
         """
         Check the LMDB cache and write the cache if needed. py-lmdb doesn't have a good support for concurrent write.
@@ -624,7 +635,8 @@ class LMDBDataset(PersistentDataset):
                             continue
                         if val is None:
                             val = self._pre_transform(deepcopy(item))  # keep the original hashed
-                            val = pickle.dumps(val, protocol=self.pickle_protocol)
+                            # val = pickle.dumps(val, protocol=self.pickle_protocol)
+                            val=self._safe_serialize(val)
                         with env.begin(write=True) as txn:
                             txn.put(key, val)
                         done = True
@@ -669,7 +681,8 @@ class LMDBDataset(PersistentDataset):
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
             return super()._cachecheck(item_transformed)
         try:
-            return pickle.loads(data)
+            # return pickle.loads(data)
+            return self._safe_deserialize(data)
         except Exception as err:
             raise RuntimeError("Invalid cache value, corrupted lmdb file?") from err
 
