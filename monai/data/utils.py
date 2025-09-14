@@ -92,7 +92,6 @@ __all__ = [
     "remove_keys",
     "remove_extra_metadata",
     "get_extra_metadata_keys",
-    # "PICKLE_KEY_SUFFIX",
     "is_no_channel",
 ]
 
@@ -415,32 +414,6 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
         return [dev_collate(samples, level=level + 1, logger_name=logger_name) for samples in transposed]
     logging.getLogger(logger_name).critical(f"{l_str} E: unsupported type in collate {batch_str}.")
     return
-
-
-# PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
-
-
-# def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
-#     """
-#     Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
-
-#     Args:
-#         data: a list or dictionary with substructures to be pickled/unpickled.
-#         key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
-#         is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
-#     """
-#     if isinstance(data, Mapping):
-#         data = dict(data)
-#         for k in data:
-#             if f"{k}".endswith(key):
-#                 if is_encode and not isinstance(data[k], bytes):
-#                     data[k] = pickle.dumps(data[k], 0)
-#                 if not is_encode and isinstance(data[k], bytes):
-#                     data[k] = pickle.loads(data[k])
-#         return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
-#     elif isinstance(data, (list, tuple)):
-#         return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
-#     return data
 
 
 def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
