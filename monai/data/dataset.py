@@ -397,7 +397,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=convert_to_tensor(_item_transformed),
+                    obj=convert_to_tensor(_item_transformed, convert_numeric=False),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -1655,7 +1655,7 @@ class GDSDataset(PersistentDataset):
                 meta_hash_file = self.cache_dir / meta_hash_file_name
                 temp_hash_file = Path(tmpdirname) / meta_hash_file_name
                 torch.save(
-                    obj=convert_to_tensor(self._meta_cache[meta_hash_file_name]),
+                    obj=convert_to_tensor(self._meta_cache[meta_hash_file_name], convert_numeric=False),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
