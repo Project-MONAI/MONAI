@@ -254,7 +254,7 @@ class PersistentDataset(Dataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
@@ -461,7 +461,7 @@ class CacheNTransDataset(PersistentDataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
@@ -557,7 +557,7 @@ class LMDBDataset(PersistentDataset):
                 defaults to `monai.data.utils.pickle_hashing`.
             db_name: lmdb database file name. Defaults to "monai_cache".
             progress: whether to display a progress bar.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
