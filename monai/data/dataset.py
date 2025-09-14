@@ -605,10 +605,10 @@ class LMDBDataset(PersistentDataset):
         torch.save(convert_to_tensor(val), out, protocol=self.pickle_protocol)
         out.seek(0)
         return out.read()
-    
+
     def _safe_deserialize(self,val):
         out=BytesIO(val)
-        return torch.load(out,weights_only=True)    
+        return torch.load(out,weights_only=True)
 
     def _fill_cache_start_reader(self, show_progress=True):
         """

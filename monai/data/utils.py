@@ -30,7 +30,6 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
 from monai.utils import (
