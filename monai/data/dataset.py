@@ -14,7 +14,7 @@ from __future__ import annotations
 import collections.abc
 from io import BytesIO
 import math
-import pickle
+from pickle import UnpicklingError
 import shutil
 import sys
 import tempfile
@@ -254,8 +254,8 @@ class PersistentDataset(Dataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: can be specified to override the default protocol, default to `2`.
-                this arg is used by `torch.save`, for more details, please check:
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
@@ -381,8 +381,8 @@ class PersistentDataset(Dataset):
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
-            except (pickle.UnpicklingError, RuntimeError) as e:  # corrupt or unloadable cached files are recomputed
-                if "Invalid magic number; corrupt file" in str(e) or isinstance(e, pickle.UnpicklingError):
+            except (UnpicklingError, RuntimeError) as e:  # corrupt or unloadable cached files are recomputed
+                if "Invalid magic number; corrupt file" in str(e) or isinstance(e, UnpicklingError):
                     warnings.warn(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
                     hashfile.unlink()
                 else:
@@ -461,8 +461,8 @@ class CacheNTransDataset(PersistentDataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: can be specified to override the default protocol, default to `2`.
-                this arg is used by `torch.save`, for more details, please check:
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
@@ -537,7 +537,7 @@ class LMDBDataset(PersistentDataset):
         hash_func: Callable[..., bytes] = pickle_hashing,
         db_name: str = "monai_cache",
         progress: bool = True,
-        pickle_protocol=pickle.HIGHEST_PROTOCOL,
+        pickle_protocol=DEFAULT_PROTOCOL,
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
         lmdb_kwargs: dict | None = None,
@@ -557,8 +557,9 @@ class LMDBDataset(PersistentDataset):
                 defaults to `monai.data.utils.pickle_hashing`.
             db_name: lmdb database file name. Defaults to "monai_cache".
             progress: whether to display a progress bar.
-            pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
-                https://docs.python.org/3/library/pickle.html#pickle-protocols
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
@@ -602,7 +603,7 @@ class LMDBDataset(PersistentDataset):
 
     def _safe_serialize(self,val):
         out=BytesIO()
-        torch.save(convert_to_tensor(val), out, protocol=self.pickle_protocol)
+        torch.save(convert_to_tensor(val), out, pickle_protocol =self.pickle_protocol)
         out.seek(0)
         return out.read()
     
