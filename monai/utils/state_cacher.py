@@ -64,7 +64,7 @@ class StateCacher:
             pickle_module: module used for pickling metadata and objects, default to `pickle`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
 

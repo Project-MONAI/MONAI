@@ -500,7 +500,7 @@ def list_data_collate(batch: Sequence):
     collate_fn = default_collate
     try:
         # if config.USE_META_DICT:
-            # data = pickle_operations(data)  # bc 0.9.0
+        # data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
@@ -654,14 +654,14 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
         ret = [dict(zip(deco, item)) for item in _gen]
         # if not config.USE_META_DICT:
-            # return ret
+        # return ret
         # return pickle_operations(ret, is_encode=False)  # bc 0.9.0
         return ret
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
         ret_list = [list(item) for item in _gen]
         # if not config.USE_META_DICT:
-            # return ret_list
+        # return ret_list
         # return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
         return ret_list
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")

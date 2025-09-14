@@ -117,7 +117,7 @@ def convert_to_tensor(
     wrap_sequence: bool = False,
     track_meta: bool = False,
     safe: bool = False,
-    convert_numeric: bool = True
+    convert_numeric: bool = True,
 ) -> Any:
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,

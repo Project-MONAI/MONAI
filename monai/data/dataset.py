@@ -12,9 +12,7 @@
 from __future__ import annotations
 
 import collections.abc
-from io import BytesIO
 import math
-from pickle import UnpicklingError
 import shutil
 import sys
 import tempfile
@@ -23,9 +21,11 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
+from io import BytesIO
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from pickle import UnpicklingError
 from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -254,7 +254,7 @@ class PersistentDataset(Dataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
@@ -461,7 +461,7 @@ class CacheNTransDataset(PersistentDataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
@@ -557,7 +557,7 @@ class LMDBDataset(PersistentDataset):
                 defaults to `monai.data.utils.pickle_hashing`.
             db_name: lmdb database file name. Defaults to "monai_cache".
             progress: whether to display a progress bar.
-            pickle_protocol: specifies pickle protocol when saving, with `torch.save`. 
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
                 Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
@@ -601,15 +601,14 @@ class LMDBDataset(PersistentDataset):
         super().set_data(data=data)
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
-    def _safe_serialize(self,val):
-        out=BytesIO()
-        torch.save(convert_to_tensor(val), out, pickle_protocol =self.pickle_protocol)
+    def _safe_serialize(self, val):
+        out = BytesIO()
+        torch.save(convert_to_tensor(val), out, pickle_protocol=self.pickle_protocol)
         out.seek(0)
         return out.read()
 
-    def _safe_deserialize(self,val):
-        out=BytesIO(val)
-        return torch.load(out,weights_only=True)
+    def _safe_deserialize(self, val):
+        return torch.load(BytesIO(val), map_location="cpu", weights_only=True)
 
     def _fill_cache_start_reader(self, show_progress=True):
         """
@@ -637,7 +636,7 @@ class LMDBDataset(PersistentDataset):
                         if val is None:
                             val = self._pre_transform(deepcopy(item))  # keep the original hashed
                             # val = pickle.dumps(val, protocol=self.pickle_protocol)
-                            val=self._safe_serialize(val)
+                            val = self._safe_serialize(val)
                         with env.begin(write=True) as txn:
                             txn.put(key, val)
                         done = True
