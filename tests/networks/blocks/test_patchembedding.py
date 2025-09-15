@@ -122,11 +122,12 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=128,
                 num_heads=12,
                 proj_type="conv",
-                dropout_rate=5.0,
+                dropout_rate=0.1,
                 pos_embed_type="fourier",
                 pos_embed_kwargs=dict(scales=[1.0, 1.0]),
             )
 
+        with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
                 in_channels=1,
                 img_size=(128, 128),
@@ -134,7 +135,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=128,
                 num_heads=12,
                 proj_type="conv",
-                dropout_rate=5.0,
+                dropout_rate=0.1,
                 pos_embed_type="fourier",
                 pos_embed_kwargs=dict(scales=[1.0, 1.0, 1.0]),
             )
