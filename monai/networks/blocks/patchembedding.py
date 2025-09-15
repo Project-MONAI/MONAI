@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Optional
 
 import numpy as np
 import torch
@@ -53,7 +54,7 @@ class PatchEmbeddingBlock(nn.Module):
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
-        pos_embed_kwargs: dict = {},
+        pos_embed_kwargs: Optional[dict] = None,
     ) -> None:
         """
         Args:
@@ -107,6 +108,8 @@ class PatchEmbeddingBlock(nn.Module):
             )
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
+
+        pos_embed_kwargs = {} if pos_embed_kwargs is None else pos_embed_kwargs
 
         if self.pos_embed_type == "none":
             pass
