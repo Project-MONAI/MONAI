@@ -53,7 +53,11 @@ def build_fourier_position_embedding(
     """
 
     to_tuple = _ntuple(spatial_dims)
-    grid_size = to_tuple(grid_size)
+    grid_size_t = to_tuple(grid_size)
+    if len(grid_size_t) != spatial_dims:
+        raise ValueError(
+            f"Length of grid_size must be the same as spatial_dims. Got len(grid_size)={len(grid_size_t)}, should be {spatial_dims}."
+        )
 
     if embed_dim % (2 * spatial_dims) != 0:
         raise AssertionError(
@@ -73,7 +77,7 @@ def build_fourier_position_embedding(
     gaussians = torch.normal(0.0, 1.0, (embed_dim // 2, spatial_dims))
     gaussians = gaussians * scales_tensor
 
-    position_indeces = [torch.linspace(0, 1, x) for x in grid_size]
+    position_indeces = [torch.linspace(0, 1, x) for x in grid_size_t]
     positions = torch.stack(torch.meshgrid(*position_indeces, indexing="ij"), dim=-1)
     positions = positions.flatten(end_dim=-2)
 
