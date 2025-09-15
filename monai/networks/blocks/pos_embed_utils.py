@@ -65,9 +65,7 @@ def build_fourier_position_embedding(
         scales_tensor = torch.full((spatial_dims,), scales, dtype=torch.float)
     elif isinstance(scales, (list, tuple)):
         if len(scales) != spatial_dims:
-            raise ValueError(
-                f"Length of scales {len(scales)} does not match spatial_dims {spatial_dims}"
-            )
+            raise ValueError(f"Length of scales {len(scales)} does not match spatial_dims {spatial_dims}")
         scales_tensor = torch.tensor(scales, dtype=torch.float)
     else:
         raise TypeError(f"scales must be float or list of floats, got {type(scales)}")
