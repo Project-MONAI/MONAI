@@ -60,17 +60,23 @@ def build_fourier_position_embedding(
             f"Embed dimension must be divisible by {2 * spatial_dims} for {spatial_dims}D Fourier feature position embedding"
         )
 
-    scales: torch.Tensor = torch.as_tensor(scales, dtype=torch.float)
-    if scales.ndim > 1 and scales.ndim != spatial_dims:
-        raise ValueError("Scales must be either a float or a list of floats with length equal to spatial_dims")
-    if scales.ndim == 0:
-        scales = scales.repeat(spatial_dims)
+    # Ensure scales is a tensor of shape (spatial_dims,)
+    if isinstance(scales, float):
+        scales_tensor = torch.full((spatial_dims,), scales, dtype=torch.float)
+    elif isinstance(scales, (list, tuple)):
+        if len(scales) != spatial_dims:
+            raise ValueError(
+                f"Length of scales {len(scales)} does not match spatial_dims {spatial_dims}"
+            )
+        scales_tensor = torch.tensor(scales, dtype=torch.float)
+    else:
+        raise TypeError(f"scales must be float or list of floats, got {type(scales)}")
 
     gaussians = torch.normal(0.0, 1.0, (embed_dim // 2, spatial_dims))
-    gaussians = gaussians * scales
+    gaussians = gaussians * scales_tensor
 
-    positions = [torch.linspace(0, 1, x) for x in grid_size]
-    positions = torch.stack(torch.meshgrid(*positions, indexing="ij"), dim=-1)
+    position_indeces = [torch.linspace(0, 1, x) for x in grid_size]
+    positions = torch.stack(torch.meshgrid(*position_indeces, indexing="ij"), dim=-1)
     positions = positions.flatten(end_dim=-2)
 
     x_proj = (2.0 * torch.pi * positions) @ gaussians.T
