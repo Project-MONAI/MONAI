@@ -34,7 +34,7 @@ def _ntuple(n):
 
 def build_fourier_position_embedding(
     grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, scales: Union[float, List[float]] = 1.0
-):
+) -> torch.nn.Parameter:
     """
     Builds a (Anistropic) Fourier Feature based positional encoding based on the given grid size, embed dimension,
     spatial dimensions, and scales. The scales control the variance of the Fourier features, higher values make distant
@@ -55,7 +55,12 @@ def build_fourier_position_embedding(
     to_tuple = _ntuple(spatial_dims)
     grid_size = to_tuple(grid_size)
 
-    scales = torch.tensor(scales)
+    if embed_dim % (2 * spatial_dims) != 0:
+        raise AssertionError(
+            f"Embed dimension must be divisible by {2 * spatial_dims} for {spatial_dims}D Fourier feature position embedding"
+        )
+
+    scales: torch.Tensor = torch.as_tensor(scales, dtype=torch.float)
     if scales.ndim > 1 and scales.ndim != spatial_dims:
         raise ValueError("Scales must be either a float or a list of floats with length equal to spatial_dims")
     if scales.ndim == 0:
@@ -65,15 +70,15 @@ def build_fourier_position_embedding(
     gaussians = gaussians * scales
 
     positions = [torch.linspace(0, 1, x) for x in grid_size]
-    positions = torch.stack(torch.meshgrid(*positions, indexing="ij"), axis=-1)
+    positions = torch.stack(torch.meshgrid(*positions, indexing="ij"), dim=-1)
     positions = positions.flatten(end_dim=-2)
 
     x_proj = (2.0 * torch.pi * positions) @ gaussians.T
 
-    pos_emb = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], axis=-1)
-    pos_emb = pos_emb[None, :, :]
+    pos_emb = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+    pos_emb = nn.Parameter(pos_emb[None, :, :], requires_grad=False)
 
-    return nn.Parameter(pos_emb, requires_grad=False)
+    return pos_emb
 
 
 def build_sincos_position_embedding(
