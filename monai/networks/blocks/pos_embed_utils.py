@@ -56,7 +56,7 @@ def build_fourier_position_embedding(
     grid_size_t = to_tuple(grid_size)
     if len(grid_size_t) != spatial_dims:
         raise ValueError(
-            f"Length of grid_size must be the same as spatial_dims. Got len(grid_size)={len(grid_size_t)}, should be {spatial_dims}."
+            f"Length of grid_size ({len(grid_size_t)}) must be the same as spatial_dims."
         )
 
     if embed_dim % (2 * spatial_dims) != 0:
