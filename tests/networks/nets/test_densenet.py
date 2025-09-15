@@ -96,7 +96,7 @@ class TestPretrainedDENSENET(unittest.TestCase):
             net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.features.forward(example)
-        torchvision_net = torchvision.models.densenet121(pretrained=True).to(device)
+        torchvision_net = torchvision.models.densenet121(weights="DEFAULT").to(device)
         with eval_mode(torchvision_net):
             expected_result = torchvision_net.features.forward(example)
         self.assertTrue(torch.all(result == expected_result))
