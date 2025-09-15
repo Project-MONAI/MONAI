@@ -18,7 +18,7 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 
-__all__ = ["build_sincos_position_embedding"]
+__all__ = ["build_sincos_position_embedding", "build_fourier_position_embedding"]
 
 
 # From PyTorch internals
@@ -30,6 +30,50 @@ def _ntuple(n):
         return tuple(repeat(x, n))
 
     return parse
+
+
+def build_fourier_position_embedding(
+    grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, scales: Union[float, List[float]] = 1.0
+):
+    """
+    Builds a (Anistropic) Fourier Feature based positional encoding based on the given grid size, embed dimension,
+    spatial dimensions, and scales. The scales control the variance of the Fourier features, higher values make distant
+    points more distinguishable.
+        Reference: https://arxiv.org/abs/2509.02488
+
+    Args:
+        grid_size (List[int]): The size of the grid in each spatial dimension.
+        embed_dim (int): The dimension of the embedding.
+        spatial_dims (int): The number of spatial dimensions (2 for 2D, 3 for 3D).
+        scales (List[float]): The scale for every spatial dimension. If a single float is provided,
+                              the same scale is used for all dimensions.
+
+    Returns:
+        pos_embed (nn.Parameter): The Fourier feature position embedding as a fixed parameter.
+    """
+
+    to_tuple = _ntuple(spatial_dims)
+    grid_size = to_tuple(grid_size)
+
+    scales = torch.tensor(scales)
+    if scales.ndim > 1 and scales.ndim != spatial_dims:
+        raise ValueError("Scales must be either a float or a list of floats with length equal to spatial_dims")
+    if scales.ndim == 0:
+        scales = scales.repeat(spatial_dims)
+
+    gaussians = torch.normal(0.0, 1.0, (embed_dim // 2, spatial_dims))
+    gaussians = gaussians * scales
+
+    positions = [torch.linspace(0, 1, x) for x in grid_size]
+    positions = torch.stack(torch.meshgrid(*positions, indexing="ij"), axis=-1)
+    positions = positions.flatten(end_dim=-2)
+
+    x_proj = (2.0 * torch.pi * positions) @ gaussians.T
+
+    pos_emb = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], axis=-1)
+    pos_emb = pos_emb[None, :, :]
+
+    return nn.Parameter(pos_emb, requires_grad=False)
 
 
 def build_sincos_position_embedding(
