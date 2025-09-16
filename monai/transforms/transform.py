@@ -148,11 +148,8 @@ def apply_transform(
                 res_item = apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
                 # Only extend if we're at the leaf level (map_items_ == 1) and the transform
                 # actually returned a list (not preserving nested structure)
-                if isinstance(res_item, list) and map_items_ == 1:
-                    if not isinstance(item, (list, tuple)):
-                        res.extend(res_item)
-                    else:
-                        res.append(res_item)
+                if isinstance(res_item, list) and map_items_ == 1 and not isinstance(item, (list, tuple)):
+                    res.extend(res_item)
                 else:
                     res.append(res_item)
             return res

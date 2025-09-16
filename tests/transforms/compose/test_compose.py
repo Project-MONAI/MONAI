@@ -282,6 +282,28 @@ class TestCompose(unittest.TestCase):
     def test_backwards_compatible_imports(self):
         from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
+    def test_list_extend_multi_sample_trait(self):
+        from monai.transforms import CenterSpatialCrop, RandSpatialCropSamples
+
+        center_crop = CenterSpatialCrop([128, 128])
+        multi_sample_transform = RandSpatialCropSamples([64, 64], 1)
+
+        img = torch.zeros([1, 512, 512])
+
+        assert execute_compose(img, [center_crop]).shape == torch.Size([1, 128, 128])
+        single_multi_sample_trait_result = execute_compose(img, [multi_sample_transform, center_crop])
+        assert (
+            isinstance(single_multi_sample_trait_result, list)
+            and len(single_multi_sample_trait_result) == 1
+            and single_multi_sample_trait_result[0].shape == torch.Size([1, 64, 64])
+        )
+        double_multi_sample_trait_result = execute_compose(img, [multi_sample_transform, multi_sample_transform, center_crop])
+        assert (
+            isinstance(double_multi_sample_trait_result, list)
+            and len(double_multi_sample_trait_result) == 1
+            and double_multi_sample_trait_result[0].shape == torch.Size([1, 64, 64])
+        )
+
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
     [None, tuple()],
