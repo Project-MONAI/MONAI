@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from typing import Optional
 
 import torch
 from torch import nn
@@ -2006,7 +2007,7 @@ class DiffusionModelEncoder(nn.Module):
 
             self.down_blocks.append(down_block)
 
-        self.out = nn.Sequential(nn.Linear(4096, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.out_channels))
+        self.out: Optional[nn.Module] = None
 
     def forward(
         self,
@@ -2049,6 +2050,12 @@ class DiffusionModelEncoder(nn.Module):
             h, _ = downsample_block(hidden_states=h, temb=emb, context=context)
 
         h = h.reshape(h.shape[0], -1)
+
+        # 5. out
+        if self.out is None:
+            self.out = nn.Sequential(
+                nn.Linear(h.shape[1], 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.out_channels)
+            )
         output: torch.Tensor = self.out(h)
 
         return output

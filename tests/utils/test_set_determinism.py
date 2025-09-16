@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.utils import get_seed, set_determinism
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
+from tests.test_utils import skip_if_no_cuda
 
 
 class TestSetDeterminism(unittest.TestCase):
@@ -59,7 +59,6 @@ class TestSetFlag(unittest.TestCase):
     def setUp(self):
         set_determinism(1, use_deterministic_algorithms=True)
 
-    @SkipIfBeforePyTorchVersion((1, 8))  # beta feature
     @skip_if_no_cuda
     def test_algo_not_deterministic(self):
         """

@@ -456,6 +456,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                     scheduler=scheduler,
                     seg=input_seg,
                     cfg=5,
+                    cfg_fill_value=-1,
                 )
             else:
                 sample = inferer.sample(

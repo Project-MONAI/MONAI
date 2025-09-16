@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_product
+from tests.test_utils import assert_allclose, dict_product
 
 einops, has_einops = optional_import("einops")
 
@@ -49,7 +49,6 @@ TEST_CASE_CABLOCK = [
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_CABLOCK)
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         # Without flash attention
         net = CrossAttentionBlock(**input_param)
@@ -64,14 +63,12 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(
                 hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
             )
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_rel_pos_embedding_with_flash_attention(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(
@@ -97,7 +94,6 @@ class TestResBlock(unittest.TestCase):
             CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_causal_flash_attention(self):
         block = CrossAttentionBlock(
             hidden_size=128,
@@ -165,7 +161,6 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand([[True], [False]])
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_flash_attention(self, causal):
         input_param = {"hidden_size": 128, "num_heads": 1, "causal": causal, "sequence_length": 16 if causal else None}
         device = "cuda:0" if torch.cuda.is_available() else "cpu"

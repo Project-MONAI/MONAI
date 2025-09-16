@@ -92,8 +92,42 @@ def load_decathlon_datalist(
 ) -> list[dict]:
     """Load image/label paths of decathlon challenge from JSON file
 
-    Json file is similar to what you get from http://medicaldecathlon.com/
-    Those dataset.json files
+    JSON file should follow the format of the Medical Segmentation Decathlon
+    datalist.json files, see http://medicaldecathlon.com.
+    The files are structured as follows:
+
+    .. code-block:: python
+
+        {
+            "metadata_key_0": "metadata_value_0",
+            "metadata_key_1": "metadata_value_1",
+            ...,
+            "training": [
+                {"image": "path/to/image_1.nii.gz", "label": "path/to/label_1.nii.gz"},
+                {"image": "path/to/image_2.nii.gz", "label": "path/to/label_2.nii.gz"},
+                ...
+            ],
+            "test": [
+                "path/to/image_3.nii.gz",
+                "path/to/image_4.nii.gz",
+                ...
+            ]
+        }
+
+
+    The metadata keys are optional for loading the datalist, but include:
+        - some string items: ``name``, ``description``, ``reference``, ``licence``, ``release``, ``tensorImageSize``
+        - two dict items: ``modality`` (keyed by channel index), and ``labels`` (keyed by label index)
+        - and two integer items: ``numTraining`` and ``numTest``, with the number of items.
+
+    The ``training`` key contains a list of dictionaries, each of which has at least
+    the ``image`` and ``label`` keys.
+    The image and label are loaded by :py:func:`monai.transforms.LoadImaged`, so both can be either
+    a single file path or a list of file paths, in which case they are loaded as multi-channel images.
+    Each item can also include a ``fold`` key for cross-validation purposes.
+    The "test" key contains a list of image paths, without labels, MONAI also supports a "validation" list
+    with the same format as the "training" list.
+
 
     Args:
         data_list_file_path: the path to the json file of datalist.
@@ -107,11 +141,11 @@ def load_decathlon_datalist(
 
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
-    .. code-block::
+    .. code-block:: python
 
         [
-            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0},
-            {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': '/workspace/labels/chest_19.nii.gz'},
+            {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/labels/chest_31.nii.gz'},
         ]
 
     """
@@ -134,7 +168,8 @@ def load_decathlon_datalist(
 
 
 def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Sequence[str] | str) -> dict:
-    """Load the properties from the JSON file contains data property with specified `property_keys`.
+    """Extract the properties with the specified keys from the Decathlon JSON file.
+    See under `load_decathlon_datalist` for the expected keys in the Decathlon challenge.
 
     Args:
         data_property_file_path: the path to the JSON file of data properties.

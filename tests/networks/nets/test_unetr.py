@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_quick, test_script_save
+from tests.test_utils import dict_product, skip_if_quick, test_script_save
 
 TEST_CASE_UNETR = [
     [
@@ -115,7 +115,6 @@ class TestUNETR(unittest.TestCase):
             )
 
     @parameterized.expand(TEST_CASE_UNETR)
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = UNETR(**(input_param))
         net.eval()
