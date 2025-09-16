@@ -283,26 +283,32 @@ class TestCompose(unittest.TestCase):
         from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
     def test_list_extend_multi_sample_trait(self):
-        from monai.transforms import CenterSpatialCrop, RandSpatialCropSamples
-
-        center_crop = CenterSpatialCrop([128, 128])
-        multi_sample_transform = RandSpatialCropSamples([64, 64], 1)
+        center_crop = mt.CenterSpatialCrop([128, 128])
+        multi_sample_transform = mt.RandSpatialCropSamples([64, 64], 1)
 
         img = torch.zeros([1, 512, 512])
 
-        assert execute_compose(img, [center_crop]).shape == torch.Size([1, 128, 128])
+        self.assertEqual(execute_compose(img, [center_crop]).shape, torch.Size([1, 128, 128]))
         single_multi_sample_trait_result = execute_compose(img, [multi_sample_transform, center_crop])
-        assert (
-            isinstance(single_multi_sample_trait_result, list)
-            and len(single_multi_sample_trait_result) == 1
-            and single_multi_sample_trait_result[0].shape == torch.Size([1, 64, 64])
-        )
+        self.assertIsInstance(single_multi_sample_trait_result, list)
+        self.assertEqual(len(single_multi_sample_trait_result), 1)
+        self.assertEqual(single_multi_sample_trait_result[0].shape, torch.Size([1, 64, 64]))
+
         double_multi_sample_trait_result = execute_compose(img, [multi_sample_transform, multi_sample_transform, center_crop])
-        assert (
-            isinstance(double_multi_sample_trait_result, list)
-            and len(double_multi_sample_trait_result) == 1
-            and double_multi_sample_trait_result[0].shape == torch.Size([1, 64, 64])
-        )
+        self.assertIsInstance(double_multi_sample_trait_result, list)
+        self.assertEqual(len(double_multi_sample_trait_result), 1)
+        self.assertEqual(double_multi_sample_trait_result[0].shape, torch.Size([1, 64, 64]))
+
+    def test_multi_sample_trait_cardinality(self):
+        img = torch.zeros([1, 128, 128])
+        t2 = mt.RandSpatialCropSamples([32, 32], num_samples=2)
+
+        # chaining should multiply counts: 2 x 2 = 4, flattened
+        res = execute_compose(img, [t2, t2])
+        self.assertIsInstance(res, list)
+        self.assertEqual(len(res), 4)
+        for r in res:
+            self.assertEqual(r.shape, torch.Size([1, 32, 32]))
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
