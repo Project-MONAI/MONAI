@@ -18,7 +18,7 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 
-__all__ = ["build_sincos_position_embedding", "build_fourier_position_embedding"]
+__all__ = ["build_fourier_position_embedding", "build_sincos_position_embedding"]
 
 
 # From PyTorch internals
@@ -36,16 +36,17 @@ def build_fourier_position_embedding(
     grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, scales: Union[float, List[float]] = 1.0
 ) -> torch.nn.Parameter:
     """
-    Builds a (Anistropic) Fourier Feature based positional encoding based on the given grid size, embed dimension,
+    Builds a (Anistropic) Fourier feature position embedding based on the given grid size, embed dimension,
     spatial dimensions, and scales. The scales control the variance of the Fourier features, higher values make distant
     points more distinguishable.
+    Position embedding is made anistropic by allowing setting different scales for each spatial dimension.
         Reference: https://arxiv.org/abs/2509.02488
 
     Args:
-        grid_size (List[int]): The size of the grid in each spatial dimension.
+        grid_size (int | List[int]): The size of the grid in each spatial dimension.
         embed_dim (int): The dimension of the embedding.
         spatial_dims (int): The number of spatial dimensions (2 for 2D, 3 for 3D).
-        scales (List[float]): The scale for every spatial dimension. If a single float is provided,
+        scales (float | List[float]): The scale for every spatial dimension. If a single float is provided,
                               the same scale is used for all dimensions.
 
     Returns:
@@ -57,10 +58,8 @@ def build_fourier_position_embedding(
     if len(grid_size_t) != spatial_dims:
         raise ValueError(f"Length of grid_size ({len(grid_size_t)}) must be the same as spatial_dims.")
 
-    if embed_dim % (2 * spatial_dims) != 0:
-        raise AssertionError(
-            f"Embed dimension must be divisible by {2 * spatial_dims} for {spatial_dims}D Fourier feature position embedding"
-        )
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be even for Fourier position embedding")
 
     # Ensure scales is a tensor of shape (spatial_dims,)
     if isinstance(scales, float):
@@ -72,11 +71,10 @@ def build_fourier_position_embedding(
     else:
         raise TypeError(f"scales must be float or list of floats, got {type(scales)}")
 
-    gaussians = torch.normal(0.0, 1.0, (embed_dim // 2, spatial_dims))
-    gaussians = gaussians * scales_tensor
+    gaussians = torch.randn(embed_dim // 2, spatial_dims, dtype=torch.float32) * scales_tensor
 
-    position_indeces = [torch.linspace(0, 1, x) for x in grid_size_t]
-    positions = torch.stack(torch.meshgrid(*position_indeces, indexing="ij"), dim=-1)
+    position_indices = [torch.linspace(0, 1, x, dtype=torch.float32) for x in grid_size_t]
+    positions = torch.stack(torch.meshgrid(*position_indices, indexing="ij"), dim=-1)
     positions = positions.flatten(end_dim=-2)
 
     x_proj = (2.0 * torch.pi * positions) @ gaussians.T
