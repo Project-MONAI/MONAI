@@ -21,7 +21,7 @@ import torch.distributed as dist
 
 from monai.data import PersistentDataset, json_hashing
 from monai.transforms import Transform
-from tests.test_utils import DistCall, DistTestCase
+from tests.test_utils import DistCall, DistTestCase, skip_if_windows
 
 
 class _InplaceXform(Transform):
@@ -33,6 +33,7 @@ class _InplaceXform(Transform):
         return data
 
 
+@skip_if_windows
 class TestDistDataset(DistTestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
@@ -57,6 +58,7 @@ class TestDistDataset(DistTestCase):
         self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 
 
+@skip_if_windows
 class TestDistCreateDataset(DistTestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()

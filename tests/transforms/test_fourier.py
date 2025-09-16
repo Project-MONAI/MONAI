@@ -20,13 +20,10 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import Fourier
 from monai.utils.misc import set_determinism
-from tests.test_utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = [((128, 64),), ((64, 48, 80),)]
 
 
-@SkipIfBeforePyTorchVersion((1, 8))
-@SkipIfNoModule("torch.fft")
 class TestFourier(unittest.TestCase):
     def setUp(self):
         set_determinism(0)

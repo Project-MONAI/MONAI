@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+import os
 import unittest
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import torch
@@ -22,16 +24,7 @@ from monai.inferers import ZarrAvgMerger
 from monai.utils import get_package_version, optional_import, version_geq
 from tests.test_utils import assert_allclose
 
-np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
-print(version_geq(get_package_version("zarr"), "3.0.0"))
-if has_zarr:
-    if version_geq(get_package_version("zarr"), "3.0.0"):
-        directory_store = zarr.storage.LocalStore("test.zarr")
-    else:
-        directory_store = zarr.storage.DirectoryStore("test.zarr")
-else:
-    directory_store = None
 numcodecs, has_numcodecs = optional_import("numcodecs")
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
@@ -160,9 +153,9 @@ TEST_CASE_9_LARGER_SHAPE = [
     pad(TENSOR_4x4, (0, 2), value=float("nan")),
 ]
 
-# explicit directory store
+# explicit directory store, defer creating the store until test time by using the placeholder value "directory_store"
 TEST_CASE_10_DIRECTORY_STORE = [
-    dict(merged_shape=TENSOR_4x4.shape, store=directory_store),
+    dict(merged_shape=TENSOR_4x4.shape, store="directory_store"),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -352,10 +345,30 @@ if version_geq(get_package_version("zarr"), "3.0.0"):
 @unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
 
+    def setUp(self):
+        self.orig_settings = np.seterr(divide="ignore", invalid="ignore")
+        self.temp_dir = TemporaryDirectory()
+        self.merged_name = os.path.join(self.temp_dir.name, "merged.zarr")
+
+    def tearDown(self):
+        np.seterr(**self.orig_settings)
+        self.temp_dir.cleanup()
+
+    def _get_directory_store(self, base_dir):
+        zarr_path = os.path.join(base_dir, "test.zarr")
+
+        if version_geq(get_package_version("zarr"), "3.0.0"):
+            directory_store = zarr.storage.LocalStore(zarr_path)
+        else:
+            directory_store = zarr.storage.DirectoryStore(zarr_path)
+
+        return directory_store
+
     @parameterized.expand(ALL_TESTS)
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
         is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
         codec_reg = numcodecs.registry.codec_registry
+        arguments = dict(arguments)
 
         # Handle compressor/codecs based on zarr version
         if "compressor" in arguments and is_zarr_v3:
@@ -405,7 +418,15 @@ class ZarrAvgMergerTests(unittest.TestCase):
             if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
                 arguments["count_compressor"] = codec_reg[arguments["count_compressor"].lower()]()
 
+        # ensure the merged directory is in the temporary directory and not the current directory
+
+        if "store" not in arguments:
+            arguments["store"] = self.merged_name
+        elif arguments["store"] == "directory_store":
+            arguments["store"] = self._get_directory_store(self.temp_dir.name)  # get store object now
+
         merger = ZarrAvgMerger(**arguments)
+
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
@@ -420,10 +441,14 @@ class ZarrAvgMergerTests(unittest.TestCase):
 
     def test_zarr_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):
-            merger = ZarrAvgMerger(merged_shape=(1, 3, 2, 3))
+            merger = ZarrAvgMerger(merged_shape=(1, 3, 2, 3), store=self.merged_name)
             merger.finalize()
             merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
 
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
-            ZarrAvgMerger(merged_shape=None)
+            ZarrAvgMerger(merged_shape=None, store=self.merged_name)
+
+
+if __name__ == "__main__":
+    unittest.main()
