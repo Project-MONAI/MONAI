@@ -941,7 +941,7 @@ class LabelToMask(Transform):
             data = where(in1d(img, select_labels), True, False).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
-            return data.any(0)[None]
+            return data.any(0)[None]  # type: ignore
 
         return data
 

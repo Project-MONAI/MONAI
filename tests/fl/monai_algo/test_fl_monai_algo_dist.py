@@ -23,7 +23,7 @@ from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks import get_state_dict
-from tests.test_utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
+from tests.test_utils import DistCall, DistTestCase, SkipIfNoModule, skip_if_no_cuda
 
 TESTS_PATH = TESTS_PATH = Path(__file__).parents[2].as_posix()
 _root_dir = os.path.abspath(pathjoin(TESTS_PATH))
@@ -32,7 +32,6 @@ _logging_file = pathjoin(_data_dir, "logging.conf")
 
 
 @SkipIfNoModule("ignite")
-@SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestFLMonaiAlgo(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda
