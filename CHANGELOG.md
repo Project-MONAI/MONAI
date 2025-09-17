@@ -5,6 +5,35 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.1] -  2025-09-22
+
+### Added
+* PyTorch 2.7 and 2.8 support (#8429, #8530)
+* Create SECURITY.md (#8546)
+* Add kwargs in array and functional file (#8508)
+* Add .coderabbit.yaml File (#8513)
+* Add input validation to ImageStats class (#8501)
+* Add support for optional conditioning in PatchInferer, SliceInferer, and SlidingWindowInferer (#8400)
+* Add classifier free guidance unconditioned value (#8562)
+
+### Fixed
+* Fix for insecure zip file extraction to address https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6ww-pf9m-m73m (#8568)
+* Fix for insecure use of `torch.load` and `pickle` to address https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-6vm5-6jv9-rjpj and https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-p8cm-mm2v-gwjm (#8566)
+* Torchvision fix for loading pretrained weights using current syntax (#8563)
+* Fix bug in maisi vae (#8517)
+* Throw exception on invalid images in retinanet detector (#8515)
+* Fix: HistogramNormalized doc (#8543)
+* Fix build failure by pinning pyamg to versions below 5.3.0 (#8548)
+* Fix hardcoded input dim in DiffusionModelEncoder (#8514)
+
+### Changed
+* Update README badges to add research paper citations number (#8494)
+* CI: Add custom timeout to ci job in order to save resources (#8504)
+* Improve documentation on the datalist format (#8539)
+* Tests Cleanup and refactor (#8405, #8535)
+* Improve Orientation transform to use the "space" (LPS vs RAS) of a metatensor by default (#8473)
+
+
 ## [1.5.0] - 2025-06-13
 
 ## What's Changed
