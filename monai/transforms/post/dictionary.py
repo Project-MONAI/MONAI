@@ -35,6 +35,7 @@ from monai.transforms.post.array import (
     AsDiscrete,
     DistanceTransformEDT,
     FillHoles,
+    GenerateHeatmap,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
@@ -48,6 +49,7 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
 from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "ActivationsD",
@@ -95,6 +97,9 @@ __all__ = [
     "DistanceTransformEDTd",
     "DistanceTransformEDTD",
     "DistanceTransformEDTDict",
+    "GenerateHeatmapd",
+    "GenerateHeatmapD",
+    "GenerateHeatmapDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -506,6 +511,137 @@ class VoteEnsembled(Ensembled):
         """
         ensemble = VoteEnsemble(num_classes=num_classes)
         super().__init__(keys, ensemble, output_key)
+
+
+class GenerateHeatmapd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GenerateHeatmap`.
+    Converts landmark coordinates into gaussian heatmaps and optionally copies metadata from a reference image.
+    """
+
+    backend = GenerateHeatmap.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma: Sequence[float] | float = 5.0,
+        heatmap_keys: KeysCollection | None = None,
+        ref_image_keys: KeysCollection | None = None,
+        spatial_shape: Sequence[int] | Sequence[Sequence[int]] | None = None,
+        truncate: float = 3.0,
+        normalize: bool = True,
+        dtype: np.dtype | type = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.heatmap_keys = self._prepare_heatmap_keys(heatmap_keys)
+        self.ref_image_keys = self._prepare_optional_keys(ref_image_keys)
+        self.static_shapes = self._prepare_shapes(spatial_shape)
+        self.generator = GenerateHeatmap(
+            sigma=sigma,
+            spatial_shape=None,
+            truncate=truncate,
+            normalize=normalize,
+            dtype=dtype,
+        )
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
+        d = dict(data)
+        for key, out_key, ref_key, static_shape in self.key_iterator(
+            d, self.heatmap_keys, self.ref_image_keys, self.static_shapes
+        ):
+            points = d[key]
+            shape = self._determine_shape(points, static_shape, d, ref_key)
+            heatmap = self.generator(points, spatial_shape=shape)
+            reference = d.get(ref_key) if ref_key is not None and ref_key in d else None
+            d[out_key] = self._prepare_output(heatmap, reference)
+        return d
+
+    def _prepare_heatmap_keys(self, heatmap_keys: KeysCollection | None) -> tuple[Hashable, ...]:
+        if heatmap_keys is None:
+            return tuple(f"{key}_heatmap" for key in self.keys)
+        keys_tuple = ensure_tuple(heatmap_keys)
+        if len(keys_tuple) == 1 and len(self.keys) > 1:
+            keys_tuple = keys_tuple * len(self.keys)
+        if len(keys_tuple) != len(self.keys):
+            raise ValueError("heatmap_keys length must match keys length.")
+        return keys_tuple
+
+    def _prepare_optional_keys(self, maybe_keys: KeysCollection | None) -> tuple[Hashable | None, ...]:
+        if maybe_keys is None:
+            return (None,) * len(self.keys)
+        keys_tuple = ensure_tuple(maybe_keys)
+        if len(keys_tuple) == 1 and len(self.keys) > 1:
+            keys_tuple = keys_tuple * len(self.keys)
+        if len(keys_tuple) != len(self.keys):
+            raise ValueError("ref_image_keys length must match keys length when provided.")
+        return tuple(keys_tuple)
+
+    def _prepare_shapes(
+        self, spatial_shape: Sequence[int] | Sequence[Sequence[int]] | None
+    ) -> tuple[tuple[int, ...] | None, ...]:
+        if spatial_shape is None:
+            return (None,) * len(self.keys)
+        shape_tuple = ensure_tuple(spatial_shape)
+        if shape_tuple and all(isinstance(v, (int, np.integer)) for v in shape_tuple):
+            shape = tuple(int(v) for v in shape_tuple)
+            return (shape,) * len(self.keys)
+        if len(shape_tuple) == 1 and len(self.keys) > 1:
+            shape_tuple = shape_tuple * len(self.keys)
+        if len(shape_tuple) != len(self.keys):
+            raise ValueError("spatial_shape length must match keys length when providing per-key shapes.")
+        prepared: list[tuple[int, ...] | None] = []
+        for item in shape_tuple:
+            if item is None:
+                prepared.append(None)
+            else:
+                dims = ensure_tuple(item)
+                prepared.append(tuple(int(v) for v in dims))
+        return tuple(prepared)
+
+    def _determine_shape(
+        self,
+        points: Any,
+        static_shape: tuple[int, ...] | None,
+        data: Mapping[Hashable, Any],
+        ref_key: Hashable | None,
+    ) -> tuple[int, ...]:
+        if static_shape is not None:
+            return static_shape
+        points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
+        if points_t.ndim != 2:
+            raise ValueError("landmark arrays must be 2D with shape (num_points, spatial_dims).")
+        spatial_dims = int(points_t.shape[1])
+        if ref_key is not None and ref_key in data:
+            return self._shape_from_reference(data[ref_key], spatial_dims)
+        raise ValueError(
+            "Unable to determine spatial shape for GenerateHeatmapd. Provide spatial_shape or ref_image_keys."
+        )
+
+    def _shape_from_reference(self, reference: Any, spatial_dims: int) -> tuple[int, ...]:
+        if isinstance(reference, MetaTensor):
+            meta_shape = reference.meta.get("spatial_shape")
+            if meta_shape is not None:
+                dims = ensure_tuple(meta_shape)
+                if len(dims) == spatial_dims:
+                    return tuple(int(v) for v in dims)
+            return tuple(int(v) for v in reference.shape[-spatial_dims:])
+        if hasattr(reference, "shape"):
+            return tuple(int(v) for v in reference.shape[-spatial_dims:])
+        raise ValueError("Reference data must define a shape attribute.")
+
+    def _prepare_output(self, heatmap: NdarrayOrTensor, reference: Any) -> Any:
+        if isinstance(reference, MetaTensor):
+            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=reference.dtype, device=reference.device)
+            converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
+            return converted
+        if isinstance(reference, torch.Tensor):
+            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=reference.dtype, device=reference.device)
+            return converted
+        return heatmap
+
+
+GenerateHeatmapD = GenerateHeatmapDict = GenerateHeatmapd
 
 
 class ProbNMSd(MapTransform):
