@@ -1891,7 +1891,7 @@ class DiffusionModelEncoder(nn.Module):
         norm_num_groups: number of groups for the normalization.
         norm_eps: epsilon for the normalization.
         resblock_updown: if True use residual blocks for downsampling.
-        num_head_channels: number of channels in each attention head.
+        num_head_channels: number of channels in each attention head. 
         with_conditioning: if True add spatial transformers to perform conditioning.
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
