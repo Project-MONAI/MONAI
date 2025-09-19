@@ -65,7 +65,7 @@ _test_data_config: dict = {}
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 
-DOWNLOAD_EXCEPTS = (ContentTooShortError, HTTPError, ConnectionError)
+DOWNLOAD_EXCEPTS: tuple[type,...] = (ContentTooShortError, HTTPError, ConnectionError)
 if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
 if has_gdown:
