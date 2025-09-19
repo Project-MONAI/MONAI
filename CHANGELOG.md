@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [1.5.1] -  2025-09-22
 
+## What's Changed
 ### Added
 * PyTorch 2.7 and 2.8 support (#8429, #8530)
 * Create SECURITY.md (#8546)
