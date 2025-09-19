@@ -1904,7 +1904,7 @@ class DiffusionModelEncoder(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        input_shape: Sequence[int],
+        input_shape: Sequence[int] = (64, 64),
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
         channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
