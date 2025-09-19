@@ -106,6 +106,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             save_intermediates=True,
             intermediate_steps=1,
             cfg=5,
+            cfg_fill_value=-1,
         )
         self.assertEqual(sample.shape, noise.shape)
 
