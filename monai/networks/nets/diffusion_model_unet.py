@@ -1894,7 +1894,7 @@ class DiffusionModelEncoder(nn.Module):
         num_head_channels: number of channels in each attention head.
         with_conditioning: if True add spatial transformers to perform conditioning.
         transformer_num_layers: number of layers of Transformer blocks to use.
-        cross_attention_dim: number of context dimensions to use.
+        cross_attention_dim: number of context dimensions to use. 
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds` classes.
         upcast_attention: if True, upcast attention operations to full precision.
     """
