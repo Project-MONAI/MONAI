@@ -33,16 +33,16 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from functools import reduce
 from typing import Optional
 
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
 
 from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock, SpatialAttentionBlock, Upsample
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
-from functools import reduce
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
@@ -1904,7 +1904,7 @@ class DiffusionModelEncoder(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        input_shape: Sequence[int], 
+        input_shape: Sequence[int],
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
         channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
@@ -2012,14 +2012,13 @@ class DiffusionModelEncoder(nn.Module):
             self.down_blocks.append(down_block)
 
         for _ in channels:
-            input_shape = [int(np.ceil(i_/2)) for i_ in input_shape]
+            input_shape = [int(np.ceil(i_ / 2)) for i_ in input_shape]
 
-        last_dim_flattened = reduce(lambda x, y: x*y, input_shape) * self.down_blocks[-1].downsampler.op.conv.out_channels
+        last_dim_flattened = int(reduce(lambda x, y: x * y, input_shape) * channels[-1])
+
         self.out: Optional[nn.Module] = nn.Sequential(
-            nn.Linear(last_dim_flattened, 512),
-            nn.ReLU(), nn.Dropout(0.1),
-            nn.Linear(512, self.out_channels)
-            )
+            nn.Linear(last_dim_flattened, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.out_channels)
+        )
 
     def forward(
         self,
