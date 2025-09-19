@@ -167,7 +167,7 @@ def skip_if_downloading_fails():
 
     try:
         yield
-    except DOWNLOAD_EXCEPTS as e:  # noqa: B030
+    except DOWNLOAD_EXCEPTS as e:
         raise unittest.SkipTest(f"Error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
