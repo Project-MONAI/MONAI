@@ -610,7 +610,7 @@ class GenerateHeatmapd(MapTransform):
             return static_shape
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
         if points_t.ndim not in (2, 3):
-            raise ValueError("landmark arrays must be 2D or 3D with shape (num_points, spatial_dims) or (B, num_points, spatial_dims).")
+            raise ValueError("landmark arrays must be 2D or 3D with shape (N, D) or (B, N, D).")
         spatial_dims = int(points_t.shape[-1])
         if ref_key is not None and ref_key in data:
             return self._shape_from_reference(data[ref_key], spatial_dims)
