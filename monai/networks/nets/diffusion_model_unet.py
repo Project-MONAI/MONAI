@@ -2063,9 +2063,6 @@ class DiffusionModelEncoder(nn.Module):
         h = h.reshape(h.shape[0], -1)
 
         # 5. out
-        self.out = nn.Sequential(
-            nn.Linear(h.shape[1], 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.out_channels)
-        )
         output: torch.Tensor = self.out(h)
 
         return output
