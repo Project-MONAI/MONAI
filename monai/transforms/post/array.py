@@ -871,7 +871,7 @@ class GenerateHeatmap(Transform):
     ) -> tuple[tuple[slice, ...] | None, tuple[torch.Tensor, ...]]:
         slices: list[slice] = []
         coord_shifts: list[torch.Tensor] = []
-        for dim, (c, r, size) in enumerate(zip(center, radius, bounds)):
+        for _dim, (c, r, size) in enumerate(zip(center, radius, bounds)):
             start = max(int(np.floor(c - r)), 0)
             stop = min(int(np.ceil(c + r)) + 1, size)
             if start >= stop:
