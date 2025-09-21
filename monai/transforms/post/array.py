@@ -799,35 +799,47 @@ class GenerateHeatmap(Transform):
     ) -> NdarrayOrTensor:
         original_points = points
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
-        if points_t.ndim != 2:
-            raise ValueError("points must be a 2D array with shape (num_points, spatial_dims).")
-        device = points_t.device
-        num_points, spatial_dims = points_t.shape
-        if spatial_dims not in (2, 3):
+
+        is_batched = points_t.ndim == 3
+        if not is_batched:
+            if points_t.ndim != 2:
+                raise ValueError(
+                    "points must be a 2D or 3D array with shape (num_points, spatial_dims) or (B, num_points, spatial_dims)."
+                )
+            points_t = points_t.unsqueeze(0)  # Add a batch dimension
+
+        if points_t.shape[-1] not in (2, 3):
             raise ValueError("GenerateHeatmap only supports 2D or 3D landmarks.")
+
+        device = points_t.device
+        batch_size, num_points, spatial_dims = points_t.shape
 
         target_shape = self._resolve_spatial_shape(spatial_shape, spatial_dims)
         sigma = self._resolve_sigma(spatial_dims)
         radius = tuple(int(np.ceil(self.truncate * s)) for s in sigma)
 
-        heatmap = torch.zeros((num_points, *target_shape), dtype=self.torch_dtype, device=device)
+        heatmap = torch.zeros((batch_size, num_points, *target_shape), dtype=self.torch_dtype, device=device)
         image_bounds = tuple(int(s) for s in target_shape)
-        for idx, center in enumerate(points_t):
-            center_vals = center.tolist()
-            if not np.all(np.isfinite(center_vals)):
-                continue
-            if not self._is_inside(center_vals, image_bounds):
-                continue
-            window_slices, coord_shifts = self._make_window(center_vals, radius, image_bounds, device)
-            if window_slices is None:
-                continue
-            region = heatmap[(idx, *window_slices)]
-            gaussian = self._evaluate_gaussian(coord_shifts, sigma)
-            torch.maximum(region, gaussian, out=region)
-            if self.normalize:
-                max_val = heatmap[idx].max()
-                if max_val.item() > 0:
-                    heatmap[idx] /= max_val
+        for b_idx in range(batch_size):
+            for idx, center in enumerate(points_t[b_idx]):
+                center_vals = center.tolist()
+                if not np.all(np.isfinite(center_vals)):
+                    continue
+                if not self._is_inside(center_vals, image_bounds):
+                    continue
+                window_slices, coord_shifts = self._make_window(center_vals, radius, image_bounds, device)
+                if window_slices is None:
+                    continue
+                region = heatmap[(b_idx, idx, *window_slices)]
+                gaussian = self._evaluate_gaussian(coord_shifts, sigma)
+                torch.maximum(region, gaussian, out=region)
+                if self.normalize:
+                    max_val = heatmap[b_idx, idx].max()
+                    if max_val.item() > 0:
+                        heatmap[b_idx, idx] /= max_val
+
+        if not is_batched:
+            heatmap = heatmap.squeeze(0)
 
         target_dtype = self.torch_dtype if isinstance(original_points, (torch.Tensor, MetaTensor)) else self.numpy_dtype
         converted, _, _ = convert_to_dst_type(heatmap, original_points, dtype=target_dtype)

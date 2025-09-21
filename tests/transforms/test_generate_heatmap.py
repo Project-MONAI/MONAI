@@ -171,6 +171,58 @@ class TestGenerateHeatmap(unittest.TestCase):
         self.assertEqual(tuple(hm.shape), (1, 10, 10, 10))
         self.assertEqual(hm.dtype, torch.float16)
 
+    def test_array_batched_3d(self):
+        points = np.array(
+            [
+                [[4.2, 7.8, 1.0]],  # Batch 1
+                [[12.3, 3.6, 2.0]],  # Batch 2
+            ],
+            dtype=np.float32,
+        )
+        transform = GenerateHeatmap(sigma=1.5, spatial_shape=(16, 16, 16))
+
+        heatmap = transform(points)
+
+        self.assertEqual(heatmap.shape, (2, 1, 16, 16, 16))
+        self.assertEqual(heatmap.dtype, np.float32)
+        np.testing.assert_allclose(heatmap.max(axis=(2, 3, 4)), np.ones((2, 1)), rtol=1e-5, atol=1e-5)
+
+        # Check peaks for each batch item
+        for i in range(2):
+            peak = _argmax_nd(heatmap[i, 0])
+            self.assertTrue(np.all(np.abs(peak - points[i, 0]) <= 1.0), msg=f"peak={peak}, point={points[i, 0]}")
+
+    def test_dict_batched_with_ref(self):
+        points = torch.tensor(
+            [
+                [[1.5, 2.5, 3.5]],  # Batch 1
+                [[4.5, 5.5, 6.5]],  # Batch 2
+            ],
+            dtype=torch.float32,
+        )
+        affine = torch.eye(4)
+        # A single reference image is used for the whole batch
+        image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
+        image.meta["spatial_shape"] = (8, 8, 8)
+        data = {"points": points, "image": image}
+
+        transform = GenerateHeatmapd(
+            keys="points",
+            heatmap_keys="heatmap",
+            ref_image_keys="image",
+            sigma=1.0,
+        )
+
+        result = transform(data)
+        heatmap = result["heatmap"]
+
+        self.assertIsInstance(heatmap, MetaTensor)
+        self.assertEqual(tuple(heatmap.shape), (2, 1, 8, 8, 8))
+        self.assertEqual(heatmap.meta["spatial_shape"], (8, 8, 8))
+        assert_allclose(heatmap.affine, image.affine, type_test=False)
+        max_vals = heatmap.max(dim=2)[0].max(dim=2)[0].max(dim=2)[0]
+        np.testing.assert_allclose(max_vals.cpu().numpy(), np.ones((2, 1)), rtol=1e-5, atol=1e-5)
+
 
 if __name__ == "__main__":
     unittest.main()
