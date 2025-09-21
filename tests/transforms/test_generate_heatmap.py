@@ -55,14 +55,14 @@ for dtype in [torch.float32, torch.float64]:
 
 # Test cases for 3D numpy outputs with explicit dtype
 TEST_CASES_3D_NUMPY = []
-for dtype in [np.float32, np.float64]:
+for dtype_obj in [np.float32, np.float64]:
     TEST_CASES_3D_NUMPY.append(
         [
-            f"3d_numpy_{dtype.__name__}",
+            f"3d_numpy_{dtype_obj.__name__}",
             np.array([[1.5, 2.5, 3.5]], dtype=np.float32),
-            {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype},
+            {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype_obj},
             (1, 8, 8, 8),
-            dtype,
+            dtype_obj,
         ]
     )
 
