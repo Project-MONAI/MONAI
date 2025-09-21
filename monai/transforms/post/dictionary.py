@@ -548,9 +548,19 @@ class GenerateHeatmapd(MapTransform):
         ):
             points = d[key]
             shape = self._determine_shape(points, static_shape, d, ref_key)
+            # The GenerateHeatmap transform will handle type conversion based on input points
             heatmap = self.generator(points, spatial_shape=shape)
+            # If there's a reference image and we need to match its type/device
             reference = d.get(ref_key) if ref_key is not None and ref_key in d else None
-            d[out_key] = self._prepare_output(heatmap, reference)
+            if reference is not None and isinstance(reference, (torch.Tensor, np.ndarray)):
+                # Convert to match reference type and device while preserving heatmap's dtype
+                heatmap, _, _ = convert_to_dst_type(
+                    heatmap, reference, dtype=heatmap.dtype, device=getattr(reference, "device", None)
+                )
+                # Copy metadata if reference is MetaTensor
+                if isinstance(reference, MetaTensor) and isinstance(heatmap, MetaTensor):
+                    self._update_spatial_metadata(heatmap, reference)
+            d[out_key] = heatmap
         return d
 
     def _prepare_heatmap_keys(self, heatmap_keys: KeysCollection | None) -> tuple[Hashable, ...]:
@@ -622,29 +632,21 @@ class GenerateHeatmapd(MapTransform):
             return tuple(int(v) for v in reference.shape[-spatial_dims:])
         raise ValueError("Reference data must define a shape attribute.")
 
-    def _prepare_output(self, heatmap: NdarrayOrTensor, reference: Any) -> Any:
-        if isinstance(reference, MetaTensor):
-            # Use heatmap's dtype (from generator), not reference's dtype
-            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=heatmap.dtype, device=reference.device)
-            # For batched data shape is (B, C, *spatial), for non-batched it's (C, *spatial)
-            if heatmap.ndim == 5:  # 3D batched: (B, C, H, W, D)
-                converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
-            elif heatmap.ndim == 4:  # 2D batched (B, C, H, W) or 3D non-batched (C, H, W, D)
-                # Need to check if this is batched 2D or non-batched 3D
-                if len(heatmap.shape[1:]) == len(reference.meta.get("spatial_shape", [])):
-                    # Non-batched 3D
-                    converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
-                else:
-                    # Batched 2D
-                    converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
-            else:  # 2D non-batched: (C, H, W)
-                converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
-            return converted
-        if isinstance(reference, torch.Tensor):
-            # Use heatmap's dtype (from generator), not reference's dtype
-            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=heatmap.dtype, device=reference.device)
-            return converted
-        return heatmap
+    def _update_spatial_metadata(self, heatmap: MetaTensor, reference: MetaTensor) -> None:
+        """Update spatial metadata of heatmap based on its dimensions."""
+        # Update spatial_shape metadata based on heatmap dimensions
+        if heatmap.ndim == 5:  # 3D batched: (B, C, H, W, D)
+            heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+        elif heatmap.ndim == 4:  # 2D batched (B, C, H, W) or 3D non-batched (C, H, W, D)
+            # Need to check if this is batched 2D or non-batched 3D
+            if len(heatmap.shape[1:]) == len(reference.meta.get("spatial_shape", [])):
+                # Non-batched 3D
+                heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
+            else:
+                # Batched 2D
+                heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+        else:  # 2D non-batched: (C, H, W)
+            heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
 
 
 GenerateHeatmapD = GenerateHeatmapDict = GenerateHeatmapd

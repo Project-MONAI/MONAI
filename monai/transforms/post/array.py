@@ -783,7 +783,7 @@ class GenerateHeatmap(Transform):
         else:
             if float(sigma) <= 0:
                 raise ValueError("sigma must be positive.")
-            self._sigma = float(sigma)
+            self._sigma = (float(sigma),)
         if truncated <= 0:
             raise ValueError("truncated must be positive.")
         self.truncated = float(truncated)
@@ -826,7 +826,7 @@ class GenerateHeatmap(Transform):
                 window_slices, coord_shifts = self._make_window(center_vals, radius, image_bounds, device)
                 if window_slices is None:
                     continue
-                region = heatmap[(b_idx, idx, *window_slices)]
+                region = heatmap[b_idx, idx][window_slices]
                 gaussian = self._evaluate_gaussian(coord_shifts, sigma)
                 torch.maximum(region, gaussian, out=region)
                 if self.normalize:
@@ -854,13 +854,11 @@ class GenerateHeatmap(Transform):
         return tuple(int(s) for s in shape_tuple)
 
     def _resolve_sigma(self, spatial_dims: int) -> tuple[float, ...]:
-        if isinstance(self._sigma, tuple):
-            if len(self._sigma) == spatial_dims:
-                return self._sigma
-            if len(self._sigma) == 1:
-                return self._sigma * spatial_dims
-            raise ValueError("sigma sequence length must equal the number of spatial dimensions.")
-        return (self._sigma,) * spatial_dims
+        if len(self._sigma) == spatial_dims:
+            return self._sigma
+        if len(self._sigma) == 1:
+            return self._sigma * spatial_dims
+        raise ValueError("sigma sequence length must equal the number of spatial dimensions.")
 
     @staticmethod
     def _is_inside(center: Sequence[float], bounds: tuple[int, ...]) -> bool:
