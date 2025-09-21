@@ -528,7 +528,7 @@ class GenerateHeatmapd(MapTransform):
         heatmap_keys: KeysCollection | None = None,
         ref_image_keys: KeysCollection | None = None,
         spatial_shape: Sequence[int] | Sequence[Sequence[int]] | None = None,
-        truncate: float = 3.0,
+        truncated: float = 4.0,
         normalize: bool = True,
         dtype: np.dtype | type = np.float32,
         allow_missing_keys: bool = False,
@@ -540,7 +540,7 @@ class GenerateHeatmapd(MapTransform):
         self.generator = GenerateHeatmap(
             sigma=sigma,
             spatial_shape=None,
-            truncate=truncate,
+            truncated=truncated,
             normalize=normalize,
             dtype=dtype,
         )
@@ -632,11 +632,25 @@ class GenerateHeatmapd(MapTransform):
 
     def _prepare_output(self, heatmap: NdarrayOrTensor, reference: Any) -> Any:
         if isinstance(reference, MetaTensor):
-            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=reference.dtype, device=reference.device)
-            converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
+            # Use heatmap's dtype (from generator), not reference's dtype
+            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=heatmap.dtype, device=reference.device)
+            # For batched data shape is (B, C, *spatial), for non-batched it's (C, *spatial)
+            if heatmap.ndim == 5:  # 3D batched: (B, C, H, W, D)
+                converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+            elif heatmap.ndim == 4:  # 2D batched (B, C, H, W) or 3D non-batched (C, H, W, D)
+                # Need to check if this is batched 2D or non-batched 3D
+                if len(heatmap.shape[1:]) == len(reference.meta.get("spatial_shape", [])):
+                    # Non-batched 3D
+                    converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
+                else:
+                    # Batched 2D
+                    converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+            else:  # 2D non-batched: (C, H, W)
+                converted.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
             return converted
         if isinstance(reference, torch.Tensor):
-            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=reference.dtype, device=reference.device)
+            # Use heatmap's dtype (from generator), not reference's dtype
+            converted, _, _ = convert_to_dst_type(heatmap, reference, dtype=heatmap.dtype, device=reference.device)
             return converted
         return heatmap
 

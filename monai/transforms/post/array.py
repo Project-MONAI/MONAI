@@ -757,7 +757,7 @@ class GenerateHeatmap(Transform):
     Args:
         sigma: gaussian standard deviation. A single value is broadcast across all spatial dimensions.
         spatial_shape: optional fallback spatial shape. If ``None`` it must be provided when calling the transform.
-        truncate: extent, in multiples of ``sigma``, used to crop the gaussian support window.
+        truncated: extent, in multiples of ``sigma``, used to crop the gaussian support window.
         normalize: normalize every heatmap channel to ``[0, 1]`` when ``True``.
         dtype: target dtype for the generated heatmaps (accepts numpy or torch dtypes).
 
@@ -772,7 +772,7 @@ class GenerateHeatmap(Transform):
         self,
         sigma: Sequence[float] | float = 5.0,
         spatial_shape: Sequence[int] | None = None,
-        truncate: float = 3.0,
+        truncated: float = 4.0,
         normalize: bool = True,
         dtype: np.dtype | torch.dtype | type = np.float32,
     ) -> None:
@@ -784,9 +784,9 @@ class GenerateHeatmap(Transform):
             if float(sigma) <= 0:
                 raise ValueError("sigma must be positive.")
             self._sigma = float(sigma)
-        if truncate <= 0:
-            raise ValueError("truncate must be positive.")
-        self.truncate = float(truncate)
+        if truncated <= 0:
+            raise ValueError("truncated must be positive.")
+        self.truncated = float(truncated)
         self.normalize = normalize
         self.torch_dtype = get_equivalent_dtype(dtype, torch.Tensor)
         self.numpy_dtype = get_equivalent_dtype(dtype, np.ndarray)
@@ -816,7 +816,7 @@ class GenerateHeatmap(Transform):
 
         target_shape = self._resolve_spatial_shape(spatial_shape, spatial_dims)
         sigma = self._resolve_sigma(spatial_dims)
-        radius = tuple(int(np.ceil(self.truncate * s)) for s in sigma)
+        radius = tuple(int(np.ceil(self.truncated * s)) for s in sigma)
 
         heatmap = torch.zeros((batch_size, num_points, *target_shape), dtype=self.torch_dtype, device=device)
         image_bounds = tuple(int(s) for s in target_shape)
