@@ -34,7 +34,6 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from functools import reduce
-from typing import Optional
 
 import numpy as np
 import torch
