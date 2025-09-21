@@ -2016,7 +2016,7 @@ class DiffusionModelEncoder(nn.Module):
 
         last_dim_flattened = int(reduce(lambda x, y: x * y, input_shape) * channels[-1])
 
-        self.out: Optional[nn.Module] = nn.Sequential(
+        self.out: nn.Module = nn.Sequential(
             nn.Linear(last_dim_flattened, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.out_channels)
         )
 
