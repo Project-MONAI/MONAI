@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.transforms.post.dictionary import GenerateHeatmapd
-from tests.test_utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import assert_allclose
 
 # Test cases for dictionary transforms with reference image
 # Only test with non-MetaTensor types to avoid affine conflicts
