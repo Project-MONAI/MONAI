@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Add input validation to ImageStats class (#8501)
 * Add support for optional conditioning in PatchInferer, SliceInferer, and SlidingWindowInferer (#8400)
 * Add classifier free guidance unconditioned value (#8562)
+* Improved `DiffusionModelEncoder` to support output linear layers of different dimensions (#8578, #8580)
 
 ### Fixed
 * Fix for insecure zip file extraction to address https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6ww-pf9m-m73m (#8568)
@@ -26,6 +27,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Fix: HistogramNormalized doc (#8543)
 * Fix build failure by pinning pyamg to versions below 5.3.0 (#8548)
 * Fix hardcoded input dim in DiffusionModelEncoder (#8514)
+* Fix for gdown downloading fails (#8576)
 
 ### Changed
 * Update README badges to add research paper citations number (#8494)
@@ -33,7 +35,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Improve documentation on the datalist format (#8539)
 * Tests Cleanup and refactor (#8405, #8535)
 * Improve Orientation transform to use the "space" (LPS vs RAS) of a metatensor by default (#8473)
-
+* Updated supported version of Huggingface Transformers (#8574)
 
 ## [1.5.0] - 2025-06-13
 
