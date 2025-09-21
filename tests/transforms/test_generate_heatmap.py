@@ -227,16 +227,16 @@ class TestGenerateHeatmap(unittest.TestCase):
         # Test that truncated parameter correctly controls window size
         pt = np.array([[8.0, 8.0]], dtype=np.float32)
         sigma = 2.0
-        
+
         # Test with different truncated values
         small_truncated = GenerateHeatmap(sigma=sigma, spatial_shape=(32, 32), truncated=2.0)(pt)[0]
         default_truncated = GenerateHeatmap(sigma=sigma, spatial_shape=(32, 32), truncated=4.0)(pt)[0]  # default
         large_truncated = GenerateHeatmap(sigma=sigma, spatial_shape=(32, 32), truncated=6.0)(pt)[0]
-        
+
         # Larger truncated should capture more of the gaussian, resulting in slightly higher total sum
         self.assertLess(small_truncated.sum(), default_truncated.sum())
         self.assertLess(default_truncated.sum(), large_truncated.sum())
-        
+
         # All should have same peak value (normalized to 1.0)
         np.testing.assert_allclose(small_truncated.max(), 1.0, rtol=1e-5)
         np.testing.assert_allclose(default_truncated.max(), 1.0, rtol=1e-5)
