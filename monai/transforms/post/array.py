@@ -792,11 +792,7 @@ class GenerateHeatmap(Transform):
         self.numpy_dtype = get_equivalent_dtype(dtype, np.ndarray)
         self.spatial_shape = None if spatial_shape is None else tuple(int(s) for s in spatial_shape)
 
-    def __call__(
-        self,
-        points: NdarrayOrTensor,
-        spatial_shape: Sequence[int] | None = None,
-    ) -> NdarrayOrTensor:
+    def __call__(self, points: NdarrayOrTensor, spatial_shape: Sequence[int] | None = None) -> NdarrayOrTensor:
         original_points = points
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
 
@@ -871,11 +867,7 @@ class GenerateHeatmap(Transform):
         return all(0 <= c < size for c, size in zip(center, bounds))
 
     def _make_window(
-        self,
-        center: Sequence[float],
-        radius: tuple[int, ...],
-        bounds: tuple[int, ...],
-        device: torch.device,
+        self, center: Sequence[float], radius: tuple[int, ...], bounds: tuple[int, ...], device: torch.device
     ) -> tuple[tuple[slice, ...] | None, tuple[torch.Tensor, ...]]:
         slices: list[slice] = []
         coord_shifts: list[torch.Tensor] = []

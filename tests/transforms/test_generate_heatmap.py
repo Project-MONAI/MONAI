@@ -72,14 +72,7 @@ class TestGenerateHeatmap(unittest.TestCase):
 
     def test_array_channel_order_identity(self):
         # ensure the order of channels follows the order of input points
-        pts = np.array(
-            [
-                [2.0, 2.0],  # point A
-                [12.0, 2.0],  # point B
-                [2.0, 12.0],  # point C
-            ],
-            dtype=np.float32,
-        )
+        pts = np.array([[2.0, 2.0], [12.0, 2.0], [2.0, 12.0]], dtype=np.float32)  # point A  # point B  # point C
         hm = GenerateHeatmap(sigma=1.2, spatial_shape=(16, 16))(pts)
         self.assertEqual(hm.shape, (3, 16, 16))
 
@@ -90,11 +83,7 @@ class TestGenerateHeatmap(unittest.TestCase):
     def test_array_points_out_of_bounds(self):
         # points outside spatial domain: heatmap should still be valid (no NaN/Inf) and not all-zeros
         pts = np.array(
-            [
-                [-5.0, -5.0],  # outside top-left
-                [100.0, 100.0],  # outside bottom-right
-                [8.0, 8.0],  # inside
-            ],
+            [[-5.0, -5.0], [100.0, 100.0], [8.0, 8.0]],  # outside top-left  # outside bottom-right  # inside
             dtype=np.float32,
         )
         hm = GenerateHeatmap(sigma=2.0, spatial_shape=(16, 16))(pts)
@@ -118,12 +107,7 @@ class TestGenerateHeatmap(unittest.TestCase):
         image.meta["spatial_shape"] = (8, 8, 8)
         data = {"points": points, "image": image}
 
-        transform = GenerateHeatmapd(
-            keys="points",
-            heatmap_keys="heatmap",
-            ref_image_keys="image",
-            sigma=2.0,
-        )
+        transform = GenerateHeatmapd(keys="points", heatmap_keys="heatmap", ref_image_keys="image", sigma=2.0)
 
         result = transform(data)
         heatmap = result["heatmap"]
@@ -172,13 +156,7 @@ class TestGenerateHeatmap(unittest.TestCase):
         self.assertEqual(hm.dtype, torch.float16)
 
     def test_array_batched_3d(self):
-        points = np.array(
-            [
-                [[4.2, 7.8, 1.0]],  # Batch 1
-                [[12.3, 3.6, 2.0]],  # Batch 2
-            ],
-            dtype=np.float32,
-        )
+        points = np.array([[[4.2, 7.8, 1.0]], [[12.3, 3.6, 2.0]]], dtype=np.float32)  # Batch 1  # Batch 2
         transform = GenerateHeatmap(sigma=1.5, spatial_shape=(16, 16, 16))
 
         heatmap = transform(points)
@@ -193,25 +171,14 @@ class TestGenerateHeatmap(unittest.TestCase):
             self.assertTrue(np.all(np.abs(peak - points[i, 0]) <= 1.0), msg=f"peak={peak}, point={points[i, 0]}")
 
     def test_dict_batched_with_ref(self):
-        points = torch.tensor(
-            [
-                [[1.5, 2.5, 3.5]],  # Batch 1
-                [[4.5, 5.5, 6.5]],  # Batch 2
-            ],
-            dtype=torch.float32,
-        )
+        points = torch.tensor([[[1.5, 2.5, 3.5]], [[4.5, 5.5, 6.5]]], dtype=torch.float32)  # Batch 1  # Batch 2
         affine = torch.eye(4)
         # A single reference image is used for the whole batch
         image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
         image.meta["spatial_shape"] = (8, 8, 8)
         data = {"points": points, "image": image}
 
-        transform = GenerateHeatmapd(
-            keys="points",
-            heatmap_keys="heatmap",
-            ref_image_keys="image",
-            sigma=1.0,
-        )
+        transform = GenerateHeatmapd(keys="points", heatmap_keys="heatmap", ref_image_keys="image", sigma=1.0)
 
         result = transform(data)
         heatmap = result["heatmap"]

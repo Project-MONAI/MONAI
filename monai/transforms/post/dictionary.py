@@ -538,11 +538,7 @@ class GenerateHeatmapd(MapTransform):
         self.ref_image_keys = self._prepare_optional_keys(ref_image_keys)
         self.static_shapes = self._prepare_shapes(spatial_shape)
         self.generator = GenerateHeatmap(
-            sigma=sigma,
-            spatial_shape=None,
-            truncated=truncated,
-            normalize=normalize,
-            dtype=dtype,
+            sigma=sigma, spatial_shape=None, truncated=truncated, normalize=normalize, dtype=dtype
         )
 
     def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
@@ -600,11 +596,7 @@ class GenerateHeatmapd(MapTransform):
         return tuple(prepared)
 
     def _determine_shape(
-        self,
-        points: Any,
-        static_shape: tuple[int, ...] | None,
-        data: Mapping[Hashable, Any],
-        ref_key: Hashable | None,
+        self, points: Any, static_shape: tuple[int, ...] | None, data: Mapping[Hashable, Any], ref_key: Hashable | None
     ) -> tuple[int, ...]:
         if static_shape is not None:
             return static_shape
