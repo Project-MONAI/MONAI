@@ -133,7 +133,7 @@ def get_nnunet_trainer(
         cudnn.benchmark = True
 
     if pretrained_model is not None:
-        state_dict = torch.load(pretrained_model)
+        state_dict = torch.load(pretrained_model, weights_only=True)
         if "network_weights" in state_dict:
             nnunet_trainer.network._orig_mod.load_state_dict(state_dict["network_weights"])
     return nnunet_trainer
@@ -182,7 +182,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
         parameters = []
 
         checkpoint = torch.load(
-            join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"), map_location=torch.device("cpu")
+            join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"),
+            map_location=torch.device("cpu"),
+            weights_only=True,
         )
         trainer_name = checkpoint["trainer_name"]
         configuration_name = checkpoint["init_args"]["configuration"]
@@ -192,7 +194,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
             else None
         )
         if Path(model_training_output_dir).joinpath(model_name).is_file():
-            monai_checkpoint = torch.load(join(model_training_output_dir, model_name), map_location=torch.device("cpu"))
+            monai_checkpoint = torch.load(
+                join(model_training_output_dir, model_name), map_location=torch.device("cpu"), weights_only=True
+            )
             if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
             else:
@@ -383,8 +387,12 @@ def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str,
         dataset_name, f"{nnunet_trainer}__{nnunet_plans}__{nnunet_configuration}"
     )
 
-    nnunet_checkpoint_final = torch.load(Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"))
-    nnunet_checkpoint_best = torch.load(Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"))
+    nnunet_checkpoint_final = torch.load(
+        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_final.pth"), weights_only=True
+    )
+    nnunet_checkpoint_best = torch.load(
+        Path(nnunet_model_folder).joinpath(f"fold_{fold}", "checkpoint_best.pth"), weights_only=True
+    )
 
     nnunet_checkpoint = {}
     nnunet_checkpoint["inference_allowed_mirroring_axes"] = nnunet_checkpoint_final["inference_allowed_mirroring_axes"]
@@ -470,7 +478,7 @@ def get_network_from_nnunet_plans(
     if model_ckpt is None:
         return network
     else:
-        state_dict = torch.load(model_ckpt)
+        state_dict = torch.load(model_ckpt, weights_only=True)
         network.load_state_dict(state_dict[model_key_in_ckpt])
         return network
 
@@ -534,7 +542,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
 
     Path(nnunet_model_folder).joinpath(f"fold_{fold}").mkdir(parents=True, exist_ok=True)
 
-    nnunet_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/nnunet_checkpoint.pth")
+    nnunet_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/nnunet_checkpoint.pth", weights_only=True)
     latest_checkpoints: list[str] = subfiles(
         Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True
     )
@@ -545,7 +553,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
     epochs.sort()
     final_epoch: int = epochs[-1]
     monai_last_checkpoint: dict = torch.load(
-        f"{bundle_root_folder}/models/fold_{fold}/checkpoint_epoch={final_epoch}.pt"
+        f"{bundle_root_folder}/models/fold_{fold}/checkpoint_epoch={final_epoch}.pt", weights_only=True
     )
 
     best_checkpoints: list[str] = subfiles(
@@ -558,7 +566,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
     key_metrics.sort()
     best_key_metric: str = key_metrics[-1]
     monai_best_checkpoint: dict = torch.load(
-        f"{bundle_root_folder}/models/fold_{fold}/checkpoint_key_metric={best_key_metric}.pt"
+        f"{bundle_root_folder}/models/fold_{fold}/checkpoint_key_metric={best_key_metric}.pt", weights_only=True
     )
 
     nnunet_checkpoint["optimizer_state"] = monai_last_checkpoint["optimizer_state"]

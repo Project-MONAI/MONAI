@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import pickle
 import tempfile
 import unittest
 
@@ -86,7 +85,8 @@ class TestDataset(unittest.TestCase):
                     cache_dir=tempdir,
                     device=0,
                     pickle_module="pickle",
-                    pickle_protocol=pickle.HIGHEST_PROTOCOL,
+                    # TODO: was pickle.HIGHEST_PROTOCOL but this wasn't compatible with torch.load, need to improve compatibility
+                    pickle_protocol=torch.serialization.DEFAULT_PROTOCOL,
                 )
                 assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
                 ds1 = GDSDataset(items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
