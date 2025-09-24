@@ -521,6 +521,14 @@ class GenerateHeatmapd(MapTransform):
 
     backend = GenerateHeatmap.backend
 
+    # Error messages
+    _ERR_HEATMAP_KEYS_LEN = "heatmap_keys length must match keys length."
+    _ERR_REF_KEYS_LEN = "ref_image_keys length must match keys length when provided."
+    _ERR_SHAPE_LEN = "spatial_shape length must match keys length when providing per-key shapes."
+    _ERR_NO_SHAPE = "Unable to determine spatial shape for GenerateHeatmapd. Provide spatial_shape or ref_image_keys."
+    _ERR_INVALID_POINTS = "landmark arrays must be 2D or 3D with shape (N, D) or (B, N, D)."
+    _ERR_REF_NO_SHAPE = "Reference data must define a shape attribute."
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -570,7 +578,7 @@ class GenerateHeatmapd(MapTransform):
         if len(keys_tuple) == 1 and len(self.keys) > 1:
             keys_tuple = keys_tuple * len(self.keys)
         if len(keys_tuple) != len(self.keys):
-            raise ValueError("heatmap_keys length must match keys length.")
+            raise ValueError(self._ERR_HEATMAP_KEYS_LEN)
         return keys_tuple
 
     def _prepare_optional_keys(self, maybe_keys: KeysCollection | None) -> tuple[Hashable | None, ...]:
@@ -580,7 +588,7 @@ class GenerateHeatmapd(MapTransform):
         if len(keys_tuple) == 1 and len(self.keys) > 1:
             keys_tuple = keys_tuple * len(self.keys)
         if len(keys_tuple) != len(self.keys):
-            raise ValueError("ref_image_keys length must match keys length when provided.")
+            raise ValueError(self._ERR_REF_KEYS_LEN)
         return tuple(keys_tuple)
 
     def _prepare_shapes(
@@ -595,7 +603,7 @@ class GenerateHeatmapd(MapTransform):
         if len(shape_tuple) == 1 and len(self.keys) > 1:
             shape_tuple = shape_tuple * len(self.keys)
         if len(shape_tuple) != len(self.keys):
-            raise ValueError("spatial_shape length must match keys length when providing per-key shapes.")
+            raise ValueError(self._ERR_SHAPE_LEN)
         prepared: list[tuple[int, ...] | None] = []
         for item in shape_tuple:
             if item is None:
@@ -612,13 +620,11 @@ class GenerateHeatmapd(MapTransform):
             return static_shape
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
         if points_t.ndim not in (2, 3):
-            raise ValueError("landmark arrays must be 2D or 3D with shape (N, D) or (B, N, D).")
+            raise ValueError(self._ERR_INVALID_POINTS)
         spatial_dims = int(points_t.shape[-1])
         if ref_key is not None and ref_key in data:
             return self._shape_from_reference(data[ref_key], spatial_dims)
-        raise ValueError(
-            "Unable to determine spatial shape for GenerateHeatmapd. Provide spatial_shape or ref_image_keys."
-        )
+        raise ValueError(self._ERR_NO_SHAPE)
 
     def _shape_from_reference(self, reference: Any, spatial_dims: int) -> tuple[int, ...]:
         if isinstance(reference, MetaTensor):
@@ -630,23 +636,23 @@ class GenerateHeatmapd(MapTransform):
             return tuple(int(v) for v in reference.shape[-spatial_dims:])
         if hasattr(reference, "shape"):
             return tuple(int(v) for v in reference.shape[-spatial_dims:])
-        raise ValueError("Reference data must define a shape attribute.")
+        raise ValueError(self._ERR_REF_NO_SHAPE)
 
     def _update_spatial_metadata(self, heatmap: MetaTensor, reference: MetaTensor) -> None:
         """Update spatial metadata of heatmap based on its dimensions."""
-        # Update spatial_shape metadata based on heatmap dimensions
+        # Determine if batched based on reference's batch dimension
+        ref_spatial_shape = reference.meta.get("spatial_shape", [])
+        ref_is_batched = len(reference.shape) > len(ref_spatial_shape) + 1
+
         if heatmap.ndim == 5:  # 3D batched: (B, C, H, W, D)
-            heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+            spatial_shape = heatmap.shape[2:]
         elif heatmap.ndim == 4:  # 2D batched (B, C, H, W) or 3D non-batched (C, H, W, D)
-            # Need to check if this is batched 2D or non-batched 3D
-            if len(heatmap.shape[1:]) == len(reference.meta.get("spatial_shape", [])):
-                # Non-batched 3D
-                heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
-            else:
-                # Batched 2D
-                heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[2:])
+            # Disambiguate: 2D batched vs 3D non-batched
+            spatial_shape = heatmap.shape[2:] if ref_is_batched else heatmap.shape[1:]
         else:  # 2D non-batched: (C, H, W)
-            heatmap.meta["spatial_shape"] = tuple(int(v) for v in heatmap.shape[1:])
+            spatial_shape = heatmap.shape[1:]
+
+        heatmap.meta["spatial_shape"] = tuple(int(v) for v in spatial_shape)
 
 
 GenerateHeatmapD = GenerateHeatmapDict = GenerateHeatmapd

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Iterable, Sequence
+from typing import ClassVar
 
 import numpy as np
 import torch
@@ -766,7 +767,7 @@ class GenerateHeatmap(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
+    backend: ClassVar[list] = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -862,7 +863,10 @@ class GenerateHeatmap(Transform):
 
     @staticmethod
     def _is_inside(center: Sequence[float], bounds: tuple[int, ...]) -> bool:
-        return all(0 <= c < size for c, size in zip(center, bounds))
+        for c, size in zip(center, bounds):
+            if not (0 <= c < size):
+                return False
+        return True
 
     def _make_window(
         self, center: Sequence[float], radius: tuple[int, ...], bounds: tuple[int, ...], device: torch.device
@@ -879,6 +883,16 @@ class GenerateHeatmap(Transform):
         return tuple(slices), tuple(coord_shifts)
 
     def _evaluate_gaussian(self, coord_shifts: tuple[torch.Tensor, ...], sigma: tuple[float, ...]) -> torch.Tensor:
+        """
+        Evaluate Gaussian at given coordinate shifts with specified sigmas.
+
+        Args:
+            coord_shifts: Per-dimension coordinate offsets from center.
+            sigma: Per-dimension standard deviations.
+
+        Returns:
+            Gaussian values at the specified coordinates.
+        """
         device = coord_shifts[0].device
         shape = tuple(len(axis) for axis in coord_shifts)
         if 0 in shape:

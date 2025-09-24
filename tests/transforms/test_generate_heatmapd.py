@@ -98,7 +98,7 @@ for sigma in [0.5, 1.0, 2.0, 3.0]:
 
 class TestGenerateHeatmapd(unittest.TestCase):
     @parameterized.expand(TEST_CASES_WITH_REF)
-    def test_dict_with_reference_meta(self, _, points, params, expected_shape, expected_dtype, uses_ref):
+    def test_dict_with_reference_meta(self, _, points, params, expected_shape, *_unused):
         affine = torch.eye(4)
         image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
         image.meta["spatial_shape"] = (8, 8, 8)
@@ -148,7 +148,7 @@ class TestGenerateHeatmapd(unittest.TestCase):
         self.assertEqual(hm.dtype, expected_dtype)
 
     @parameterized.expand(TEST_CASES_BATCHED)
-    def test_dict_batched_with_ref(self, _, points, params, expected_shape, expected_dtype):
+    def test_dict_batched_with_ref(self, _, points, params, expected_shape, _expected_dtype):
         affine = torch.eye(4)
         # A single reference image is used for the whole batch
         image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
