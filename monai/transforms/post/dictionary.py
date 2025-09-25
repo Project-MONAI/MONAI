@@ -517,6 +517,13 @@ class GenerateHeatmapd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GenerateHeatmap`.
     Converts landmark coordinates into gaussian heatmaps and optionally copies metadata from a reference image.
+
+    Notes:
+        - Default heatmap_keys are generated as "{key}_heatmap" for each input key
+        - Shape inference precedence: static spatial_shape > ref_image
+        - Output shapes:
+            - Non-batched points (N, D): (N, H, W[, D])
+            - Batched points (B, N, D): (B, N, H, W[, D])
     """
 
     backend = GenerateHeatmap.backend
@@ -538,7 +545,7 @@ class GenerateHeatmapd(MapTransform):
         spatial_shape: Sequence[int] | Sequence[Sequence[int]] | None = None,
         truncated: float = 4.0,
         normalize: bool = True,
-        dtype: np.dtype | type = np.float32,
+        dtype: np.dtype | torch.dtype | type = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -567,6 +574,7 @@ class GenerateHeatmapd(MapTransform):
                 )
                 # Copy metadata if reference is MetaTensor
                 if isinstance(reference, MetaTensor) and isinstance(heatmap, MetaTensor):
+                    heatmap.affine = reference.affine
                     self._update_spatial_metadata(heatmap, reference)
             d[out_key] = heatmap
         return d
@@ -640,18 +648,8 @@ class GenerateHeatmapd(MapTransform):
 
     def _update_spatial_metadata(self, heatmap: MetaTensor, reference: MetaTensor) -> None:
         """Update spatial metadata of heatmap based on its dimensions."""
-        # Determine if batched based on reference's batch dimension
-        ref_spatial_shape = reference.meta.get("spatial_shape", [])
-        ref_is_batched = len(reference.shape) > len(ref_spatial_shape) + 1
-
-        if heatmap.ndim == 5:  # 3D batched: (B, C, H, W, D)
-            spatial_shape = heatmap.shape[2:]
-        elif heatmap.ndim == 4:  # 2D batched (B, C, H, W) or 3D non-batched (C, H, W, D)
-            # Disambiguate: 2D batched vs 3D non-batched
-            spatial_shape = heatmap.shape[2:] if ref_is_batched else heatmap.shape[1:]
-        else:  # 2D non-batched: (C, H, W)
-            spatial_shape = heatmap.shape[1:]
-
+        # trailing dims after channel are spatial regardless of batch presence
+        spatial_shape = heatmap.shape[-(reference.ndim - 1) :]
         heatmap.meta["spatial_shape"] = tuple(int(v) for v in spatial_shape)
 
 

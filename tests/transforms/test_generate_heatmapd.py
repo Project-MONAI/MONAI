@@ -53,7 +53,7 @@ for shape in [(6, 6), (8, 8, 8), (10, 10, 10)]:
             f"dict_static_shape_{len(shape)}d",
             np.array([[1.0] * len(shape)], dtype=np.float32),
             {"spatial_shape": shape},
-            (1,) + shape,
+            (1, *shape),
             np.float32,
         ]
     )
@@ -165,7 +165,8 @@ class TestGenerateHeatmapd(unittest.TestCase):
         assert_allclose(heatmap.affine, image.affine, type_test=False)
 
         # Check max values
-        max_vals = heatmap.max(dim=2)[0].max(dim=2)[0].max(dim=2)[0]
+        hm2 = heatmap.reshape(heatmap.shape[0], heatmap.shape[1], -1)
+        max_vals = hm2.max(dim=2)[0]
         np.testing.assert_allclose(
             max_vals.cpu().numpy(), np.ones((expected_shape[0], expected_shape[1])), rtol=1e-5, atol=1e-5
         )

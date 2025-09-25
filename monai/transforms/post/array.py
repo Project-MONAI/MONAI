@@ -753,7 +753,14 @@ class VoteEnsemble(Ensemble, Transform):
 
 class GenerateHeatmap(Transform):
     """
-    Generate per-landmark gaussian response maps for 2D or 3D coordinates.
+    Generate per-landmark Gaussian heatmaps for 2D or 3D coordinates.
+
+    Notes:
+        - Coordinates are interpreted in voxel units and expected in (Y, X) for 2D or (Z, Y, X) for 3D.
+        - Output shape:
+            - Non-batched points (N, D): (N, H, W[, D])
+            - Batched points (B, N, D): (B, N, H, W[, D])
+        - Each channel corresponds to one landmark.
 
     Args:
         sigma: gaussian standard deviation. A single value is broadcast across all spatial dimensions.
@@ -829,11 +836,13 @@ class GenerateHeatmap(Transform):
                     continue
                 region = heatmap[b_idx, idx][window_slices]
                 gaussian = self._evaluate_gaussian(coord_shifts, sigma)
-                torch.maximum(region, gaussian, out=region)
+                updated = torch.maximum(region, gaussian)
+                # write back
+                region.copy_(updated)
                 if self.normalize:
-                    max_val = heatmap[b_idx, idx].max()
-                    if max_val.item() > 0:
-                        heatmap[b_idx, idx] /= max_val
+                    peak = updated.max()
+                    if peak.item() > 0:
+                        heatmap[b_idx, idx] /= peak
 
         if not is_batched:
             heatmap = heatmap.squeeze(0)
@@ -851,7 +860,9 @@ class GenerateHeatmap(Transform):
             if len(shape_tuple) == 1:
                 shape_tuple = shape_tuple * spatial_dims  # type: ignore
             else:
-                raise ValueError("spatial_shape length must match spatial dimension of the landmarks.")
+                raise ValueError(
+                    "spatial_shape length must match the landmarks' spatial dims (or pass a single int to broadcast)."
+                )
         return tuple(int(s) for s in shape_tuple)
 
     def _resolve_sigma(self, spatial_dims: int) -> tuple[float, ...]:
@@ -879,7 +890,7 @@ class GenerateHeatmap(Transform):
             if start >= stop:
                 return None, ()
             slices.append(slice(start, stop))
-            coord_shifts.append(torch.arange(start, stop, device=device, dtype=self.torch_dtype) - float(c))
+            coord_shifts.append(torch.arange(start, stop, device=device, dtype=torch.float32) - float(c))
         return tuple(slices), tuple(coord_shifts)
 
     def _evaluate_gaussian(self, coord_shifts: tuple[torch.Tensor, ...], sigma: tuple[float, ...]) -> torch.Tensor:
@@ -897,13 +908,15 @@ class GenerateHeatmap(Transform):
         shape = tuple(len(axis) for axis in coord_shifts)
         if 0 in shape:
             return torch.zeros(shape, dtype=self.torch_dtype, device=device)
-        exponent = torch.zeros(shape, dtype=self.torch_dtype, device=device)
+        exponent = torch.zeros(shape, dtype=torch.float32, device=device)
         for dim, (shift, sig) in enumerate(zip(coord_shifts, sigma)):
-            scaled = (shift / float(sig)) ** 2
+            shift32 = shift.to(torch.float32)
+            scaled = (shift32 / float(sig)) ** 2
             reshape_shape = [1] * len(coord_shifts)
             reshape_shape[dim] = shift.numel()
             exponent += scaled.reshape(reshape_shape)
-        return torch.exp(-0.5 * exponent)
+        gauss = torch.exp(-0.5 * exponent)
+        return gauss.to(dtype=self.torch_dtype)
 
 
 class ProbNMS(Transform):
