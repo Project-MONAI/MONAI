@@ -90,6 +90,12 @@ class TransformerBlock(nn.Module):
                 causal=False,
                 use_flash_attention=use_flash_attention,
             )
+        else:
+            def _drop_cross_attn_keys(state_dict, prefix, *_args):
+                for key in list(state_dict.keys()):
+                    if key.startswith(prefix + "cross_attn.") or key.startswith(prefix + "norm_cross_attn."):
+                        state_dict.pop(key)
+            self._register_load_state_dict_pre_hook(_drop_cross_attn_keys)
 
     def forward(
         self, x: torch.Tensor, context: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None
