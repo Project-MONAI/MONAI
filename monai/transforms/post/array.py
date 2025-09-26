@@ -841,9 +841,9 @@ class GenerateHeatmap(Transform):
                 # write back
                 region.copy_(updated)
                 if self.normalize:
-                    peak = updated.amax()
+                    peak = heatmap[b_idx, idx].amax()
                     denom = torch.where(peak > 0, peak, torch.ones_like(peak))
-                    heatmap[b_idx, idx] = heatmap[b_idx, idx] / denom
+                    heatmap[b_idx, idx].div_(denom)
 
         if not is_batched:
             heatmap = heatmap.squeeze(0)

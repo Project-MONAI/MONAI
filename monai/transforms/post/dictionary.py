@@ -520,7 +520,8 @@ class GenerateHeatmapd(MapTransform):
 
     Args:
         keys: keys of the corresponding items in the dictionary.
-        sigma: standard deviation for the Gaussian kernel. Can be a single value or sequence matching number of points.
+        sigma: standard deviation for the Gaussian kernel. Can be a single value or a sequence matching the number
+            of spatial dimensions.
         heatmap_keys: keys to store output heatmaps. Default: "{key}_heatmap" for each key.
         ref_image_keys: keys of reference images to inherit spatial metadata from. When provided, heatmaps will
             have the same shape, affine, and spatial metadata as the reference images.
@@ -647,12 +648,16 @@ class GenerateHeatmapd(MapTransform):
     def _determine_shape(
         self, points: Any, static_shape: tuple[int, ...] | None, data: Mapping[Hashable, Any], ref_key: Hashable | None
     ) -> tuple[int, ...]:
-        if static_shape is not None:
-            return static_shape
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
         if points_t.ndim not in (2, 3):
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
+        if static_shape is not None:
+            if len(static_shape) != spatial_dims:
+                raise ValueError(
+                    f"Provided static spatial_shape has {len(static_shape)} dims; expected {spatial_dims}."
+                )
+            return static_shape
         if ref_key is not None and ref_key in data:
             return self._shape_from_reference(data[ref_key], spatial_dims)
         raise ValueError(self._ERR_NO_SHAPE)
