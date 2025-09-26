@@ -799,6 +799,9 @@ class GenerateHeatmap(Transform):
         self.normalize = normalize
         self.torch_dtype = get_equivalent_dtype(dtype, torch.Tensor)
         self.numpy_dtype = get_equivalent_dtype(dtype, np.ndarray)
+        # Validate that dtype is floating-point for meaningful Gaussian values
+        if self.torch_dtype not in (torch.float16, torch.float32, torch.float64, torch.bfloat16):
+            raise ValueError(f"dtype must be a floating-point type, got {self.torch_dtype}")
         self.spatial_shape = None if spatial_shape is None else tuple(int(s) for s in spatial_shape)
 
     def __call__(self, points: NdarrayOrTensor, spatial_shape: Sequence[int] | None = None) -> NdarrayOrTensor:
