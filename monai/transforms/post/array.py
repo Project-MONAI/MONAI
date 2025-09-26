@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Iterable, Sequence
-from typing import ClassVar
 
 import numpy as np
 import torch
@@ -757,14 +756,16 @@ class GenerateHeatmap(Transform):
 
     Notes:
         - Coordinates are interpreted in voxel units and expected in (Y, X) for 2D or (Z, Y, X) for 3D.
-        - Output shape:
-            - Non-batched points (N, D): (N, H, W[, D])
-            - Batched points (B, N, D): (B, N, H, W[, D])
+        - Target spatial_shape is (Y, X) for 2D and (Z, Y, X) for 3D.
+        - Output layout uses channel-first convention with one channel per landmark:
+            - Non-batched points (N, D): (N, Y, X) for 2D or (N, Z, Y, X) for 3D
+            - Batched points (B, N, D): (B, N, Y, X) for 2D or (B, N, Z, Y, X) for 3D
         - Each channel corresponds to one landmark.
 
     Args:
         sigma: gaussian standard deviation. A single value is broadcast across all spatial dimensions.
         spatial_shape: optional fallback spatial shape. If ``None`` it must be provided when calling the transform.
+            A single int value will be broadcast to all spatial dimensions.
         truncated: extent, in multiples of ``sigma``, used to crop the gaussian support window.
         normalize: normalize every heatmap channel to ``[0, 1]`` when ``True``.
         dtype: target dtype for the generated heatmaps (accepts numpy or torch dtypes).
@@ -774,7 +775,7 @@ class GenerateHeatmap(Transform):
 
     """
 
-    backend: ClassVar[list] = [TransformBackends.NUMPY, TransformBackends.TORCH]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -840,9 +841,9 @@ class GenerateHeatmap(Transform):
                 # write back
                 region.copy_(updated)
                 if self.normalize:
-                    peak = updated.max()
-                    if peak.item() > 0:
-                        heatmap[b_idx, idx] /= peak
+                    peak = updated.amax()
+                    denom = torch.where(peak > 0, peak, torch.ones_like(peak))
+                    heatmap[b_idx, idx] = heatmap[b_idx, idx] / denom
 
         if not is_batched:
             heatmap = heatmap.squeeze(0)

@@ -518,12 +518,35 @@ class GenerateHeatmapd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.GenerateHeatmap`.
     Converts landmark coordinates into gaussian heatmaps and optionally copies metadata from a reference image.
 
+    Args:
+        keys: keys of the corresponding items in the dictionary.
+        sigma: standard deviation for the Gaussian kernel. Can be a single value or sequence matching number of points.
+        heatmap_keys: keys to store output heatmaps. Default: "{key}_heatmap" for each key.
+        ref_image_keys: keys of reference images to inherit spatial metadata from. When provided, heatmaps will
+            have the same shape, affine, and spatial metadata as the reference images.
+        spatial_shape: spatial dimensions of output heatmaps. Can be:
+            - Single shape (tuple): applied to all keys
+            - List of shapes: one per key (must match keys length)
+        truncated: truncation distance for Gaussian kernel computation (in sigmas).
+        normalize: if True, normalize each heatmap's peak value to 1.0.
+        dtype: output data type for heatmaps. Defaults to np.float32.
+        allow_missing_keys: if True, don't raise error if some keys are missing in data.
+
+    Returns:
+        Dictionary with original data plus generated heatmaps at specified keys.
+
+    Raises:
+        ValueError: If heatmap_keys/ref_image_keys length doesn't match keys length.
+        ValueError: If no spatial shape can be determined (need spatial_shape or ref_image_keys).
+        ValueError: If input points have invalid shape (must be 2D or 3D).
+
     Notes:
         - Default heatmap_keys are generated as "{key}_heatmap" for each input key
         - Shape inference precedence: static spatial_shape > ref_image
         - Output shapes:
             - Non-batched points (N, D): (N, H, W[, D])
             - Batched points (B, N, D): (B, N, H, W[, D])
+        - When using ref_image_keys, heatmaps inherit affine and spatial metadata from reference
     """
 
     backend = GenerateHeatmap.backend
@@ -575,7 +598,7 @@ class GenerateHeatmapd(MapTransform):
                 # Copy metadata if reference is MetaTensor
                 if isinstance(reference, MetaTensor) and isinstance(heatmap, MetaTensor):
                     heatmap.affine = reference.affine
-                    self._update_spatial_metadata(heatmap, reference)
+                    self._update_spatial_metadata(heatmap, shape)
             d[out_key] = heatmap
         return d
 
@@ -628,7 +651,7 @@ class GenerateHeatmapd(MapTransform):
             return static_shape
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
         if points_t.ndim not in (2, 3):
-            raise ValueError(self._ERR_INVALID_POINTS)
+            raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
         if ref_key is not None and ref_key in data:
             return self._shape_from_reference(data[ref_key], spatial_dims)
@@ -646,10 +669,8 @@ class GenerateHeatmapd(MapTransform):
             return tuple(int(v) for v in reference.shape[-spatial_dims:])
         raise ValueError(self._ERR_REF_NO_SHAPE)
 
-    def _update_spatial_metadata(self, heatmap: MetaTensor, reference: MetaTensor) -> None:
-        """Update spatial metadata of heatmap based on its dimensions."""
-        # trailing dims after channel are spatial regardless of batch presence
-        spatial_shape = heatmap.shape[-(reference.ndim - 1) :]
+    def _update_spatial_metadata(self, heatmap: MetaTensor, spatial_shape: tuple[int, ...]) -> None:
+        """Set spatial_shape explicitly from resolved shape."""
         heatmap.meta["spatial_shape"] = tuple(int(v) for v in spatial_shape)
 
 

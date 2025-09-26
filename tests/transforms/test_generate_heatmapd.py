@@ -128,10 +128,16 @@ class TestGenerateHeatmapd(unittest.TestCase):
         self.assertEqual(heatmap.shape, expected_shape)
         self.assertEqual(heatmap.dtype, expected_dtype)
 
+        # Verify no NaN or Inf values
+        self.assertFalse(np.isnan(heatmap).any() or np.isinf(heatmap).any())
+
+        # Verify max value is 1.0 for normalized heatmaps
+        np.testing.assert_allclose(heatmap.max(), 1.0, rtol=1e-5)
+
     def test_dict_missing_shape_raises(self):
         # Without ref image or explicit spatial_shape, must raise
         transform = GenerateHeatmapd(keys="points", heatmap_keys="heatmap")
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "spatial_shape|ref_image_keys"):
             transform({"points": np.zeros((1, 2), dtype=np.float32)})
 
     @parameterized.expand(TEST_CASES_DTYPE)
@@ -203,6 +209,35 @@ class TestGenerateHeatmapd(unittest.TestCase):
         # Verify peaks are at different locations
         self.assertNotEqual(np.argmax(result["hm1"]), np.argmax(result["hm2"]))
 
+    def test_dict_mismatched_heatmap_keys_length(self):
+        """Test ValueError when heatmap_keys length doesn't match keys"""
+        with self.assertRaises(ValueError):
+            GenerateHeatmapd(
+                keys=["pts1", "pts2"],
+                heatmap_keys=["hm1", "hm2", "hm3"],  # Mismatch: 3 heatmap keys for 2 input keys
+                spatial_shape=(8, 8),
+            )
+
+    def test_dict_mismatched_ref_image_keys_length(self):
+        """Test ValueError when ref_image_keys length doesn't match keys"""
+        with self.assertRaises(ValueError):
+            GenerateHeatmapd(
+                keys=["pts1", "pts2"],
+                heatmap_keys=["hm1", "hm2"],
+                ref_image_keys=["img1", "img2", "img3"],  # Mismatch: 3 ref keys for 2 input keys
+                spatial_shape=(8, 8),
+            )
+
+    def test_dict_per_key_spatial_shape_mismatch(self):
+        """Test ValueError when per-key spatial_shape length doesn't match keys"""
+        with self.assertRaises(ValueError):
+            GenerateHeatmapd(
+                keys=["pts1", "pts2"],
+                heatmap_keys=["hm1", "hm2"],
+                spatial_shape=[(8, 8), (8, 8), (8, 8)],  # Mismatch: 3 shapes for 2 keys
+                sigma=1.0,
+            )
+
     def test_metatensor_points_with_ref(self):
         """Test MetaTensor points with reference image - documents current behavior"""
         from monai.data import MetaTensor
@@ -224,9 +259,8 @@ class TestGenerateHeatmapd(unittest.TestCase):
         self.assertIsInstance(heatmap, MetaTensor)
         self.assertEqual(tuple(heatmap.shape), (2, 8, 8, 8))
 
-        # Note: Currently the heatmap may inherit affine from points MetaTensor
-        # This test documents the current behavior
-        # Ideally, the heatmap should use the reference image's affine
+        # Heatmap should inherit affine from the reference image
+        assert_allclose(heatmap.affine, image.affine, type_test=False)
 
 
 if __name__ == "__main__":
