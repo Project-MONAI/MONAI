@@ -800,11 +800,24 @@ class GenerateHeatmap(Transform):
         self.torch_dtype = get_equivalent_dtype(dtype, torch.Tensor)
         self.numpy_dtype = get_equivalent_dtype(dtype, np.ndarray)
         # Validate that dtype is floating-point for meaningful Gaussian values
-        if self.torch_dtype not in (torch.float16, torch.float32, torch.float64, torch.bfloat16):
+        if not self.torch_dtype.is_floating_point:
             raise ValueError(f"dtype must be a floating-point type, got {self.torch_dtype}")
         self.spatial_shape = None if spatial_shape is None else tuple(int(s) for s in spatial_shape)
 
     def __call__(self, points: NdarrayOrTensor, spatial_shape: Sequence[int] | None = None) -> NdarrayOrTensor:
+        """
+        Args:
+            points: landmark coordinates as ndarray/Tensor with shape (N, D) or (B, N, D),
+                ordered as (Y, X) for 2D or (Z, Y, X) for 3D.
+            spatial_shape: spatial size as a sequence or single int (broadcasted). If None, uses
+                the value provided at construction.
+
+        Returns:
+            Heatmaps with shape (N, *spatial) or (B, N, *spatial), one channel per landmark.
+
+        Raises:
+            ValueError: if points shape/dimension or spatial_shape is invalid.
+        """
         original_points = points
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
 
@@ -828,13 +841,15 @@ class GenerateHeatmap(Transform):
 
         heatmap = torch.zeros((batch_size, num_points, *target_shape), dtype=self.torch_dtype, device=device)
         image_bounds = tuple(int(s) for s in target_shape)
+        bounds_t = torch.as_tensor(image_bounds, device=device, dtype=points_t.dtype)
         for b_idx in range(batch_size):
             for idx, center in enumerate(points_t[b_idx]):
+                if not torch.isfinite(center).all():
+                    continue
+                if not ((center >= 0).all() and (center < bounds_t).all()):
+                    continue
+                # _make_window expects Python floats; convert only when needed
                 center_vals = center.tolist()
-                if not np.all(np.isfinite(center_vals)):
-                    continue
-                if not self._is_inside(center_vals, image_bounds):
-                    continue
                 window_slices, coord_shifts = self._make_window(center_vals, radius, image_bounds, device)
                 if window_slices is None:
                     continue
