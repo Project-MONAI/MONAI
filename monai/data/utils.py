@@ -625,6 +625,8 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
     ):
         return batch
+    if getattr(batch, "ndim", -1) == 0 and hasattr(batch, "item"):
+        return batch.item() if detach else batch
     if isinstance(batch, torch.Tensor):
         if detach:
             batch = batch.detach()
