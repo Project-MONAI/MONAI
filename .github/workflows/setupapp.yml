@@ -28,7 +28,7 @@ jobs:
       options: --gpus all
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -83,7 +83,7 @@ jobs:
       matrix:
         python-version: ['3.9', '3.10', '3.11']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
@@ -159,7 +159,7 @@ jobs:
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)
       if: github.ref == 'refs/heads/dev'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: dev
     - name: Quick test installed (dev branch only)

@@ -32,7 +32,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: apt install
       run: |
         apt-get update
@@ -82,7 +82,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install APT dependencies
       run: |
         apt-get update
@@ -131,7 +131,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Install the dependencies
@@ -233,7 +233,7 @@ jobs:
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install MONAI
       id: monai-install
       run: |
