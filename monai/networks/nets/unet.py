@@ -33,13 +33,7 @@ class _ActivationCheckpointWrapper(nn.Module):
         self.module = module
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.training and torch.is_grad_enabled() and x.requires_grad:
-            try:
-                return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
-            except TypeError:
-                # Fallback for older PyTorch without `use_reentrant`
-                return cast(torch.Tensor, checkpoint(self.module, x))
-        return cast(torch.Tensor, self.module(x))
+        return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
 
 
 class UNet(nn.Module):
@@ -138,7 +132,6 @@ class UNet(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         adn_ordering: str = "NDA",
-        use_checkpointing: bool = False,
     ) -> None:
         super().__init__()
 
@@ -167,7 +160,6 @@ class UNet(nn.Module):
         self.dropout = dropout
         self.bias = bias
         self.adn_ordering = adn_ordering
-        self.use_checkpointing = use_checkpointing
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
@@ -214,8 +206,6 @@ class UNet(nn.Module):
             subblock: block defining the next layer in the network.
         Returns: block for this layer: `nn.Sequential(down_path, SkipConnection(subblock), up_path)`
         """
-        if self.use_checkpointing:
-            subblock = _ActivationCheckpointWrapper(subblock)
         return nn.Sequential(down_path, SkipConnection(subblock), up_path)
 
     def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
@@ -321,5 +311,9 @@ class UNet(nn.Module):
         x = self.model(x)
         return x
 
+class CheckpointUNet(UNet):
+    def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
+        subblock = _ActivationCheckpointWrapper(subblock)
+        return super()._get_connection_block(down_path, up_path, subblock)
 
 Unet = UNet
