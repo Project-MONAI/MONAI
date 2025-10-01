@@ -81,8 +81,6 @@ class UNet(nn.Module):
             if a conv layer is directly followed by a batch norm layer, bias should be False.
         adn_ordering: a string representing the ordering of activation (A), normalization (N), and dropout (D).
             Defaults to "NDA". See also: :py:class:`monai.networks.blocks.ADN`.
-        use_checkpointing: if True, apply activation checkpointing to internal sub-blocks during training to reduce memory
-        at the cost of extra compute. Checkpointing is bypassed in eval and when gradients are disabled. Defaults to False.
 
     Examples::
 
