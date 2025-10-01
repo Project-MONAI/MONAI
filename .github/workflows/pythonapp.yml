@@ -28,7 +28,7 @@ jobs:
       matrix:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
@@ -70,7 +70,7 @@ jobs:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
@@ -129,7 +129,7 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
     - name: Set up Python 3.9
@@ -213,7 +213,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:

@@ -21,7 +21,7 @@ jobs:
     if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         # full history so that we can git describe
         with:
           ref: dev
@@ -53,7 +53,7 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         ref: dev
     - name: Download version
