@@ -44,13 +44,13 @@ for trans_blocks in [1, 3]:
     TEST_CASE_MILMODEL.append(test_case)
 
 # torchvision backbone
-TEST_CASE_MILMODEL.append(
-    [{"num_classes": 5, "backbone": "resnet18", "pretrained": False}, (2, 2, 3, 512, 512), (2, 5)]
-)
-TEST_CASE_MILMODEL.append([{"num_classes": 5, "backbone": "resnet18", "pretrained": True}, (2, 2, 3, 512, 512), (2, 5)])
+for pretrained in [True, False]:
+    TEST_CASE_MILMODEL.append(
+        [{"num_classes": 5, "backbone": "resnet18", "pretrained": pretrained}, (2, 2, 3, 512, 512), (2, 5)]
+    )
 
 # custom backbone
-backbone = models.densenet121(pretrained=False)
+backbone = models.densenet121()
 backbone_nfeatures = backbone.classifier.in_features
 backbone.classifier = torch.nn.Identity()
 TEST_CASE_MILMODEL.append(

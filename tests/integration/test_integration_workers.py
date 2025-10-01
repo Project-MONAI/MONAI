@@ -18,7 +18,7 @@ import torch
 
 from monai.data import DataLoader
 from monai.utils import set_determinism
-from tests.test_utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.test_utils import DistTestCase, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 def run_loading_test(num_workers=50, device=None, pw=False):
@@ -42,7 +42,6 @@ def run_loading_test(num_workers=50, device=None, pw=False):
 
 @skip_if_quick
 @skip_if_no_cuda
-@SkipIfBeforePyTorchVersion((1, 9))
 class IntegrationLoading(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)

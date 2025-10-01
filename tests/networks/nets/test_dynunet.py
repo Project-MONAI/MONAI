@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import platform
 import unittest
-from collections.abc import Sequence
-from typing import Any
 
 import torch
 from parameterized import parameterized
@@ -22,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
 from monai.utils import optional_import
-from tests.test_utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.test_utils import assert_allclose, dict_product, skip_if_no_cuda, skip_if_windows, test_script_save
 
 InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
@@ -34,86 +32,96 @@ else:
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-strides: Sequence[Sequence[int] | int]
-kernel_size: Sequence[Any]
-expected_shape: Sequence[Any]
-
 TEST_CASE_DYNUNET_2D = []
-out_channels = 2
-in_size = 64
-spatial_dims = 2
-for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
-    for strides in [(1, 1, 1, 1), (2, 2, 2, 1)]:
-        expected_shape = (1, out_channels, *[in_size // strides[0]] * spatial_dims)
-        for in_channels in [2, 3]:
-            for res_block in [True, False]:
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "in_channels": in_channels,
-                        "out_channels": out_channels,
-                        "kernel_size": kernel_size,
-                        "strides": strides,
-                        "upsample_kernel_size": strides[1:],
-                        "norm_name": "batch",
-                        "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.2}),
-                        "deep_supervision": False,
-                        "res_block": res_block,
-                        "dropout": None,
-                    },
-                    (1, in_channels, in_size, in_size),
-                    expected_shape,
-                ]
-                TEST_CASE_DYNUNET_2D.append(test_case)
+out_channels_2d = 2
+in_size_2d = 64
+spatial_dims_2d = 2
+for params in dict_product(
+    kernel_size=[(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))],
+    strides=[(1, 1, 1, 1), (2, 2, 2, 1)],
+    in_channels=[2, 3],
+    res_block=[True, False],
+):
+    kernel_size = params["kernel_size"]
+    strides = params["strides"]
+    in_channels = params["in_channels"]
+    res_block = params["res_block"]
+    expected_shape = (1, out_channels_2d, *[in_size_2d // strides[0]] * spatial_dims_2d)
+    test_case = [
+        {
+            "spatial_dims": spatial_dims_2d,
+            "in_channels": in_channels,
+            "out_channels": out_channels_2d,
+            "kernel_size": kernel_size,
+            "strides": strides,
+            "upsample_kernel_size": strides[1:],
+            "norm_name": "batch",
+            "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.2}),
+            "deep_supervision": False,
+            "res_block": res_block,
+            "dropout": None,
+        },
+        (1, in_channels, in_size_2d, in_size_2d),
+        expected_shape,
+    ]
+    TEST_CASE_DYNUNET_2D.append(test_case)
 
 TEST_CASE_DYNUNET_3D = []  # in 3d cases, also test anisotropic kernel/strides
-in_channels = 1
-in_size = 64
-for out_channels in [2, 3]:
+in_channels_3d = 1
+in_size_3d = 64
+for params in dict_product(out_channels=[2, 3], res_block=[True, False]):
+    out_channels = params["out_channels"]
+    res_block = params["res_block"]
     expected_shape = (1, out_channels, 64, 32, 64)
-    for res_block in [True, False]:
-        test_case = [
-            {
-                "spatial_dims": 3,
-                "in_channels": in_channels,
-                "out_channels": out_channels,
-                "kernel_size": (3, (1, 1, 3), 3, 3),
-                "strides": ((1, 2, 1), 2, 2, 1),
-                "upsample_kernel_size": (2, 2, 1),
-                "filters": (64, 96, 128, 192),
-                "norm_name": ("INSTANCE", {"affine": True}),
-                "deep_supervision": True,
-                "res_block": res_block,
-                "dropout": ("alphadropout", {"p": 0.25}),
-            },
-            (1, in_channels, in_size, in_size, in_size),
-            expected_shape,
-        ]
-        TEST_CASE_DYNUNET_3D.append(test_case)
+    test_case = [
+        {
+            "spatial_dims": 3,
+            "in_channels": in_channels_3d,
+            "out_channels": out_channels,
+            "kernel_size": (3, (1, 1, 3), 3, 3),
+            "strides": ((1, 2, 1), 2, 2, 1),
+            "upsample_kernel_size": (2, 2, 1),
+            "filters": (64, 96, 128, 192),
+            "norm_name": ("INSTANCE", {"affine": True}),
+            "deep_supervision": True,
+            "res_block": res_block,
+            "dropout": ("alphadropout", {"p": 0.25}),
+        },
+        (1, in_channels_3d, in_size_3d, in_size_3d, in_size_3d),
+        expected_shape,
+    ]
+    TEST_CASE_DYNUNET_3D.append(test_case)
 
 TEST_CASE_DEEP_SUPERVISION = []
-for spatial_dims in [2, 3]:
-    for res_block in [True, False]:
-        for deep_supr_num in [1, 2]:
-            for strides in [(1, 2, 1, 2, 1), (2, 2, 2, 1), (2, 1, 1, 2, 2)]:
-                scale = strides[0]
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "in_channels": 1,
-                        "out_channels": 2,
-                        "kernel_size": [3] * len(strides),
-                        "strides": strides,
-                        "upsample_kernel_size": strides[1:],
-                        "norm_name": ("group", {"num_groups": 16}),
-                        "deep_supervision": True,
-                        "deep_supr_num": deep_supr_num,
-                        "res_block": res_block,
-                    },
-                    (1, 1, *[in_size] * spatial_dims),
-                    (1, 1 + deep_supr_num, 2, *[in_size // scale] * spatial_dims),
-                ]
-                TEST_CASE_DEEP_SUPERVISION.append(test_case)
+in_size_ds = 64
+for params in dict_product(
+    spatial_dims=[2, 3],
+    res_block=[True, False],
+    deep_supr_num=[1, 2],
+    strides=[(1, 2, 1, 2, 1), (2, 2, 2, 1), (2, 1, 1, 2, 2)],
+):
+    spatial_dims = params["spatial_dims"]
+    res_block = params["res_block"]
+    deep_supr_num = params["deep_supr_num"]
+    strides = params["strides"]
+    scale = strides[0]
+    test_case = [
+        {
+            "spatial_dims": spatial_dims,
+            "in_channels": 1,
+            "out_channels": 2,
+            "kernel_size": [3] * len(strides),
+            "strides": strides,
+            "upsample_kernel_size": strides[1:],
+            "norm_name": ("group", {"num_groups": 16}),
+            "deep_supervision": True,
+            "deep_supr_num": deep_supr_num,
+            "res_block": res_block,
+        },
+        (1, 1, *[in_size_ds] * spatial_dims),
+        (1, 1 + deep_supr_num, 2, *[in_size_ds // scale] * spatial_dims),
+    ]
+    TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
 class TestDynUNet(unittest.TestCase):

@@ -322,8 +322,36 @@ class PatchInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
 
         """
+        # check if there is a conditioning signal
+        condition = kwargs.pop("condition", None)
+        # shape check for condition
+        if condition is not None:
+            if isinstance(inputs, torch.Tensor) and isinstance(condition, torch.Tensor):
+                if condition.shape != inputs.shape:
+                    raise ValueError(
+                        f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}"
+                    )
+            elif isinstance(inputs, list) and isinstance(condition, list):
+                if len(inputs) != len(condition):
+                    raise ValueError(
+                        f"Length of `condition` must match `inputs`. Got {len(inputs)} and {len(condition)}."
+                    )
+                for (in_patch, _), (cond_patch, _) in zip(inputs, condition):
+                    if cond_patch.shape != in_patch.shape:
+                        raise ValueError(
+                            "Each `condition` patch must match the shape of the corresponding input patch. "
+                            f"Got {cond_patch.shape} and {in_patch.shape}."
+                        )
+            else:
+                raise ValueError(
+                    "`condition` and `inputs` must be of the same type (both Tensor or both list of patches)."
+                )
+
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
             # handle situations where the splitter is not provided
@@ -344,20 +372,39 @@ class PatchInferer(Inferer):
                         f"The provided inputs type is {type(inputs)}."
                     )
             patches_locations = inputs
+            if condition is not None:
+                condition_locations = condition
         else:
             # apply splitter
             patches_locations = self.splitter(inputs)
+            if condition is not None:
+                # apply splitter to condition
+                condition_locations = self.splitter(condition)
 
         ratios: list[float] = []
         mergers: list[Merger] = []
-        for patches, locations, batch_size in self._batch_sampler(patches_locations):
-            # run inference
-            outputs = self._run_inference(network, patches, *args, **kwargs)
-            # initialize the mergers
-            if not mergers:
-                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
-            # aggregate outputs
-            self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        if condition is not None:
+            for (patches, locations, batch_size), (condition_patches, _, _) in zip(
+                self._batch_sampler(patches_locations), self._batch_sampler(condition_locations)
+            ):
+                # add patched condition to kwargs
+                kwargs["condition"] = condition_patches
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        else:
+            for patches, locations, batch_size in self._batch_sampler(patches_locations):
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
         merged_outputs = [merger.finalize() for merger in mergers]
@@ -519,8 +566,14 @@ class SlidingWindowInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
         """
+        # shape check for condition
+        condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
 
         device = kwargs.pop("device", self.device)
         buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
@@ -728,7 +781,9 @@ class SliceInferer(SlidingWindowInferer):
             network: 2D model to execute inference on slices in the 3D input
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-        """
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments."""
         if self.spatial_dim > 2:
             raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
 
@@ -742,12 +797,28 @@ class SliceInferer(SlidingWindowInferer):
                 f"Currently, only 2D `roi_size` ({self.orig_roi_size}) with 3D `inputs` tensor (shape={inputs.shape}) is supported."
             )
 
-        return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
+        # shape check for condition
+        condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
+
+        # check if there is a conditioning signal
+        if condition is not None:
+            return super().__call__(
+                inputs=inputs,
+                network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs),
+                condition=condition,
+            )
+        else:
+            return super().__call__(
+                inputs=inputs, network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs)
+            )
 
     def network_wrapper(
         self,
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
+        condition: torch.Tensor | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -756,7 +827,12 @@ class SliceInferer(SlidingWindowInferer):
         """
         #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
         x = x.squeeze(dim=self.spatial_dim + 2)
-        out = network(x, *args, **kwargs)
+
+        if condition is not None:
+            condition = condition.squeeze(dim=self.spatial_dim + 2)
+            out = network(x, condition, *args, **kwargs)
+        else:
+            out = network(x, *args, **kwargs)
 
         #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
         # the default SlidingWindowInferer class
@@ -840,6 +916,7 @@ class DiffusionInferer(Inferer):
         verbose: bool = True,
         seg: torch.Tensor | None = None,
         cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -853,6 +930,7 @@ class DiffusionInferer(Inferer):
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
             cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -885,7 +963,7 @@ class DiffusionInferer(Inferer):
                 model_input = torch.cat([image] * 2, dim=0)
                 if conditioning is not None:
                     uncondition = torch.ones_like(conditioning)
-                    uncondition.fill_(-1)
+                    uncondition.fill_(cfg_fill_value)
                     conditioning_input = torch.cat([uncondition, conditioning], dim=0)
                 else:
                     conditioning_input = None
@@ -1185,6 +1263,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         verbose: bool = True,
         seg: torch.Tensor | None = None,
         cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1200,6 +1279,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
             cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
 
         if (
@@ -1224,6 +1304,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             verbose=verbose,
             seg=seg,
             cfg=cfg,
+            cfg_fill_value=cfg_fill_value,
         )
 
         if save_intermediates:
@@ -1403,6 +1484,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         verbose: bool = True,
         seg: torch.Tensor | None = None,
         cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1417,7 +1499,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             mode: Conditioning mode for the network.
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
-                        cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -1445,7 +1528,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                 model_input = torch.cat([image] * 2, dim=0)
                 if conditioning is not None:
                     uncondition = torch.ones_like(conditioning)
-                    uncondition.fill_(-1)
+                    uncondition.fill_(cfg_fill_value)
                     conditioning_input = torch.cat([uncondition, conditioning], dim=0)
                 else:
                     conditioning_input = None
@@ -1763,6 +1846,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         verbose: bool = True,
         seg: torch.Tensor | None = None,
         cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1780,6 +1864,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
             cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
 
         if (
@@ -1808,6 +1893,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             verbose=verbose,
             seg=seg,
             cfg=cfg,
+            cfg_fill_value=cfg_fill_value,
         )
 
         if save_intermediates:

@@ -1,6 +1,6 @@
 - [Introduction](#introduction)
 - [The contribution process](#the-contribution-process)
-  * [Preparing pull requests](#preparing-pull-requests)
+  - [Preparing pull requests](#preparing-pull-requests)
     1. [Checking the coding style](#checking-the-coding-style)
     1. [Unit testing](#unit-testing)
     1. [Building the documentation](#building-the-documentation)
@@ -9,14 +9,13 @@
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
     1. [Backwards compatibility](#backwards-compatibility)
-  * [Submitting pull requests](#submitting-pull-requests)
+  - [Submitting pull requests](#submitting-pull-requests)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
-  * [Reviewing pull requests](#reviewing-pull-requests)
+  - [Reviewing pull requests](#reviewing-pull-requests)
 - [Admin tasks (for the maintainers)](#admin-tasks)
-  * [Releasing a new version](#release-a-new-version)
+  - [Releasing a new version](#release-a-new-version)
 
 ## Introduction
-
 
 Welcome to Project MONAI! We're excited you're here and want to contribute. This documentation is intended for individuals and institutions interested in contributing to MONAI. MONAI is an open-source project and, as such, its success relies on its community of contributors willing to keep improving it. Your contribution will be a valued addition to the code base; we simply ask that you read this page and understand our contribution process, whether you are a seasoned open-source contributor or whether you are a first-time contributor.
 
@@ -30,26 +29,28 @@ MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly
 
 ## The contribution process
 
-_Pull request early_
+*Pull request early*
 
 We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. [Create a draft pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/changing-the-stage-of-a-pull-request) until it is ready for formal review.
 
 Please note that, as per PyTorch, MONAI uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
 ### Preparing pull requests
+
 To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
 static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
 To collaborate efficiently, please read through this section and follow them.
 
-* [Checking the coding style](#checking-the-coding-style)
-* [Licensing information](#licensing-information)
-* [Unit testing](#unit-testing)
-* [Building documentation](#building-the-documentation)
-* [Signing your work](#signing-your-work)
+- [Checking the coding style](#checking-the-coding-style)
+- [Licensing information](#licensing-information)
+- [Unit testing](#unit-testing)
+- [Building documentation](#building-the-documentation)
+- [Signing your work](#signing-your-work)
 
 #### Checking the coding style
+
 Coding style is checked and enforced by flake8, black, isort, and ruff, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
@@ -66,12 +67,14 @@ python -m pip install -U -r requirements-dev.txt
 ```
 
 Full linting and type checking may take some time. If you need a quick check, run
+
 ```bash
 # run ruff only
 ./runtests.sh --ruff
 ```
 
 #### Licensing information
+
 All source code files should start with this paragraph:
 
 ```
@@ -96,6 +99,7 @@ If you intend for any variables/functions/classes to be available outside of the
 - Add to the `__init__.py` file.
 
 #### Unit testing
+
 MONAI tests are located under `tests/`.
 
 - The unit test's file name currently follows `test_[module_name].py` or `test_[module_name]_dist.py`.
@@ -106,6 +110,7 @@ A bash script (`runtests.sh`) is provided to run all tests locally.
 Please run ``./runtests.sh -h`` to see all options.
 
 To run a particular test, for example `tests/losses/test_dice_loss.py`:
+
 ```
 python -m tests.losses.test_dice_loss
 ```
@@ -116,6 +121,7 @@ should pass, by running the following command locally:
 ```bash
 ./runtests.sh -f -u --net --coverage
 ```
+
 or (for new features that would not break existing functionality):
 
 ```bash
@@ -125,17 +131,19 @@ or (for new features that would not break existing functionality):
 It is recommended that the new test `test_[module_name].py` is constructed by using only
 python 3.9+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
+
 - the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
 
 ##### Testing data
+
 Testing data such as images and binary files should not be placed in the source code repository.
 Please deploy them to a reliable file sharing location (the current preferred one is [https://github.com/Project-MONAI/MONAI-extra-test-data/releases](https://github.com/Project-MONAI/MONAI-extra-test-data/releases)).
 At test time, the URLs within `tests/testing_data/data_config.json` are accessible
 via the APIs provided in `tests.utils`: `tests.utils.testing_data_config` and `tests.utils.download_url_or_skip_test`.
 
-_If it's not tested, it's broken_
+*If it's not tested, it's broken*
 
 All new functionality should be accompanied by an appropriate set of tests.
 MONAI functionality has plenty of unit tests from which you can draw inspiration,
@@ -144,6 +152,7 @@ and you can reach out to us if you are unsure of how to proceed with testing.
 MONAI's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/MONAI).
 
 #### Building the documentation
+
 MONAI's documentation is located at `docs/`.
 
 ```bash
@@ -155,6 +164,7 @@ pip install -r docs/requirements.txt
 cd docs/
 make html
 ```
+
 The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
 
 The Python code docstring are written in
@@ -162,6 +172,7 @@ The Python code docstring are written in
 the documentation pages can be in either [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) or [Markdown](https://en.wikipedia.org/wiki/Markdown).  In general the Python docstrings follow the [Google style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
 
 Before submitting a pull request, it is recommended to:
+
 - edit the relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
 - build html documentation locally
 - check the auto-generated documentation (by browsing `./docs/build/html/index.html` with a web browser)
@@ -170,11 +181,13 @@ Before submitting a pull request, it is recommended to:
 Please type `make help` in `docs/` folder for all supported format options.
 
 #### Automatic code formatting
+
 MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
 This makes the project's Python coding style consistent and reduces maintenance burdens.
 Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
 
 Steps for the formatting process:
+
 - After submitting a pull request or push to an existing pull request,
 make a comment to the pull request to trigger the formatting action.
 The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
@@ -183,11 +196,13 @@ The first line of the comment must be `/black` so that it will be interpreted by
 - Repeat the above steps if necessary.
 
 #### Adding new optional dependencies
+
 In addition to the minimal requirements of PyTorch and Numpy, MONAI's core modules are built optionally based on 3rd-party packages.
 The current set of dependencies is listed in [installing dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
 
 To allow for flexible integration of MONAI with other systems and environments,
 the optional dependency APIs are always invoked lazily. For example,
+
 ```py
 from monai.utils import optional_import
 itk, _ = optional_import("itk", ...)
@@ -197,11 +212,13 @@ class ITKReader(ImageReader):
     def read(self, ...):
         return itk.imread(...)
 ```
+
 The availability of the external `itk.imread` API is not required unless `monai.data.ITKReader.read` is called by the user.
 Integration tests with minimal requirements are deployed to ensure this strategy.
 
 To add new optional dependencies, please communicate with the core team during pull request reviews,
 and add the necessary information (at least) to the following files:
+
 - [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
 - [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
 - [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
@@ -211,6 +228,7 @@ and add the necessary information (at least) to the following files:
 When writing unit tests that use 3rd-party packages, it is a good practice to always consider
 an appropriate fallback default behaviour when the packages are not installed in
 the testing environment. For example:
+
 ```py
 from monai.utils import optional_import
 plt, has_matplotlib = optional_import("matplotlib.pyplot")
@@ -218,22 +236,25 @@ plt, has_matplotlib = optional_import("matplotlib.pyplot")
 @skipUnless(has_matplotlib, "Matplotlib required")
 class TestBlendImages(unittest.TestCase):
 ```
+
 It skips the test cases when `matplotlib.pyplot` APIs are not available.
 
 Alternatively, add the test file name to the ``exclude_cases`` in `tests/min_tests.py` to completely skip the test
 cases when running in a minimal setup.
 
-
-
 #### Signing your work
+
 MONAI enforces the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) on all pull requests.
 All commit messages should contain the `Signed-off-by` line with an email address. The [GitHub DCO app](https://github.com/apps/dco) is deployed on MONAI. The pull request's status will be `failed` if commits do not contain a valid `Signed-off-by` line.
 
 Git has a `-s` (or `--signoff`) command-line option to append this automatically to your commit message:
+
 ```bash
 git commit -s -m 'a new commit'
 ```
+
 The commit message will be:
+
 ```
     a new commit
 
@@ -241,6 +262,7 @@ The commit message will be:
 ```
 
 Full text of the DCO:
+
 ```
 Developer Certificate of Origin
 Version 1.1
@@ -282,11 +304,13 @@ By making a contribution to this project, I certify that:
 ```
 
 #### Utility functions
+
 MONAI provides a set of generic utility functions and frequently used routines.
 These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
 Users are encouraged to use these common routines to improve code readability and reduce the code maintenance burdens.
 
 Notably,
+
 - ``monai.module.export`` decorator can make the module name shorter when importing,
 for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.spatial.array.Spacing`` if
 ``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
@@ -294,12 +318,14 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print`. So please try to use `f-string` if you need to define any string object.
 
 #### Backwards compatibility
+
 MONAI in general follows [PyTorch's policy for backward compatibility](https://github.com/pytorch/pytorch/wiki/PyTorch's-Python-Frontend-Backward-and-Forward-Compatibility-Policy).
 Utility functions are provided in `monai.utils.deprecated` to help migrate from the deprecated to new APIs. The use of these utilities is encouraged.
 The pull request [template contains checkboxes](https://github.com/Project-MONAI/MONAI/blame/dev/.github/pull_request_template.md#L11-L12) that
 the contributor should use accordingly to clearly indicate breaking changes.
 
 The process of releasing backwards incompatible API changes is as follows:
+
 1. discuss the breaking changes during pull requests or in dev meetings with a feature proposal if needed.
 1. add a warning message in the upcoming release (version `X.Y`), the warning message should include a forecast of removing the deprecated API in:
    1. `X+1.0` -- major version `X+1` and minor version `0` the next major version if it's a significant change,
@@ -313,10 +339,10 @@ The process of releasing backwards incompatible API changes is as follows:
 1. collect feedback from the users during the subsequent few releases, and reconsider step 1 if needed.
 1. before each release, review the deprecating APIs and relevant tests, and clean up the removed APIs described in step 2.
 
-
-
 ### Submitting pull requests
+
 All code changes to the dev branch must be done via [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/proposing-changes-to-your-work-with-pull-requests).
+
 1. Create a new ticket or take a known ticket from [the issue list][monai issue list].
 1. Check if there's already a branch dedicated to the task.
 1. If the task has not been taken, [create a new branch in your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
@@ -334,9 +360,10 @@ Ideally, the new branch should be based on the latest `dev` branch.
 
 ## The code reviewing process
 
-
 ### Reviewing pull requests
+
 All code review comments should be specific, constructive, and actionable.
+
 1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed before reviewing (contact the branch owner if needed).
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
@@ -349,14 +376,15 @@ All code review comments should be specific, constructive, and actionable.
 [github ci]: https://github.com/Project-MONAI/MONAI/actions
 [monai issue list]: https://github.com/Project-MONAI/MONAI/issues
 
-
 ## Admin tasks
 
 ### Release a new version
+
 The `dev` branch's `HEAD` always corresponds to MONAI docker image's latest tag: `projectmonai/monai:latest`.
 The `main` branch's `HEAD` always corresponds to the latest MONAI milestone release.
 
 When major features are ready for a milestone, to prepare for a new release:
+
 - Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases) and release checklist.
 - Check out or cherry-pick a new branch `releasing/[version number]` locally from the `dev` branch and push to the codebase.
 - Create a release candidate tag, for example, `git tag -a 0.1.0rc1 -m "release candidate 1 of version 0.1.0"`.
@@ -364,7 +392,7 @@ When major features are ready for a milestone, to prepare for a new release:
   This step will trigger package building and testing.
   The resultant packages are automatically uploaded to
   [TestPyPI](https://test.pypi.org/project/monai/).  The packages are also available for downloading as
-  repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
+  repository's artifacts (e.g. the file at <https://github.com/Project-MONAI/MONAI/actions/runs/66570977>).
 - Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
 - Optionally run [the cron testing jobs](https://github.com/Project-MONAI/MONAI/blob/dev/.github/workflows/cron.yml) on `releasing/[version number]`.
 - Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
@@ -383,7 +411,6 @@ then make PRs to the `releasing/[version number]` to fix the bugs via the regula
 If any error occurs after the release process, first check out a new hotfix branch from the `main` branch,
 make a patch version release following the semantic versioning, for example, `releasing/0.1.1`.
 Make sure the `releasing/0.1.1` is merged back into both `dev` and `main` and all the test pipelines succeed.
-
 
 <p align="right">
   <a href="#introduction">⬆️ Back to Top</a>

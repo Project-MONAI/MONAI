@@ -333,6 +333,7 @@ class Transchex(torch.nn.Module):
             "chunk_size_feed_forward": chunk_size_feed_forward,
             "is_decoder": is_decoder,
             "add_cross_attention": add_cross_attention,
+            "_attn_implementation": "eager",
         }
         if not (0 <= drop_out <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")

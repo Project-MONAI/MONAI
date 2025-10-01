@@ -32,13 +32,7 @@ from monai.data import create_test_image_3d
 from monai.transforms import SaveImage
 from monai.utils import check_parent_dir, optional_import, set_determinism
 from monai.utils.enums import AlgoKeys
-from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
-    get_testing_algo_template_path,
-    skip_if_downloading_fails,
-    skip_if_no_cuda,
-    skip_if_quick,
-)
+from tests.test_utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -109,7 +103,6 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
 
 @skip_if_quick
 @skip_if_no_cuda
-@SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:

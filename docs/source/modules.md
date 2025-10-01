@@ -123,8 +123,7 @@ MONAI implements reference networks with the aim of both flexibility and code re
 
 Network layers and blocks are in general implemented to be compatible with spatial 1D, 2D and 3D inputs.
 Users can easily integrate the layers, blocks and networks as part of their customised pipelines.
-Various utilities are provided to leverage the existing model weights, e.g., finetuning [from MMAR](https://github.com/Project-MONAI/tutorials/blob/main/modules/transfer_mmar.ipynb)
-or [from a bundle in MONAI model-zoo](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
+Various utilities are provided to leverage the existing model weights, e.g. [from a bundle in MONAI model-zoo](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
 
 ### C++/CUDA optimized modules
 
@@ -231,8 +230,8 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 
 Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined
 with other software packages. For example, MONAI can be easily integrated into popular frameworks such as
-PyTorch-Lightning and Catalyst. [[Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/spleen_segmentation_3d_lightning.ipynb),
-[Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/unet_segmentation_3d_catalyst.ipynb)]
+[PyTorch-Lightning](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/spleen_segmentation_3d_lightning.ipynb)
+and [MLflow](https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/spleen_segmentation_mlflow.ipynb).
 
 ## Bundle
 
@@ -264,7 +263,7 @@ A typical bundle example can include:
      ┗━ *license.txt
 ```
 Details about the bundle config definition and syntax & examples are at [config syntax](https://docs.monai.io/en/latest/config_syntax.html).
-A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/main/bundle/get_started.md) tutorial notebook can help users quickly set up a bundle. [[bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/bundle), [model-zoo](https://github.com/Project-MONAI/model-zoo)]
+A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/main/bundle/README.md) tutorial notebook can help users quickly set up a bundle. [[bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/bundle), [model-zoo](https://github.com/Project-MONAI/model-zoo)]
 
 ## Federated Learning
 
