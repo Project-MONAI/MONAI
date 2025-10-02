@@ -28,6 +28,7 @@ __all__ = ["UNet", "Unet"]
 
 class _ActivationCheckpointWrapper(nn.Module):
     """Apply activation checkpointing to the wrapped module during training."""
+
     def __init__(self, module: nn.Module) -> None:
         super().__init__()
         self.module = module
@@ -309,9 +310,11 @@ class UNet(nn.Module):
         x = self.model(x)
         return x
 
+
 class CheckpointUNet(UNet):
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         subblock = _ActivationCheckpointWrapper(subblock)
         return super()._get_connection_block(down_path, up_path, subblock)
+
 
 Unet = UNet
