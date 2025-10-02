@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, command]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
@@ -89,7 +89,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, command1]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
