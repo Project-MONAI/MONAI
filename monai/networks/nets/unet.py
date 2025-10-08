@@ -314,6 +314,8 @@ class UNet(nn.Module):
 class CheckpointUNet(UNet):
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         subblock = _ActivationCheckpointWrapper(subblock)
+        down_path = _ActivationCheckpointWrapper(down_path)
+        up_path = _ActivationCheckpointWrapper(up_path)
         return super()._get_connection_block(down_path, up_path, subblock)
 
 
