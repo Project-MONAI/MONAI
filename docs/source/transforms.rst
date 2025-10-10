@@ -37,6 +37,11 @@ Generic Interfaces
 .. autoclass:: MultiSampleTrait
     :members:
 
+`ReduceTrait`
+^^^^^^^^^^^^^^^^^^
+.. autoclass:: ReduceTrait
+    :members:
+
 `Randomizable`
 ^^^^^^^^^^^^^^
 .. autoclass:: Randomizable
@@ -1252,6 +1257,12 @@ Utility
     :members:
     :special-members: __call__
 
+`FlattenSequence`
+""""""""""""""""""""""""
+.. autoclass:: FlattenSequence
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -2334,6 +2345,12 @@ Utility (Dict)
 `ApplyTransformToPointsd`
 """""""""""""""""""""""""
 .. autoclass:: ApplyTransformToPointsd
+    :members:
+    :special-members: __call__
+
+`FlattenSequenced`
+"""""""""""""""""""""""""
+.. autoclass:: FlattenSequenced
     :members:
     :special-members: __call__
 

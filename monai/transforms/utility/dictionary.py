@@ -1911,6 +1911,15 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
 
 
 class FlattenSequenced(MapTransform, ReduceTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FlattenSequence`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
     def __init__(
         self,
         keys: KeysCollection,

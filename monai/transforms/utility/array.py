@@ -1954,6 +1954,22 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
 
 
 class FlattenSequence(Transform, ReduceTrait):
+    """
+    Flatten a nested sequence (list or tuple) by one level.
+    If the input is a sequence of sequences, it will flatten them into a single sequence.
+    Non-nested sequences and other data types are returned unchanged.
+
+    For example:
+
+    .. code-block:: python
+
+        flatten = FlattenSequence()
+        data = [[1, 2], [3, 4], [5, 6]]
+        print(flatten(data))
+        [1, 2, 3, 4, 5, 6]
+
+    """
+
     def __init__(self):
         super().__init__()
 
