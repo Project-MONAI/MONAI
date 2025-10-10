@@ -1973,17 +1973,17 @@ class FlattenSequence(Transform, ReduceTrait):
     def __init__(self):
         super().__init__()
 
-def __call__(self, data: list | tuple | Any) -> list | tuple | Any:
-    """
-    Flatten a nested sequence by one level.
-    Args:
-        data: Input data, can be a nested sequence.
-    Returns:
-        Flattened list if input is a nested sequence, otherwise returns data unchanged.
-    """
-    if isinstance(data, (list, tuple)):
-        if len(data) == 0:
-            return data
-        if all(isinstance(item, (list, tuple)) for item in data):
-            return [item for sublist in data for item in sublist]
-    return data
+    def __call__(self, data: list | tuple | Any) -> list | tuple | Any:
+        """
+        Flatten a nested sequence by one level.
+        Args:
+            data: Input data, can be a nested sequence.
+        Returns:
+            Flattened list if input is a nested sequence, otherwise returns data unchanged.
+        """
+        if isinstance(data, (list, tuple)):
+            if len(data) == 0:
+                return data
+            if all(isinstance(item, (list, tuple)) for item in data):
+                return [item for sublist in data for item in sublist]
+        return data
