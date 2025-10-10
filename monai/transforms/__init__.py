@@ -506,7 +506,7 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .spatial.functional import spatial_resample
-from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
+from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ReduceTrait, ThreadUnsafe
 from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddCoordinateChannels,
@@ -521,6 +521,7 @@ from .utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -546,7 +547,6 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
-    FlattenSequence,
 )
 from .utility.dictionary import (
     AddCoordinateChannelsd,
@@ -594,6 +594,9 @@ from .utility.dictionary import (
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
+    FlattenSequenced,
+    FlattenSequenceD,
+    FlattenSequenceDict,
     FlattenSubKeysd,
     FlattenSubKeysD,
     FlattenSubKeysDict,
@@ -672,9 +675,6 @@ from .utility.dictionary import (
     Transposed,
     TransposeD,
     TransposeDict,
-    FlattenSequenced,
-    FlattenSequenceD,
-    FlattenSequenceDict,
 )
 from .utils import (
     Fourier,

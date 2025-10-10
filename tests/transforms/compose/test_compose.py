@@ -290,14 +290,16 @@ class TestCompose(unittest.TestCase):
         img = torch.zeros([1, 512, 512])
 
         self.assertEqual(execute_compose(img, [center_crop]).shape, torch.Size([1, 128, 128]))
-        single_multi_sample_trait_result = execute_compose(img, [multi_sample_transform, center_crop, flatten_sequence_transform])
+        single_multi_sample_trait_result = execute_compose(
+            img, [multi_sample_transform, center_crop, flatten_sequence_transform]
+        )
         self.assertIsInstance(single_multi_sample_trait_result, list)
         self.assertEqual(len(single_multi_sample_trait_result), 1)
         self.assertEqual(single_multi_sample_trait_result[0].shape, torch.Size([1, 64, 64]))
 
-        double_multi_sample_trait_result = execute_compose(img, [
-            multi_sample_transform, multi_sample_transform, flatten_sequence_transform, center_crop
-        ])
+        double_multi_sample_trait_result = execute_compose(
+            img, [multi_sample_transform, multi_sample_transform, flatten_sequence_transform, center_crop]
+        )
         self.assertIsInstance(double_multi_sample_trait_result, list)
         self.assertEqual(len(double_multi_sample_trait_result), 1)
         self.assertEqual(double_multi_sample_trait_result[0].shape, torch.Size([1, 64, 64]))

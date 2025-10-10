@@ -110,7 +110,7 @@ __all__ = [
     "ImageFilter",
     "RandImageFilter",
     "ApplyTransformToPoints",
-    "FlattenSequence"
+    "FlattenSequence",
 ]
 
 

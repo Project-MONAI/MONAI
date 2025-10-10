@@ -45,6 +45,7 @@ from monai.transforms.utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -64,7 +65,6 @@ from monai.transforms.utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
-    FlattenSequence
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
@@ -194,7 +194,7 @@ __all__ = [
     "ApplyTransformToPointsDict",
     "FlattenSequenced",
     "FlattenSequenceD",
-    "FlattenSequenceDict"
+    "FlattenSequenceDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1920,12 +1920,8 @@ class FlattenSequenced(MapTransform, ReduceTrait):
         allow_missing_keys:
             Don't raise exception if key is missing.
     """
-    def __init__(
-        self,
-        keys: KeysCollection,
-        allow_missing_keys: bool = False,
-        **kwargs,
-    ) -> None:
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, **kwargs) -> None:
         super().__init__(keys, allow_missing_keys)
         self.flatten_sequence = FlattenSequence(**kwargs)
 
