@@ -546,6 +546,7 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
+    FlattenSequence,
 )
 from .utility.dictionary import (
     AddCoordinateChannelsd,
@@ -671,6 +672,9 @@ from .utility.dictionary import (
     Transposed,
     TransposeD,
     TransposeDict,
+    FlattenSequenced,
+    FlattenSequenceD,
+    FlattenSequenceDict,
 )
 from .utils import (
     Fourier,

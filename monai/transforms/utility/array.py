@@ -43,7 +43,7 @@ from monai.networks.layers.simplelayers import (
     median_filter,
 )
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.traits import MultiSampleTrait, ReduceTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     apply_affine_to_points,
@@ -110,6 +110,7 @@ __all__ = [
     "ImageFilter",
     "RandImageFilter",
     "ApplyTransformToPoints",
+    "FlattenSequence"
 ]
 
 
@@ -1949,4 +1950,17 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
 
+        return data
+
+
+class FlattenSequence(Transform, ReduceTrait):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, data):
+        if isinstance(data, (list, tuple)):
+            if len(data) == 0:
+                return data
+            if isinstance(data[0], (list, tuple)):
+                return [item for sublist in data for item in sublist]
         return data

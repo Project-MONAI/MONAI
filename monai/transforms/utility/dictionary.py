@@ -30,7 +30,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
+from monai.transforms.traits import MultiSampleTrait, RandomizableTrait, ReduceTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddCoordinateChannels,
@@ -64,6 +64,7 @@ from monai.transforms.utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
+    FlattenSequence
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
@@ -191,6 +192,9 @@ __all__ = [
     "ApplyTransformToPointsd",
     "ApplyTransformToPointsD",
     "ApplyTransformToPointsDict",
+    "FlattenSequenced",
+    "FlattenSequenceD",
+    "FlattenSequenceDict"
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1906,6 +1910,23 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         return d
 
 
+class FlattenSequenced(MapTransform, ReduceTrait):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        allow_missing_keys: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.flatten_sequence = FlattenSequence(**kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.flatten_sequence(d[key])
+        return d
+
+
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
@@ -1949,3 +1970,4 @@ RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
 ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd
+FlattenSequenceD = FlattenSequenceDict = FlattenSequenced

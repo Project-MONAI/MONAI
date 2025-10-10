@@ -25,7 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe, ReduceTrait
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -142,17 +142,11 @@ def apply_transform(
     """
     try:
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
-        if isinstance(data, (list, tuple)) and map_items_ > 0:
-            res: list[Any] = []
-            for item in data:
-                res_item = apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
-                # Only extend if we're at the leaf level (map_items_ == 1) and the transform
-                # actually returned a list (not preserving nested structure)
-                if isinstance(res_item, list) and map_items_ == 1 and not isinstance(item, (list, tuple)):
-                    res.extend(res_item)
-                else:
-                    res.append(res_item)
-            return res
+        if isinstance(data, (list, tuple)) and map_items_ > 0 and not isinstance(transform, ReduceTrait):
+            return [
+                apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
+                for item in data
+            ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
