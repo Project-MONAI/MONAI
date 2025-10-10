@@ -1,5 +1,5 @@
 
-# What's new in 1.5 🎉🎉
+# What's new in 1.5
 
 - Support numpy 2.x and Pytorch 2.6
 - MAISI inference accelerate
