@@ -1928,7 +1928,7 @@ class FlattenSequenced(MapTransform, ReduceTrait):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.flatten_sequence(d[key])
+            d[key] = self.flatten_sequence(d[key])  # type: ignore[assignment]
         return d
 
 
