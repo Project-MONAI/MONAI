@@ -123,7 +123,9 @@ class FCN(nn.Module):
         self.upsample_mode = upsample_mode
         self.conv2d_type = conv2d_type
         self.out_channels = out_channels
-        resnet = models.resnet50(pretrained=pretrained, progress=progress)
+        resnet = models.resnet50(
+            progress=progress, weights=models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
+        )
 
         self.conv1 = resnet.conv1
         self.bn0 = resnet.bn1
