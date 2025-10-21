@@ -87,9 +87,9 @@ class ExtractHEStains(Transform):
         # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
         # Hematoxylin: high blue, lower red (low R/B ratio)
         # Eosin: high red, lower blue (high R/B ratio)
-        ε = np.finfo(np.float32).eps
-        v_min_rb_ratio = v_min[0, 0] / (v_min[2, 0] + ε)
-        v_max_rb_ratio = v_max[0, 0] / (v_max[2, 0] + ε)
+        eps = np.finfo(np.float32).eps
+        v_min_rb_ratio = v_min[0] / (v_min[2] + eps)
+        v_max_rb_ratio = v_max[0] / (v_max[2] + eps)
         if v_min_rb_ratio < v_max_rb_ratio:
             he = np.array((v_min[:, 0], v_max[:, 0]), dtype=np.float32).T
         else:
