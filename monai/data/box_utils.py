@@ -826,7 +826,8 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        The output is always floating-point (size: (N, M)):
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, M)``:
         - if ``boxes1`` has a floating-point dtype, the same dtype is used.
         - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
@@ -871,7 +872,8 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        The output is always floating-point (size: (N, M)):
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, M)``:
         - if ``boxes1`` has a floating-point dtype, the same dtype is used.
         - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
@@ -934,7 +936,8 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
         boxes2: bounding boxes, same shape with boxes1. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        The output is always floating-point (size: (N,)):
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, )``:
         - if ``boxes1`` has a floating-point dtype, the same dtype is used.
         - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
