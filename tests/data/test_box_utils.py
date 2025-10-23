@@ -223,23 +223,23 @@ class TestBoxUtilsDtype(unittest.TestCase):
     @parameterized.expand(
         [
             # numpy dtypes
-            (np.array([[0, 0, 0, 2, 2, 2]], dtype=np.int32), np.array([[0, 0, 0, 2, 2, 2]], dtype=np.int32)),
-            (np.array([[0, 0, 0, 2, 2, 2]], dtype=np.float32), np.array([[0, 0, 0, 2, 2, 2]], dtype=np.float32)),
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32)),
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32)),
             # torch dtypes
             (
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.int64),
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.int64),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
             ),
             (
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.float32),
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.float32),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
             ),
             # mixed numpy (int + float)
-            (np.array([[0, 0, 0, 2, 2, 2]], dtype=np.int32), np.array([[0, 0, 0, 2, 2, 2]], dtype=np.float32)),
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32)),
             # mixed torch (int + float)
             (
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.int64),
-                torch.tensor([[0, 0, 0, 2, 2, 2]], dtype=torch.float32),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
             ),
         ]
     )
@@ -258,6 +258,15 @@ class TestBoxUtilsDtype(unittest.TestCase):
                 )
             else:
                 self.fail(f"Unexpected return type {type(result)}")
+
+    def test_integer_truncation_bug(self):
+        # Verify fix for #8553: IoU < 1.0 with integer inputs should not truncate to 0
+        boxes1 = np.array([[0, 0, 0, 2, 2, 2]], dtype=np.int32)
+        boxes2 = np.array([[1, 1, 1, 3, 3, 3]], dtype=np.int32)
+
+        iou = box_iou(boxes1, boxes2)
+        self.assertTrue(np.issubdtype(iou.dtype, np.floating))
+        self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
 
 
 if __name__ == "__main__":
