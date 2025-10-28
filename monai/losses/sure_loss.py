@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable
 
 import torch
 import torch.nn as nn
@@ -42,10 +42,10 @@ def sure_loss_function(
     operator: Callable,
     x: torch.Tensor,
     y_pseudo_gt: torch.Tensor,
-    y_ref: Optional[torch.Tensor] = None,
-    eps: Optional[float] = -1.0,
-    perturb_noise: Optional[torch.Tensor] = None,
-    complex_input: Optional[bool] = False,
+    y_ref: torch.Tensor | None = None,
+    eps: float | None = -1.0,
+    perturb_noise: torch.Tensor | None = None,
+    complex_input: bool | None = False,
 ) -> torch.Tensor:
     """
     Args:
@@ -131,7 +131,7 @@ class SURELoss(_Loss):
     (https://arxiv.org/pdf/2310.01799.pdf)
     """
 
-    def __init__(self, perturb_noise: Optional[torch.Tensor] = None, eps: Optional[float] = None) -> None:
+    def __init__(self, perturb_noise: torch.Tensor | None = None, eps: float | None = None) -> None:
         """
         Args:
             perturb_noise (torch.Tensor, optional): The noise vector of shape
@@ -149,8 +149,8 @@ class SURELoss(_Loss):
         operator: Callable,
         x: torch.Tensor,
         y_pseudo_gt: torch.Tensor,
-        y_ref: Optional[torch.Tensor] = None,
-        complex_input: Optional[bool] = False,
+        y_ref: torch.Tensor | None = None,
+        complex_input: bool | None = False,
     ) -> torch.Tensor:
         """
         Args:

@@ -201,7 +201,9 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         logging.warning(f"Unique labels {unique_labels_count} exceeds 20. Please check if this is correct.")
 
     logging.info(
-        f"{vol_idx} => Image Shape: {vol_image.shape} => {image_count}; Label Shape: {vol_label.shape if vol_label is not None else None} => {label_count}; Unique Labels: {unique_labels_count}"
+        f"{vol_idx} => Image Shape: {vol_image.shape} => {image_count};"
+        f" Label Shape: {vol_label.shape if vol_label is not None else None} => {label_count};"
+        f" Unique Labels: {unique_labels_count}"
     )
     return data_list
 
@@ -252,6 +254,8 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         logging.warning(f"Unique labels {unique_labels_count} exceeds 20. Please check if this is correct.")
 
     logging.info(
-        f"{vol_idx} => Image Shape: {vol_image.shape} => {image_count}; Label Shape: {vol_label.shape if vol_label is not None else None} => {label_count}; Unique Labels: {unique_labels_count}"
+        f"{vol_idx} => Image Shape: {vol_image.shape} => {image_count};"
+        f" Label Shape: {vol_label.shape if vol_label is not None else None} => {label_count};"
+        f" Unique Labels: {unique_labels_count}"
     )
     return data_list

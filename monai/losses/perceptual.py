@@ -95,8 +95,7 @@ class PerceptualLoss(nn.Module):
 
         if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
-                "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join(PercetualNetworkType)
+                "Unrecognised criterion entered for Adversarial Loss. Must be one in: {}".format(", ".join(PercetualNetworkType))
             )
 
         if cache_dir:
