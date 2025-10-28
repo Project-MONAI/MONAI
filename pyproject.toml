@@ -45,6 +45,7 @@ target-version = "py39"
 select = [
   "E", "F", "W", # flake8
   "NPY",         # NumPy specific rules
+  "UP",          # pyupgrade
 ]
 extend-ignore = [
   "E741", # ambiguous variable name
