@@ -14,7 +14,6 @@ from __future__ import annotations
 import warnings
 
 import torch
-import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
@@ -68,8 +67,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
                 y_pred = y_pred[:, 1:]
                 y_true = y_true[:, 1:]
 
-        # Clip predictions
-        y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
@@ -169,7 +166,7 @@ class AsymmetricFocalLoss(_Loss):
             back_ce = (1.0 - self.delta) * torch.pow(1.0 - y_pred[:, 0], self.gamma) * cross_entropy[:, 0]
             # (B, C-1, H, W)
             fore_ce = self.delta * cross_entropy[:, 1:]
-            
+
             loss = torch.cat([back_ce.unsqueeze(1), fore_ce], dim=1)  # (B, C, H, W)
 
         # Apply reduction
@@ -276,17 +273,18 @@ class AsymmetricUnifiedFocalLoss(_Loss):
                 if y_true.shape[1] != 1:
                     y_true = y_true.unsqueeze(1)
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
-        
+
         # Ensure y_true has the same shape as y_pred_act
         if y_true.shape != y_pred_act.shape:
-             # This can happen if y_true is (B, H, W) and y_pred is (B, 1, H, W) after sigmoid
+            # This can happen if y_true is (B, H, W) and y_pred is (B, 1, H, W) after sigmoid
             if y_true.shape[1] != y_pred_act.shape[1] and y_true.ndim == y_pred_act.ndim - 1:
-                y_true = y_true.unsqueeze(1) # Add channel dim
-            
-            if y_true.shape != y_pred_act.shape:
-                raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred_act.shape}) " \
-                                 f"after activations/one-hot")
+                y_true = y_true.unsqueeze(1)  # Add channel dim
 
+            if y_true.shape != y_pred_act.shape:
+                raise ValueError(
+                    f"ground truth has different shape ({y_true.shape}) from input ({y_pred_act.shape}) "
+                    f"after activations/one-hot"
+                )
 
         f_loss = self.asy_focal_loss(y_pred_act, y_true)
         t_loss = self.asy_focal_tversky_loss(y_pred_act, y_true)
