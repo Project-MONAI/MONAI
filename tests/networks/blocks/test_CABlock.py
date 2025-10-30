@@ -20,28 +20,18 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.cablock import CABlock, FeedForward
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose
+from tests.test_utils import assert_allclose, dict_product
 
 einops, has_einops = optional_import("einops")
 
-
-TEST_CASES_CAB = []
-for spatial_dims in [2, 3]:
-    for dim in [32, 64, 128]:
-        for num_heads in [2, 4, 8]:
-            for bias in [True, False]:
-                test_case = [
-                    {
-                        "spatial_dims": spatial_dims,
-                        "dim": dim,
-                        "num_heads": num_heads,
-                        "bias": bias,
-                        "flash_attention": False,
-                    },
-                    (2, dim, *([16] * spatial_dims)),
-                    (2, dim, *([16] * spatial_dims)),
-                ]
-                TEST_CASES_CAB.append(test_case)
+TEST_CASES_CAB = [
+    [
+        {**params, "flash_attention": False},
+        (2, params["dim"], *([16] * params["spatial_dims"])),
+        (2, params["dim"], *([16] * params["spatial_dims"])),
+    ]
+    for params in dict_product(spatial_dims=[2, 3], dim=[32, 64, 128], num_heads=[2, 4, 8], bias=[True, False])
+]
 
 
 TEST_CASES_FEEDFORWARD = [
@@ -53,7 +43,6 @@ TEST_CASES_FEEDFORWARD = [
 
 
 class TestFeedForward(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_FEEDFORWARD)
     def test_shape(self, input_param, input_shape):
         net = FeedForward(**input_param)
@@ -69,7 +58,6 @@ class TestFeedForward(unittest.TestCase):
 
 
 class TestCABlock(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_CAB)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -83,7 +71,6 @@ class TestCABlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CABlock(spatial_dims=4, dim=64, num_heads=4, bias=True)
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     @skipUnless(has_einops, "Requires einops")
     def test_flash_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -112,7 +99,6 @@ class TestCABlock(unittest.TestCase):
         qkv = block.qkv(x)
         self.assertEqual(qkv.shape, (2, 192, 16, 16, 16))
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     @skipUnless(has_einops, "Requires einops")
     def test_flash_vs_normal_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"

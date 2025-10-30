@@ -22,13 +22,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
-    SkipIfNoModule,
-    download_url_or_skip_test,
-    skip_if_quick,
-    testing_data_config,
-)
+from tests.test_utils import SkipIfNoModule, download_url_or_skip_test, skip_if_quick, testing_data_config
 
 LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_MONAI=0 to test native grid_sample
     [
@@ -144,7 +138,6 @@ class TestWarp(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
-    @SkipIfBeforePyTorchVersion((1, 8))
     def test_grad(self):
         for b in GridSampleMode:
             for p in GridSamplePadMode:

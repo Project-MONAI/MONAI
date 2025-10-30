@@ -21,6 +21,7 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 46 # equal to max + 3*std over the last 600 successful runs
     env:
       QUICKTEST: True
     steps:
@@ -31,7 +32,7 @@ jobs:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Clean up disk space
       run: |
         find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
