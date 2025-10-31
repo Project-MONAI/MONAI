@@ -136,6 +136,7 @@ jobs:
       run: |
         which python
         python -m pip install --user --upgrade pip setuptools wheel
+        python -m pip install --user more-itertools>=8.0
     - name: cache weekly timestamp
       id: pip-cache
       run: |
