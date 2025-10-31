@@ -80,10 +80,10 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         if not self.include_background:
             # All classes are foreground, apply foreground logic
-            loss = torch.pow(1.0 - dice_class, 1.0 - self.gamma)  # (B, C)
+            loss = torch.pow(1.0 - dice_class, 1.0 / self.gamma)  # (B, C)
         elif n_classes == 1:
             # Single class, must be foreground (BG was excluded or not provided)
-            loss = torch.pow(1.0 - dice_class, 1.0 - self.gamma)  # (B, 1)
+            loss = torch.pow(1.0 - dice_class, 1.0 / self.gamma)  # (B, 1)
         else:
             # Asymmetric logic: class 0 is BG, others are FG
             back_dice_loss = (1.0 - dice_class[:, 0]).unsqueeze(1)  # (B, 1)
@@ -276,9 +276,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         # Ensure y_true has the same shape as y_pred_act
         if y_true.shape != y_pred_act.shape:
-            # This can happen if y_true is (B, H, W) and y_pred is (B, 1, H, W) after sigmoid
-            if y_true.shape[1] != y_pred_act.shape[1] and y_true.ndim == y_pred_act.ndim - 1:
-                y_true = y_true.unsqueeze(1)  # Add channel dim
+            if y_true.ndim == y_pred_act.ndim - 1:
+                y_true = y_true.unsqueeze(1)
 
             if y_true.shape != y_pred_act.shape:
                 raise ValueError(
