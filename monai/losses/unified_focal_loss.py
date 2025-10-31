@@ -192,29 +192,29 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
     def __init__(
         self,
-        include_background: bool = True,
         to_onehot_y: bool = False,
-        sigmoid: bool = False,
-        softmax: bool = False,
+        use_sigmoid: bool = False,
+        use_softmax: bool = False,
         lambda_focal: float = 0.5,
         focal_loss_gamma: float = 2.0,
         focal_loss_delta: float = 0.7,
         tversky_loss_gamma: float = 0.75,
         tversky_loss_delta: float = 0.7,
+        include_background: bool = True,
         reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
         Args:
-            include_background: whether to include loss computation for the background class. Defaults to True.
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            sigmoid: if True, apply a sigmoid activation to the input y_pred.
-            softmax: if True, apply a softmax activation to the input y_pred.
+            use_sigmoid: if True, apply a sigmoid activation to the input y_pred.
+            use_softmax: if True, apply a softmax activation to the input y_pred.
             lambda_focal: the weight for AsymmetricFocalLoss (Cross-Entropy based).
                 The weight for AsymmetricFocalTverskyLoss will be (1 - lambda_focal). Defaults to 0.5.
             focal_loss_gamma: gamma parameter for the AsymmetricFocalLoss component. Defaults to 2.0.
             focal_loss_delta: delta parameter for the AsymmetricFocalLoss component. Defaults to 0.7.
             tversky_loss_gamma: gamma parameter for the AsymmetricFocalTverskyLoss component. Defaults to 0.75.
             tversky_loss_delta: delta parameter for the AsymmetricFocalTverskyLoss component. Defaults to 0.7.
+            include_background: whether to include loss computation for the background class. Defaults to True.
             reduction: specifies the reduction to apply to the output: "none", "mean", "sum".
 
         Example:
@@ -222,18 +222,18 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             >>> from monai.losses import AsymmetricUnifiedFocalLoss
             >>> pred = torch.randn((1, 2, 32, 32), dtype=torch.float32)
             >>> grnd = torch.randint(0, 2, (1, 1, 32, 32), dtype=torch.int64)
-            >>> fl = AsymmetricUnifiedFocalLoss(softmax=True, to_onehot_y=True)
+            >>> fl = AsymmetricUnifiedFocalLoss(use_softmax=True, to_onehot_y=True)
             >>> fl(pred, grnd)
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        self.sigmoid = sigmoid
-        self.softmax = softmax
+        self.use_sigmoid = use_sigmoid
+        self.use_softmax = use_softmax
         self.lambda_focal = lambda_focal
+        self.include_background = include_background
 
-        if sigmoid and softmax:
-            raise ValueError("Both sigmoid and softmax cannot be True.")
+        if self.use_sigmoid and self.use_softmax:
+            raise ValueError("Both use_sigmoid and use_softmax cannot be True.")
 
         self.asy_focal_loss = AsymmetricFocalLoss(
             include_background=self.include_background,
@@ -257,18 +257,18 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         n_pred_ch = y_pred.shape[1]
 
         y_pred_act = y_pred
-        if self.sigmoid:
+        if self.use_sigmoid:
             y_pred_act = torch.sigmoid(y_pred)
-        elif self.softmax:
+        elif self.use_softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, softmax=True ignored.")
+                warnings.warn("single channel prediction, use_softmax=True ignored.")
             else:
                 y_pred_act = torch.softmax(y_pred, dim=1)
 
         if self.to_onehot_y:
-            if n_pred_ch == 1 and not self.sigmoid:
+            if n_pred_ch == 1 and not self.use_sigmoid:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            elif n_pred_ch > 1 or self.sigmoid:
+            elif n_pred_ch > 1 or self.use_sigmoid:
                 # Ensure y_true is (B, 1, H, W, [D]) for one-hot conversion
                 if y_true.shape[1] != 1:
                     y_true = y_true.unsqueeze(1)
