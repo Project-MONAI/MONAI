@@ -41,6 +41,7 @@ skimage, _ = optional_import("skimage", "0.19.0", min_version)
 
 __all__ = [
     "RandGaussianNoise",
+    "RandNonCentralChiNoise",
     "RandRicianNoise",
     "ShiftIntensity",
     "RandShiftIntensity",
@@ -140,6 +141,110 @@ class RandGaussianNoise(RandomizableTransform):
         return img + noise
 
 
+class RandNonCentralChiNoise(RandomizableTransform):
+    """
+    Add non-central chi noise to an image.
+    This distribution is the square root of the sum of squares of k independent
+    Gaussian random variables, where one of the variables has a non-zero mean
+    (the signal).
+    This is a generalization of Rician noise. `degrees_of_freedom=2` is Rician noise.
+    See: https://en.wikipedia.org/wiki/Noncentral_chi_distribution and https://archive.ismrm.org/2024/3123_NZkvJdQat.html
+
+    Args:
+        prob: Probability to add noise.
+        mean: Mean or "centre" of the Gaussian noise distributions.
+        std: Standard deviation (spread) of the Gaussian noise distributions.
+        degrees_of_freedom: Number of Gaussian distributions (degrees of freedom).
+            `degrees_of_freedom=2` is Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+        dtype: output data type, if None, same as input image. defaults to float32.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        prob: float = 0.1,
+        mean: Sequence[float] | float = 0.0,
+        std: Sequence[float] | float = 1.0,
+        degrees_of_freedom: int = 64, #64 default because typical modern brain MRI is 32 quadrature coils 
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.mean = mean
+        self.std = std
+        if not isinstance(degrees_of_freedom, int) or degrees_of_freedom < 1:
+            raise ValueError("degrees_of_freedom must be an integer >= 1.")
+        self.degrees_of_freedom = degrees_of_freedom
+        self.channel_wise = channel_wise
+        self.relative = relative
+        self.sample_std = sample_std
+        self.dtype = dtype
+
+    def _add_noise(self, img: NdarrayOrTensor, mean: float, std: float, k: int):
+        dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
+        im_shape = img.shape
+        _std = self.R.uniform(0, std) if self.sample_std else std
+
+        # Create a stack of k noise arrays
+        noise_shape = (k, *im_shape)
+        all_noises_np = self.R.normal(mean, _std, size=noise_shape).astype(dtype_np, copy=False)
+
+        if isinstance(img, torch.Tensor):
+            all_noises = torch.tensor(all_noises_np, device=img.device)
+            all_noises[0] = all_noises[0] + img
+            sum_sq = torch.sum(all_noises**2, dim=0)
+            return torch.sqrt(sum_sq)
+
+
+        all_noises_np[0] = all_noises_np[0] + img
+        sum_sq = np.sum(all_noises_np**2, axis=0)
+        return np.sqrt(sum_sq)
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
+        if randomize:
+            super().randomize(None)
+
+        if not self._do_transform:
+            return img
+
+        if self.channel_wise:
+            _mean = ensure_tuple_rep(self.mean, len(img))
+            _std = ensure_tuple_rep(self.std, len(img))
+            for i, d in enumerate(img):
+                img[i] = self._add_noise(
+                    d,
+                    mean=_mean[i],
+                    std=_std[i] * d.std() if self.relative else _std[i],
+                    k=self.degrees_of_freedom,
+                )
+        else:
+            if not isinstance(self.mean, (int, float)):
+                raise RuntimeError(f"If channel_wise is False, mean must be a float or int, got {type(self.mean)}.")
+            if not isinstance(self.std, (int, float)):
+                raise RuntimeError(f"If channel_wise is False, std must be a float or int, got {type(self.std)}.")
+            std = self.std * img.std().item() if self.relative else self.std
+            if not isinstance(std, (int, float)):
+                raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
+            img = self._add_noise(img, mean=self.mean, std=std, k=self.degrees_of_freedom)
+        return img
+    
+    
+    
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
