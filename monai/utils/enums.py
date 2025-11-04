@@ -24,6 +24,7 @@ __all__ = [
     "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
+    "DownsampleMode",
     "BlendMode",
     "PytorchPadMode",
     "NdimageMode",
@@ -179,6 +180,18 @@ class UpsampleMode(StrEnum):
     DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
+
+
+class DownsampleMode(StrEnum):
+    """
+    See also: :py:class:`monai.networks.blocks.UpSample`
+    """
+
+    CONV = "conv"  # e.g. using strided convolution
+    CONVGROUP = "convgroup"  # e.g. using grouped strided convolution
+    PIXELUNSHUFFLE = "pixelunshuffle"
+    MAXPOOL = "maxpool"
+    AVGPOOL = "avgpool"
 
 
 class BlendMode(StrEnum):

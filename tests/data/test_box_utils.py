@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data.box_utils import (
@@ -216,6 +217,56 @@ class TestCreateBoxList(unittest.TestCase):
             boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=-1.0, box_overlap_metric=box_iou
         )
         assert_allclose(nms_box, [1], type_test=False)
+
+
+class TestBoxUtilsDtype(unittest.TestCase):
+    @parameterized.expand(
+        [
+            # numpy dtypes
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32)),
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32)),
+            # torch dtypes
+            (
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
+            ),
+            (
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
+            ),
+            # mixed numpy (int + float)
+            (np.array([[1, 1, 1, 2, 2, 2]], dtype=np.int32), np.array([[1, 1, 1, 2, 2, 2]], dtype=np.float32)),
+            # mixed torch (int + float)
+            (
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.int64),
+                torch.tensor([[1, 1, 1, 2, 2, 2]], dtype=torch.float32),
+            ),
+        ]
+    )
+    def test_dtype_behavior(self, boxes1, boxes2):
+        funcs = [box_iou, box_giou, box_pair_giou]
+        for func in funcs:
+            result = func(boxes1, boxes2)
+
+            if isinstance(result, np.ndarray):
+                self.assertTrue(
+                    np.issubdtype(result.dtype, np.floating), f"{func.__name__} expected float, got {result.dtype}"
+                )
+            elif torch.is_tensor(result):
+                self.assertTrue(
+                    torch.is_floating_point(result), f"{func.__name__} expected float tensor, got {result.dtype}"
+                )
+            else:
+                self.fail(f"Unexpected return type {type(result)}")
+
+    def test_integer_truncation_bug(self):
+        # Verify fix for #8553: IoU < 1.0 with integer inputs should not truncate to 0
+        boxes1 = np.array([[0, 0, 0, 2, 2, 2]], dtype=np.int32)
+        boxes2 = np.array([[1, 1, 1, 3, 3, 3]], dtype=np.int32)
+
+        iou = box_iou(boxes1, boxes2)
+        self.assertTrue(np.issubdtype(iou.dtype, np.floating))
+        self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
 
 
 if __name__ == "__main__":

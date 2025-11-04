@@ -82,8 +82,8 @@ class Evaluator(Workflow):
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
 
     """
 
@@ -214,8 +214,8 @@ class SupervisedEvaluator(Evaluator):
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
         compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
@@ -324,7 +324,7 @@ class SupervisedEvaluator(Evaluator):
         # execute forward computation
         with engine.mode(engine.network):
             if engine.amp:
-                with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                with torch.autocast("cuda", **engine.amp_kwargs):
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
             else:
                 engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
@@ -394,8 +394,8 @@ class EnsembleEvaluator(Evaluator):
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
 
     """
 
@@ -487,7 +487,7 @@ class EnsembleEvaluator(Evaluator):
         for idx, network in enumerate(engine.networks):
             with engine.mode(network):
                 if engine.amp:
-                    with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                    with torch.autocast("cuda", **engine.amp_kwargs):
                         if isinstance(engine.state.output, dict):
                             engine.state.output.update(
                                 {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}

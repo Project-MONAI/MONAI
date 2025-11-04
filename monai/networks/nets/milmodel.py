@@ -16,7 +16,7 @@ from typing import cast
 import torch
 import torch.nn as nn
 
-from monai.utils.module import optional_import
+from monai.utils import optional_import
 
 models, _ = optional_import("torchvision.models")
 
@@ -48,7 +48,6 @@ class MILModel(nn.Module):
             Defaults to ``None`` (necessary only when using a custom backbone)
         trans_blocks: number of the blocks in `TransformEncoder` layer.
         trans_dropout: dropout rate in `TransformEncoder` layer.
-
     """
 
     def __init__(
@@ -74,7 +73,7 @@ class MILModel(nn.Module):
         self.transformer: nn.Module | None = None
 
         if backbone is None:
-            net = models.resnet50(pretrained=pretrained)
+            net = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None)
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
@@ -99,7 +98,7 @@ class MILModel(nn.Module):
             torch_model = getattr(models, backbone, None)
             if torch_model is None:
                 raise ValueError("Unknown torch vision model" + str(backbone))
-            net = torch_model(pretrained=pretrained)
+            net = torch_model(weights="DEFAULT" if pretrained else None)
 
             if getattr(net, "fc", None) is not None:
                 nfc = net.fc.in_features  # save the number of final features

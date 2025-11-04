@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.networks import convert_to_onnx
 from monai.networks.nets import SegResNet, UNet
-from tests.test_utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, optional_import, skip_if_quick
+from tests.test_utils import SkipIfNoModule, optional_import, skip_if_quick
 
 if torch.cuda.is_available():
     TORCH_DEVICE_OPTIONS = ["cpu", "cuda"]
@@ -39,7 +39,6 @@ onnx, _ = optional_import("onnx")
 
 
 @SkipIfNoModule("onnx")
-@SkipIfBeforePyTorchVersion((1, 9))
 @skip_if_quick
 class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -67,7 +66,6 @@ class TestConvertToOnnx(unittest.TestCase):
             self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
 
     @parameterized.expand(TESTS_ORT)
-    @SkipIfBeforePyTorchVersion((1, 12))
     def test_seg_res_net(self, device, use_ort):
         if use_ort:
             _, has_onnxruntime = optional_import("onnxruntime")

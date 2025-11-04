@@ -127,6 +127,7 @@ def run_testsuit():
         "test_integration_bundle_run",
         "test_integration_autorunner",
         "test_integration_nnunetv2_runner",
+        "test_integration_nnunet_bundle",
         "test_invert",
         "test_invertd",
         "test_iterable_dataset",

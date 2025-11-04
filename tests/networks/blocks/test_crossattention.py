@@ -22,36 +22,33 @@ from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose
+from tests.test_utils import assert_allclose, dict_product
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_CABLOCK = []
-for dropout_rate in np.linspace(0, 1, 4):
-    for hidden_size in [360, 480, 600, 768]:
-        for num_heads in [4, 6, 8, 12]:
-            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
-                for input_size in [(16, 32), (8, 8, 8)]:
-                    for flash_attn in [True, False]:
-                        test_case = [
-                            {
-                                "hidden_size": hidden_size,
-                                "num_heads": num_heads,
-                                "dropout_rate": dropout_rate,
-                                "rel_pos_embedding": rel_pos_embedding if not flash_attn else None,
-                                "input_size": input_size,
-                                "use_flash_attention": flash_attn,
-                            },
-                            (2, 512, hidden_size),
-                            (2, 512, hidden_size),
-                        ]
-                        TEST_CASE_CABLOCK.append(test_case)
+TEST_CASE_CABLOCK = [
+    [
+        {
+            **{k: v for k, v in params.items() if k not in ["rel_pos_embedding_val"]},
+            "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["use_flash_attention"] else None,
+        },
+        (2, 512, params["hidden_size"]),
+        (2, 512, params["hidden_size"]),
+    ]
+    for params in dict_product(
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 6, 8, 12],
+        rel_pos_embedding_val=[None, RelPosEmbedding.DECOMPOSED],
+        input_size=[(16, 32), (8, 8, 8)],
+        use_flash_attention=[True, False],
+    )
+]
 
 
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_CABLOCK)
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         # Without flash attention
         net = CrossAttentionBlock(**input_param)
@@ -66,14 +63,12 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(
                 hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
             )
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_rel_pos_embedding_with_flash_attention(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(
@@ -99,7 +94,6 @@ class TestResBlock(unittest.TestCase):
             CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_causal_flash_attention(self):
         block = CrossAttentionBlock(
             hidden_size=128,
@@ -167,7 +161,6 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand([[True], [False]])
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_flash_attention(self, causal):
         input_param = {"hidden_size": 128, "num_heads": 1, "causal": causal, "sequence_length": 16 if causal else None}
         device = "cuda:0" if torch.cuda.is_available() else "cpu"

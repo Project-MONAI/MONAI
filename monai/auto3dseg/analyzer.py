@@ -217,6 +217,22 @@ class ImageStats(Analyzer):
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
     def __call__(self, data):
+        # Input Validation Addition
+        if not isinstance(data, dict):
+            raise TypeError(f"Input data must be a dict, but got {type(data).__name__}.")
+        if self.image_key not in data:
+            raise KeyError(f"Key '{self.image_key}' not found in input data.")
+        image = data[self.image_key]
+        if not isinstance(image, (np.ndarray, torch.Tensor, MetaTensor)):
+            raise TypeError(
+                f"Value for '{self.image_key}' must be a numpy array, torch.Tensor, or MetaTensor, "
+                f"but got {type(image).__name__}."
+            )
+        if image.ndim < 3:
+            raise ValueError(
+                f"Image data under '{self.image_key}' must have at least 3 dimensions, but got shape {image.shape}."
+            )
+            # --- End of validation ---
         """
         Callable to execute the pre-defined functions
 

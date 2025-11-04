@@ -17,10 +17,10 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-black>=22.12
-isort>=5.1, <6.0
+black>=25.1.0
+isort>=5.1, !=6.0.0
 ruff
-pytype>=2020.6.1; platform_system != "Windows"
+pytype>=2020.6.1, <=2024.4.11; platform_system != "Windows"
 types-setuptools
 mypy>=1.5.0, <1.12.0
 ninja
@@ -29,12 +29,13 @@ torchvision
 psutil
 cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
 openslide-python
+openslide-bin
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops
-transformers>=4.36.0, <4.41.0; python_version <= '3.10'
+transformers>=4.53.0
 mlflow>=2.12.2
 clearml>=1.10.0rc0
 matplotlib>=3.6.3
@@ -58,7 +59,7 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
-pyamg>=5.0.0
+pyamg>=5.0.0, <5.3.0
 git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
 onnx_graphsurgeon
 polygraphy

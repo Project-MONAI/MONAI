@@ -101,7 +101,11 @@ class SABlock(nn.Module):
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        self.out_proj: Union[nn.Linear, nn.Identity]
+        if include_fc:
+            self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        else:
+            self.out_proj = nn.Identity()
 
         self.qkv: Union[nn.Linear, nn.Identity]
         self.to_q: Union[nn.Linear, nn.Identity]

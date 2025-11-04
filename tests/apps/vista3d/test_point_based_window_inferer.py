@@ -20,7 +20,7 @@ from monai.apps.vista3d.inferer import point_based_window_inferer
 from monai.networks import eval_mode
 from monai.networks.nets.vista3d import vista3d132
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.test_utils import skip_if_quick
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -60,7 +60,6 @@ TEST_CASES = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 11))
 @skip_if_quick
 class TestPointBasedWindowInferer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
