@@ -850,19 +850,17 @@ class GenerateHeatmap(Transform):
             center_int = torch.minimum(torch.maximum(center_int, torch.zeros_like(center_int)), bounds_max)
             # Place impulse (use maximum in case of overlapping landmarks)
             current_val = heatmap[idx][tuple(center_int)]
-            heatmap[idx][tuple(center_int)] = torch.maximum(current_val, torch.tensor(1.0, dtype=self.torch_dtype, device=device))
+            heatmap[idx][tuple(center_int)] = torch.maximum(
+                current_val, torch.tensor(1.0, dtype=self.torch_dtype, device=device)
+            )
 
         # Apply Gaussian blur using GaussianFilter
         # Reshape to (num_points, 1, *spatial) for per-channel filtering
         heatmap_input = heatmap.unsqueeze(1)  # Add channel dimension
 
         gaussian_filter = GaussianFilter(
-            spatial_dims=spatial_dims,
-            sigma=sigma,
-            truncated=self.truncated,
-            approx="erf",
-            requires_grad=False
-        ).to(device)
+            spatial_dims=spatial_dims, sigma=sigma, truncated=self.truncated, approx="erf", requires_grad=False
+        ).to(device=device, dtype=self.torch_dtype)
 
         heatmap_blurred = gaussian_filter(heatmap_input)
         heatmap = heatmap_blurred.squeeze(1)  # Remove channel dimension
