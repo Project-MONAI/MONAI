@@ -843,11 +843,14 @@ class GenerateHeatmap(Transform):
                 continue
             if not ((center >= 0).all() and (center < bounds_t).all()):
                 continue
-            # Round to nearest integer for impulse placement
+            # Round to nearest integer for impulse placement, then clamp to valid index range
             center_int = center.round().long()
+            # Clamp indices to [0, size-1] to avoid out-of-bounds (e.g., 9.7 rounds to 10 in size-10 array)
+            bounds_max = (bounds_t - 1).long()
+            center_int = torch.minimum(torch.maximum(center_int, torch.zeros_like(center_int)), bounds_max)
             # Place impulse (use maximum in case of overlapping landmarks)
             current_val = heatmap[idx][tuple(center_int)]
-            heatmap[idx][tuple(center_int)] = max(current_val, torch.tensor(1.0, dtype=self.torch_dtype, device=device))
+            heatmap[idx][tuple(center_int)] = torch.maximum(current_val, torch.tensor(1.0, dtype=self.torch_dtype, device=device))
 
         # Apply Gaussian blur using GaussianFilter
         # Reshape to (num_points, 1, *spatial) for per-channel filtering

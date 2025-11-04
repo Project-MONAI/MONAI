@@ -680,7 +680,7 @@ class GenerateHeatmapd(MapTransform):
         self, points: Any, static_shape: tuple[int, ...] | None, data: Mapping[Hashable, Any], ref_key: Hashable | None
     ) -> tuple[int, ...]:
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
-        if points_t.ndim not in (2, 3):
+        if points_t.ndim != 2:
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
         if static_shape is not None:
