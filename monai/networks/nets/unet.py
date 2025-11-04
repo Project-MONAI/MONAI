@@ -13,28 +13,16 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import cast
 
 import torch
 import torch.nn as nn
-from torch.utils.checkpoint import checkpoint
 
+from monai.networks.blocks.activation_checkpointing import ActivationCheckpointWrapper
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 
 __all__ = ["UNet", "Unet"]
-
-
-class _ActivationCheckpointWrapper(nn.Module):
-    """Apply activation checkpointing to the wrapped module during training."""
-
-    def __init__(self, module: nn.Module) -> None:
-        super().__init__()
-        self.module = module
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return cast(torch.Tensor, checkpoint(self.module, x, use_reentrant=False))
 
 
 class UNet(nn.Module):
@@ -313,9 +301,9 @@ class UNet(nn.Module):
 
 class CheckpointUNet(UNet):
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
-        subblock = _ActivationCheckpointWrapper(subblock)
-        down_path = _ActivationCheckpointWrapper(down_path)
-        up_path = _ActivationCheckpointWrapper(up_path)
+        subblock = ActivationCheckpointWrapper(subblock)
+        down_path = ActivationCheckpointWrapper(down_path)
+        up_path = ActivationCheckpointWrapper(up_path)
         return super()._get_connection_block(down_path, up_path, subblock)
 
 
