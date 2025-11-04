@@ -29,105 +29,79 @@ def _argmax_nd(x) -> np.ndarray:
 
 
 # Test cases for 2D array inputs with different data types
-TEST_CASES_2D = []
-for idx, p in enumerate(TEST_NDARRAYS):
-    TEST_CASES_2D.append(
-        [
-            f"2d_basic_type{idx}",
-            p(np.array([[4.2, 7.8], [12.3, 3.6]], dtype=np.float32)),
-            {"sigma": 1.5, "spatial_shape": (16, 16)},
-            (2, 16, 16),
-        ]
-    )
+TEST_CASES_2D = [
+    [
+        f"2d_basic_type{idx}",
+        p(np.array([[4.2, 7.8], [12.3, 3.6]], dtype=np.float32)),
+        {"sigma": 1.5, "spatial_shape": (16, 16)},
+        (2, 16, 16),
+    ]
+    for idx, p in enumerate(TEST_NDARRAYS)
+]
 
 # Test cases for 3D torch outputs with explicit dtype
-TEST_CASES_3D_TORCH = []
-for dtype in [torch.float32, torch.float64]:
-    TEST_CASES_3D_TORCH.append(
-        [
-            f"3d_torch_{str(dtype).replace('torch.', '')}",
-            torch.tensor([[1.5, 2.5, 3.5]], dtype=torch.float32),
-            {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype},
-            (1, 8, 8, 8),
-            dtype,
-        ]
-    )
+TEST_CASES_3D_TORCH = [
+    [
+        f"3d_torch_{str(dtype).replace('torch.', '')}",
+        torch.tensor([[1.5, 2.5, 3.5]], dtype=torch.float32),
+        {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype},
+        (1, 8, 8, 8),
+        dtype,
+    ]
+    for dtype in [torch.float32, torch.float64]
+]
 
 # Test cases for 3D numpy outputs with explicit dtype
-TEST_CASES_3D_NUMPY = []
-for dtype_obj in [np.float32, np.float64]:
-    TEST_CASES_3D_NUMPY.append(
-        [
-            f"3d_numpy_{dtype_obj.__name__}",
-            np.array([[1.5, 2.5, 3.5]], dtype=np.float32),
-            {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype_obj},
-            (1, 8, 8, 8),
-            dtype_obj,
-        ]
-    )
+TEST_CASES_3D_NUMPY = [
+    [
+        f"3d_numpy_{dtype_obj.__name__}",
+        np.array([[1.5, 2.5, 3.5]], dtype=np.float32),
+        {"sigma": 1.0, "spatial_shape": (8, 8, 8), "dtype": dtype_obj},
+        (1, 8, 8, 8),
+        dtype_obj,
+    ]
+    for dtype_obj in [np.float32, np.float64]
+]
 
 # Test cases for different sigma values
-TEST_CASES_SIGMA = []
-for sigma in [0.5, 1.0, 2.0, 3.0]:
-    TEST_CASES_SIGMA.append(
-        [
-            f"sigma_{sigma}",
-            np.array([[8.0, 8.0]], dtype=np.float32),
-            {"sigma": sigma, "spatial_shape": (16, 16)},
-            (1, 16, 16),
-        ]
-    )
+TEST_CASES_SIGMA = [
+    [
+        f"sigma_{sigma}",
+        np.array([[8.0, 8.0]], dtype=np.float32),
+        {"sigma": sigma, "spatial_shape": (16, 16)},
+        (1, 16, 16),
+    ]
+    for sigma in [0.5, 1.0, 2.0, 3.0]
+]
 
 # Test cases for truncated parameter
-TEST_CASES_TRUNCATED = []
-for truncated in [2.0, 4.0, 6.0]:
-    TEST_CASES_TRUNCATED.append(
-        [
-            f"truncated_{truncated}",
-            np.array([[8.0, 8.0]], dtype=np.float32),
-            {"sigma": 2.0, "spatial_shape": (32, 32), "truncated": truncated},
-            (1, 32, 32),
-        ]
-    )
-
-# Test cases for batched 3D with different array types
-TEST_CASES_BATCHED = []
-for idx, p in enumerate(TEST_NDARRAYS):
-    TEST_CASES_BATCHED.append(
-        [
-            f"batched_3d_type{idx}",
-            p(np.array([[[4.2, 7.8, 1.0]], [[12.3, 3.6, 2.0]]], dtype=np.float32)),
-            {"sigma": 1.5, "spatial_shape": (16, 16, 16)},
-            (2, 1, 16, 16, 16),
-        ]
-    )
+TEST_CASES_TRUNCATED = [
+    [
+        f"truncated_{truncated}",
+        np.array([[8.0, 8.0]], dtype=np.float32),
+        {"sigma": 2.0, "spatial_shape": (32, 32), "truncated": truncated},
+        (1, 32, 32),
+    ]
+    for truncated in [2.0, 4.0, 6.0]
+]
 
 # Test cases for device and dtype propagation (torch only)
-TEST_CASES_DEVICE_DTYPE = []
+test_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+test_dtypes = [torch.float32, torch.float64]
 if torch.cuda.is_available():
-    for dtype in [torch.float16, torch.float32, torch.float64]:
-        TEST_CASES_DEVICE_DTYPE.append(
-            [
-                f"cuda_{str(dtype).replace('torch.', '')}",
-                torch.tensor([[3.0, 4.0, 5.0]], dtype=torch.float32, device="cuda:0"),
-                {"sigma": 1.2, "spatial_shape": (10, 10, 10), "dtype": dtype},
-                (1, 10, 10, 10),
-                dtype,
-                "cuda:0",
-            ]
-        )
-else:
-    for dtype in [torch.float32, torch.float64]:
-        TEST_CASES_DEVICE_DTYPE.append(
-            [
-                f"cpu_{str(dtype).replace('torch.', '')}",
-                torch.tensor([[3.0, 4.0, 5.0]], dtype=torch.float32),
-                {"sigma": 1.2, "spatial_shape": (10, 10, 10), "dtype": dtype},
-                (1, 10, 10, 10),
-                dtype,
-                "cpu",
-            ]
-        )
+    test_dtypes.append(torch.float16)
+
+TEST_CASES_DEVICE_DTYPE = [
+    [
+        f"{test_device.split(':')[0]}_{str(dtype).replace('torch.', '')}",
+        torch.tensor([[3.0, 4.0, 5.0]], dtype=torch.float32, device=test_device),
+        {"sigma": 1.2, "spatial_shape": (10, 10, 10), "dtype": dtype},
+        (1, 10, 10, 10),
+        dtype,
+        test_device,
+    ]
+    for dtype in test_dtypes
+]
 
 
 class TestGenerateHeatmap(unittest.TestCase):
@@ -237,31 +211,6 @@ class TestGenerateHeatmap(unittest.TestCase):
 
         with self.assertRaises((ValueError, AssertionError, IndexError, RuntimeError)):
             tr(np.zeros((2, 4), dtype=np.float32))  # D=4 unsupported
-
-    @parameterized.expand(TEST_CASES_BATCHED)
-    def test_array_batched_3d(self, _, points, params, expected_shape):
-        transform = GenerateHeatmap(**params)
-        heatmap = transform(points)
-
-        # Check output type matches input type
-        if isinstance(points, torch.Tensor):
-            self.assertIsInstance(heatmap, torch.Tensor)
-            heatmap_np = heatmap.cpu().numpy()
-            points_np = points.cpu().numpy()
-        else:
-            self.assertIsInstance(heatmap, np.ndarray)
-            heatmap_np = heatmap
-            points_np = points
-
-        self.assertEqual(heatmap.shape, expected_shape)
-        np.testing.assert_allclose(
-            heatmap_np.max(axis=(2, 3, 4)), np.ones((expected_shape[0], expected_shape[1])), rtol=1e-5, atol=1e-5
-        )
-
-        # Check peaks for each batch item
-        for i in range(expected_shape[0]):
-            peak = _argmax_nd(heatmap_np[i, 0])
-            self.assertTrue(np.all(np.abs(peak - points_np[i, 0]) <= 1.0), msg=f"peak={peak}, point={points_np[i, 0]}")
 
     @parameterized.expand(TEST_CASES_TRUNCATED)
     def test_truncated_parameter(self, _, pt, params, expected_shape):

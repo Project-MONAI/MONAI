@@ -519,7 +519,9 @@ class GenerateHeatmapd(MapTransform):
     Converts landmark coordinates into gaussian heatmaps and optionally copies metadata from a reference image.
 
     Args:
-        keys: keys of the corresponding items in the dictionary.
+        keys: keys of the corresponding items in the dictionary, where each key references a tensor
+            of landmark point coordinates with shape (N, D), where N is the number of landmarks
+            and D is the spatial dimensionality (2 or 3).
         sigma: standard deviation for the Gaussian kernel. Can be a single value or a sequence matching the number
             of spatial dimensions.
         heatmap_keys: keys to store output heatmaps. Default: "{key}_heatmap" for each key.
@@ -539,25 +541,54 @@ class GenerateHeatmapd(MapTransform):
     Raises:
         ValueError: If heatmap_keys/ref_image_keys length doesn't match keys length.
         ValueError: If no spatial shape can be determined (need spatial_shape or ref_image_keys).
-        ValueError: If input points have invalid shape (must be 2D or 3D).
+        ValueError: If input points have invalid shape (must be 2D array with shape (N, D)).
+
+    Example:
+        .. code-block:: python
+
+            import numpy as np
+            from monai.transforms import GenerateHeatmapd
+
+            # Create sample data with landmark points and a reference image
+            data = {
+                "landmarks": np.array([[10.0, 15.0], [20.0, 25.0]]),  # 2 points in 2D
+                "image": np.zeros((32, 32))  # reference image
+            }
+
+            # Transform with reference image
+            transform = GenerateHeatmapd(
+                keys="landmarks",
+                sigma=2.0,
+                ref_image_keys="image"
+            )
+            result = transform(data)
+            # result["landmarks_heatmap"] has shape (2, 32, 32) - one channel per landmark
+
+            # Or with explicit spatial_shape
+            transform = GenerateHeatmapd(
+                keys="landmarks",
+                sigma=2.0,
+                spatial_shape=(64, 64)
+            )
+            result = transform(data)
+            # result["landmarks_heatmap"] has shape (2, 64, 64)
 
     Notes:
         - Default heatmap_keys are generated as "{key}_heatmap" for each input key
         - Shape inference precedence: static spatial_shape > ref_image
-        - Output shapes:
-            - Non-batched points (N, D): (N, H, W[, D])
-            - Batched points (B, N, D): (B, N, H, W[, D])
+        - Input points shape: (N, D) where N is number of landmarks, D is spatial dimensions
+        - Output heatmap shape: (N, H, W) for 2D or (N, H, W, D) for 3D
         - When using ref_image_keys, heatmaps inherit affine and spatial metadata from reference
     """
 
     backend = GenerateHeatmap.backend
 
     # Error messages
-    _ERR_HEATMAP_KEYS_LEN = "heatmap_keys length must match keys length."
-    _ERR_REF_KEYS_LEN = "ref_image_keys length must match keys length when provided."
-    _ERR_SHAPE_LEN = "spatial_shape length must match keys length when providing per-key shapes."
+    _ERR_HEATMAP_KEYS_LEN = "Argument `heatmap_keys` length must match keys length."
+    _ERR_REF_KEYS_LEN = "Argument `ref_image_keys` length must match keys length when provided."
+    _ERR_SHAPE_LEN = "Argument `spatial_shape` length must match keys length when providing per-key shapes."
     _ERR_NO_SHAPE = "Unable to determine spatial shape for GenerateHeatmapd. Provide spatial_shape or ref_image_keys."
-    _ERR_INVALID_POINTS = "landmark arrays must be 2D or 3D with shape (N, D) or (B, N, D)."
+    _ERR_INVALID_POINTS = "Landmark arrays must be 2D with shape (N, D)."
     _ERR_REF_NO_SHAPE = "Reference data must define a shape attribute."
 
     def __init__(

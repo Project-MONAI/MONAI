@@ -757,15 +757,14 @@ class GenerateHeatmap(Transform):
     Notes:
         - Coordinates are interpreted in voxel units and expected in (Y, X) for 2D or (Z, Y, X) for 3D.
         - Target spatial_shape is (Y, X) for 2D and (Z, Y, X) for 3D.
-        - Output layout uses channel-first convention with one channel per landmark:
-            - Non-batched points (N, D): (N, Y, X) for 2D or (N, Z, Y, X) for 3D
-            - Batched points (B, N, D): (B, N, Y, X) for 2D or (B, N, Z, Y, X) for 3D
-        - Each channel corresponds to one landmark.
+        - Output layout uses channel-first convention with one channel per landmark.
+        - Input points shape: (N, D) where N is number of landmarks, D is spatial dimensions (2 or 3).
+        - Output heatmap shape: (N, Y, X) for 2D or (N, Z, Y, X) for 3D.
+        - Each channel index corresponds to one landmark.
 
     Args:
         sigma: gaussian standard deviation. A single value is broadcast across all spatial dimensions.
         spatial_shape: optional fallback spatial shape. If ``None`` it must be provided when calling the transform.
-            A single int value will be broadcast to all spatial dimensions.
         truncated: extent, in multiples of ``sigma``, used to crop the gaussian support window.
         normalize: normalize every heatmap channel to ``[0, 1]`` when ``True``.
         dtype: target dtype for the generated heatmaps (accepts numpy or torch dtypes).
@@ -787,33 +786,33 @@ class GenerateHeatmap(Transform):
     ) -> None:
         if isinstance(sigma, Sequence) and not isinstance(sigma, (str, bytes)):
             if any(s <= 0 for s in sigma):
-                raise ValueError("sigma values must be positive.")
+                raise ValueError("Argument `sigma` values must be positive.")
             self._sigma = tuple(float(s) for s in sigma)
         else:
             if float(sigma) <= 0:
-                raise ValueError("sigma must be positive.")
+                raise ValueError("Argument `sigma` must be positive.")
             self._sigma = (float(sigma),)
         if truncated <= 0:
-            raise ValueError("truncated must be positive.")
+            raise ValueError("Argument `truncated` must be positive.")
         self.truncated = float(truncated)
         self.normalize = normalize
         self.torch_dtype = get_equivalent_dtype(dtype, torch.Tensor)
         self.numpy_dtype = get_equivalent_dtype(dtype, np.ndarray)
         # Validate that dtype is floating-point for meaningful Gaussian values
         if not self.torch_dtype.is_floating_point:
-            raise ValueError(f"dtype must be a floating-point type, got {self.torch_dtype}")
+            raise ValueError(f"Argument `dtype` must be a floating-point type, got {self.torch_dtype}")
         self.spatial_shape = None if spatial_shape is None else tuple(int(s) for s in spatial_shape)
 
     def __call__(self, points: NdarrayOrTensor, spatial_shape: Sequence[int] | None = None) -> NdarrayOrTensor:
         """
         Args:
-            points: landmark coordinates as ndarray/Tensor with shape (N, D) or (B, N, D),
-                ordered as (Y, X) for 2D or (Z, Y, X) for 3D.
-            spatial_shape: spatial size as a sequence or single int (broadcasted). If None, uses
-                the value provided at construction.
+            points: landmark coordinates as ndarray/Tensor with shape (N, D),
+                ordered as (Y, X) for 2D or (Z, Y, X) for 3D, where N is the number
+                of landmarks and D is the spatial dimensionality.
+            spatial_shape: spatial size as a sequence. If None, uses the value provided at construction.
 
         Returns:
-            Heatmaps with shape (N, *spatial) or (B, N, *spatial), one channel per landmark.
+            Heatmaps with shape (N, *spatial), one channel per landmark.
 
         Raises:
             ValueError: if points shape/dimension or spatial_shape is invalid.
@@ -821,50 +820,56 @@ class GenerateHeatmap(Transform):
         original_points = points
         points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
 
-        is_batched = points_t.ndim == 3
-        if not is_batched:
-            if points_t.ndim != 2:
-                raise ValueError(
-                    "points must be a 2D or 3D array with shape (num_points, spatial_dims) or (B, num_points, spatial_dims)."
-                )
-            points_t = points_t.unsqueeze(0)  # Add a batch dimension
+        if points_t.ndim != 2:
+            raise ValueError(
+                f"Argument `points` must be a 2D array with shape (num_points, spatial_dims), got shape {points_t.shape}."
+            )
 
         if points_t.shape[-1] not in (2, 3):
             raise ValueError("GenerateHeatmap only supports 2D or 3D landmarks.")
 
         device = points_t.device
-        batch_size, num_points, spatial_dims = points_t.shape
+        num_points, spatial_dims = points_t.shape
 
         target_shape = self._resolve_spatial_shape(spatial_shape, spatial_dims)
         sigma = self._resolve_sigma(spatial_dims)
-        radius = tuple(int(np.ceil(self.truncated * s)) for s in sigma)
 
-        heatmap = torch.zeros((batch_size, num_points, *target_shape), dtype=self.torch_dtype, device=device)
-        image_bounds = tuple(int(s) for s in target_shape)
-        bounds_t = torch.as_tensor(image_bounds, device=device, dtype=points_t.dtype)
-        for b_idx in range(batch_size):
-            for idx, center in enumerate(points_t[b_idx]):
-                if not torch.isfinite(center).all():
-                    continue
-                if not ((center >= 0).all() and (center < bounds_t).all()):
-                    continue
-                # _make_window expects Python floats; convert only when needed
-                center_vals = center.tolist()
-                window_slices, coord_shifts = self._make_window(center_vals, radius, image_bounds, device)
-                if window_slices is None:
-                    continue
-                region = heatmap[b_idx, idx][window_slices]
-                gaussian = self._evaluate_gaussian(coord_shifts, sigma)
-                updated = torch.maximum(region, gaussian)
-                # write back
-                region.copy_(updated)
-                if self.normalize:
-                    peak = heatmap[b_idx, idx].amax()
-                    denom = torch.where(peak > 0, peak, torch.ones_like(peak))
-                    heatmap[b_idx, idx].div_(denom)
+        # Create sparse image with impulses at landmark locations
+        heatmap = torch.zeros((num_points, *target_shape), dtype=self.torch_dtype, device=device)
+        bounds_t = torch.as_tensor(target_shape, device=device, dtype=points_t.dtype)
 
-        if not is_batched:
-            heatmap = heatmap.squeeze(0)
+        for idx, center in enumerate(points_t):
+            if not torch.isfinite(center).all():
+                continue
+            if not ((center >= 0).all() and (center < bounds_t).all()):
+                continue
+            # Round to nearest integer for impulse placement
+            center_int = center.round().long()
+            # Place impulse (use maximum in case of overlapping landmarks)
+            current_val = heatmap[idx][tuple(center_int)]
+            heatmap[idx][tuple(center_int)] = max(current_val, torch.tensor(1.0, dtype=self.torch_dtype, device=device))
+
+        # Apply Gaussian blur using GaussianFilter
+        # Reshape to (num_points, 1, *spatial) for per-channel filtering
+        heatmap_input = heatmap.unsqueeze(1)  # Add channel dimension
+
+        gaussian_filter = GaussianFilter(
+            spatial_dims=spatial_dims,
+            sigma=sigma,
+            truncated=self.truncated,
+            approx="erf",
+            requires_grad=False
+        ).to(device)
+
+        heatmap_blurred = gaussian_filter(heatmap_input)
+        heatmap = heatmap_blurred.squeeze(1)  # Remove channel dimension
+
+        # Normalize per channel if requested
+        if self.normalize:
+            for idx in range(num_points):
+                peak = heatmap[idx].amax()
+                if peak > 0:
+                    heatmap[idx].div_(peak)
 
         target_dtype = self.torch_dtype if isinstance(original_points, (torch.Tensor, MetaTensor)) else self.numpy_dtype
         converted, _, _ = convert_to_dst_type(heatmap, original_points, dtype=target_dtype)
@@ -873,14 +878,14 @@ class GenerateHeatmap(Transform):
     def _resolve_spatial_shape(self, call_shape: Sequence[int] | None, spatial_dims: int) -> tuple[int, ...]:
         shape = call_shape if call_shape is not None else self.spatial_shape
         if shape is None:
-            raise ValueError("spatial_shape must be provided either at construction time or call time.")
+            raise ValueError("Argument `spatial_shape` must be provided either at construction time or call time.")
         shape_tuple = ensure_tuple(shape)
         if len(shape_tuple) != spatial_dims:
             if len(shape_tuple) == 1:
                 shape_tuple = shape_tuple * spatial_dims  # type: ignore
             else:
                 raise ValueError(
-                    "spatial_shape length must match the landmarks' spatial dims (or pass a single int to broadcast)."
+                    "Argument `spatial_shape` length must match the landmarks' spatial dims (or pass a single int to broadcast)."
                 )
         return tuple(int(s) for s in shape_tuple)
 
@@ -889,53 +894,7 @@ class GenerateHeatmap(Transform):
             return self._sigma
         if len(self._sigma) == 1:
             return self._sigma * spatial_dims
-        raise ValueError("sigma sequence length must equal the number of spatial dimensions.")
-
-    @staticmethod
-    def _is_inside(center: Sequence[float], bounds: tuple[int, ...]) -> bool:
-        for c, size in zip(center, bounds):
-            if not (0 <= c < size):
-                return False
-        return True
-
-    def _make_window(
-        self, center: Sequence[float], radius: tuple[int, ...], bounds: tuple[int, ...], device: torch.device
-    ) -> tuple[tuple[slice, ...] | None, tuple[torch.Tensor, ...]]:
-        slices: list[slice] = []
-        coord_shifts: list[torch.Tensor] = []
-        for _dim, (c, r, size) in enumerate(zip(center, radius, bounds)):
-            start = max(int(np.floor(c - r)), 0)
-            stop = min(int(np.ceil(c + r)) + 1, size)
-            if start >= stop:
-                return None, ()
-            slices.append(slice(start, stop))
-            coord_shifts.append(torch.arange(start, stop, device=device, dtype=torch.float32) - float(c))
-        return tuple(slices), tuple(coord_shifts)
-
-    def _evaluate_gaussian(self, coord_shifts: tuple[torch.Tensor, ...], sigma: tuple[float, ...]) -> torch.Tensor:
-        """
-        Evaluate Gaussian at given coordinate shifts with specified sigmas.
-
-        Args:
-            coord_shifts: Per-dimension coordinate offsets from center.
-            sigma: Per-dimension standard deviations.
-
-        Returns:
-            Gaussian values at the specified coordinates.
-        """
-        device = coord_shifts[0].device
-        shape = tuple(len(axis) for axis in coord_shifts)
-        if 0 in shape:
-            return torch.zeros(shape, dtype=self.torch_dtype, device=device)
-        exponent = torch.zeros(shape, dtype=torch.float32, device=device)
-        for dim, (shift, sig) in enumerate(zip(coord_shifts, sigma)):
-            shift32 = shift.to(torch.float32)
-            scaled = (shift32 / float(sig)) ** 2
-            reshape_shape = [1] * len(coord_shifts)
-            reshape_shape[dim] = shift.numel()
-            exponent += scaled.reshape(reshape_shape)
-        gauss = torch.exp(-0.5 * exponent)
-        return gauss.to(dtype=self.torch_dtype)
+        raise ValueError("Argument `sigma` sequence length must equal the number of spatial dimensions.")
 
 
 class ProbNMS(Transform):

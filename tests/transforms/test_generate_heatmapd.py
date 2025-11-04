@@ -23,8 +23,7 @@ from tests.test_utils import assert_allclose
 
 # Test cases for dictionary transforms with reference image
 # Only test with non-MetaTensor types to avoid affine conflicts
-TEST_CASES_WITH_REF = []
-TEST_CASES_WITH_REF.append(
+TEST_CASES_WITH_REF = [
     [
         "dict_with_ref_3d_numpy",
         np.array([[2.5, 2.5, 3.0], [5.0, 5.0, 4.0]], dtype=np.float32),
@@ -32,9 +31,7 @@ TEST_CASES_WITH_REF.append(
         (2, 8, 8, 8),
         torch.float32,
         True,  # uses reference image
-    ]
-)
-TEST_CASES_WITH_REF.append(
+    ],
     [
         "dict_with_ref_3d_torch",
         torch.tensor([[2.5, 2.5, 3.0], [5.0, 5.0, 4.0]], dtype=torch.float32),
@@ -42,58 +39,43 @@ TEST_CASES_WITH_REF.append(
         (2, 8, 8, 8),
         torch.float32,
         True,  # uses reference image
-    ]
-)
+    ],
+]
 
 # Test cases for dictionary transforms with static spatial shape
-TEST_CASES_STATIC_SHAPE = []
-for shape in [(6, 6), (8, 8, 8), (10, 10, 10)]:
-    TEST_CASES_STATIC_SHAPE.append(
-        [
-            f"dict_static_shape_{len(shape)}d",
-            np.array([[1.0] * len(shape)], dtype=np.float32),
-            {"spatial_shape": shape},
-            (1, *shape),
-            np.float32,
-        ]
-    )
+TEST_CASES_STATIC_SHAPE = [
+    [
+        f"dict_static_shape_{len(shape)}d",
+        np.array([[1.0] * len(shape)], dtype=np.float32),
+        {"spatial_shape": shape},
+        (1, *shape),
+        np.float32,
+    ]
+    for shape in [(6, 6), (8, 8, 8), (10, 10, 10)]
+]
 
 # Test cases for dtype control
-TEST_CASES_DTYPE = []
-for dtype in [torch.float16, torch.float32, torch.float64]:
-    TEST_CASES_DTYPE.append(
-        [
-            f"dict_dtype_{str(dtype).replace('torch.', '')}",
-            np.array([[2.0, 3.0, 4.0]], dtype=np.float32),
-            {"sigma": 1.4, "dtype": dtype},
-            (1, 10, 10, 10),
-            dtype,
-        ]
-    )
-
-# Test cases for batched dictionary transforms
-TEST_CASES_BATCHED = []
-TEST_CASES_BATCHED.append(
+TEST_CASES_DTYPE = [
     [
-        "dict_batched_3d",
-        torch.tensor([[[1.5, 2.5, 3.5]], [[4.5, 5.5, 6.5]]], dtype=torch.float32),
-        {"sigma": 1.0},
-        (2, 1, 8, 8, 8),
-        torch.float32,
+        f"dict_dtype_{str(dtype).replace('torch.', '')}",
+        np.array([[2.0, 3.0, 4.0]], dtype=np.float32),
+        {"sigma": 1.4, "dtype": dtype},
+        (1, 10, 10, 10),
+        dtype,
     ]
-)
+    for dtype in [torch.float16, torch.float32, torch.float64]
+]
 
 # Test cases for various sigma values
-TEST_CASES_SIGMA_VALUES = []
-for sigma in [0.5, 1.0, 2.0, 3.0]:
-    TEST_CASES_SIGMA_VALUES.append(
-        [
-            f"dict_sigma_{sigma}",
-            np.array([[4.0, 4.0, 4.0]], dtype=np.float32),
-            {"sigma": sigma, "spatial_shape": (8, 8, 8)},
-            (1, 8, 8, 8),
-        ]
-    )
+TEST_CASES_SIGMA_VALUES = [
+    [
+        f"dict_sigma_{sigma}",
+        np.array([[4.0, 4.0, 4.0]], dtype=np.float32),
+        {"sigma": sigma, "spatial_shape": (8, 8, 8)},
+        (1, 8, 8, 8),
+    ]
+    for sigma in [0.5, 1.0, 2.0, 3.0]
+]
 
 
 class TestGenerateHeatmapd(unittest.TestCase):
@@ -152,30 +134,6 @@ class TestGenerateHeatmapd(unittest.TestCase):
         self.assertIsInstance(hm, MetaTensor)
         self.assertEqual(tuple(hm.shape), expected_shape)
         self.assertEqual(hm.dtype, expected_dtype)
-
-    @parameterized.expand(TEST_CASES_BATCHED)
-    def test_dict_batched_with_ref(self, _, points, params, expected_shape, _expected_dtype):
-        affine = torch.eye(4)
-        # A single reference image is used for the whole batch
-        image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
-        image.meta["spatial_shape"] = (8, 8, 8)
-        data = {"points": points, "image": image}
-
-        transform = GenerateHeatmapd(keys="points", heatmap_keys="heatmap", ref_image_keys="image", **params)
-        result = transform(data)
-        heatmap = result["heatmap"]
-
-        self.assertIsInstance(heatmap, MetaTensor)
-        self.assertEqual(tuple(heatmap.shape), expected_shape)
-        self.assertEqual(heatmap.meta["spatial_shape"], (8, 8, 8))
-        assert_allclose(heatmap.affine, image.affine, type_test=False)
-
-        # Check max values
-        hm2 = heatmap.reshape(heatmap.shape[0], heatmap.shape[1], -1)
-        max_vals = hm2.max(dim=2)[0]
-        np.testing.assert_allclose(
-            max_vals.cpu().numpy(), np.ones((expected_shape[0], expected_shape[1])), rtol=1e-5, atol=1e-5
-        )
 
     @parameterized.expand(TEST_CASES_SIGMA_VALUES)
     def test_dict_various_sigma(self, _, points, params, expected_shape):
