@@ -22,7 +22,7 @@ from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 
-__all__ = ["UNet", "Unet"]
+__all__ = ["UNet", "Unet", "CheckpointUNet"]
 
 
 class UNet(nn.Module):
@@ -300,6 +300,13 @@ class UNet(nn.Module):
 
 
 class CheckpointUNet(UNet):
+    """UNet variant that wraps internal connection blocks with activation checkpointing.
+
+    See `UNet` for constructor arguments. During training with gradients enabled,
+    intermediate activations inside encoder–decoder connections are recomputed in
+    the backward pass to reduce peak memory usage at the cost of extra compute.
+    """
+
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         subblock = ActivationCheckpointWrapper(subblock)
         down_path = ActivationCheckpointWrapper(down_path)
