@@ -74,7 +74,7 @@ jobs:
       run: ./runtests.sh --build --net
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
@@ -154,7 +154,7 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
