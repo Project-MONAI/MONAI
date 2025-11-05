@@ -127,7 +127,7 @@ class DDIMScheduler(Scheduler):
 
         # creates integer timesteps by multiplying by ratio
         # casting to int to avoid issues when num_inference_step is power of 3
-        timesteps = np.linspace(self.num_train_timesteps - 1, 0, num_inference_steps).round().astype(np.int64)
+        timesteps = np.linspace(num_train_timesteps - 1 - steps_offset, 0, num_inference_steps).round().astype(np.int64)
         self.timesteps = torch.from_numpy(timesteps).to(device)
         self.timesteps += self.steps_offset
 
