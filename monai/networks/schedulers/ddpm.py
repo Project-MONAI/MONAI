@@ -125,7 +125,7 @@ class DDPMScheduler(Scheduler):
         step_ratio = self.num_train_timesteps // self.num_inference_steps
         # creates integer timesteps by multiplying by ratio
         # casting to int to avoid issues when num_inference_step is power of 3
-        timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].astype(np.int64)
+        timesteps = np.linspace(self.num_train_timesteps - 1, 0, num_inference_steps).round().astype(np.int64)
         self.timesteps = torch.from_numpy(timesteps).to(device)
 
     def _get_mean(self, timestep: int, x_0: torch.Tensor, x_t: torch.Tensor) -> torch.Tensor:
