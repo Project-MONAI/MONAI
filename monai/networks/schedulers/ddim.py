@@ -117,15 +117,14 @@ class DDIMScheduler(Scheduler):
             )
 
         self.num_inference_steps = num_inference_steps
-        step_ratio = self.num_train_timesteps // self.num_inference_steps
-        if self.steps_offset >= step_ratio:
-            raise ValueError(
-                f"`steps_offset`: {self.steps_offset} cannot be greater than or equal to "
-                f"`num_train_timesteps // num_inference_steps : {step_ratio}` as this will cause timesteps to exceed"
-                f" the max train timestep."
-            )
+        if self.steps_offset < 0 or self.steps_offset >= self.num_train_timesteps:
+            raise ValueError(f"`steps_offset`: {self.steps_offset} must be in range [0, {self.num_train_timesteps}).")
 
-        timesteps = np.linspace((self.num_train_timesteps - 1) - self.steps_offset, 0, num_inference_steps).round().astype(np.int64)
+        timesteps = (
+            np.linspace((self.num_train_timesteps - 1) - self.steps_offset, 0, num_inference_steps)
+            .round()
+            .astype(np.int64)
+        )
         self.timesteps = torch.from_numpy(timesteps).to(device)
         self.timesteps += self.steps_offset
 
