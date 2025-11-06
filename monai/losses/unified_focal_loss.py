@@ -163,17 +163,19 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         delta: float = 0.7,
         reduction: LossReduction | str = LossReduction.MEAN,
         include_background: bool = True,
-        sigmoid: bool = False,
-        softmax: bool = False,
+        use_softmax: bool = False
     ):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
             num_classes : number of classes, it only supports 2 now. Defaults to 2.
+            weight : weight for combining focal loss and focal tversky loss. Defaults to 0.5.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.5.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
-            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
-            weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
+            reduction : reduction mode for the loss. Defaults to MEAN.
+            include_background : whether to include the background class in loss calculation. Defaults to True.
+            use_softmax: whether to use softmax to transform the original logits into probabilities.
+                If True, softmax is used. If False, sigmoid is used. Defaults to False.
 
         Example:
             >>> import torch
@@ -184,6 +186,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             >>> fl(pred, grnd)
         """
         super().__init__(reduction=LossReduction(reduction).value)
+        if use_sigmoid and use_softmax:
+            raise ValueError("use_sigmoid and use_softmax are mutually exclusive; only one can be True.")
         self.to_onehot_y = to_onehot_y
         self.num_classes = num_classes
         self.gamma = gamma
@@ -192,8 +196,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.asy_focal_loss = AsymmetricFocalLoss(gamma=self.gamma, delta=self.delta)
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(gamma=self.gamma, delta=self.delta)
         self.include_background = include_background
-        self.sigmoid = sigmoid
-        self.softmax = softmax
+        self.use_softmax = use_softmax
 
     # TODO: Implement this  function to support multiple classes segmentation
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
