@@ -150,7 +150,7 @@ class SURELoss(_Loss):
         x: torch.Tensor,
         y_pseudo_gt: torch.Tensor,
         y_ref: torch.Tensor | None = None,
-        complex_input: bool | None = False,
+        complex_input: bool = False,
     ) -> torch.Tensor:
         """
         Args:
