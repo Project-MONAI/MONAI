@@ -118,7 +118,7 @@ class AsymmetricFocalLoss(_Loss):
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 2.
             epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
             include_background: whether to include background class in loss calculation. Defaults to True.
         """
