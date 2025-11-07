@@ -252,7 +252,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         if y_true.shape[1] == self.num_classes:
             if not torch.all((y_true == 0) | (y_true == 1)):
-                raise ValueError(f"y_true appears to be one-hot but contains values other than 0 and 1")
+                raise ValueError("y_true appears to be one-hot but contains values other than 0 and 1")
         elif y_true.shape[1] == 1:
             if torch.max(y_true) >= self.num_classes:
                 raise ValueError(
