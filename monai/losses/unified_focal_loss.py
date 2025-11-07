@@ -207,9 +207,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.gamma = gamma
         self.delta = delta
         self.weight: float = weight
-        self.asy_focal_loss = AsymmetricFocalLoss(to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta)
+        self.asy_focal_loss = AsymmetricFocalLoss(
+            to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta, include_background=self.include_background
+        )
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(
-            to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta
+            to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta, include_background=self.include_background
         )
         self.include_background = include_background
         self.use_softmax = use_softmax
@@ -250,14 +252,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
-
-        if not self.include_background:
-            if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-            else:
-                # if skipping background, removing first channel
-                y_pred = y_pred[:, 1:]
-                y_true = y_true[:, 1:]
 
         if self.use_softmax:
             y_pred = torch.softmax(y_pred.float(), dim=1)
