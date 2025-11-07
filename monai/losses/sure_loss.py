@@ -45,7 +45,7 @@ def sure_loss_function(
     y_ref: torch.Tensor | None = None,
     eps: float = -1.0,
     perturb_noise: torch.Tensor | None = None,
-    complex_input: bool | None = False,
+    complex_input: bool = False,
 ) -> torch.Tensor:
     """
     Args:
