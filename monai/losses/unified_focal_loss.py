@@ -253,9 +253,20 @@ class AsymmetricUnifiedFocalLoss(_Loss):
                 raise ValueError(
                     f"Single-channel input only supported for binary (num_classes=2), got {self.num_classes}"
                 )
-            y_pred = torch.cat([torch.zeros_like(y_pred), y_pred], dim=1)
+
+            if self.use_softmax:
+                raise ValueError("use_softmax=True is not compatible with single-channel input")
+
+            y_pred_sigmoid = torch.sigmoid(y_pred.float())
+            y_pred = torch.cat([1 - y_pred_sigmoid, y_pred_sigmoid], dim=1)
+
             if y_true.shape[1] == 1:
                 y_true = one_hot(y_true, num_classes=self.num_classes)
+        else:
+            if self.use_softmax:
+                y_pred = torch.softmax(y_pred.float(), dim=1)
+            else:
+                y_pred = torch.sigmoid(y_pred.float())
 
         if y_true.shape[1] != self.num_classes or torch.max(y_true) > self.num_classes - 1:
             raise ValueError(
