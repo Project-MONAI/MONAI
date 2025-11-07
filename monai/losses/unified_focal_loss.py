@@ -39,6 +39,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         gamma: float = 0.75,
         epsilon: float = 1e-7,
         reduction: LossReduction | str = LossReduction.MEAN,
+        include_background: bool = True,
     ) -> None:
         """
         Args:
@@ -46,12 +47,14 @@ class AsymmetricFocalTverskyLoss(_Loss):
             delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
             epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
+            include_background: whether to include background class in loss calculation. Defaults to True.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
         self.delta = delta
         self.gamma = gamma
         self.epsilon = epsilon
+        self.include_background = include_background
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         n_pred_ch = y_pred.shape[1]
@@ -79,6 +82,9 @@ class AsymmetricFocalTverskyLoss(_Loss):
         back_dice = 1 - dice_class[:, 0]
         fore_dice = (1 - dice_class[:, 1]) * torch.pow(1 - dice_class[:, 1], -self.gamma)
 
+        if not self.include_background:
+            back_dice = back_dice * 0.0
+
         # Average class scores
         loss = torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
         return loss
@@ -103,6 +109,7 @@ class AsymmetricFocalLoss(_Loss):
         gamma: float = 2,
         epsilon: float = 1e-7,
         reduction: LossReduction | str = LossReduction.MEAN,
+        include_background: bool = True,
     ):
         """
         Args:
@@ -110,12 +117,14 @@ class AsymmetricFocalLoss(_Loss):
             delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
             epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
+            include_background: whether to include background class in loss calculation. Defaults to True.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
         self.delta = delta
         self.gamma = gamma
         self.epsilon = epsilon
+        self.include_background = include_background
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         n_pred_ch = y_pred.shape[1]
@@ -137,6 +146,9 @@ class AsymmetricFocalLoss(_Loss):
 
         fore_ce = cross_entropy[:, 1]
         fore_ce = self.delta * fore_ce
+
+        if not self.include_background:
+            back_ce = back_ce * 0.0
 
         loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], dim=1), dim=1))
         return loss
