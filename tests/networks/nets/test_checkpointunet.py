@@ -164,7 +164,7 @@ ILL_CASES = [
 ]
 
 
-class TestUNET(unittest.TestCase):
+class TestCheckpointUNet(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = CheckpointUNet(**input_param).to(device)
