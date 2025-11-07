@@ -54,7 +54,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         self.delta = delta
         self.gamma = gamma
         self.epsilon = epsilon
-        self.include_background = include_background
+        self.include_background: bool = include_background
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         n_pred_ch = y_pred.shape[1]
@@ -77,6 +77,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         fn = torch.sum(y_true * (1 - y_pred), dim=axis)
         fp = torch.sum((1 - y_true) * y_pred, dim=axis)
         dice_class = (tp + self.epsilon) / (tp + self.delta * fn + (1 - self.delta) * fp + self.epsilon)
+        dice_class = torch.clamp(dice_class, self.epsilon, 1.0 - self.epsilon)
 
         # Calculate losses separately for each class, enhancing both classes
         back_dice = 1 - dice_class[:, 0:1]
@@ -126,7 +127,7 @@ class AsymmetricFocalLoss(_Loss):
         self.delta = delta
         self.gamma = gamma
         self.epsilon = epsilon
-        self.include_background = include_background
+        self.include_background: bool = include_background
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         n_pred_ch = y_pred.shape[1]
@@ -154,7 +155,7 @@ class AsymmetricFocalLoss(_Loss):
 
         all_ce = torch.cat([back_ce, fore_ce], dim=1)
 
-        loss = torch.mean(torch.sum(all_ce, dim=1))
+        loss = torch.mean(all_ce)
         return loss
 
 
@@ -184,11 +185,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            num_classes : number of classes, it only supports 2 now. Defaults to 2.
+            num_classes : number of classes. Defaults to 2.
+            weight : weight for combining focal loss and focal tversky loss. Defaults to 0.5.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.5.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
-            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
-            weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
+            reduction : reduction mode for the loss. Defaults to LossReduction.MEAN.
             include_background : whether to include the background class in loss calculation. Defaults to True.
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
@@ -208,12 +209,20 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.delta = delta
         self.weight: float = weight
         self.asy_focal_loss = AsymmetricFocalLoss(
-            to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta, include_background=self.include_background
+            to_onehot_y=self.to_onehot_y,
+            gamma=self.gamma,
+            delta=self.delta,
+            include_background=self.include_background,
+            reduction=LossReduction.NONE,
         )
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(
-            to_onehot_y=self.to_onehot_y, gamma=self.gamma, delta=self.delta, include_background=self.include_background
+            to_onehot_y=self.to_onehot_y,
+            gamma=self.gamma,
+            delta=self.delta,
+            include_background=self.include_background,
+            reduction=LossReduction.NONE,
         )
-        self.include_background = include_background
+        self.include_background: bool = include_background
         self.use_softmax = use_softmax
 
     # TODO: Implement this  function to support multiple classes segmentation
@@ -240,10 +249,15 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             raise ValueError(f"input shape must be 4 or 5, but got {y_pred.shape}")
 
         if y_pred.shape[1] == 1:
-            y_pred = one_hot(y_pred, num_classes=self.num_classes)
-            y_true = one_hot(y_true, num_classes=self.num_classes)
+            if self.num_classes != 2:
+                raise ValueError(
+                    f"Single-channel input only supported for binary (num_classes=2), got {self.num_classes}"
+                )
+            y_pred = torch.cat([torch.zeros_like(y_pred), y_pred], dim=1)
+            if y_true.shape[1] == 1:
+                y_true = one_hot(y_true, num_classes=self.num_classes)
 
-        if torch.max(y_true) != self.num_classes - 1:
+        if y_true.shape[1] != self.num_classes and torch.max(y_true) > self.num_classes - 1:
             raise ValueError(f"Please make sure the number of classes is {self.num_classes-1}")
 
         n_pred_ch = y_pred.shape[1]
