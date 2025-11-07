@@ -248,10 +248,17 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if len(y_pred.shape) != 4 and len(y_pred.shape) != 5:
             raise ValueError(f"input shape must be 4 or 5, but got {y_pred.shape}")
 
-        if y_true.shape[1] != self.num_classes or torch.max(y_true) > self.num_classes - 1:
+        if y_true.shape[1] == self.num_classes:
+            if not torch.all((y_true == 0) | (y_true == 1)):
+                raise ValueError(f"y_true appears to be one-hot but contains values other than 0 and 1")
+        elif y_true.shape[1] == 1:
+            if torch.max(y_true) >= self.num_classes:
+                raise ValueError(
+                    f"y_true labels must be in [0, {self.num_classes - 1}], but got max {torch.max(y_true)}"
+                )
+        else:
             raise ValueError(
-                f"y_true must have {self.num_classes} channels (one-hot) or label values in [0, {self.num_classes - 1}], "
-                f"but got shape {y_true.shape} with max value {torch.max(y_true)}"
+                f"y_true must have {self.num_classes} channels (one-hot) or 1 channel (labels), got {y_true.shape[1]}"
             )
 
         n_pred_ch = y_pred.shape[1]
