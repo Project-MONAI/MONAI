@@ -208,6 +208,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.gamma = gamma
         self.delta = delta
         self.weight: float = weight
+        self.include_background: bool = include_background
+        self.use_softmax = use_softmax
         self.asy_focal_loss = AsymmetricFocalLoss(
             to_onehot_y=self.to_onehot_y,
             gamma=self.gamma,
@@ -222,8 +224,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             include_background=self.include_background,
             reduction=LossReduction.NONE,
         )
-        self.include_background: bool = include_background
-        self.use_softmax = use_softmax
 
     # TODO: Implement this  function to support multiple classes segmentation
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
