@@ -45,7 +45,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         Args:
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 2.
             epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
             include_background: whether to include background class in loss calculation. Defaults to True.
         """
@@ -257,8 +257,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             if y_true.shape[1] == 1:
                 y_true = one_hot(y_true, num_classes=self.num_classes)
 
-        if y_true.shape[1] != self.num_classes and torch.max(y_true) > self.num_classes - 1:
-            raise ValueError(f"Please make sure the number of classes is {self.num_classes-1}")
+        if y_true.shape[1] != self.num_classes or torch.max(y_true) > self.num_classes - 1:
+            raise ValueError(
+                f"y_true must have {self.num_classes} channels (one-hot) or label values in [0, {self.num_classes - 1}], "
+                f"but got shape {y_true.shape} with max value {torch.max(y_true)}"
+            )
 
         n_pred_ch = y_pred.shape[1]
         if self.to_onehot_y:
