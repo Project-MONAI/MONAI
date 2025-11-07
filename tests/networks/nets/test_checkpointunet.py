@@ -104,10 +104,12 @@ class TestCheckpointUNet(unittest.TestCase):
             spatial_dims=2, in_channels=1, out_channels=2, channels=(8, 16, 32), strides=(2, 2), num_res_units=1
         )
 
+        torch.manual_seed(0)
         x = torch.randn(2, 1, 32, 32, device=device)
 
-        net_ckpt = CheckpointUNet(**params).to(device)
         net_plain = UNet(**params).to(device)
+        net_ckpt = CheckpointUNet(**params).to(device)
+        net_ckpt.load_state_dict(net_plain.state_dict())
 
         with eval_mode(net_ckpt), eval_mode(net_plain):
             y_ckpt = net_ckpt(x)
