@@ -303,11 +303,21 @@ class CheckpointUNet(UNet):
     """UNet variant that wraps internal connection blocks with activation checkpointing.
 
     See `UNet` for constructor arguments. During training with gradients enabled,
-    intermediate activations inside encoder–decoder connections are recomputed in
+    intermediate activations inside encoder-decoder connections are recomputed in
     the backward pass to reduce peak memory usage at the cost of extra compute.
     """
 
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
+        """Returns connection block with activation checkpointing applied to all components.
+
+        Args:
+            down_path: encoding half of the layer (will be wrapped with checkpointing).
+            up_path: decoding half of the layer (will be wrapped with checkpointing).
+            subblock: block defining the next layer (will be wrapped with checkpointing).
+
+        Returns:
+            Connection block with all components wrapped for activation checkpointing.
+        """
         subblock = ActivationCheckpointWrapper(subblock)
         down_path = ActivationCheckpointWrapper(down_path)
         up_path = ActivationCheckpointWrapper(up_path)
