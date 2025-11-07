@@ -248,26 +248,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if len(y_pred.shape) != 4 and len(y_pred.shape) != 5:
             raise ValueError(f"input shape must be 4 or 5, but got {y_pred.shape}")
 
-        if y_pred.shape[1] == 1:
-            if self.num_classes != 2:
-                raise ValueError(
-                    f"Single-channel input only supported for binary (num_classes=2), got {self.num_classes}"
-                )
-
-            if self.use_softmax:
-                raise ValueError("use_softmax=True is not compatible with single-channel input")
-
-            y_pred_sigmoid = torch.sigmoid(y_pred.float())
-            y_pred = torch.cat([1 - y_pred_sigmoid, y_pred_sigmoid], dim=1)
-
-            if y_true.shape[1] == 1:
-                y_true = one_hot(y_true, num_classes=self.num_classes)
-        else:
-            if self.use_softmax:
-                y_pred = torch.softmax(y_pred.float(), dim=1)
-            else:
-                y_pred = torch.sigmoid(y_pred.float())
-
         if y_true.shape[1] != self.num_classes or torch.max(y_true) > self.num_classes - 1:
             raise ValueError(
                 f"y_true must have {self.num_classes} channels (one-hot) or label values in [0, {self.num_classes - 1}], "
@@ -281,10 +261,17 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
-        if self.use_softmax:
-            y_pred = torch.softmax(y_pred.float(), dim=1)
+        if y_pred.shape[1] == 1:
+            y_pred_sigmoid = torch.sigmoid(y_pred.float())
+            y_pred = torch.cat([1 - y_pred_sigmoid, y_pred_sigmoid], dim=1)
+
+            if y_true.shape[1] == 1:
+                y_true = one_hot(y_true, num_classes=self.num_classes)
         else:
-            y_pred = torch.sigmoid(y_pred.float())
+            if self.use_softmax:
+                y_pred = torch.softmax(y_pred.float(), dim=1)
+            else:
+                y_pred = torch.sigmoid(y_pred.float())
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
