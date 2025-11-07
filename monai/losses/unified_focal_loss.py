@@ -79,14 +79,16 @@ class AsymmetricFocalTverskyLoss(_Loss):
         dice_class = (tp + self.epsilon) / (tp + self.delta * fn + (1 - self.delta) * fp + self.epsilon)
 
         # Calculate losses separately for each class, enhancing both classes
-        back_dice = 1 - dice_class[:, 0]
-        fore_dice = (1 - dice_class[:, 1]) * torch.pow(1 - dice_class[:, 1], -self.gamma)
+        back_dice = 1 - dice_class[:, 0:1]
+        fore_dice = (1 - dice_class[:, 1:]) * torch.pow(1 - dice_class[:, 1:], -self.gamma)
 
         if not self.include_background:
             back_dice = back_dice * 0.0
 
+        all_dice = torch.cat([back_dice, fore_dice], dim=1)
+
         # Average class scores
-        loss = torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
+        loss = torch.mean(all_dice)
         return loss
 
 
@@ -141,16 +143,18 @@ class AsymmetricFocalLoss(_Loss):
         y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
 
-        back_ce = torch.pow(1 - y_pred[:, 0], self.gamma) * cross_entropy[:, 0]
+        back_ce = torch.pow(1 - y_pred[:, 0:1], self.gamma) * cross_entropy[:, 0:1]
         back_ce = (1 - self.delta) * back_ce
 
-        fore_ce = cross_entropy[:, 1]
+        fore_ce = cross_entropy[:, 1:]
         fore_ce = self.delta * fore_ce
 
         if not self.include_background:
             back_ce = back_ce * 0.0
 
-        loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], dim=1), dim=1))
+        all_ce = torch.cat([back_ce, fore_ce], dim=1)
+
+        loss = torch.mean(torch.sum(all_ce, dim=1))
         return loss
 
 
