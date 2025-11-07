@@ -22,9 +22,9 @@ from monai.utils import LossReduction
 
 class AsymmetricFocalTverskyLoss(_Loss):
     """
-    AsymmetricFocalTverskyLoss is a variant of FocalTverskyLoss, which attentions to the foreground class.
+    AsymmetricFocalTverskyLoss is a variant of FocalTverskyLoss that focuses on foreground classes.
 
-    Actually, it's only supported for binary image segmentation now.
+    Supports multi-class segmentation with optional background inclusion.
 
     Reimplementation of the Asymmetric Focal Tversky Loss described in:
 
@@ -61,7 +61,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
@@ -95,9 +95,9 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
 class AsymmetricFocalLoss(_Loss):
     """
-    AsymmetricFocalLoss is a variant of FocalTverskyLoss, which attentions to the foreground class.
+    AsymmetricFocalLoss is a variant of Focal Loss that focuses on foreground classes.
 
-    Actually, it's only supported for binary image segmentation now.
+    Supports multi-class segmentation with optional background inclusion.
 
     Reimplementation of the Asymmetric Focal Loss described in:
 
@@ -134,7 +134,7 @@ class AsymmetricFocalLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
@@ -161,9 +161,9 @@ class AsymmetricFocalLoss(_Loss):
 
 class AsymmetricUnifiedFocalLoss(_Loss):
     """
-    AsymmetricUnifiedFocalLoss is a variant of Focal Loss.
+    AsymmetricUnifiedFocalLoss combines Asymmetric Focal Loss and Asymmetric Focal Tversky Loss.
 
-    Actually, it's only supported for binary image segmentation now
+    Supports multi-class segmentation with configurable activation (sigmoid/softmax) and optional background inclusion.
 
     Reimplementation of the Asymmetric Unified Focal Tversky Loss described in:
 
@@ -201,6 +201,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             >>> grnd = torch.ones((1,1,32,32), dtype=torch.int64)
             >>> fl = AsymmetricUnifiedFocalLoss(to_onehot_y=True)
             >>> fl(pred, grnd)
+            >>> # Multiclass example with 3 classes
+            >>> pred_mc = torch.randn((1,3,32,32), dtype=torch.float32)
+            >>> grnd_mc = torch.randint(0, 3, (1,1,32,32), dtype=torch.int64)
+            >>> fl_mc = AsymmetricUnifiedFocalLoss(to_onehot_y=True, num_classes=3, use_softmax=True)
+            >>> fl_mc(pred_mc, grnd_mc)
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -225,16 +230,13 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             reduction=LossReduction.NONE,
         )
 
-    # TODO: Implement this  function to support multiple classes segmentation
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         """
         Args:
             y_pred : the shape should be BNH[WD], where N is the number of classes.
-                It only supports binary segmentation.
                 The input should be the original logits since it will be transformed by
                     a sigmoid or softmax in the forward function.
             y_true : the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
-                It only supports binary segmentation.
 
         Raises:
             ValueError: When input and target are different shape
@@ -264,11 +266,12 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         n_pred_ch = y_pred.shape[1]
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
         if y_pred.shape[1] == 1:
+            warnings.warn("single channel prediction, augmenting with background channel.", stacklevel=2)
             y_pred_sigmoid = torch.sigmoid(y_pred.float())
             y_pred = torch.cat([1 - y_pred_sigmoid, y_pred_sigmoid], dim=1)
 
@@ -278,7 +281,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             if self.use_softmax:
                 y_pred = torch.softmax(y_pred.float(), dim=1)
             else:
-                y_pred = torch.sigmoid(y_pred.float())
+                y_pred = y_pred.float()
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
