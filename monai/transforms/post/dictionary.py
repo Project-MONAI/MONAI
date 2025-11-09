@@ -684,6 +684,8 @@ class GenerateHeatmapd(MapTransform):
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
         if static_shape is not None:
+            if len(static_shape) == 1 and spatial_dims > 1:
+                static_shape = tuple([static_shape[0]] * spatial_dims)
             if len(static_shape) != spatial_dims:
                 raise ValueError(
                     f"Provided static spatial_shape has {len(static_shape)} dims; expected {spatial_dims}."
