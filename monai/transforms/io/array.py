@@ -45,7 +45,10 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import (
     GridSamplePadMode,
-    ImageMetaKey,
+)
+from monai.utils import ImageMetaKey
+from monai.utils import ImageMetaKey as Key
+from monai.utils import (
     MetaKeys,
     OptionalImportError,
     convert_to_dst_type,
@@ -138,6 +141,7 @@ class LoadImage(Transform):
         prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         expanduser: bool = True,
+        raise_on_missing_reader: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -161,8 +165,20 @@ class LoadImage(Transform):
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
+            raise_on_missing_reader: if True, raise `OptionalImportError` when a specified reader is not available;
+                otherwise attempt to use fallback readers. Defaults to False (backward compatibility).
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
+
+        Raises:
+            OptionalImportError: If `raise_on_missing_reader=True` and the specified reader
+                cannot be found or its optional dependency is not installed.
+
+        Accepted reader types:
+            - str: name of a registered reader (e.g., `"ITKReader"`)
+            - class: e.g., `ITKReader` or a custom reader class
+            - instance: e.g., `ITKReader(pixel_type=itk.UC)`
+            - list/tuple: multiple reader names or classes to try in order
 
         Note:
 
@@ -183,6 +199,7 @@ class LoadImage(Transform):
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
         self.expanduser = expanduser
+        self.raise_on_missing_reader = raise_on_missing_reader
 
         self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -206,18 +223,61 @@ class LoadImage(Transform):
                 if not has_built_in:
                     the_reader = locate(f"{_r}")  # search dotted path
                 if the_reader is None:
-                    the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
+                    try:
+                        the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
+                    except ValueError:
+                        # If the reader name is not recognized at all, raise OptionalImportError
+                        msg = f"Cannot find reader '{_r}'. It may not be installed or recognized."
+                        if self.raise_on_missing_reader:
+                            raise OptionalImportError(msg)
+                        else:
+                            warnings.warn(
+                                f"{msg} Will use fallback readers if available.",
+                                category=UserWarning,
+                                stacklevel=2,
+                            )
+                            continue
                 try:
                     self.register(the_reader(*args, **kwargs))
-                except OptionalImportError:
-                    warnings.warn(
-                        f"required package for reader {_r} is not installed, or the version doesn't match requirement."
+                except OptionalImportError as e:
+                    msg = (
+                        f"Required package for reader {_r} is not installed, or the version doesn't match requirement."
                     )
+                    if self.raise_on_missing_reader:
+                        raise OptionalImportError(msg) from e
+                    else:
+                        warnings.warn(
+                            f"{msg} Will use fallback readers if available.",
+                            category=UserWarning,
+                            stacklevel=2,
+                        )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
-                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
+                    warnings.warn(
+                        f"{_r} is not supported with the given parameters {args} {kwargs}.",
+                        category=UserWarning,
+                        stacklevel=2,
+                    )
                     self.register(the_reader())
             elif inspect.isclass(_r):
-                self.register(_r(*args, **kwargs))
+                try:
+                    self.register(_r(*args, **kwargs))
+                except OptionalImportError as e:
+                    msg = f"Required package for reader {_r.__name__} is not installed, or the version doesn't match requirement."
+                    if self.raise_on_missing_reader:
+                        raise OptionalImportError(msg) from e
+                    else:
+                        warnings.warn(
+                            f"{msg} Will use fallback readers if available.",
+                            category=UserWarning,
+                            stacklevel=2,
+                        )
+                except TypeError:
+                    warnings.warn(
+                        f"{_r.__name__} is not supported with the given parameters {args} {kwargs}.",
+                        category=UserWarning,
+                        stacklevel=2,
+                    )
+                    self.register(_r())
             else:
                 self.register(_r)  # reader instance, ignoring the constructor args/kwargs
         return

@@ -15,6 +15,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 import nibabel as nib
@@ -28,7 +29,7 @@ from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
-from monai.utils import optional_import
+from monai.utils import OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -436,11 +437,39 @@ class TestLoadImage(unittest.TestCase):
         self.assertEqual(out.meta["name"], "my test")
         out = LoadImage(image_only=True, reader=_MiniReader, is_compatible=False)("test")
         self.assertEqual(out.meta["name"], "my test")
+
+    def test_reader_not_installed_exception(self):
+        """test if an exception is raised when a specified reader is not installed"""
+        with self.assertRaises(OptionalImportError):
+            LoadImage(image_only=True, reader="NonExistentReader")("test")
         for item in (_MiniReader, _MiniReader(is_compatible=False)):
             out = LoadImage(image_only=True, reader=item)("test")
             self.assertEqual(out.meta["name"], "my test")
         out = LoadImage(image_only=True)("test", reader=_MiniReader(is_compatible=False))
         self.assertEqual(out.meta["name"], "my test")
+
+    def test_raise_on_missing_reader_flag(self):
+        """test raise_on_missing_reader flag behavior"""
+        # Test with flag enabled - should raise exception for unknown reader name
+        with self.assertRaises(OptionalImportError):
+            LoadImage(image_only=True, reader="UnknownReaderName", raise_on_missing_reader=True)
+
+        # Test with flag disabled - should warn but not raise exception for unknown reader name
+        # This should succeed and create the loader with fallback behavior
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            loader_with_fallback = LoadImage(image_only=True, reader="UnknownReaderName", raise_on_missing_reader=False)
+            self.assertIsInstance(loader_with_fallback, LoadImage)
+            # Should have produced a warning about the unknown reader
+            self.assertTrue(any("Cannot find reader 'UnknownReaderName'" in str(warning.message) for warning in w))
+
+        # The flag should work properly with valid readers too
+        loader_with_flag = LoadImage(image_only=True, reader="ITKReader", raise_on_missing_reader=False)
+        loader_without_flag = LoadImage(image_only=True, reader="ITKReader")
+
+        # Both should work since ITK is available in this test environment
+        self.assertIsInstance(loader_with_flag, LoadImage)
+        self.assertIsInstance(loader_without_flag, LoadImage)
 
     def test_itk_meta(self):
         """test metadata from a directory"""
