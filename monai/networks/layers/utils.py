@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch.nn
 
 from monai.networks.layers.factories import Act, Dropout, Norm, Pool, RelPosEmbedding, split_args

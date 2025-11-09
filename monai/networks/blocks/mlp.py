@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch.nn as nn
 
 from monai.networks.layers import get_act_layer
