@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import collections.abc
 from itertools import repeat
-from typing import List, Union
 
 import torch
 import torch.nn as nn
@@ -33,7 +32,7 @@ def _ntuple(n):
 
 
 def build_fourier_position_embedding(
-    grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, scales: Union[float, List[float]] = 1.0
+    grid_size: int | list[int], embed_dim: int, spatial_dims: int = 3, scales: float | list[float] = 1.0
 ) -> torch.nn.Parameter:
     """
     Builds a (Anistropic) Fourier feature position embedding based on the given grid size, embed dimension,
@@ -86,7 +85,7 @@ def build_fourier_position_embedding(
 
 
 def build_sincos_position_embedding(
-    grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
+    grid_size: int | list[int], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
 ) -> torch.nn.Parameter:
     """
     Builds a sin-cos position embedding based on the given grid size, embed dimension, spatial dimensions, and temperature.

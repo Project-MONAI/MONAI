@@ -28,7 +28,6 @@
 
 from __future__ import annotations
 
-from typing import Union
 
 import numpy as np
 import torch
@@ -283,7 +282,7 @@ class RFlowScheduler(Scheduler):
         return t
 
     def step(
-        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: Union[int, None] = None
+        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: int | None = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Predicts the next sample in the diffusion process.

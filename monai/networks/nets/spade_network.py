@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -156,7 +156,7 @@ class SPADEEncoder(nn.Module):
         self.z_dim = z_dim
         self.channels = channels
         if len(input_shape) != spatial_dims:
-            raise ValueError("Length of parameter input shape must match spatial_dims; got %s" % (input_shape))
+            raise ValueError(f"Length of parameter input shape must match spatial_dims; got {input_shape}")
         for s_ind, s_ in enumerate(input_shape):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(
@@ -255,7 +255,7 @@ class SPADEDecoder(nn.Module):
         self.label_nc = label_nc
         self.num_channels = channels
         if len(input_shape) != spatial_dims:
-            raise ValueError("Length of parameter input shape must match spatial_dims; got %s" % (input_shape))
+            raise ValueError(f"Length of parameter input shape must match spatial_dims; got {input_shape}")
         for s_ind, s_ in enumerate(input_shape):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(

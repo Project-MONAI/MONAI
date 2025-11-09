@@ -34,10 +34,7 @@ repos:
         exclude: |
           (?x)(
               ^versioneer.py|
-              ^monai/_version.py|
-              ^monai/networks/| # avoid typing rewrites
-              ^monai/apps/detection/utils/anchor_utils.py| # avoid typing rewrites
-              ^tests/test_compute_panoptic_quality.py # avoid typing rewrites
+              ^monai/_version.py
           )
 
   - repo: https://github.com/asottile/yesqa

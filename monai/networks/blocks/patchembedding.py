@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional
 
 import numpy as np
 import torch
@@ -54,7 +53,7 @@ class PatchEmbeddingBlock(nn.Module):
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
-        pos_embed_kwargs: Optional[dict] = None,
+        pos_embed_kwargs: dict | None = None,
     ) -> None:
         """
         Args:

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 import torch.nn.functional as F
