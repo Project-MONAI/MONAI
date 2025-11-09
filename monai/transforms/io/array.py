@@ -47,7 +47,6 @@ from monai.utils import (
     GridSamplePadMode,
 )
 from monai.utils import ImageMetaKey
-from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     MetaKeys,
     OptionalImportError,
