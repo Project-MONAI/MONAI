@@ -32,7 +32,14 @@ class TestRandNonCentralChiNoised(NumpyImageTestCase2D):
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, in_type, keys, mean, std):
         degrees_of_freedom = 64
-        noise_fn = RandNonCentralChiNoised(keys=keys, prob=1.0, mean=mean, std=std, degrees_of_freedom=degrees_of_freedom, dtype=np.float64)
+        noise_fn = RandNonCentralChiNoised(
+            keys=keys,
+            prob=1.0,
+            mean=mean,
+            std=std,
+            degrees_of_freedom=degrees_of_freedom,
+            dtype=np.float64,
+        )
         noise_fn.set_random_state(seed)
         noised = noise_fn({k: in_type(self.imt) for k in keys})
         np.random.seed(seed)
@@ -53,7 +60,12 @@ class TestRandNonCentralChiNoised(NumpyImageTestCase2D):
     def test_correct_results_k2(self, _, in_type, keys, mean, std):
         degrees_of_freedom = 2
         noise_fn = RandNonCentralChiNoised(
-            keys=keys, prob=1.0, mean=mean, std=std, degrees_of_freedom=degrees_of_freedom, dtype=np.float64
+            keys=keys,
+            prob=1.0,
+            mean=mean,
+            std=std,
+            degrees_of_freedom=degrees_of_freedom,
+            dtype=np.float64,
         )
         noise_fn.set_random_state(seed)
         noised = noise_fn({k: in_type(self.imt) for k in keys})

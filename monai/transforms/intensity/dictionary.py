@@ -71,6 +71,8 @@ __all__ = [
     "RandGaussianNoised",
     "RandRicianNoised",
     "RandNonCentralChiNoised",
+    "RandNonCentralChiNoiseD",
+    "RandNonCentralChiNoiseDict",
     "ShiftIntensityd",
     "RandShiftIntensityd",
     "ScaleIntensityd",

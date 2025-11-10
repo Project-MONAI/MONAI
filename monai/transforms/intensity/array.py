@@ -173,12 +173,32 @@ class RandNonCentralChiNoise(RandomizableTransform):
         prob: float = 0.1,
         mean: Sequence[float] | float = 0.0,
         std: Sequence[float] | float = 1.0,
-        degrees_of_freedom: int = 64, #64 default because typical modern brain MRI is 32 quadrature coils
+        degrees_of_freedom: int = 64, # 64 default because typical modern brain MRI is 32 quadrature coils 
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
         dtype: DtypeLike = np.float32,
     ) -> None:
+        """
+        Initializes the transform.
+
+        Args:
+            prob: Probability to add noise.
+            mean: Mean of the Gaussian noise distributions.
+            std: Standard deviation (spread) of the Gaussian noise distributions.
+            degrees_of_freedom: Number of Gaussian distributions (degrees of freedom).
+                `degrees_of_freedom=2` is Rician noise. Defaults to 64 (32 quadrature coils).
+            channel_wise: If True, treats each channel of the image separately.
+            relative: If True, the spread of the sampled Gaussian distributions will
+                be std times the standard deviation of the image or channel's intensity
+                histogram.
+            sample_std: If True, sample the spread of the Gaussian distributions
+                uniformly from 0 to std.
+            dtype: output data type, if None, same as input image. defaults to float32.
+
+        Raises:
+            ValueError: If `degrees_of_freedom` is not an integer or is less than 1.
+        """
         RandomizableTransform.__init__(self, prob)
         self.prob = prob
         self.mean = mean
@@ -192,6 +212,23 @@ class RandNonCentralChiNoise(RandomizableTransform):
         self.dtype = dtype
 
     def _add_noise(self, img: NdarrayOrTensor, mean: float, std: float, k: int):
+        """
+        Applies non-central chi noise to a single image or channel.
+
+        This method generates `k` Gaussian noise arrays, adds the input `img`
+        to the first one (as the non-centrality component), and then computes
+        the square root of the sum of squares.
+
+        Args:
+            img: Input image array.
+            mean: Mean for the Gaussian noise distributions.
+            std: Standard deviation for the Gaussian noise distributions.
+            k: Degrees of freedom (number of noise arrays).
+
+        Returns:
+            Image with non-central chi noise applied, with the same
+            backend (Numpy/Torch) as the input.
+        """
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
