@@ -437,16 +437,17 @@ class TestLoadImage(unittest.TestCase):
         self.assertEqual(out.meta["name"], "my test")
         out = LoadImage(image_only=True, reader=_MiniReader, is_compatible=False)("test")
         self.assertEqual(out.meta["name"], "my test")
-
-    def test_reader_not_installed_exception(self):
-        """test if an exception is raised when a specified reader is not installed"""
-        with self.assertRaises(OptionalImportError):
-            LoadImage(image_only=True, reader="NonExistentReader", raise_on_missing_reader=True)
+        # Test runtime reader specification
         for item in (_MiniReader, _MiniReader(is_compatible=False)):
             out = LoadImage(image_only=True, reader=item)("test")
             self.assertEqual(out.meta["name"], "my test")
         out = LoadImage(image_only=True)("test", reader=_MiniReader(is_compatible=False))
         self.assertEqual(out.meta["name"], "my test")
+
+    def test_reader_not_installed_exception(self):
+        """test if an exception is raised when a specified reader is not installed"""
+        with self.assertRaises(OptionalImportError):
+            LoadImage(image_only=True, reader="NonExistentReader", raise_on_missing_reader=True)
 
     def test_raise_on_missing_reader_flag(self):
         """test raise_on_missing_reader flag behavior"""
