@@ -236,8 +236,8 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
-    
-    
+
+
 class RandNonCentralChiNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandNonCentralChiNoise`.
@@ -283,7 +283,7 @@ class RandNonCentralChiNoised(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_non_central_chi_noise = RandNonCentralChiNoise(
-            prob=1.0,  
+            prob=1.0,
             mean=mean,
             std=std,
             degrees_of_freedom=degrees_of_freedom,

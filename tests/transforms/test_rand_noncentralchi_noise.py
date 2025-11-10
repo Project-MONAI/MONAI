@@ -40,17 +40,17 @@ class TestRandNonCentralChiNoise(NumpyImageTestCase2D):
         np.random.seed(seed)
         np.random.random()
         _std = np.random.uniform(0, std)
-        
+
         noise_shape = (degrees_of_freedom, *self.imt.shape)
         all_noises = np.random.normal(mean, _std, size=noise_shape).astype(np.float32)
         all_noises[0] += self.imt
         sum_sq = np.sum(all_noises**2, axis=0)
         expected = np.sqrt(sum_sq)
-        
+
         if isinstance(noised, torch.Tensor):
             noised = noised.cpu()
         np.testing.assert_allclose(expected, noised, atol=1e-5)
-        
+
     @parameterized.expand(TESTS)
     def test_correct_results_dof2(self, _, in_type, mean, std):
         """

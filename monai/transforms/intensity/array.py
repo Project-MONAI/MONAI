@@ -173,7 +173,7 @@ class RandNonCentralChiNoise(RandomizableTransform):
         prob: float = 0.1,
         mean: Sequence[float] | float = 0.0,
         std: Sequence[float] | float = 1.0,
-        degrees_of_freedom: int = 64, #64 default because typical modern brain MRI is 32 quadrature coils 
+        degrees_of_freedom: int = 64, #64 default because typical modern brain MRI is 32 quadrature coils
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
@@ -242,9 +242,9 @@ class RandNonCentralChiNoise(RandomizableTransform):
                 raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
             img = self._add_noise(img, mean=self.mean, std=std, k=self.degrees_of_freedom)
         return img
-    
-    
-    
+
+
+
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.

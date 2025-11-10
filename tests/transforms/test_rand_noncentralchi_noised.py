@@ -48,7 +48,7 @@ class TestRandNonCentralChiNoised(NumpyImageTestCase2D):
             if isinstance(noised[k], torch.Tensor):
                 noised[k] = noised[k].cpu()
             np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
-            
+
     @parameterized.expand(TESTS)
     def test_correct_results_k2(self, _, in_type, keys, mean, std):
         degrees_of_freedom = 2
@@ -61,7 +61,7 @@ class TestRandNonCentralChiNoised(NumpyImageTestCase2D):
         for k in keys:
             np.random.random()
             _std = np.random.uniform(0, std)
-            
+
             noise_shape = (degrees_of_freedom, *self.imt.shape)
             all_noises = np.random.normal(mean, _std, size=noise_shape).astype(np.float32)
             all_noises[0] += self.imt
