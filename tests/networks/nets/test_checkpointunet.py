@@ -124,17 +124,20 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 class TestCheckpointUNet(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
+        """Validate CheckpointUNet output shapes across configurations.
+
+        Args:
+            input_param: Mapping of constructor kwargs for the network under test.
+            input_shape: Shape tuple for the synthetic input tensor.
+            expected_shape: Expected output tensor shape.
+        """
         net = CheckpointUNet(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        """
-        TorchScript doesn't support activation-checkpointing (torch.utils.checkpoint) calls inside the module.
-        To keep the test suite validating TorchScript compatibility, script the plain UNet (which is scriptable),
-        rather than the CheckpointUNet wrapper that uses checkpointing internals.
-        """
+        """Script the baseline UNet to maintain TorchScript coverage."""
         net = UNet(
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
         )
@@ -142,7 +145,7 @@ class TestCheckpointUNet(unittest.TestCase):
         test_script_save(net, test_data)
 
     def test_checkpointing_equivalence_eval(self):
-        """Ensure that CheckpointUNet matches standard UNet in eval mode (checkpointing inactive)."""
+        """Confirm eval parity when checkpointing is inactive."""
         params = dict(
             spatial_dims=2, in_channels=1, out_channels=2, channels=(8, 16, 32), strides=(2, 2), num_res_units=1
         )
@@ -168,7 +171,7 @@ class TestCheckpointUNet(unittest.TestCase):
         self.assertLess(diff, 1e-3, f"Eval-mode outputs differ more than expected (mean abs diff={diff:.6f})")
 
     def test_checkpointing_activates_training(self):
-        """Ensure checkpointing triggers recomputation under training and gradients propagate."""
+        """Verify checkpointing recomputes activations during training."""
         params = dict(
             spatial_dims=2, in_channels=1, out_channels=1, channels=(8, 16, 32), strides=(2, 2), num_res_units=1
         )
