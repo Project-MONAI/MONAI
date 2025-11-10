@@ -283,15 +283,8 @@ class RandNonCentralChiNoise(RandomizableTransform):
 
         img, *_ = convert_to_dst_type(img, dst=src, dtype=self.dtype)
         return img
-<<<<<<< HEAD
 
 
-
-=======
-
-
-
->>>>>>> 83d8ad52 (Fixes metadata dropping)
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
