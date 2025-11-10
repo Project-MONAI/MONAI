@@ -173,7 +173,7 @@ class RandNonCentralChiNoise(RandomizableTransform):
         prob: float = 0.1,
         mean: Sequence[float] | float = 0.0,
         std: Sequence[float] | float = 1.0,
-        degrees_of_freedom: int = 64, # 64 default because typical modern brain MRI is 32 quadrature coils 
+        degrees_of_freedom: int = 64, # 64 default because typical modern brain MRI is 32 quadrature coils
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
@@ -288,9 +288,9 @@ class RandNonCentralChiNoise(RandomizableTransform):
 
 
 =======
-    
 
-    
+
+
 >>>>>>> 83d8ad52 (Fixes metadata dropping)
 class RandRicianNoise(RandomizableTransform):
     """
