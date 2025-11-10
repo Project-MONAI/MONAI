@@ -211,7 +211,9 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype, sample_std=sample_std)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGaussianNoised:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianNoised:
         super().set_random_state(seed, state)
         self.rand_gaussian_noise.set_random_state(seed, state)
         return self
@@ -293,7 +295,9 @@ class RandNonCentralChiNoised(RandomizableTransform, MapTransform):
             dtype=dtype,
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandNonCentralChiNoised:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandNonCentralChiNoised:
         super().set_random_state(seed, state)
         self.rand_non_central_chi_noise.set_random_state(seed, state)
         return self
@@ -496,7 +500,9 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0, channel_wise=channel_wise)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandShiftIntensityd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandShiftIntensityd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
@@ -595,9 +601,13 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.shifter = RandStdShiftIntensity(factors=factors, nonzero=nonzero, channel_wise=channel_wise, dtype=dtype, prob=1.0)
+        self.shifter = RandStdShiftIntensity(
+            factors=factors, nonzero=nonzero, channel_wise=channel_wise, dtype=dtype, prob=1.0
+        )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandStdShiftIntensityd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandStdShiftIntensityd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
@@ -694,7 +704,9 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0, channel_wise=channel_wise)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandScaleIntensityd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandScaleIntensityd:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
@@ -764,7 +776,9 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
             factors=factors, fixed_mean=self.fixed_mean, preserve_range=preserve_range, dtype=dtype, prob=1.0
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandScaleIntensityFixedMeand:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandScaleIntensityFixedMeand:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
@@ -1074,7 +1088,9 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0, invert_image=invert_image, retain_stats=retain_stats)
         self.invert_image = invert_image
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAdjustContrastd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandAdjustContrastd:
         super().set_random_state(seed, state)
         self.adjuster.set_random_state(seed, state)
         return self
@@ -1310,9 +1326,13 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_smooth = RandGaussianSmooth(sigma_x=sigma_x, sigma_y=sigma_y, sigma_z=sigma_z, approx=approx, prob=1.0)
+        self.rand_smooth = RandGaussianSmooth(
+            sigma_x=sigma_x, sigma_y=sigma_y, sigma_z=sigma_z, approx=approx, prob=1.0
+        )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGaussianSmoothd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianSmoothd:
         super().set_random_state(seed, state)
         self.rand_smooth.set_random_state(seed, state)
         return self
@@ -1427,7 +1447,9 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGaussianSharpend:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianSharpend:
         super().set_random_state(seed, state)
         self.rand_sharpen.set_random_state(seed, state)
         return self
@@ -1475,7 +1497,9 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.shifter = RandHistogramShift(num_control_points=num_control_points, prob=1.0)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandHistogramShiftd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandHistogramShiftd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
@@ -1702,7 +1726,9 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_noise = RandKSpaceSpikeNoise(prob=1.0, intensity_range=intensity_range, channel_wise=channel_wise)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandKSpaceSpikeNoised:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandKSpaceSpikeNoised:
         super().set_random_state(seed, state)
         self.rand_noise.set_random_state(seed, state)
         return self
@@ -1778,7 +1804,9 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCoarseDropoutd:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCoarseDropoutd:
         super().set_random_state(seed, state)
         self.dropper.set_random_state(seed, state)
         return self
@@ -1849,7 +1877,9 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=1.0
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCoarseShuffled:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCoarseShuffled:
         super().set_random_state(seed, state)
         self.shuffle.set_random_state(seed, state)
         return self
