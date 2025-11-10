@@ -124,13 +124,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 class TestCheckpointUNet(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
-        """Validate CheckpointUNet output shapes across configurations.
-
-        Args:
-            input_param: Mapping of constructor kwargs for the network under test.
-            input_shape: Shape tuple for the synthetic input tensor.
-            expected_shape: Expected output tensor shape.
-        """
+        """Validate CheckpointUNet output shapes across configurations."""
         net = CheckpointUNet(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
