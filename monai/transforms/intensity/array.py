@@ -252,11 +252,13 @@ class RandNonCentralChiNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        src = img
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             super().randomize(None)
 
         if not self._do_transform:
+            img, *_ = convert_to_dst_type(img, dst=src, dtype=self.dtype)
             return img
 
         if self.channel_wise:
@@ -278,10 +280,18 @@ class RandNonCentralChiNoise(RandomizableTransform):
             if not isinstance(std, (int, float)):
                 raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
             img = self._add_noise(img, mean=self.mean, std=std, k=self.degrees_of_freedom)
+
+        img, *_ = convert_to_dst_type(img, dst=src, dtype=self.dtype)
         return img
+<<<<<<< HEAD
 
 
 
+=======
+    
+
+    
+>>>>>>> 83d8ad52 (Fixes metadata dropping)
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
