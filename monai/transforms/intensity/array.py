@@ -173,7 +173,7 @@ class RandNonCentralChiNoise(RandomizableTransform):
         prob: float = 0.1,
         mean: Sequence[float] | float = 0.0,
         std: Sequence[float] | float = 1.0,
-        degrees_of_freedom: int = 64, # 64 default because typical modern brain MRI is 32 quadrature coils
+        degrees_of_freedom: int = 64,  # 64 default because typical modern brain MRI is 32 quadrature coils
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
@@ -242,7 +242,6 @@ class RandNonCentralChiNoise(RandomizableTransform):
             all_noises[0] = all_noises[0] + img
             sum_sq = torch.sum(all_noises**2, dim=0)
             return torch.sqrt(sum_sq)
-
 
         all_noises_np[0] = all_noises_np[0] + img
         sum_sq = np.sum(all_noises_np**2, axis=0)
@@ -489,9 +488,7 @@ class StdShiftIntensity(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(
-        self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32
-    ) -> None:
+    def __init__(self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32) -> None:
         self.factor = factor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
@@ -581,9 +578,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        shifter = StdShiftIntensity(
-            factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
-        )
+        shifter = StdShiftIntensity(factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype)
         return shifter(img=img)
 
 
@@ -1273,12 +1268,16 @@ class ClipIntensityPercentiles(Transform):
                     (
                         lower_percentile
                         if lower_percentile is None
-                        else lower_percentile.item() if hasattr(lower_percentile, "item") else lower_percentile
+                        else lower_percentile.item()
+                        if hasattr(lower_percentile, "item")
+                        else lower_percentile
                     ),
                     (
                         upper_percentile
                         if upper_percentile is None
-                        else upper_percentile.item() if hasattr(upper_percentile, "item") else upper_percentile
+                        else upper_percentile.item()
+                        if hasattr(upper_percentile, "item")
+                        else upper_percentile
                     ),
                 )
             )
@@ -1402,9 +1401,7 @@ class RandAdjustContrast(RandomizableTransform):
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
-                raise ValueError(
-                    f"if gamma is a number, must greater than 0.5 and value is picked from (0.5, gamma), got {gamma}"
-                )
+                raise ValueError(f"if gamma is a number, must greater than 0.5 and value is picked from (0.5, gamma), got {gamma}")
             self.gamma = (0.5, gamma)
         elif len(gamma) != 2:
             raise ValueError("gamma should be a number or pair of numbers.")
@@ -1415,9 +1412,7 @@ class RandAdjustContrast(RandomizableTransform):
         self.invert_image: bool = invert_image
         self.retain_stats: bool = retain_stats
 
-        self.adjust_contrast = AdjustContrast(
-            self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats
-        )
+        self.adjust_contrast = AdjustContrast(self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats)
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
@@ -1543,9 +1538,7 @@ class ScaleIntensityRangePercentiles(Transform):
             b_min = ((self.b_max - self.b_min) * (self.lower / 100.0)) + self.b_min
             b_max = ((self.b_max - self.b_min) * (self.upper / 100.0)) + self.b_min
 
-        scalar = ScaleIntensityRange(
-            a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype
-        )
+        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype)
         img = scalar(img)
         img = convert_to_tensor(img, track_meta=False)
         return img
@@ -1868,8 +1861,7 @@ class GaussianSharpen(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
-            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
-            for sigma in (self.sigma1, self.sigma2)
+            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device) for sigma in (self.sigma1, self.sigma2)
         )
         blurred_f = gf1(img_t.unsqueeze(0))
         filter_blurred_f = gf2(blurred_f)
@@ -2227,9 +2219,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         # assert one-to-one relationship between factors and locations
         if isinstance(k_intensity, Sequence):
             if not isinstance(loc[0], Sequence):
-                raise ValueError(
-                    "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
-                )
+                raise ValueError("If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc")
             if len(k_intensity) != len(loc):
                 raise ValueError("There must be one intensity_factor value for each tuple of indices in loc.")
         if isinstance(self.loc[0], Sequence) and k_intensity is not None and not isinstance(self.k_intensity, Sequence):
@@ -2569,9 +2559,7 @@ class RandCoarseDropout(RandCoarseTransform):
         max_spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
     ) -> None:
-        super().__init__(
-            holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=prob
-        )
+        super().__init__(holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=prob)
         self.dropout_holes = dropout_holes
         if isinstance(fill_value, (tuple, list)):
             if len(fill_value) != 2:
@@ -2784,10 +2772,7 @@ class RandIntensityRemap(RandomizableTransform):
         if self._do_transform:
             if self.channel_wise:
                 img = torch.stack(
-                    [
-                        IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
-                        for i in range(len(img))
-                    ]
+                    [IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i]) for i in range(len(img))]
                 )
             else:
                 img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
@@ -2843,9 +2828,7 @@ class ForegroundMask(Transform):
 
         self.thresholds = {k: v for k, v in self.thresholds.items() if v is not None}
         if self.thresholds.keys().isdisjoint(set("RGBHSV")):
-            raise ValueError(
-                f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided."
-            )
+            raise ValueError(f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided.")
         self.invert = invert
 
     def _set_threshold(self, threshold, mode):
@@ -2856,9 +2839,7 @@ class ForegroundMask(Transform):
         elif isinstance(threshold, (float, int)):
             self.thresholds[mode] = float(threshold)
         else:
-            raise ValueError(
-                f"`threshold` should be either a callable, string, or float number, {type(threshold)} was given."
-            )
+            raise ValueError(f"`threshold` should be either a callable, string, or float number, {type(threshold)} was given.")
 
     def _get_threshold(self, image, mode):
         threshold = self.thresholds.get(mode)
@@ -2980,9 +2961,7 @@ class UltrasoundConfidenceMapTransform(Transform):
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
 
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
-            raise ValueError(
-                f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
-            )
+            raise ValueError(f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'.")
 
         self._compute_conf_map = UltrasoundConfidenceMap(
             self.alpha, self.beta, self.gamma, self.mode, self.sink_mode, self.use_cg, self.cg_tol, self.cg_maxiter

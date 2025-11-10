@@ -30,7 +30,7 @@ class TestRandNonCentralChiNoise(NumpyImageTestCase2D):
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, in_type, mean, std):
         seed = 0
-        degrees_of_freedom = 64  #64 is common due to 32 channel head coil
+        degrees_of_freedom = 64  # 64 is common due to 32 channel head coil
         noise_fn = RandNonCentralChiNoise(prob=1.0, mean=mean, std=std, degrees_of_freedom=degrees_of_freedom)
         noise_fn.set_random_state(seed)
         im = in_type(self.imt)
