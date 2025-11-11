@@ -31,7 +31,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import torch
 
 from monai.utils import StrEnum
@@ -123,7 +122,7 @@ class DDPMScheduler(Scheduler):
 
         self.num_inference_steps = num_inference_steps
         self.timesteps = torch.linspace(self.num_train_timesteps - 1, 0, self.num_inference_steps, device=device).round().long()
-        
+
 
     def _get_mean(self, timestep: int, x_0: torch.Tensor, x_t: torch.Tensor) -> torch.Tensor:
         """
