@@ -120,12 +120,7 @@ class DDIMScheduler(Scheduler):
         if self.steps_offset < 0 or self.steps_offset >= self.num_train_timesteps:
             raise ValueError(f"`steps_offset`: {self.steps_offset} must be in range [0, {self.num_train_timesteps}).")
 
-        timesteps = (
-            np.linspace((self.num_train_timesteps - 1) - self.steps_offset, 0, num_inference_steps)
-            .round()
-            .astype(np.int64)
-        )
-        self.timesteps = torch.from_numpy(timesteps).to(device)
+        self.timesteps = torch.linspace((self.num_train_timesteps - 1) - self.steps_offset, 0, num_inference_steps, device=device).round().long()
         self.timesteps += self.steps_offset
 
     def _get_variance(self, timestep: int, prev_timestep: int) -> torch.Tensor:
