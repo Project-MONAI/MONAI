@@ -87,6 +87,19 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
 
         self.assertEqual(net.position_embeddings.requires_grad, False)
 
+    def test_fourier_pos_embed(self):
+        net = PatchEmbeddingBlock(
+            in_channels=1,
+            img_size=(32, 32, 32),
+            patch_size=(8, 8, 8),
+            hidden_size=96,
+            num_heads=8,
+            pos_embed_type="fourier",
+            dropout_rate=0.5,
+        )
+
+        self.assertEqual(net.position_embeddings.requires_grad, False)
+
     def test_learnable_pos_embed(self):
         net = PatchEmbeddingBlock(
             in_channels=1,
@@ -101,6 +114,32 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
         self.assertEqual(net.position_embeddings.requires_grad, True)
 
     def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            PatchEmbeddingBlock(
+                in_channels=1,
+                img_size=(128, 128, 128),
+                patch_size=(16, 16, 16),
+                hidden_size=128,
+                num_heads=12,
+                proj_type="conv",
+                dropout_rate=0.1,
+                pos_embed_type="fourier",
+                pos_embed_kwargs=dict(scales=[1.0, 1.0]),
+            )
+
+        with self.assertRaises(ValueError):
+            PatchEmbeddingBlock(
+                in_channels=1,
+                img_size=(128, 128),
+                patch_size=(16, 16),
+                hidden_size=128,
+                num_heads=12,
+                proj_type="conv",
+                dropout_rate=0.1,
+                pos_embed_type="fourier",
+                pos_embed_kwargs=dict(scales=[1.0, 1.0, 1.0]),
+            )
+
         with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
                 in_channels=1,

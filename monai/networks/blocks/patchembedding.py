@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Optional
 
 import numpy as np
 import torch
@@ -19,14 +20,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import LayerNorm
 
-from monai.networks.blocks.pos_embed_utils import build_sincos_position_embedding
+from monai.networks.blocks.pos_embed_utils import build_fourier_position_embedding, build_sincos_position_embedding
 from monai.networks.layers import Conv, trunc_normal_
 from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 SUPPORTED_PATCH_EMBEDDING_TYPES = {"conv", "perceptron"}
-SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos"}
+SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos", "fourier"}
 
 
 class PatchEmbeddingBlock(nn.Module):
@@ -53,6 +54,7 @@ class PatchEmbeddingBlock(nn.Module):
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        pos_embed_kwargs: Optional[dict] = None,
     ) -> None:
         """
         Args:
@@ -65,6 +67,8 @@ class PatchEmbeddingBlock(nn.Module):
             pos_embed_type: position embedding layer type.
             dropout_rate: fraction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            pos_embed_kwargs: additional arguments for position embedding. For `sincos`, it can contain
+                              `temperature` and for fourier it can contain `scales`.
         """
 
         super().__init__()
@@ -105,6 +109,8 @@ class PatchEmbeddingBlock(nn.Module):
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
 
+        pos_embed_kwargs = {} if pos_embed_kwargs is None else pos_embed_kwargs
+
         if self.pos_embed_type == "none":
             pass
         elif self.pos_embed_type == "learnable":
@@ -114,7 +120,17 @@ class PatchEmbeddingBlock(nn.Module):
             for in_size, pa_size in zip(img_size, patch_size):
                 grid_size.append(in_size // pa_size)
 
-            self.position_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
+            self.position_embeddings = build_sincos_position_embedding(
+                grid_size, hidden_size, spatial_dims, **pos_embed_kwargs
+            )
+        elif self.pos_embed_type == "fourier":
+            grid_size = []
+            for in_size, pa_size in zip(img_size, patch_size):
+                grid_size.append(in_size // pa_size)
+
+            self.position_embeddings = build_fourier_position_embedding(
+                grid_size, hidden_size, spatial_dims, **pos_embed_kwargs
+            )
         else:
             raise ValueError(f"pos_embed_type {self.pos_embed_type} not supported.")
 
