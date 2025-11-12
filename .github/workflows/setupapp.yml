@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v5
       with:
@@ -127,10 +127,10 @@ jobs:
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.9
+    - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
-        python-version: '3.9'
+        python-version: '3.10'
     - name: cache weekly timestamp
       id: pip-cache
       run: |

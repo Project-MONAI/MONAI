@@ -53,7 +53,7 @@ jobs:
 
         if [ ${{ matrix.environment }} = "PT230+CUDA124" ]
         then
-        PYVER=3.9 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.10 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \

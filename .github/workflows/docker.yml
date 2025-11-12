@@ -26,10 +26,10 @@ jobs:
         with:
           ref: dev
           fetch-depth: 0
-      - name: Set up Python 3.9
+      - name: Set up Python 3.10
         uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - shell: bash
         run: |
           git describe
