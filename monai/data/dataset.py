@@ -267,9 +267,15 @@ class PersistentDataset(Dataset):
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
             track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
-                default to `False`.
+                default to `False`. Cannot be used with `weights_only=True`.
             weights_only: keyword argument passed to `torch.load` when reading cached files.
-                default to `True`.
+                default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
+                other safe objects. Setting this to `False` is required for loading `MetaTensor`
+                objects saved with `track_meta=True`.
+
+        Raises:
+            ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
+                prevents cached MetaTensors from being reloaded and causes perpetual cache regeneration.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -285,6 +291,11 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
+        if track_meta and weights_only:
+            raise ValueError(
+                "Invalid argument combination: `track_meta=True` cannot be used with `weights_only=True`. "
+                "To cache and reload MetaTensors, set `track_meta=True` and `weights_only=False`."
+            )
         self.track_meta = track_meta
         self.weights_only = weights_only
 
