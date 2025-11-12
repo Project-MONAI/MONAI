@@ -485,7 +485,7 @@ class VoxelMorph(nn.Module):
         if moving_seg is None:
             return self.warp(moving, x), x
         else:
-            return self.warp(moving, x), x, self.warp(moving_seg, x)
+            return self.warp(moving, x), self.warp(moving_seg, x), x
 
 
 voxelmorph = VoxelMorph
