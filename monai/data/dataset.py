@@ -231,7 +231,7 @@ class PersistentDataset(Dataset):
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
         track_meta: bool = False,
-        weights_only: bool = True
+        weights_only: bool = True,
     ) -> None:
         """
         Args:
