@@ -444,8 +444,9 @@ class VoxelMorph(nn.Module):
         self, 
         moving: torch.Tensor, 
         fixed: torch.Tensor, 
-        moving_seg: torch.Tensor | None = None
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor]:
+        moving_seg: torch.Tensor | None = None,
+        fixed_keypoints: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, ...]:
         if moving.shape != fixed.shape:
             raise ValueError(
                 "The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
@@ -457,6 +458,13 @@ class VoxelMorph(nn.Module):
                 raise ValueError(
                     "The spatial shape of the moving segmentation should be the same as the spatial shape of the"
                     f" moving image. Got {moving_seg.shape} and {moving.shape} instead."
+                )
+        
+        if fixed_keypoints is not None:
+            if fixed_keypoints.shape[-1] != self.spatial_dims:
+                raise ValueError(
+                    "The last dimension of the fixed keypoints should be equal to the number of spatial dimensions."
+                    f" Got {fixed_keypoints.shape[-1]} and {self.spatial_dims} instead."
                 )
 
         x = self.backbone(torch.cat([moving, fixed], dim=1))
@@ -482,10 +490,16 @@ class VoxelMorph(nn.Module):
         if self.half_res:
             x = F.interpolate(x * 0.5, scale_factor=2.0, mode="trilinear", align_corners=True)
 
-        if moving_seg is None:
+        if moving_seg is None and fixed_keypoints is None:
             return self.warp(moving, x), x
-        else:
+        elif moving_seg is None and fixed_keypoints is not None:
+            # TODO: implement keypoint warping
+            pass 
+        elif moving_seg is not None and fixed_keypoints is None:
             return self.warp(moving, x), self.warp(moving_seg, x), x
+        else:
+            # TODO: implement keypoint warping
+            pass
 
 
 voxelmorph = VoxelMorph
