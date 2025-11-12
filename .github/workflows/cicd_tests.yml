@@ -87,15 +87,16 @@ jobs:
 
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: Prepare pip wheel
       run: |
         which python
         python -m pip install --upgrade pip wheel
+        python -m pip install --user more-itertools>=8.0
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -158,6 +159,7 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+        python -m pip install --user more-itertools>=8.0
     - name: cache weekly timestamp
       id: pip-cache
       run: |
