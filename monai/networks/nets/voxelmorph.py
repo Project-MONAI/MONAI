@@ -440,7 +440,12 @@ class VoxelMorph(nn.Module):
             self.dvf2ddf = DVF2DDF(num_steps=self.integration_steps, mode="bilinear", padding_mode="zeros")
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
-    def forward(self, moving: torch.Tensor, fixed: torch.Tensor, moving_seg: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    def forward(
+        self, 
+        moving: torch.Tensor, 
+        fixed: torch.Tensor, 
+        moving_seg: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor]:
         if moving.shape != fixed.shape:
             raise ValueError(
                 "The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
