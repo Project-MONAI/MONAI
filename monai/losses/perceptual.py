@@ -209,7 +209,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
-        self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose)
+        self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose, trust_repo=True)
         self.eval()
 
         self.channel_wise = channel_wise
@@ -297,7 +297,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
 
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False) -> None:
         super().__init__()
-        self.model = torch.hub.load("Warvito/radimagenet-models", model=net, verbose=verbose)
+        self.model = torch.hub.load("Warvito/radimagenet-models", model=net, verbose=verbose, trust_repo=True)
         self.eval()
 
         for param in self.parameters():

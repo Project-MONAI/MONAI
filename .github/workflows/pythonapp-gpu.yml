@@ -44,7 +44,7 @@ jobs:
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: apt install
       if: github.event.pull_request.merged != true
       run: |
