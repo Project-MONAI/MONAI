@@ -441,6 +441,7 @@ class VoxelMorph(nn.Module):
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
     def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        # TODO: add optional moving_seg, fixed_seg arguments and handle warping of segmentation maps
         if moving.shape != fixed.shape:
             raise ValueError(
                 "The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
