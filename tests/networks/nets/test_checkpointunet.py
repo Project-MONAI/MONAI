@@ -151,9 +151,11 @@ class TestCheckpointUNet(unittest.TestCase):
         # Check shape equality
         self.assertEqual(y_ckpt.shape, y_plain.shape)
 
-        # Check numerical similarity
-        diff = torch.mean(torch.abs(y_ckpt - y_plain)).item()
-        self.assertLess(diff, 1e-3, f"Eval-mode outputs differ more than expected (mean abs diff={diff:.6f})")
+        # Check numerical equivalence
+        self.assertTrue(
+            torch.allclose(y_ckpt, y_plain, atol=1e-6, rtol=1e-5),
+            f"Eval-mode outputs differ: max abs diff={torch.max(torch.abs(y_ckpt - y_plain)).item():.2e}",
+        )
 
     def test_checkpointing_activates_training(self):
         """Verify checkpointing recomputes activations during training."""
