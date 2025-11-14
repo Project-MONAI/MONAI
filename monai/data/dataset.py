@@ -271,7 +271,8 @@ class PersistentDataset(Dataset):
             weights_only: keyword argument passed to `torch.load` when reading cached files.
                 default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
                 other safe objects. Setting this to `False` is required for loading `MetaTensor`
-                objects saved with `track_meta=True`.
+                objects saved with `track_meta=True`, however this creates the possibility of remote
+                code execution through `torch.load` so be aware of the security implications of doing so.
 
         Raises:
             ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
