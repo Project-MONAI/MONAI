@@ -493,13 +493,11 @@ class VoxelMorph(nn.Module):
         if moving_seg is None and fixed_keypoints is None:
             return self.warp(moving, x), x
         elif moving_seg is None and fixed_keypoints is not None:
-            # TODO: implement keypoint warping
-            pass 
+            return *self.warp(moving, x, fixed_keypoints), x
         elif moving_seg is not None and fixed_keypoints is None:
             return self.warp(moving, x), self.warp(moving_seg, x), x
         else:
-            # TODO: implement keypoint warping
-            pass
+            return self.warp(moving, x), *self.warp(moving_seg, x, fixed_keypoints), x
 
 
 voxelmorph = VoxelMorph
