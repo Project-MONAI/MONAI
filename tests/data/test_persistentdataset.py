@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 import unittest
@@ -53,7 +54,6 @@ TEST_CASE_7 = [False, True, False, torch.Tensor]
 
 
 class _InplaceXform(Transform):
-
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -63,7 +63,6 @@ class _InplaceXform(Transform):
 
 
 class TestDataset(unittest.TestCase):
-
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]
@@ -187,7 +186,6 @@ class TestDataset(unittest.TestCase):
             test_data = [{"image": os.path.join(tempdir, "test_image.nii.gz")}]
             transform = Compose([LoadImaged(keys=["image"])])
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-
 
             cm = self.assertRaises(ValueError) if expected_error else contextlib.nullcontext()
             with cm:
