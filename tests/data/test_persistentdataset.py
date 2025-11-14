@@ -188,17 +188,9 @@ class TestDataset(unittest.TestCase):
             transform = Compose([LoadImaged(keys=["image"])])
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
 
-            if expected_error:
-                with self.assertRaises(ValueError):
-                    PersistentDataset(
-                        data=test_data,
-                        transform=transform,
-                        cache_dir=cache_dir,
-                        track_meta=track_meta,
-                        weights_only=weights_only,
-                    )
 
-            else:
+            cm = self.assertRaises(ValueError) if expected_error else contextlib.nullcontext()
+            with cm:
                 test_dataset = PersistentDataset(
                     data=test_data,
                     transform=transform,
