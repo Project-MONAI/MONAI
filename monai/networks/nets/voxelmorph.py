@@ -441,9 +441,9 @@ class VoxelMorph(nn.Module):
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
     def forward(
-        self, 
-        moving: torch.Tensor, 
-        fixed: torch.Tensor, 
+        self,
+        moving: torch.Tensor,
+        fixed: torch.Tensor,
         moving_seg: torch.Tensor | None = None,
         fixed_keypoints: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, ...]:
@@ -459,7 +459,7 @@ class VoxelMorph(nn.Module):
                     "The spatial shape of the moving segmentation should be the same as the spatial shape of the"
                     f" moving image. Got {moving_seg.shape} and {moving.shape} instead."
                 )
-        
+
         if fixed_keypoints is not None:
             if fixed_keypoints.shape[-1] != self.spatial_dims:
                 raise ValueError(

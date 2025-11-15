@@ -275,9 +275,9 @@ class TestVOXELMORPH(unittest.TestCase):
 
     @parameterized.expand(CASES_SEG)
     def test_shape_seg(
-        self, 
-        input_param, 
-        moving_shape, fixed_shape, moving_seg_shape, 
+        self,
+        input_param,
+        moving_shape, fixed_shape, moving_seg_shape,
         expected_warped_moving_shape, expected_warped_moving_seg_shape, expected_ddf_shape
     ):
         net = VoxelMorph(**input_param).to(device)
