@@ -152,19 +152,29 @@ class Warp(nn.Module):
             )
         else:
             # using csrc resampling
-            warped_image = grid_pull(image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode)
+            warped_image = grid_pull(
+                image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode
+            )
         if keypoints is not None:
             with torch.no_grad():
                 offset = torch.as_tensor(image.shape[2:]).to(keypoints) / 2.0
                 offset = offset.unsqueeze(0).unsqueeze(0)
                 normalized_keypoints = torch.flip((keypoints - offset) / offset, (-1,))
-            ddf_keypoints = F.grid_sample(
-                ddf, normalized_keypoints.view(batch_size, -1, 1, 1, spatial_dims),
-                mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
-            ).view(batch_size, 3, -1).permute((0, 2, 1))
+            ddf_keypoints = (
+                F.grid_sample(
+                    ddf,
+                    normalized_keypoints.view(batch_size, -1, 1, 1, spatial_dims),
+                    mode=self._interp_mode,
+                    padding_mode=f"{self._padding_mode}",
+                    align_corners=True,
+                )
+                .view(batch_size, 3, -1)
+                .permute((0, 2, 1))
+            )
             warped_keypoints = keypoints + ddf_keypoints
             return warped_image, warped_keypoints
         return warped_image
+
 
 class DVF2DDF(nn.Module):
     """

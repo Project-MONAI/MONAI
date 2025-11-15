@@ -445,7 +445,7 @@ class VoxelMorph(nn.Module):
         moving: torch.Tensor,
         fixed: torch.Tensor,
         moving_seg: torch.Tensor | None = None,
-        fixed_keypoints: torch.Tensor | None = None
+        fixed_keypoints: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, ...]:
         if moving.shape != fixed.shape:
             raise ValueError(

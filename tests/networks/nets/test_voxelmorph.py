@@ -277,8 +277,12 @@ class TestVOXELMORPH(unittest.TestCase):
     def test_shape_seg(
         self,
         input_param,
-        moving_shape, fixed_shape, moving_seg_shape,
-        expected_warped_moving_shape, expected_warped_moving_seg_shape, expected_ddf_shape
+        moving_shape,
+        fixed_shape,
+        moving_seg_shape,
+        expected_warped_moving_shape,
+        expected_warped_moving_seg_shape,
+        expected_ddf_shape,
     ):
         net = VoxelMorph(**input_param).to(device)
         with eval_mode(net):
@@ -324,6 +328,7 @@ class TestVOXELMORPH(unittest.TestCase):
                     torch.randn(fixed_shape).to(device),
                     torch.randn(moving_seg_shape).to(device),
                 )
+
 
 if __name__ == "__main__":
     unittest.main()
