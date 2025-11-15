@@ -454,10 +454,14 @@ class VoxelMorph(nn.Module):
             )
 
         if moving_seg is not None:
-            if moving_seg[-3:] != moving.shape[-3:]:
+            if moving_seg.shape[0] != moving.shape[0]:
                 raise ValueError(
-                    "The spatial shape of the moving segmentation should be the same as the spatial shape of the"
-                    f" moving image. Got {moving_seg.shape} and {moving.shape} instead."
+                    f"Batch dimension mismatch: moving_seg={moving_seg.shape[0]}, moving={moving.shape[0]}"
+                )
+            if moving_seg.shape[2:] != moving.shape[2:]:
+                raise ValueError(
+                    "The spatial shape of the moving segmentation must match the spatial shape of the moving image. "
+                    f"Got {moving_seg.shape[2:]} vs {moving.shape[2:]}."
                 )
 
         if fixed_keypoints is not None:
