@@ -30,9 +30,9 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.9
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.9'
     - name: Prepare pip wheel
@@ -79,15 +79,16 @@ jobs:
         python-version: ['3.9', '3.10', '3.11', '3.12']
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: Prepare pip wheel
       run: |
         which python
         python -m pip install --user --upgrade pip setuptools wheel
+        python -m pip install --user more-itertools>=8.0
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -124,18 +125,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: ['2.4.1', '2.5.1', '2.6.0']  # FIXME: add 'latest' back once PyTorch 2.7 issues are resolved
+        pytorch-version: ['2.5.1', '2.6.0', '2.7.1', '2.8.0']
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.9
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.9'
     - name: Prepare pip wheel
       run: |
         which python
         python -m pip install --user --upgrade pip setuptools wheel
+        python -m pip install --user more-itertools>=8.0
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -151,11 +153,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
-          python -m pip install torch
-        else
-          python -m pip install torch==${{ matrix.pytorch-version }}
-        fi
+        python -m pip install torch==${{ matrix.pytorch-version }}
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions

@@ -216,7 +216,7 @@ def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
     if isinstance(a, torch.Tensor):
         return torch.floor_divide(a, b)
     else:
-        return np.floor_divide(a, b)
+        return np.asarray(np.floor_divide(a, b))
 
 
 def unravel_index(idx, shape) -> NdarrayOrTensor:

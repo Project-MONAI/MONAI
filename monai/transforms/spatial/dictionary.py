@@ -71,6 +71,7 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import TraceKeys
 from monai.utils.module import optional_import
 
@@ -545,12 +546,21 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = Orientation.backend
 
+    @deprecated_arg_default(
+        name="labels",
+        old_default=(("L", "R"), ("P", "A"), ("I", "S")),
+        new_default=None,
+        msg_suffix=(
+            "Default value changed to None meaning that the transform now uses the 'space' of a "
+            "meta-tensor, if applicable, to determine appropriate axis labels."
+        ),
+    )
     def __init__(
         self,
         keys: KeysCollection,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        labels: Sequence[tuple[str, str]] | None = None,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -564,7 +574,14 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+                If ``None``, an appropriate value is chosen depending on the
+                value of the ``"space"`` metadata item of a metatensor: if
+                ``"space"`` is ``"LPS"``, the value used is ``(('R', 'L'),
+                ('A', 'P'), ('I', 'S'))``, if ``"space"`` is ``"RPS"`` or the
+                input is not a meta-tensor or has no ``"space"`` item, the
+                value ``(('L', 'R'), ('P', 'A'), ('I', 'S'))`` is used. If not
+                ``None``, the provided value is always used and the ``"space"``
+                metadata item (if any) of the input is ignored.
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
