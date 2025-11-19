@@ -144,7 +144,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
         _mode = _convert_pt_pad_mode(mode)
         img = pad_nd(img, to_pad, mode=_mode, **kwargs)
     if do_crop:
-        img = img[to_crop]
+        img = img[tuple(to_crop)]
     return img
 
 
