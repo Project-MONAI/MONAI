@@ -13,7 +13,7 @@
 
 [![premerge](https://github.com/Project-MONAI/MONAI/actions/workflows/pythonapp.yml/badge.svg?branch=dev)](https://github.com/Project-MONAI/MONAI/actions/workflows/pythonapp.yml)
 [![postmerge](https://img.shields.io/github/checks-status/project-monai/monai/dev?label=postmerge)](https://github.com/Project-MONAI/MONAI/actions?query=branch%3Adev)
-[![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://docs.monai.io/en/latest/)
+[![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/)
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg?token=6FTC7U1JJ4)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![monai Downloads Last Month](https://assets.piptrends.com/get-last-month-downloads-badge/monai.svg 'monai Downloads Last Month by pip Trends')](https://piptrends.com/package/monai)
 
@@ -26,7 +26,7 @@ Its ambitions are as follows:
 
 ## Features
 
-> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the milestone releases._
+> _Please see [the technical highlights](https://monai.readthedocs.io/en/latest/highlights.html) and [What's New](https://monai.readthedocs.io/en/latest/whatsnew.html) of the milestone releases._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
@@ -51,7 +51,7 @@ To install [the current release](https://pypi.org/project/monai/), you can simpl
 pip install monai
 ```
 
-Please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html) for other installation options.
+Please refer to [the installation guide](https://monai.readthedocs.io/en/latest/installation.html) for other installation options.
 
 ## Getting Started
 
@@ -68,7 +68,7 @@ If you have used MONAI in your research, please cite us! The citation can be exp
 ## Model Zoo
 
 [The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and great models from the community.
-Utilizing [the MONAI Bundle format](https://docs.monai.io/en/latest/bundle_intro.html) makes it easy to [get started](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo) building workflows with MONAI.
+Utilizing [the MONAI Bundle format](https://monai.readthedocs.io/en/latest/bundle_intro.html) makes it easy to [get started](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo) building workflows with MONAI.
 
 ## Contributing
 
@@ -82,9 +82,9 @@ Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github
 
 ## Links
 
-- Website: <https://monai.io/>
-- API documentation (milestone): <https://docs.monai.io/>
-- API documentation (latest dev): <https://docs.monai.io/en/latest/>
+- Website: <https://project-monai.github.io/>
+- API documentation (milestone): <https://monai.readthedocs.io/>
+- API documentation (latest dev): <https://monai.readthedocs.io/en/latest/>
 - Code: <https://github.com/Project-MONAI/MONAI>
 - Project tracker: <https://github.com/Project-MONAI/MONAI/projects>
 - Issue tracker: <https://github.com/Project-MONAI/MONAI/issues>
