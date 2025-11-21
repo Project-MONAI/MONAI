@@ -1,20 +1,20 @@
 # Research and Application Highlights
 
 ### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
-[A reimplementation](https://monai.io/research/coplenet-pneumonia-lesion-segmentation) of the COPLE-Net originally proposed by:
+[A reimplementation](https://project-monai.github.io/research/coplenet-pneumonia-lesion-segmentation.html) of the COPLE-Net originally proposed by:
 
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. [DOI: 10.1109/TMI.2020.3000314](https://doi.org/10.1109/TMI.2020.3000314)
 ![coplenet](../images/coplenet.png)
 
 ### LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
-[A reimplementation](https://monai.io/research/lamp-automated-model-parallelism) of the LAMP system originally proposed by:
+[A reimplementation](https://project-monai.github.io/research/lamp-automated-model-parallelism.html) of the LAMP system originally proposed by:
 
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 
 ![LAMP UNet](../images/unet-pipe.png)
 
 ### DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
-MONAI integrated the `DiNTS` module to support more flexible topologies and joint two-level search. It provides a topology guaranteed discretization algorithm and a discretization aware topology loss for the search stage to minimize the discretization gap, and a cost usage aware search method which can search 3D networks with different GPU memory requirements. For more details, please check the [DiNTS tutorial](https://monai.io/research/dints.html).
+MONAI integrated the `DiNTS` module to support more flexible topologies and joint two-level search. It provides a topology guaranteed discretization algorithm and a discretization aware topology loss for the search stage to minimize the discretization gap, and a cost usage aware search method which can search 3D networks with different GPU memory requirements. For more details, please check the [DiNTS tutorial](https://project-monai.github.io/research/dints.html).
 
 ![DiNTS](../images/dints-overview.png)
 

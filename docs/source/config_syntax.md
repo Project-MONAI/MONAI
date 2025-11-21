@@ -68,7 +68,7 @@ or additionally, tune the input parameters then instantiate the component:
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
 
-For more details on the `ConfigParser` API, please see [`monai.bundle.ConfigParser`](https://docs.monai.io/en/latest/bundle.html#config-parser).
+For more details on the `ConfigParser` API, please see [`monai.bundle.ConfigParser`](https://monai.readthedocs.io/en/latest/bundle.html#config-parser).
 
 ## Syntax examples explained
 

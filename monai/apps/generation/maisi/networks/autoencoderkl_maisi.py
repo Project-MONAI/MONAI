@@ -128,7 +128,7 @@ class MaisiConvolution(nn.Module):
         print_info: Whether to print information.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
         Additional arguments for the convolution operation.
-        https://docs.monai.io/en/stable/networks.html#convolution
+        https://monai.readthedocs.io/en/stable/networks.html#convolution
     """
 
     def __init__(
