@@ -477,7 +477,7 @@ class EnsembleRunner:
 
         Args:
             kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
-                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
+                transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage .
 
         Returns:
             save_image: a dictionary that can be used to instantiate a SaveImage class in ConfigParser.
@@ -525,7 +525,7 @@ class EnsembleRunner:
 
         Args:
             kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
-                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
+                transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage .
 
         """
         are_all_args_present, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
@@ -534,7 +534,7 @@ class EnsembleRunner:
         else:
             raise ValueError(
                 f"{extra_args} are not supported in monai.transforms.SaveImage,"
-                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+                "Check https://monai.readthedocs.io/en/stable/transforms.html#saveimage for more information."
             )
 
     def set_num_fold(self, num_fold: int = 5) -> None:

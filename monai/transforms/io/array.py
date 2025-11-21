@@ -282,7 +282,7 @@ class LoadImage(Transform):
             raise RuntimeError(
                 f"{self.__class__.__name__} cannot find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
-                "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+                "    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n{msg}"
             )
         img_array: NdarrayOrTensor
@@ -519,7 +519,7 @@ class SaveImage(Transform):
         raise RuntimeError(
             f"{self.__class__.__name__} cannot find a suitable writer for {filename}.\n"
             "    Please install the writer libraries, see also the installation instructions:\n"
-            "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+            "    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
 

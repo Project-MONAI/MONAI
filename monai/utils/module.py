@@ -195,7 +195,7 @@ def load_submodules(
             except ImportError as e:
                 msg = (
                     "\nMultiple versions of MONAI may have been installed?\n"
-                    "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
+                    "Please see the installation guide: https://monai.readthedocs.io/en/stable/installation.html\n"
                 )  # issue project-monai/monai#5193
                 raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
 
@@ -405,7 +405,7 @@ def optional_import(
             _default_msg = (
                 f"{msg}."
                 + "\n\nFor details about installing the optional dependencies, please visit:"
-                + "\n    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies"
+                + "\n    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies"
             )
             if tb is None:
                 self._exception = OptionalImportError(_default_msg)

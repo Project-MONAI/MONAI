@@ -66,7 +66,7 @@ def detect_default_tf32() -> bool:
                 warnings.warn(
                     f"Environment variable `{name} = {override_val}` is set.\n"
                     f"  This environment variable may enable TF32 mode accidentally and affect precision.\n"
-                    f"  See https://docs.monai.io/en/latest/precision_accelerating.html#precision-and-accelerating"
+                    f"  See https://monai.readthedocs.io/en/latest/precision_accelerating.html#precision-and-accelerating"
                 )
                 may_enable_tf32 = True
 
