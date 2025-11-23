@@ -24,7 +24,7 @@ from tests.test_utils import SkipIfNoModule, optional_import, skip_if_quick
 
 onnx, _ = optional_import("onnx")
 
-TORCH_DEVICE_OPTIONS = ["cpu"]  
+TORCH_DEVICE_OPTIONS = ["cpu"]
 
 # FIXME: CUDA seems to produce different model outputs during testing vs. ONNX outputs, use CPU only for now
 # if torch.cuda.is_available():

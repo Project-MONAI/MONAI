@@ -515,7 +515,7 @@ def download(
             bundles for "monaihosting" source are also hosted on Hugging Face Hub, but the "repo_id" is always in the form
             of "MONAI/bundle_name", therefore, this argument is not required for "monaihosting" source.
             If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
-            or you can specify the environment variable NGC_ORG and NGC_TEAM. 
+            or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.

@@ -24,7 +24,7 @@ RUN apt update && apt upgrade -y && \
     apt update && \
     ${APT_INSTALL} cuda-toolkit-12 && \
     apt clean && \
-    rm -rf cuda-keyring_1.1-1_all.deb /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* 
+    rm -rf cuda-keyring_1.1-1_all.deb /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/*
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
@@ -48,7 +48,7 @@ COPY monai ./monai
 
 # install full deps
 RUN python -m pip install --upgrade --no-cache-dir pip && \
-    python -m pip install --no-cache-dir -r requirements-dev.txt 
+    python -m pip install --no-cache-dir -r requirements-dev.txt
 
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
@@ -58,7 +58,7 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_6
 # compile ext and remove temp files
 RUN export TORCH_CUDA_ARCH_LIST=Turing CUDA_HOME=/usr/local/cuda BUILD_MONAI=1 FORCE_CUDA=1 USE_COMPILED=1 && \
     python setup.py develop && \
-    rm -rf build __pycache__ monai.egg-info 
+    rm -rf build __pycache__ monai.egg-info
 
 # flatten all layers down to one
 FROM ${IMAGE}
@@ -84,4 +84,3 @@ ENV BUILD_MONAI=1
 # python -m unittest tests.bundle.test_bundle_download.TestDownload.test_ngc_private_source_download_bundle_0
 # python -m unittest tests.data.meta_tensor.test_meta_tensor.TestMetaTensor.test_pickling
 # PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.networks.test_convert_to_onnx
-
