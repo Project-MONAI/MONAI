@@ -219,7 +219,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
-    @skipIf(os.getenv("NGC_API_KEY", None) == None, "NGC API key required for this test")
+    @skipIf(os.getenv("NGC_API_KEY", None) is None, "NGC API key required for this test")
     def test_ngc_private_source_download_bundle(self, bundle_files, bundle_name, _url):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
