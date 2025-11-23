@@ -12,7 +12,10 @@
 # To build with a different base image
 # please run `docker build` using the `--build-arg IMAGE=...` flag.
 ARG IMAGE=debian:12-slim
+
 FROM ${IMAGE} AS build
+
+ARG TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 8.9 9.0+PTX"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
@@ -50,13 +53,8 @@ COPY monai ./monai
 RUN python -m pip install --upgrade --no-cache-dir pip && \
     python -m pip install --no-cache-dir -r requirements-dev.txt
 
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb && \
-    dpkg -i cuda-keyring_1.1-1_all.deb && \
-    apt update && \
-    ${APT_INSTALL} cuda-toolkit-12
-
 # compile ext and remove temp files
-RUN export TORCH_CUDA_ARCH_LIST=Turing CUDA_HOME=/usr/local/cuda BUILD_MONAI=1 FORCE_CUDA=1 USE_COMPILED=1 && \
+RUN export CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 && \
     python setup.py develop && \
     rm -rf build __pycache__ monai.egg-info
 
@@ -71,16 +69,3 @@ ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 ENV CUDA_HOME=/usr/local/cuda
 ENV BUILD_MONAI=1
-
-# docker run -ti --rm --gpus '"device=0,1"' --shm-size=10gb monai_slim /bin/bash
-
-# PYTHONPATH=. BUILD_MONAI=1 ./runtests.sh -u 2>&1|tee tests.log
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.networks.layers.filtering.test_trainable_bilateral
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.apps.detection.networks.test_retinanet.TestRetinaNet.test_onnx_0
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.integration.test_auto3dseg_hpo.TestHPO.test_run_algo
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.integration.test_auto3dseg_hpo.TestHPO.test_get_history
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.networks.layers.test_gmm
-# python -m unittest tests.apps.vista3d.test_point_based_window_inferer
-# python -m unittest tests.bundle.test_bundle_download.TestDownload.test_ngc_private_source_download_bundle_0
-# python -m unittest tests.data.meta_tensor.test_meta_tensor.TestMetaTensor.test_pickling
-# PYTHONPATH=. BUILD_MONAI=1 python -m unittest tests.networks.test_convert_to_onnx
