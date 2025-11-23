@@ -198,7 +198,7 @@ The first line of the comment must be `/black` so that it will be interpreted by
 #### Adding new optional dependencies
 
 In addition to the minimal requirements of PyTorch and Numpy, MONAI's core modules are built optionally based on 3rd-party packages.
-The current set of dependencies is listed in [installing dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
+The current set of dependencies is listed in [installing dependencies](https://monai.readthedocs.io/en/stable/installation.html#installing-the-recommended-dependencies).
 
 To allow for flexible integration of MONAI with other systems and environments,
 the optional dependency APIs are always invoked lazily. For example,

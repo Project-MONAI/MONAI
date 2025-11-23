@@ -236,7 +236,7 @@ class SegResNetDS(nn.Module):
     """
     SegResNetDS based on `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
-    It is similar to https://docs.monai.io/en/stable/networks.html#segresnet, with several
+    It is similar to https://monai.readthedocs.io/en/stable/networks.html#segresnet, with several
     improvements including deep supervision and non-isotropic kernel support.
 
     Args:
