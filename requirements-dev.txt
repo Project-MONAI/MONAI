@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.11
+pytorch-ignite
 gdown>=4.7.3
 scipy>=1.12.0; python_version >= '3.9'
 itk>=5.2
@@ -51,8 +51,9 @@ h5py
 nni==2.10.1; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
-onnx>=1.13.0, <1.19.1
-onnxruntime; python_version <= '3.10'
+onnx>=1.13.0, <1.19.0
+onnxruntime
+onnxscript
 typeguard<3  # https://github.com/microsoft/nni/issues/5457
 filelock<3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
