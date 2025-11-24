@@ -17,7 +17,7 @@ For more details about how to use the models, please see [the tutorials](https:/
 ## Auto3DSeg
 ![auto3dseg](../images/auto3dseg.png)
 
-[Auto3DSeg](https://monai.io/apps/auto3dseg.html) is a comprehensive solution for large-scale 3D medical image segmentation.
+[Auto3DSeg](https://project-monai.github.io/apps/auto3dseg.html) is a comprehensive solution for large-scale 3D medical image segmentation.
 It leverages the latest advances in MONAI
 and GPUs to efficiently develop and deploy algorithms with state-of-the-art performance.
 It first analyzes the global information such as intensity, dimensionality, and resolution of the dataset,
@@ -35,7 +35,7 @@ MONAI now includes the federated learning (FL) client algorithm APIs that are ex
 for defining an algorithm to be run on any federated learning platform.
 [NVIDIA FLARE](https://github.com/NVIDIA/NVFlare), the federated learning platform developed by [NVIDIA](https://www.nvidia.com/en-us/),
 has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/dev/integration/monai) with these new APIs.
-With [the new federated learning APIs](https://docs.monai.io/en/latest/fl.html), MONAI bundles can seamlessly be extended to a federated paradigm
+With [the new federated learning APIs](https://monai.readthedocs.io/en/latest/fl.html), MONAI bundles can seamlessly be extended to a federated paradigm
 and executed using single- or multi-GPU training.
 The MONAI FL client also allows computing summary data statistics (e.g., intensity histograms) on the datasets defined in the bundle configs.
 These can be shared and visualized on the FL server, for example, using NVIDIA FLARE's federated statistics operators,
@@ -60,8 +60,8 @@ examples](https://github.com/Project-MONAI/tutorials/tree/main/pathology).
 ![MRI-reconstruction](../images/mri_recon.png)
 
 This release includes initial components for various popular accelerated MRI reconstruction workflows.
-Many of them are general-purpose tools, for example the [`SSIMLoss`](https://docs.monai.io/en/latest/losses.html?highlight=ssimloss#ssimloss) function.
-Some new functionalities are task-specific, for example [`FastMRIReader`](https://docs.monai.io/en/latest/data.html?highlight=fastmri#monai.apps.reconstruction.fastmri_reader.FastMRIReader).
+Many of them are general-purpose tools, for example the [`SSIMLoss`](https://monai.readthedocs.io/en/latest/losses.html?highlight=ssimloss#ssimloss) function.
+Some new functionalities are task-specific, for example [`FastMRIReader`](https://monai.readthedocs.io/en/latest/data.html?highlight=fastmri#monai.apps.reconstruction.fastmri_reader.FastMRIReader).
 
 For more details, please see [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/unet_demo) for using a baseline model for this task,
 and [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/varnet_demo) for using a state-of-the-art model.
