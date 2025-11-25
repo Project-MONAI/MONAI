@@ -115,7 +115,6 @@ class AsymmetricFocalLoss(_Loss):
     Michael Yeung, Computerized Medical Imaging and Graphics
     """
 
-
     def __init__(
         self,
         to_onehot_y: bool = False,
