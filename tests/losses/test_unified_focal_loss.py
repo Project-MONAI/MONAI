@@ -24,7 +24,7 @@ TEST_CASES = [
     [
         {},
         {
-            "y_pred": torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]]),
+            "y_pred": torch.tensor([[[[100.0, -100.0], [-100.0, 100.0]]], [[[100.0, -100.0], [-100.0, 100.0]]]]),
             "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
         },
         0.0,
@@ -33,7 +33,7 @@ TEST_CASES = [
     [
         {"use_softmax": False, "to_onehot_y": False},
         {
-            "y_pred": torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]]),
+            "y_pred": torch.tensor([[[[100.0, -100.0], [-100.0, 100.0]]], [[[100.0, -100.0], [-100.0, 100.0]]]]),
             "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
         },
         0.0,
@@ -42,7 +42,7 @@ TEST_CASES = [
     [
         {"use_softmax": True, "to_onehot_y": True},
         {
-            "y_pred": torch.tensor([[[[-20.0]], [[-20.0]], [[20.0]]]]).repeat(2, 1, 1, 1),
+            "y_pred": torch.tensor([[[[-100.0]], [[-100.0]], [[100.0]]]]).repeat(2, 1, 1, 1),
             "y_true": torch.tensor([[[[2]]]]).repeat(2, 1, 1, 1),
         },
         0.0,
@@ -65,7 +65,7 @@ class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
 
     def test_with_cuda(self):
         loss = AsymmetricUnifiedFocalLoss()
-        i = torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]])
+        i = torch.tensor([[[[100.0, -100.0], [-100.0, 100.0]]], [[[100.0, -100.0], [-100.0, 100.0]]]])
         j = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
         if torch.cuda.is_available():
             i = i.cuda()
