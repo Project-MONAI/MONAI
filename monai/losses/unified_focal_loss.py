@@ -64,6 +64,10 @@ class AsymmetricFocalTverskyLoss(_Loss):
         else:
             y_pred = torch.sigmoid(y_pred)
 
+        if y_pred.shape[1] == 1:
+            y_pred = torch.cat([1 - y_pred, y_pred], dim=1)
+            y_true = torch.cat([1 - y_true, y_true], dim=1)
+
         n_pred_ch = y_pred.shape[1]
 
         if self.to_onehot_y:
@@ -77,7 +81,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         # clip the prediction to avoid NaN
         y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
-
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
@@ -86,18 +89,16 @@ class AsymmetricFocalTverskyLoss(_Loss):
         fp = torch.sum((1 - y_true) * y_pred, dim=axis)
         dice_class = (tp + self.epsilon) / (tp + self.delta * fn + (1 - self.delta) * fp + self.epsilon)
 
-        # Calculate losses separately for each class, enhancing both classes
+        # Class 0 is Background
         back_dice = 1 - dice_class[:, 0]
 
-        if n_pred_ch > 1:
-            fore_dice = torch.pow(1 - dice_class[:, 1:], 1 - self.gamma)
+        # Class 1+ is Foreground
+        fore_dice = torch.pow(1 - dice_class[:, 1:], 1 - self.gamma)
 
-            if fore_dice.shape[1] > 1:
-                fore_dice = torch.mean(fore_dice, dim=1)
-            else:
-                fore_dice = fore_dice.squeeze(1)
+        if fore_dice.shape[1] > 1:
+            fore_dice = torch.mean(fore_dice, dim=1)
         else:
-            fore_dice = torch.zeros_like(back_dice)
+            fore_dice = fore_dice.squeeze(1)
 
         # Average class scores
         loss = torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
@@ -149,6 +150,11 @@ class AsymmetricFocalLoss(_Loss):
             y_log_pred = F.logsigmoid(y_pred)
             y_pred = torch.sigmoid(y_pred)
 
+        if y_pred.shape[1] == 1:
+            y_pred = torch.cat([1 - y_pred, y_pred], dim=1)
+            y_log_pred = torch.log(torch.clamp(y_pred, 1e-7, 1.0))
+            y_true = torch.cat([1 - y_true, y_true], dim=1)
+
         n_pred_ch = y_pred.shape[1]
 
         if self.to_onehot_y:
@@ -163,19 +169,18 @@ class AsymmetricFocalLoss(_Loss):
         y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
         cross_entropy = -y_true * y_log_pred
 
+        # Class 0: Background
         back_ce = torch.pow(1 - y_pred[:, 0], self.gamma) * cross_entropy[:, 0]
         back_ce = (1 - self.delta) * back_ce
 
-        if n_pred_ch > 1:
-            fore_ce = cross_entropy[:, 1:]
-            fore_ce = self.delta * fore_ce
+        # Class 1+: Foreground
+        fore_ce = cross_entropy[:, 1:]
+        fore_ce = self.delta * fore_ce
 
-            if fore_ce.shape[1] > 1:
-                fore_ce = torch.sum(fore_ce, dim=1)
-            else:
-                fore_ce = fore_ce.squeeze(1)
+        if fore_ce.shape[1] > 1:
+            fore_ce = torch.sum(fore_ce, dim=1)
         else:
-            fore_ce = torch.zeros_like(back_ce)
+            fore_ce = fore_ce.squeeze(1)
 
         loss = torch.mean(torch.stack([back_ce, fore_ce], dim=-1))
         return loss
