@@ -27,8 +27,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
     It supports both binary and multi-class segmentation.
 
-    The logic assumes channel 0 is Background, and channels 1..N are Foreground.
-
     Reimplementation of the Asymmetric Focal Tversky Loss described in:
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
@@ -80,12 +78,12 @@ class AsymmetricFocalTverskyLoss(_Loss):
         # clip the prediction to avoid NaN
         y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
 
-        spatial_dims = list(range(2, len(y_pred.shape)))
+        axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
-        tp = torch.sum(y_true * y_pred, dim=spatial_dims)
-        fn = torch.sum(y_true * (1 - y_pred), dim=spatial_dims)
-        fp = torch.sum((1 - y_true) * y_pred, dim=spatial_dims)
+        tp = torch.sum(y_true * y_pred, dim=axis)
+        fn = torch.sum(y_true * (1 - y_pred), dim=axis)
+        fp = torch.sum((1 - y_true) * y_pred, dim=axis)
         dice_class = (tp + self.epsilon) / (tp + self.delta * fn + (1 - self.delta) * fp + self.epsilon)
 
         # Calculate losses separately for each class, enhancing both classes
@@ -200,32 +198,31 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
-            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
             weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
+            delta : weight of the background. Defaults to 0.7.
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
 
         Example:
             >>> import torch
             >>> from monai.losses import AsymmetricUnifiedFocalLoss
-            >>> pred = torch.ones((1,1,32,32), dtype=torch.float32)
-            >>> grnd = torch.ones((1,1,32,32), dtype=torch.int64)
-            >>> fl = AsymmetricUnifiedFocalLoss(to_onehot_y=True)
+            >>> pred = torch.randn((1, 3, 32, 32))
+            >>> grnd = torch.randint(0, 3, (1, 1, 32, 32))
+            >>> fl = AsymmetricUnifiedFocalLoss(use_softmax=True, to_onehot_y=True)
             >>> fl(pred, grnd)
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
+        self.weight: float = weight
         self.gamma = gamma
         self.delta = delta
-        self.weight: float = weight
         self.use_softmax = use_softmax
         self.asy_focal_loss = AsymmetricFocalLoss(
-            gamma=self.gamma, delta=self.delta, use_softmax=use_softmax, to_onehot_y=to_onehot_y
+            to_onehot_y=to_onehot_y, gamma=self.gamma, delta=self.delta, use_softmax=use_softmax
         )
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(
-            gamma=self.gamma, delta=self.delta, use_softmax=use_softmax, to_onehot_y=to_onehot_y
+            to_onehot_y=to_onehot_y, gamma=self.gamma, delta=self.delta, use_softmax=use_softmax
         )
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
