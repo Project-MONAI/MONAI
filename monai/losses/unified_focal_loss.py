@@ -176,7 +176,7 @@ class AsymmetricFocalLoss(_Loss):
         fore_ce = self.delta * fore_ce
 
         if fore_ce.shape[1] > 1:
-            fore_ce = torch.sum(fore_ce, dim=1)
+            fore_ce = torch.mean(fore_ce, dim=1)
         else:
             fore_ce = fore_ce.squeeze(1)
 
@@ -241,7 +241,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             y_pred : the shape should be BNH[WD], where N is the number of classes.
                 The input should be the original logits since it will be transformed by
                     a sigmoid/softmax in the forward function.
-            y_true : the shape should be BNH[WD], where N is the number of classes.
+            y_true : the shape should be BNH[WD], or B1H[WD] when to_onehot_y=True.
         """
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
