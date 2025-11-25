@@ -49,7 +49,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
+            epsilon : it defines a very small number each time. similarly smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -88,12 +88,16 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         # Calculate losses separately for each class, enhancing both classes
         back_dice = 1 - dice_class[:, 0]
-        fore_dice = (1 - dice_class[:, 1:]) * torch.pow(1 - dice_class[:, 1:], -self.gamma)
 
-        if fore_dice.shape[1] > 1:
-            fore_dice = torch.mean(fore_dice, dim=1)
+        if n_pred_ch > 1:
+            fore_dice = torch.pow(1 - dice_class[:, 1:], 1 - self.gamma)
+
+            if fore_dice.shape[1] > 1:
+                fore_dice = torch.mean(fore_dice, dim=1)
+            else:
+                fore_dice = fore_dice.squeeze(1)
         else:
-            fore_dice = fore_dice.squeeze(1)
+            fore_dice = torch.zeros_like(back_dice)
 
         # Average class scores
         loss = torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
@@ -128,7 +132,7 @@ class AsymmetricFocalLoss(_Loss):
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
+            epsilon : it defines a very small number each time. similarly smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -198,8 +202,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
+            weight : weight for each loss function. Defaults to 0.5.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.5.
             delta : weight of the background. Defaults to 0.7.
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
@@ -235,7 +239,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         Raises:
             ValueError: When input and target are different shape
-            ValueError: When the number of classes entered does not match the expected number
         """
         if y_pred.shape != y_true.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
