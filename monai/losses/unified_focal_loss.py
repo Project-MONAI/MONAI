@@ -242,14 +242,9 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         Args:
             y_pred : the shape should be BNH[WD], where N is the number of classes.
                 The input should be the original logits since it will be transformed by
-                    a sigmoid in the forward function.
+                    a sigmoid/softmax in the forward function.
             y_true : the shape should be BNH[WD], where N is the number of classes.
-
-        Raises:
-            ValueError: When input and target are different shape
         """
-        if y_pred.shape != y_true.shape:
-            raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
