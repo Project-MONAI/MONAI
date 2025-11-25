@@ -20,17 +20,30 @@ from parameterized import parameterized
 from monai.losses import AsymmetricUnifiedFocalLoss
 
 TEST_CASES = [
-    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+    # Case 0: Binary segmentation
+    [
+        {},
         {
-            "y_pred": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
+            "y_pred": torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]]),
             "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
         },
         0.0,
     ],
-    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+    # Case 1: Same as above but explicit arguments
+    [
+        {"use_softmax": False, "to_onehot_y": False},
         {
-            "y_pred": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
+            "y_pred": torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]]),
             "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
+        },
+        0.0,
+    ],
+    # Case 2: Multi-class segmentation
+    [
+        {"use_softmax": True, "to_onehot_y": True},
+        {
+            "y_pred": torch.tensor([[[[-20.0]], [[-20.0]], [[20.0]]]]).repeat(2, 1, 1, 1),
+            "y_true": torch.tensor([[[[2]]]]).repeat(2, 1, 1, 1),
         },
         0.0,
     ],
@@ -40,8 +53,8 @@ TEST_CASES = [
 class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
-    def test_result(self, input_data, expected_val):
-        loss = AsymmetricUnifiedFocalLoss()
+    def test_result(self, input_param, input_data, expected_val):
+        loss = AsymmetricUnifiedFocalLoss(**input_param)
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
@@ -52,7 +65,7 @@ class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
 
     def test_with_cuda(self):
         loss = AsymmetricUnifiedFocalLoss()
-        i = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
+        i = torch.tensor([[[[20.0, -20.0], [-20.0, 20.0]]], [[[20.0, -20.0], [-20.0, 20.0]]]])
         j = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
         if torch.cuda.is_available():
             i = i.cuda()
