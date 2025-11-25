@@ -131,7 +131,7 @@ class AsymmetricFocalLoss(_Loss):
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 2.
             epsilon : it defines a very small number each time. similarly smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
@@ -166,13 +166,16 @@ class AsymmetricFocalLoss(_Loss):
         back_ce = torch.pow(1 - y_pred[:, 0], self.gamma) * cross_entropy[:, 0]
         back_ce = (1 - self.delta) * back_ce
 
-        fore_ce = cross_entropy[:, 1:]
-        fore_ce = self.delta * fore_ce
+        if n_pred_ch > 1:
+            fore_ce = cross_entropy[:, 1:]
+            fore_ce = self.delta * fore_ce
 
-        if fore_ce.shape[1] > 1:
-            fore_ce = torch.sum(fore_ce, dim=1)
+            if fore_ce.shape[1] > 1:
+                fore_ce = torch.sum(fore_ce, dim=1)
+            else:
+                fore_ce = fore_ce.squeeze(1)
         else:
-            fore_ce = fore_ce.squeeze(1)
+            fore_ce = torch.zeros_like(back_ce)
 
         loss = torch.mean(torch.stack([back_ce, fore_ce], dim=-1))
         return loss
