@@ -79,8 +79,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
-        # clip the prediction to avoid NaN
-        y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
@@ -116,6 +114,7 @@ class AsymmetricFocalLoss(_Loss):
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
     Michael Yeung, Computerized Medical Imaging and Graphics
     """
+
 
     def __init__(
         self,
