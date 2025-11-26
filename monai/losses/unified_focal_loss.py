@@ -48,8 +48,8 @@ class AsymmetricFocalTverskyLoss(_Loss):
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it defines a very small number each time. similarly smooth value. Defaults to 1e-7.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
+            epsilon : stability factor used to avoid division by zero. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -59,6 +59,17 @@ class AsymmetricFocalTverskyLoss(_Loss):
         self.epsilon = epsilon
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        n_pred_ch = y_pred.shape[1]
+
+        if self.use_softmax and n_pred_ch == 1:
+            raise ValueError("single channel prediction with `use_softmax=True` is not allowed.")
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                y_true = one_hot(y_true, num_classes=n_pred_ch)
+
         if self.use_softmax:
             y_pred = torch.softmax(y_pred, dim=1)
         else:
@@ -68,17 +79,10 @@ class AsymmetricFocalTverskyLoss(_Loss):
             y_pred = torch.cat([1 - y_pred, y_pred], dim=1)
             y_true = torch.cat([1 - y_true, y_true], dim=1)
 
-        n_pred_ch = y_pred.shape[1]
-
-        if self.to_onehot_y:
-            if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            else:
-                y_true = one_hot(y_true, num_classes=n_pred_ch)
-
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
+        # Calculate Loss
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
@@ -130,8 +134,8 @@ class AsymmetricFocalLoss(_Loss):
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 2.
-            epsilon : it defines a very small number each time. similarly smooth value. Defaults to 1e-7.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 2.
+            epsilon : stability factor used to avoid division by zero. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -141,6 +145,20 @@ class AsymmetricFocalLoss(_Loss):
         self.epsilon = epsilon
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        n_pred_ch = y_pred.shape[1]
+
+        if self.use_softmax and n_pred_ch == 1:
+            raise ValueError("single channel prediction with `use_softmax=True` is not allowed.")
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                y_true = one_hot(y_true, num_classes=n_pred_ch)
+
+        # Save logits for numerical stability in single-channel expansion
+        y_logits = y_pred
+
         if self.use_softmax:
             y_log_pred = F.log_softmax(y_pred, dim=1)
             y_pred = torch.exp(y_log_pred)
@@ -148,18 +166,12 @@ class AsymmetricFocalLoss(_Loss):
             y_log_pred = F.logsigmoid(y_pred)
             y_pred = torch.sigmoid(y_pred)
 
-        if y_pred.shape[1] == 1:
+        # Handle Single Channel (Binary) Expansion
+        if n_pred_ch == 1:
             y_pred = torch.cat([1 - y_pred, y_pred], dim=1)
-            y_log_pred = torch.log(torch.clamp(y_pred, 1e-7, 1.0))
+            bg_log_pred = F.logsigmoid(-y_logits)
+            y_log_pred = torch.cat([bg_log_pred, y_log_pred], dim=1)
             y_true = torch.cat([1 - y_true, y_true], dim=1)
-
-        n_pred_ch = y_pred.shape[1]
-
-        if self.to_onehot_y:
-            if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            else:
-                y_true = one_hot(y_true, num_classes=n_pred_ch)
 
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
@@ -199,20 +211,18 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     def __init__(
         self,
         to_onehot_y: bool = False,
-        weight: float = 0.5,
-        gamma: float = 0.5,
-        delta: float = 0.7,
         use_softmax: bool = False,
+        delta: float = 0.7,
+        gamma: float = 2,
         reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
         Args:
-            to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            weight : weight for each loss function. Defaults to 0.5.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.5.
-            delta : weight of the background. Defaults to 0.7.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
+            delta : weight of the background. Defaults to 0.7.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
 
         Example:
             >>> import torch
@@ -250,9 +260,9 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         loss: torch.Tensor = self.weight * asy_focal_loss + (1 - self.weight) * asy_focal_tversky_loss
 
         if self.reduction == LossReduction.SUM.value:
-            return torch.sum(loss)  # sum over the batch and channel dims
+            return torch.sum(loss)
         if self.reduction == LossReduction.NONE.value:
-            return loss  # returns [N, num_classes] losses
+            return loss
         if self.reduction == LossReduction.MEAN.value:
             return torch.mean(loss)
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
