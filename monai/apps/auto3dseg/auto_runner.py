@@ -87,7 +87,7 @@ class AutoRunner:
             tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
         mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
-            transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
+            transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage.
 
 
     Examples:
@@ -621,7 +621,7 @@ class AutoRunner:
 
         Args:
             kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
-                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
+                transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage.
 
         """
 
@@ -631,7 +631,7 @@ class AutoRunner:
         else:
             raise ValueError(
                 f"{extra_args} are not supported in monai.transforms.SaveImage,"
-                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+                "Check https://monai.readthedocs.io/en/stable/transforms.html#saveimage for more information."
             )
 
         return self

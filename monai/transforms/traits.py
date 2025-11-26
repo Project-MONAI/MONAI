@@ -14,7 +14,7 @@ A collection of generic traits for MONAI transforms.
 
 from __future__ import annotations
 
-__all__ = ["LazyTrait", "InvertibleTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe"]
+__all__ = ["LazyTrait", "InvertibleTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe", "ReduceTrait"]
 
 from typing import Any
 
@@ -96,6 +96,17 @@ class ThreadUnsafe:
 
     This type is typically used by :py:class:`monai.data.CacheDataset` and
     its extensions, where the transform cache is built with multiple threads.
+    """
+
+    pass
+
+
+class ReduceTrait:
+    """
+    An interface to indicate that the transform has the capability to reduce multiple samples
+    into a single sample.
+    This interface can be extended from by people adapting transforms to the MONAI framework as well
+    as by implementors of MONAI transforms.
     """
 
     pass

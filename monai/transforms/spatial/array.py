@@ -2023,7 +2023,7 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2031,7 +2031,7 @@ class Resample(Transform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2075,7 +2075,7 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2083,7 +2083,7 @@ class Resample(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html

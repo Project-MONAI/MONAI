@@ -12,7 +12,7 @@ pip install snakeviz  # for viewing the cProfile results
 ```
 ./runtests.sh --build   # from monai's root directory
 ```
-or follow the installation guide (https://docs.monai.io/en/latest/installation.html)
+or follow the installation guide (https://monai.readthedocs.io/en/latest/installation.html)
 
 ### Profiling the task of adding two MetaTensors
 ```bash

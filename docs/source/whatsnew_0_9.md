@@ -7,7 +7,7 @@
 - MetaTensor API preview
 
 ## MONAI Bundle
-MONAI Bundle format defines portable described of deep learning models ([docs](https://docs.monai.io/en/latest/bundle_intro.html)).
+MONAI Bundle format defines portable described of deep learning models ([docs](https://monai.readthedocs.io/en/latest/bundle_intro.html)).
 A bundle includes the critical information necessary during a model development life cycle,
 and allows users and programs to understand the purpose and usage of the models.
 The key benefits of Bundle and the `monai.bundle` APIs are:
