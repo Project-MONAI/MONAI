@@ -15,18 +15,17 @@ import warnings
 
 import torch
 import torch.nn as nn
+from huggingface_hub import hf_hub_download
 
 from monai.utils import optional_import
 from monai.utils.enums import StrEnum
-from huggingface_hub import hf_hub_download
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
 
 
 class PercetualNetworkType(StrEnum):
-    """Types of neural networks that are supported by perceptua loss.
-    """
+    """Types of neural networks that are supported by perceptua loss."""
 
     alex = "alex"
     vgg = "vgg"
@@ -116,8 +115,7 @@ class PerceptualLoss(nn.Module):
         # If spatial_dims is 3, only MedicalNet supports 3D models, otherwise, spatial_dims=2 and fake_3D must be used.
         if spatial_dims == 3 and is_fake_3d is False:
             self.perceptual_function = MedicalNetPerceptualSimilarity(
-                net=network_type, verbose=False, channel_wise=channel_wise,
-                cache_dir=cache_dir
+                net=network_type, verbose=False, channel_wise=channel_wise, cache_dir=cache_dir
             )
         elif "radimagenet_" in network_type:
             self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
@@ -214,12 +212,17 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     """
 
     def __init__(
-        self, net: str = "medicalnet_resnet_10_23datasets", verbose: bool = False, channel_wise: bool = False,
+        self,
+        net: str = "medicalnet_resnet_10_23datasets",
+        verbose: bool = False,
+        channel_wise: bool = False,
         cache_dir: str | None = None,
     ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
-        self.model = torch.hub.load("Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir)
+        self.model = torch.hub.load(
+            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir
+        )
         self.eval()
 
         self.channel_wise = channel_wise
@@ -305,12 +308,9 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         verbose: if false, mute messages from torch Hub load function.
     """
 
-    def __init__(self, net: str = "radimagenet_resnet50", 
-                 verbose: bool = False,
-                 cache_dir: str | None = None) -> None:
+    def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
-        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose,
-                                    cache_dir=cache_dir)
+        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose, cache_dir=cache_dir)
         self.eval()
 
         for param in self.parameters():
