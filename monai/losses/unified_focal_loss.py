@@ -214,6 +214,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         use_softmax: bool = False,
         delta: float = 0.7,
         gamma: float = 2,
+        weight: float = 0.5,
         reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
@@ -223,6 +224,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
+            weight : weight for each loss function. Defaults to 0.5.
 
         Example:
             >>> import torch
