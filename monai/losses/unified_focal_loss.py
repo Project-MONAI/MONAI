@@ -223,8 +223,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
             delta : weight of the background. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
-            weight : weight for each loss function. Defaults to 0.5.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 2.
+            weight: weight for combining the focal and focal-Tversky terms. Defaults to 0.5.
 
         Example:
             >>> import torch
@@ -241,10 +241,16 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.delta = delta
         self.use_softmax = use_softmax
         self.asy_focal_loss = AsymmetricFocalLoss(
-            to_onehot_y=to_onehot_y, gamma=self.gamma, delta=self.delta, use_softmax=use_softmax
+            to_onehot_y=to_onehot_y,
+            use_softmax=use_softmax,
+            delta=self.delta,
+            gamma=self.gamma,
         )
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(
-            to_onehot_y=to_onehot_y, gamma=self.gamma, delta=self.delta, use_softmax=use_softmax
+            to_onehot_y=to_onehot_y,
+            use_softmax=use_softmax,
+            delta=self.delta,
+            gamma=self.gamma,
         )
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
