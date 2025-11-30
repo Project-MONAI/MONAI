@@ -51,7 +51,9 @@ __all__ = [
 ]
 
 
-def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
+def ignore_background(
+    y_pred: NdarrayTensor, y: NdarrayTensor | None = None
+) -> tuple[NdarrayTensor, NdarrayTensor | None]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -63,7 +65,8 @@ def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayT
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    if y is not None:
+        y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
