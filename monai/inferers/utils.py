@@ -131,11 +131,27 @@ def sliding_window_inference(
         kwargs: optional keyword args to be passed to ``predictor``.
 
     Note:
-        - input must be channel-first and have a batch dim, supports N-D sliding window.
+        - Inputs must be channel-first and have a batch dim (NCHW / NCDHW).
+        - If your data is NHWC/NDHWC, please apply `EnsureChannelFirst` / `EnsureChannelFirstd` upstream.
 
     """
-    buffered = buffer_steps is not None and buffer_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
+
+    # Only perform strict shape validation if roi_size is a sequence (explicit dimensions).
+    # If roi_size is an integer, it is broadcast to all dimensions, so we cannot
+    # infer the expected dimensionality to enforce a strict check here.
+    if isinstance(roi_size, Sequence):
+        roi_dims = len(roi_size)
+        if num_spatial_dims != roi_dims:
+            raise ValueError(
+                f"inputs must have {roi_dims + 2} dimensions for {roi_dims}D roi_size "
+                f"(Batch, Channel, {', '.join(['Spatial'] * roi_dims)}), "
+                f"but got inputs shape {inputs.shape}.\n"
+                "If you have channel-last data (e.g. B, D, H, W, C), please use "
+                "monai.transforms.EnsureChannelFirst or EnsureChannelFirstd upstream."
+            )
+    # -----------------------------------------------------------------
+    buffered = buffer_steps is not None and buffer_steps > 0
     if buffered:
         if buffer_dim < -num_spatial_dims or buffer_dim > num_spatial_dims:
             raise ValueError(f"buffer_dim must be in [{-num_spatial_dims}, {num_spatial_dims}], got {buffer_dim}.")
