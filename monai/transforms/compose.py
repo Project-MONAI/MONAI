@@ -284,7 +284,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             # Check common attribute patterns for wrapped transforms
             for attr_name in dir(obj):
                 # Skip magic methods and common non-transform attributes
-                if attr_name.startswith('__') or attr_name in ('transforms', 'transform'):
+                if attr_name.startswith("__") or attr_name in ("transforms", "transform"):
                     continue
                 try:
                     attr = getattr(obj, attr_name, None)

@@ -152,17 +152,16 @@ class TestInvertd(unittest.TestCase):
         key = "image"
 
         # Preprocessing pipeline
-        preprocessing = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Postprocessing with Lambdad before Invertd
         # Previously this would raise RuntimeError about transform ID mismatch
-        postprocessing = Compose([
-            Lambdad(key, func=lambda x: x),  # Should be ignored during inversion
-            Invertd(key, transform=preprocessing, orig_keys=key)
-        ])
+        postprocessing = Compose(
+            [
+                Lambdad(key, func=lambda x: x),  # Should be ignored during inversion
+                Invertd(key, transform=preprocessing, orig_keys=key),
+            ]
+        )
 
         # Apply transforms
         item = {key: img}
@@ -174,7 +173,7 @@ class TestInvertd(unittest.TestCase):
             # If we get here, the bug is fixed
             self.assertIsNotNone(post)
             self.assertIn(key, post)
-            print(f"SUCCESS! Automatic group tracking fixed the bug.")
+            print("SUCCESS! Automatic group tracking fixed the bug.")
             print(f"  Preprocessing group ID: {id(preprocessing)}")
             print(f"  Postprocessing group ID: {id(postprocessing)}")
         except RuntimeError as e:
@@ -192,22 +191,18 @@ class TestInvertd(unittest.TestCase):
         img2 = MetaTensor(img2, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
 
         # Two different preprocessing pipelines
-        preprocessing1 = Compose([
-            EnsureChannelFirstd("image1"),
-            Spacingd("image1", pixdim=[2.0, 2.0]),
-        ])
+        preprocessing1 = Compose([EnsureChannelFirstd("image1"), Spacingd("image1", pixdim=[2.0, 2.0])])
 
-        preprocessing2 = Compose([
-            EnsureChannelFirstd("image2"),
-            Spacingd("image2", pixdim=[1.5, 1.5]),
-        ])
+        preprocessing2 = Compose([EnsureChannelFirstd("image2"), Spacingd("image2", pixdim=[1.5, 1.5])])
 
         # Postprocessing that inverts both
-        postprocessing = Compose([
-            Lambdad(["image1", "image2"], func=lambda x: x),
-            Invertd("image1", transform=preprocessing1, orig_keys="image1"),
-            Invertd("image2", transform=preprocessing2, orig_keys="image2"),
-        ])
+        postprocessing = Compose(
+            [
+                Lambdad(["image1", "image2"], func=lambda x: x),
+                Invertd("image1", transform=preprocessing1, orig_keys="image1"),
+                Invertd("image2", transform=preprocessing2, orig_keys="image2"),
+            ]
+        )
 
         # Apply transforms
         item = {"image1": img1, "image2": img2}
@@ -228,18 +223,17 @@ class TestInvertd(unittest.TestCase):
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
 
-        preprocessing = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Multiple transforms in postprocessing before Invertd
-        postprocessing = Compose([
-            Lambdad(key, func=lambda x: x * 2),
-            Lambdad(key, func=lambda x: x + 1),
-            Lambdad(key, func=lambda x: x - 1),
-            Invertd(key, transform=preprocessing, orig_keys=key)
-        ])
+        postprocessing = Compose(
+            [
+                Lambdad(key, func=lambda x: x * 2),
+                Lambdad(key, func=lambda x: x + 1),
+                Lambdad(key, func=lambda x: x - 1),
+                Invertd(key, transform=preprocessing, orig_keys=key),
+            ]
+        )
 
         item = {key: img}
         pre = preprocessing(item)
@@ -257,15 +251,10 @@ class TestInvertd(unittest.TestCase):
         key = "image"
 
         # First preprocessing
-        preprocessing1 = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        preprocessing1 = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Second preprocessing (different pipeline)
-        preprocessing2 = Compose([
-            Spacingd(key, pixdim=[1.5, 1.5]),
-        ])
+        preprocessing2 = Compose([Spacingd(key, pixdim=[1.5, 1.5])])
 
         item = {key: img}
         pre1 = preprocessing1(item)
@@ -298,10 +287,7 @@ class TestInvertd(unittest.TestCase):
         key = "image"
 
         # Create a preprocessing pipeline
-        preprocessing = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Apply preprocessing
         item = {key: img}
@@ -326,15 +312,10 @@ class TestInvertd(unittest.TestCase):
         key = "image"
 
         # Preprocessing pipeline
-        preprocessing = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Postprocessing pipeline (different group)
-        postprocessing = Compose([
-            Lambdad(key, func=lambda x: x * 2),
-        ])
+        postprocessing = Compose([Lambdad(key, func=lambda x: x * 2)])
 
         # Apply both pipelines
         item = {key: img}
@@ -346,7 +327,7 @@ class TestInvertd(unittest.TestCase):
         # This WILL fail because applied_operations contains postprocessing transforms
         # and inverse() doesn't do group filtering (only Invertd does)
         with self.assertRaises(RuntimeError):
-            inverted = preprocessing.inverse(post)
+            preprocessing.inverse(post)
 
     def test_mixed_invertd_and_compose_inverse(self):
         """Test mixing Invertd (with group filtering) and Compose.inverse() (without filtering)."""
@@ -357,10 +338,7 @@ class TestInvertd(unittest.TestCase):
         key = "image"
 
         # First pipeline
-        pipeline1 = Compose([
-            EnsureChannelFirstd(key),
-            Spacingd(key, pixdim=[2.0, 2.0]),
-        ])
+        pipeline1 = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
         # Apply first pipeline
         item = {key: img}
