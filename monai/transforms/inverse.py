@@ -82,6 +82,10 @@ class TraceableTransform(Transform):
         if not hasattr(self._tracing, "value"):
             self._tracing.value = MONAIEnvVars.trace_transform() != "0"
 
+        # Initialize group identifier (set by Compose for automatic group tracking)
+        if not hasattr(self, "_group"):
+            self._group: str | None = None
+
     def __getstate__(self):
         """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
         _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
@@ -119,6 +123,9 @@ class TraceableTransform(Transform):
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
         """
+        # Ensure _group is initialized
+        self._init_trace_threadlocal()
+
         vals = (
             self.__class__.__name__,
             id(self),
@@ -128,7 +135,7 @@ class TraceableTransform(Transform):
         info = dict(zip(self.transform_info_keys(), vals))
 
         # Add group if set (automatically set by Compose)
-        if hasattr(self, "_group") and self._group is not None:
+        if self._group is not None:
             info[TraceKeys.GROUP] = self._group
 
         return info

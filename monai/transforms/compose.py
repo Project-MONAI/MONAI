@@ -286,13 +286,10 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
                 # Skip magic methods and common non-transform attributes
                 if attr_name.startswith("__") or attr_name in ("transforms", "transform"):
                     continue
-                try:
-                    attr = getattr(obj, attr_name, None)
-                    if attr is not None and isinstance(attr, TraceableTransform) and not isinstance(attr, Compose):
-                        # Recursively set group on nested transforms
-                        set_group_recursive(attr, gid)
-                except Exception:
-                    pass
+                attr = getattr(obj, attr_name, None)
+                if attr is not None and isinstance(attr, TraceableTransform) and not isinstance(attr, Compose):
+                    # Recursively set group on nested transforms
+                    set_group_recursive(attr, gid)
 
         for transform in self.transforms:
             set_group_recursive(transform, group_id)
