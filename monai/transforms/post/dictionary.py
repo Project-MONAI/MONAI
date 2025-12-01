@@ -859,6 +859,29 @@ class Invertd(MapTransform):
         self.post_func = ensure_tuple_rep(post_func, len(self.keys))
         self._totensor = ToTensor()
 
+    def _filter_transforms_by_group(self, all_transforms: list[dict]) -> list[dict]:
+        """
+        Filter applied_operations to only include transforms from the target Compose instance.
+        Uses automatic group tracking where Compose assigns its ID to child transforms.
+        """
+        from monai.utils import TraceKeys
+
+        # Get the group ID of the transform (Compose instance)
+        target_group = str(id(self.transform))
+
+        # Filter transforms that match the target group
+        filtered = []
+        for xform in all_transforms:
+            xform_group = xform.get(TraceKeys.GROUP)
+            if xform_group == target_group:
+                filtered.append(xform)
+
+        # If no transforms match (backward compatibility), return all transforms
+        if not filtered:
+            return all_transforms
+
+        return filtered
+
     def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
         d = dict(data)
         for (
@@ -894,8 +917,11 @@ class Invertd(MapTransform):
 
             orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             if orig_key in d and isinstance(d[orig_key], MetaTensor):
-                transform_info = d[orig_key].applied_operations
+                all_transforms = d[orig_key].applied_operations
                 meta_info = d[orig_key].meta
+
+                # Automatically filter by Compose instance group ID
+                transform_info = self._filter_transforms_by_group(all_transforms)
             else:
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
                 meta_info = d.get(orig_meta_key, {})

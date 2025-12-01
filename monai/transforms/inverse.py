@@ -125,7 +125,13 @@ class TraceableTransform(Transform):
             self.tracing,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
-        return dict(zip(self.transform_info_keys(), vals))
+        info = dict(zip(self.transform_info_keys(), vals))
+
+        # Add group if set (automatically set by Compose)
+        if hasattr(self, "_group") and self._group is not None:
+            info[TraceKeys.GROUP] = self._group
+
+        return info
 
     def push_transform(self, data, *args, **kwargs):
         """

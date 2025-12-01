@@ -334,6 +334,7 @@ class TraceKeys(StrEnum):
     TRACING: str = "tracing"
     STATUSES: str = "statuses"
     LAZY: str = "lazy"
+    GROUP: str = "group"
 
 
 class TraceStatusKeys(StrEnum):

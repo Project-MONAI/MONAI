@@ -255,6 +255,48 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         self.set_random_state(seed=get_seed())
         self.overrides = overrides
 
+        # Automatically assign group ID to child transforms for inversion tracking
+        self._set_transform_groups()
+
+    def _set_transform_groups(self):
+        """
+        Automatically set group IDs on child transforms for inversion tracking.
+        This allows Invertd to identify which transforms belong to this Compose instance.
+        Recursively sets groups on wrapped transforms (e.g., array transforms inside dictionary transforms).
+        """
+        from monai.transforms.inverse import TraceableTransform
+
+        group_id = str(id(self))
+        visited = set()  # Track visited objects to avoid infinite recursion
+
+        def set_group_recursive(obj, gid):
+            """Recursively set group on transform and its wrapped transforms."""
+            # Avoid infinite recursion
+            obj_id = id(obj)
+            if obj_id in visited:
+                return
+            visited.add(obj_id)
+
+            if isinstance(obj, TraceableTransform):
+                obj._group = gid
+
+            # Handle wrapped transforms in dictionary transforms
+            # Check common attribute patterns for wrapped transforms
+            for attr_name in dir(obj):
+                # Skip magic methods and common non-transform attributes
+                if attr_name.startswith('__') or attr_name in ('transforms', 'transform'):
+                    continue
+                try:
+                    attr = getattr(obj, attr_name, None)
+                    if attr is not None and isinstance(attr, TraceableTransform) and not isinstance(attr, Compose):
+                        # Recursively set group on nested transforms
+                        set_group_recursive(attr, gid)
+                except Exception:
+                    pass
+
+        for transform in self.transforms:
+            set_group_recursive(transform, group_id)
+
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool):
         self._lazy = val
