@@ -15,7 +15,6 @@ import warnings
 
 import torch
 import torch.nn as nn
-from huggingface_hub import hf_hub_download
 
 from monai.utils import optional_import
 from monai.utils.enums import StrEnum
