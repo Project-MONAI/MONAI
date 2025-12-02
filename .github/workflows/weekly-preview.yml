@@ -11,7 +11,7 @@ jobs:
       matrix:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Python 3.9
       uses: actions/setup-python@v6
       with:
@@ -42,7 +42,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         ref: dev
         fetch-depth: 0
