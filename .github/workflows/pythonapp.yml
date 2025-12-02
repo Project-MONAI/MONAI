@@ -65,7 +65,7 @@ jobs:
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.4
+      uses: al-cheb/configure-pagefile-action@v1.5
       with:
         minimum-size: 8GB
         maximum-size: 16GB
