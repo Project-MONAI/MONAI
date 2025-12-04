@@ -45,7 +45,7 @@ class TestITKWriter(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             fname = os.path.join(tempdir, "testing.png")
             writer = ITKWriter(output_dtype=np.uint8)
-            writer.set_data_array(np.arange(48).reshape(3, 4, 4), channel_dim=0)
+            writer.set_data_array(torch.arange(48).reshape(3, 4, 4), channel_dim=0)
             writer.set_metadata({"spatial_shape": (5, 5)})
             writer.write(fname)
 
