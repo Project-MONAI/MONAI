@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.data import ITKWriter
+from monai.data import ITKWriter, MetaTensor
 from monai.utils import optional_import
 
 itk, has_itk = optional_import("itk")
@@ -63,6 +63,13 @@ class TestITKWriter(unittest.TestCase):
             output = np.asarray(itk.imread(fname))
             np.testing.assert_allclose(output.shape, (4, 4, 3))
             np.testing.assert_allclose(output[1, 1], (5, 21, 37))
+
+    def test_metatensor_preserved(self):
+        data = MetaTensor(np.arange(48).reshape(3, 4, 4, 1), meta={"test_key": "test_value"})
+        writer = ITKWriter()
+        writer.set_data_array(data, channel_dim=-1, squeeze_end_dims=True)
+        self.assertIsInstance(writer.data_obj, MetaTensor)
+        self.assertEqual(writer.data_obj.meta.get("test_key"), "test_value")
 
 
 if __name__ == "__main__":
