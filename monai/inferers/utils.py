@@ -76,7 +76,8 @@ def sliding_window_inference(
 
     Args:
         inputs: input image to be processed (assuming NCHW[D])
-        roi_size: the spatial window size for inferences.
+        roi_size: the spatial window size for inferences, this must be a single value or a tuple with values
+            for each spatial dimension (eg. 2 for 2D, 3 for 3D).
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
@@ -134,6 +135,9 @@ def sliding_window_inference(
         - Inputs must be channel-first and have a batch dim (NCHW / NCDHW).
         - If your data is NHWC/NDHWC, please apply `EnsureChannelFirst` / `EnsureChannelFirstd` upstream.
 
+    Raises:
+        ValueError: When the input dimensions do not match the expected dimensions based on ``roi_size``.
+
     """
     num_spatial_dims = len(inputs.shape) - 2
 
@@ -144,7 +148,7 @@ def sliding_window_inference(
         roi_dims = len(roi_size)
         if num_spatial_dims != roi_dims:
             raise ValueError(
-                f"inputs must have {roi_dims + 2} dimensions for {roi_dims}D roi_size "
+                f"Inputs must have {roi_dims + 2} dimensions for {roi_dims}D roi_size "
                 f"(Batch, Channel, {', '.join(['Spatial'] * roi_dims)}), "
                 f"but got inputs shape {inputs.shape}.\n"
                 "If you have channel-last data (e.g. B, D, H, W, C), please use "

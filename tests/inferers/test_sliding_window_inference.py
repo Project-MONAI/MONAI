@@ -384,12 +384,12 @@ class TestSlidingWindowInference(unittest.TestCase):
         # Case 1: Input has fewer dimensions than expected (e.g., missing Batch or Channel)
         # 3D roi_size requires 5D input (B, C, D, H, W), giving 4D here.
         inputs_4d = torch.randn((1, 16, 16, 16), device=device)
-        with self.assertRaisesRegex(ValueError, "inputs must have 5 dimensions"):
+        with self.assertRaisesRegex(ValueError, "Inputs must have 5 dimensions"):
             sliding_window_inference(inputs_4d, roi_size, sw_batch_size, predictor)
 
         # Case 2: Input is 3D (missing Batch AND Channel)
         inputs_3d = torch.randn((16, 16, 16), device=device)
-        with self.assertRaisesRegex(ValueError, "inputs must have 5 dimensions"):
+        with self.assertRaisesRegex(ValueError, "Inputs must have 5 dimensions"):
             sliding_window_inference(inputs_3d, roi_size, sw_batch_size, predictor)
 
 
