@@ -333,7 +333,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
             raise ValueError(
                 f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
         )
-        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose, cache_dir=cache_dir,
+        self.model = torch.hub.load("Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir,
                                     trust_repo=True)
         self.eval()
 
