@@ -226,7 +226,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
 
     def __init__(
         self,
-        net: str = "medicalnet_resnet_10_23datasets",
+        net: str = "medicalnet_resnet10_23datasets",
         verbose: bool = False,
         channel_wise: bool = False,
         cache_dir: str | None = None,
