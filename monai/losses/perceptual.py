@@ -17,10 +17,19 @@ import torch
 import torch.nn as nn
 
 from monai.utils import optional_import
+
 from monai.utils.enums import StrEnum
+
+# Valid model name to download from the repository
+HF_MONAI_MODELS = (
+    "medicalnet_resnet10_23datasets",
+    "medicalnet_resnet50_23datasets",
+    "radimagenet_resnet50",
+)
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
+
 
 
 class PercetualNetworkType(StrEnum):
@@ -86,13 +95,18 @@ class PerceptualLoss(nn.Module):
         if spatial_dims not in [2, 3]:
             raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.")
 
-        if (spatial_dims == 2 or is_fake_3d) and "medicalnet_" in network_type:
-            raise ValueError(
-                "MedicalNet networks are only compatible with ``spatial_dims=3``."
-                "Argument is_fake_3d must be set to False."
-            )
 
-        if channel_wise and "medicalnet_" not in network_type:
+        # Strict validation for MedicalNet
+        if "medicalnet_" in network_type:
+            if spatial_dims == 2 or is_fake_3d:
+                raise ValueError(
+                    "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False."
+                )
+            if not channel_wise:
+                warnings.warn("MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.")
+
+        # Channel-wise only for MedicalNet
+        elif channel_wise:
             raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
 
         if network_type.lower() not in list(PercetualNetworkType):
@@ -219,8 +233,14 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
+        if net not in HF_MONAI_MODELS:
+            raise ValueError(
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
+            )
+
         self.model = torch.hub.load(
-            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir
+            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir,
+            trust_repo=True,
         )
         self.eval()
 
@@ -309,7 +329,12 @@ class RadImageNetPerceptualSimilarity(nn.Module):
 
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
-        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose, cache_dir=cache_dir)
+        if net not in HF_MONAI_MODELS:
+            raise ValueError(
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
+        )
+        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose, cache_dir=cache_dir,
+                                    trust_repo=True)
         self.eval()
 
         for param in self.parameters():
