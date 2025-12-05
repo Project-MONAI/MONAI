@@ -33,7 +33,7 @@ torchvision, _ = optional_import("torchvision")
 
 
 class PercetualNetworkType(StrEnum):
-    """Types of neural networks that are supported by perceptua loss."""
+    """Types of neural networks that are supported by perceptual loss."""
 
     alex = "alex"
     vgg = "vgg"
