@@ -55,7 +55,7 @@ RUN python -m pip install --no-cache-dir -r requirements-dev.txt
 # compile ext
 RUN CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 python setup.py develop
 
-# recreate the image without the installed CUDA packages then copy the installed MONAI and Python directories 
+# recreate the image without the installed CUDA packages then copy the installed MONAI and Python directories
 FROM ${IMAGE} AS build2
 
 ENV DEBIAN_FRONTEND=noninteractive
