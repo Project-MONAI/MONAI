@@ -23,6 +23,7 @@ from monai.utils import ensure_tuple, optional_import
 from tests.test_utils import dict_product, skip_if_quick, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
+_, has_onnxruntime = optional_import("onnxruntime")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 num_anchors = 7
@@ -169,6 +170,7 @@ class TestRetinaNet(unittest.TestCase):
             test_script_save(net, data)
 
     @parameterized.expand(TEST_CASES_TS)
+    @unittest.skipUnless(has_onnxruntime, "onnxruntime not installed")
     def test_onnx(self, model, input_param, input_shape):
         try:
             idx = int(self.id().split("test_onnx_")[-1])
