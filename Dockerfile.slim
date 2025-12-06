@@ -26,8 +26,8 @@ RUN apt update && apt upgrade -y && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
     apt update && \
     ${APT_INSTALL} cuda-toolkit-12 && \
-    apt clean && \
-    rm -rf cuda-keyring_1.1-1_all.deb /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/*
+    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
+    python -m pip install --upgrade --no-cache-dir pip
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
@@ -50,38 +50,38 @@ COPY tests ./tests
 COPY monai ./monai
 
 # install full deps
-RUN python -m pip install --upgrade --no-cache-dir pip && \
-    python -m pip install --no-cache-dir -r requirements-dev.txt
+RUN python -m pip install --no-cache-dir -r requirements-dev.txt
 
 # compile ext
-RUN export CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 && \
-    python setup.py develop
+RUN CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 python setup.py develop
 
-# flatten all layers down to one
-FROM ${IMAGE}
-LABEL maintainer="monai.contact@gmail.com"
+# recreate the image without the installed CUDA packages then copy the installed MONAI and Python directories 
+FROM ${IMAGE} AS build2
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
 
 RUN apt update && apt upgrade -y && \
-    ${APT_INSTALL} ca-certificates python3-pip python-is-python3 git wget libopenslide0 unzip python3-dev && \
+    ${APT_INSTALL} ca-certificates python3-pip python-is-python3 git libopenslide0 && \
     apt clean && \
     rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
     python -m pip install --upgrade --no-cache-dir pip
 
 COPY --from=build /opt/monai /opt/monai
+COPY --from=build /opt/tools /opt/tools
 COPY --from=build /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
+COPY --from=build /usr/local/bin /usr/local/bin
 
-# TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
-RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
-      CFLAGS="-O3" DISABLE_NUMCODECS_SSE2=true DISABLE_NUMCODECS_AVX2=true python -m pip install numcodecs; \
-    fi
+RUN rm -rf /opt/monai/build /opt/monai/monai.egg-info && \
+    find / -name __pycache__ | xargs rm -rf
+
+# flatten all layers down to one
+FROM ${IMAGE}
+LABEL maintainer="monai.contact@gmail.com"
+
+COPY --from=build2 / /
 
 WORKDIR /opt/monai
-
-# # install full deps and built package
-# RUN export CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=0 BUILD_MONAI=0 && \
-#     python -m pip install --no-cache-dir -r requirements-dev.txt 
 
 ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
