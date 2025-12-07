@@ -14,7 +14,7 @@ identifiers:
     value: "10.5281/zenodo.4323058"
 license: "Apache-2.0"
 repository-code: "https://github.com/Project-MONAI/MONAI"
-url: "https://monai.io"
+url: "https://project-monai.github.io/"
 cff-version: "1.2.0"
 message: "If you use this software, please cite it using these metadata."
 preferred-citation:
