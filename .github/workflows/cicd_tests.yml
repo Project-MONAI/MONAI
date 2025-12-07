@@ -24,9 +24,9 @@ concurrency:
   group: cicd-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# These jobs run the CICD tests, type checking, and testing packaging and documentation generation. These use the
-# minimum supported versions of Python and PyTorch in many places hard-coded as literals, so when support is dropped
-# for a version it is important to go through all jobs and check the versions they use are correct.
+# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of 
+# Python and PyTorch in many places hard-coded as literals, so when support is dropped for a version it is important to 
+# go through all jobs and check the versions they use are correct.
 
 jobs:
   static-checks:  # Perform static type and other checks using runtests.sh
@@ -35,6 +35,14 @@ jobs:
       matrix:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+
     - uses: actions/checkout@v6
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
@@ -52,7 +60,6 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Lint and type check with "./runtests.sh --build --${{ matrix.opt }}"
@@ -95,6 +102,14 @@ jobs:
 
     timeout-minutes: 40
     steps:
+    - if: runner.os == 'Linux'
+      name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
     - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
@@ -151,6 +166,14 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 120
     steps:
+    - if: runner.os == 'Linux'
+      name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
       uses: al-cheb/configure-pagefile-action@v1.5
@@ -188,7 +211,6 @@ jobs:
       name: Install itk pre-release (Linux only)
       run: |
         python -m pip install --pre -U itk
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
     - name: Install the complete dependencies
       run: |
         python -m pip install --user --upgrade pip wheel
@@ -218,6 +240,14 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
@@ -239,7 +269,6 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --user --upgrade pip setuptools wheel twine packaging
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
