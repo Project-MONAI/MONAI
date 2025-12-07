@@ -24,8 +24,8 @@ concurrency:
   group: cicd-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of 
-# Python and PyTorch in many places hard-coded as literals, so when support is dropped for a version it is important to 
+# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
+# Python and PyTorch in many places hard-coded as literals, so when support is dropped for a version it is important to
 # go through all jobs and check the versions they use are correct.
 
 jobs:
@@ -273,7 +273,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=2.5.1 torchvision
+        python -m pip install torch\>=2.5.1 torchvision
     - name: Check packages
       run: |
         pip uninstall monai

@@ -16,7 +16,6 @@ from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-
 import torch
 
 from monai.utils import Average, look_up_option
