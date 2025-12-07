@@ -28,6 +28,14 @@ jobs:
       matrix:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+
     - uses: actions/checkout@v6
     - name: Set up Python 3.9
       uses: actions/setup-python@v6
@@ -213,6 +221,14 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+
     - uses: actions/checkout@v6
     - name: Set up Python 3.9
       uses: actions/setup-python@v6
