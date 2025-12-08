@@ -69,7 +69,8 @@ RUN apt update && apt upgrade -y && \
 
 COPY --from=build /opt/monai /opt/monai
 COPY --from=build /opt/tools /opt/tools
-COPY --from=build /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
+ARG PYTHON_VERSION=3.11
+COPY --from=build /usr/local/lib/python${PYTHON_VERSION}/dist-packages /usr/local/lib/python${PYTHON_VERSION}/dist-packages
 COPY --from=build /usr/local/bin /usr/local/bin
 
 RUN rm -rf /opt/monai/build /opt/monai/monai.egg-info && \
