@@ -131,7 +131,7 @@ class PerceptualLoss(nn.Module):
                 net=network_type, verbose=False, channel_wise=channel_wise, cache_dir=cache_dir
             )
         elif "radimagenet_" in network_type:
-            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
+            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False, cache_dir=cache_dir)
         elif network_type == "resnet50":
             self.perceptual_function = TorchvisionModelPerceptualSimilarity(
                 net=network_type,
