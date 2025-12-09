@@ -21,18 +21,18 @@ from monai.utils import optional_import
 from monai.utils.enums import StrEnum
 
 # Valid model name to download from the repository
-HF_MONAI_MODELS = (
+HF_MONAI_MODELS = frozenset((
     "medicalnet_resnet10_23datasets",
     "medicalnet_resnet50_23datasets",
     "radimagenet_resnet50",
-)
+))
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
 
 
 
-class PercetualNetworkType(StrEnum):
+class PerceptualNetworkType(StrEnum):
     """Types of neural networks that are supported by perceptual loss."""
 
     alex = "alex"
@@ -81,7 +81,7 @@ class PerceptualLoss(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        network_type: str = PercetualNetworkType.alex,
+        network_type: str = PerceptualNetworkType.alex,
         is_fake_3d: bool = True,
         fake_3d_ratio: float = 0.5,
         cache_dir: str | None = None,
@@ -103,16 +103,16 @@ class PerceptualLoss(nn.Module):
                     "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False."
                 )
             if not channel_wise:
-                warnings.warn("MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.")
+                warnings.warn("MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2)
 
         # Channel-wise only for MedicalNet
         elif channel_wise:
             raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
 
-        if network_type.lower() not in list(PercetualNetworkType):
+        if network_type.lower() not in list(PerceptualNetworkType):
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join(PercetualNetworkType)
+                % ", ".join(PerceptualNetworkType)
             )
 
         if cache_dir:
@@ -232,7 +232,6 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         cache_dir: str | None = None,
     ) -> None:
         super().__init__()
-        torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
         if net not in HF_MONAI_MODELS:
             raise ValueError(
                 f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
