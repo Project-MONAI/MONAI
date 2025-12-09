@@ -17,19 +17,15 @@ import torch
 import torch.nn as nn
 
 from monai.utils import optional_import
-
 from monai.utils.enums import StrEnum
 
 # Valid model name to download from the repository
-HF_MONAI_MODELS = frozenset((
-    "medicalnet_resnet10_23datasets",
-    "medicalnet_resnet50_23datasets",
-    "radimagenet_resnet50",
-))
+HF_MONAI_MODELS = frozenset(
+    ("medicalnet_resnet10_23datasets", "medicalnet_resnet50_23datasets", "radimagenet_resnet50")
+)
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
-
 
 
 class PerceptualNetworkType(StrEnum):
@@ -95,7 +91,6 @@ class PerceptualLoss(nn.Module):
         if spatial_dims not in [2, 3]:
             raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.")
 
-
         # Strict validation for MedicalNet
         if "medicalnet_" in network_type:
             if spatial_dims == 2 or is_fake_3d:
@@ -103,7 +98,9 @@ class PerceptualLoss(nn.Module):
                     "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False."
                 )
             if not channel_wise:
-                warnings.warn("MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2)
+                warnings.warn(
+                    "MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
+                )
 
         # Channel-wise only for MedicalNet
         elif channel_wise:
@@ -131,7 +128,9 @@ class PerceptualLoss(nn.Module):
                 net=network_type, verbose=False, channel_wise=channel_wise, cache_dir=cache_dir
             )
         elif "radimagenet_" in network_type:
-            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False, cache_dir=cache_dir)
+            self.perceptual_function = RadImageNetPerceptualSimilarity(
+                net=network_type, verbose=False, cache_dir=cache_dir
+            )
         elif network_type == "resnet50":
             self.perceptual_function = TorchvisionModelPerceptualSimilarity(
                 net=network_type,
@@ -233,13 +232,10 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
-            )
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
 
         self.model = torch.hub.load(
-            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir,
-            trust_repo=True,
+            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
         )
         self.eval()
 
@@ -289,7 +285,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
             for i in range(input.shape[1]):
                 l_idx = i * feats_per_ch
                 r_idx = (i + 1) * feats_per_ch
-                results[:, i, ...] = feats_diff[:, l_idx : r_idx, ...].sum(dim=1)
+                results[:, i, ...] = feats_diff[:, l_idx:r_idx, ...].sum(dim=1)
         else:
             results = feats_diff.sum(dim=1, keepdim=True)
 
@@ -329,11 +325,10 @@ class RadImageNetPerceptualSimilarity(nn.Module):
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
+        self.model = torch.hub.load(
+            "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
         )
-        self.model = torch.hub.load("Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir,
-                                    trust_repo=True)
         self.eval()
 
         for param in self.parameters():
