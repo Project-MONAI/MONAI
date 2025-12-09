@@ -33,7 +33,7 @@ torchvision, _ = optional_import("torchvision")
 
 
 class PercetualNetworkType(StrEnum):
-    """Types of neural networks that are supported by perceptua loss."""
+    """Types of neural networks that are supported by perceptual loss."""
 
     alex = "alex"
     vgg = "vgg"
@@ -131,7 +131,7 @@ class PerceptualLoss(nn.Module):
                 net=network_type, verbose=False, channel_wise=channel_wise, cache_dir=cache_dir
             )
         elif "radimagenet_" in network_type:
-            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
+            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False, cache_dir=cache_dir)
         elif network_type == "resnet50":
             self.perceptual_function = TorchvisionModelPerceptualSimilarity(
                 net=network_type,
@@ -226,7 +226,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
 
     def __init__(
         self,
-        net: str = "medicalnet_resnet_10_23datasets",
+        net: str = "medicalnet_resnet10_23datasets",
         verbose: bool = False,
         channel_wise: bool = False,
         cache_dir: str | None = None,
@@ -333,7 +333,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
             raise ValueError(
                 f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
         )
-        self.model = torch.hub.load("Project-MONAI/perceptual-models", model=net, verbose=verbose, cache_dir=cache_dir,
+        self.model = torch.hub.load("Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir,
                                     trust_repo=True)
         self.eval()
 
