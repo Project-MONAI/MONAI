@@ -290,7 +290,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
             for i in range(input.shape[1]):
                 l_idx = i * feats_per_ch
                 r_idx = (i + 1) * feats_per_ch
-                results[:, i, ...] = feats_diff[:, l_idx : i + r_idx, ...].sum(dim=1)
+                results[:, i, ...] = feats_diff[:, l_idx : r_idx, ...].sum(dim=1)
         else:
             results = feats_diff.sum(dim=1, keepdim=True)
 
