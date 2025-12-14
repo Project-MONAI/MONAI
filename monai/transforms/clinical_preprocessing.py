@@ -12,74 +12,56 @@ from monai.transforms import (
     NormalizeIntensity,
 )
 
-# Use a tuple for programmatic checks and formatting
 SUPPORTED_MODALITIES = ("CT", "MR", "MRI")
 
 
+class UnsupportedModalityError(ValueError):
+    """Raised when an unsupported modality is provided."""
+    pass
+
+
+class ModalityTypeError(TypeError):
+    """Raised when modality is not a string."""
+    pass
+
+
 def get_ct_preprocessing_pipeline() -> Compose:
-    """
-    Build a CT preprocessing pipeline using standard HU windowing.
-
-    The pipeline applies LoadImage, EnsureChannelFirst, and ScaleIntensityRange
-    with HU window [-1000, 400] normalized to [0.0, 1.0].
-
-    Returns:
-        Compose: A composed transform pipeline for CT preprocessing.
-    """
-    return Compose(
-        [
-            LoadImage(image_only=True),
-            EnsureChannelFirst(),
-            ScaleIntensityRange(
-                a_min=-1000,
-                a_max=400,
-                b_min=0.0,
-                b_max=1.0,
-                clip=True,
-            ),
-        ]
-    )
+    """Return a CT preprocessing pipeline."""
+    return Compose([
+        LoadImage(image_only=True),
+        EnsureChannelFirst(),
+        ScaleIntensityRange(a_min=-1000, a_max=400, b_min=0.0, b_max=1.0, clip=True),
+    ])
 
 
 def get_mri_preprocessing_pipeline() -> Compose:
-    """
-    Build an MRI preprocessing pipeline using intensity normalization.
-
-    The pipeline applies LoadImage, EnsureChannelFirst, and NormalizeIntensity
-    with nonzero=True to normalize only non-zero voxels.
-
-    Returns:
-        Compose: A composed transform pipeline for MRI preprocessing.
-    """
-    return Compose(
-        [
-            LoadImage(image_only=True),
-            EnsureChannelFirst(),
-            NormalizeIntensity(nonzero=True),
-        ]
-    )
+    """Return an MRI preprocessing pipeline."""
+    return Compose([
+        LoadImage(image_only=True),
+        EnsureChannelFirst(),
+        NormalizeIntensity(nonzero=True),
+    ])
 
 
 def preprocess_dicom_series(
     dicom_path: Union[str, bytes, PathLike],
     modality: str,
 ) -> MetaTensor:
-    """
-    Preprocess a DICOM series based on modality.
+    """Preprocess a DICOM series according to modality (CT or MRI).
 
     Args:
-        dicom_path: Path to DICOM file or directory.
-        modality: Imaging modality. Supported values: "CT", "MR", "MRI" (case-insensitive).
+        dicom_path (Union[str, bytes, PathLike]): Path to DICOM series.
+        modality (str): Modality type, must be one of 'CT', 'MR', 'MRI'.
 
     Returns:
-        MetaTensor: Preprocessed image with intensity values normalized based on modality.
+        MetaTensor: Preprocessed image tensor.
 
     Raises:
-        TypeError: If modality is not a string.
-        ValueError: If modality is not one of the supported values.
+        ModalityTypeError: If modality is not a string.
+        UnsupportedModalityError: If modality is not supported.
     """
     if not isinstance(modality, str):
-        raise TypeError(f"modality must be a string, got {type(modality).__name__}")
+        raise ModalityTypeError(f"modality must be a string, got {type(modality).__name__}")
 
     modality = modality.strip().upper()
 
@@ -88,7 +70,7 @@ def preprocess_dicom_series(
     elif modality in ("MR", "MRI"):
         transform = get_mri_preprocessing_pipeline()
     else:
-        raise ValueError(
+        raise UnsupportedModalityError(
             f"Unsupported modality: {modality}. Supported values: {', '.join(SUPPORTED_MODALITIES)}"
         )
 
