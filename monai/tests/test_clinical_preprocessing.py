@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from monai.transforms import LoadImage, EnsureChannelFirst, ScaleIntensityRange, NormalizeIntensity
 from monai.transforms.clinical_preprocessing import (
     get_ct_preprocessing_pipeline,
@@ -10,7 +11,7 @@ from monai.transforms.clinical_preprocessing import (
 
 
 def test_ct_preprocessing_pipeline():
-    """Test CT preprocessing pipeline returns expected transform composition."""
+    """Test CT preprocessing pipeline returns expected transform composition and parameters."""
     pipeline = get_ct_preprocessing_pipeline()
     assert hasattr(pipeline, 'transforms')
     assert len(pipeline.transforms) == 3
@@ -18,15 +19,27 @@ def test_ct_preprocessing_pipeline():
     assert isinstance(pipeline.transforms[1], EnsureChannelFirst)
     assert isinstance(pipeline.transforms[2], ScaleIntensityRange)
 
+    # Verify CT-specific HU window parameters
+    scale_transform = pipeline.transforms[2]
+    assert scale_transform.a_min == -1000
+    assert scale_transform.a_max == 400
+    assert scale_transform.b_min == 0.0
+    assert scale_transform.b_max == 1.0
+    assert scale_transform.clip is True
+
 
 def test_mri_preprocessing_pipeline():
-    """Test MRI preprocessing pipeline returns expected transform composition."""
+    """Test MRI preprocessing pipeline returns expected transform composition and parameters."""
     pipeline = get_mri_preprocessing_pipeline()
     assert hasattr(pipeline, 'transforms')
     assert len(pipeline.transforms) == 3
     assert isinstance(pipeline.transforms[0], LoadImage)
     assert isinstance(pipeline.transforms[1], EnsureChannelFirst)
     assert isinstance(pipeline.transforms[2], NormalizeIntensity)
+
+    # Verify MRI-specific normalization parameter
+    normalize_transform = pipeline.transforms[2]
+    assert normalize_transform.nonzero is True
 
 
 def test_preprocess_dicom_series_invalid_modality():
@@ -39,3 +52,33 @@ def test_preprocess_dicom_series_invalid_type():
     """Test preprocess_dicom_series raises ModalityTypeError for non-string modality."""
     with pytest.raises(ModalityTypeError, match=r"modality must be a string, got int"):
         preprocess_dicom_series("dummy_path.dcm", 123)
+
+
+# ------------------------
+# Tests for valid modalities
+# ------------------------
+
+@patch("monai.transforms.clinical_preprocessing.get_ct_preprocessing_pipeline")
+def test_preprocess_dicom_series_ct(mock_pipeline):
+    """Test preprocess_dicom_series successfully runs for CT modality."""
+    dummy_output = "ct_processed"
+    mock_pipeline.return_value = lambda x: dummy_output
+    result = preprocess_dicom_series("dummy_path.dcm", "CT")
+    assert result == dummy_output
+
+    # Test lowercase and whitespace variants
+    result2 = preprocess_dicom_series("dummy_path.dcm", " ct ")
+    assert result2 == dummy_output
+
+
+@patch("monai.transforms.clinical_preprocessing.get_mri_preprocessing_pipeline")
+def test_preprocess_dicom_series_mr(mock_pipeline):
+    """Test preprocess_dicom_series successfully runs for MR modality."""
+    dummy_output = "mr_processed"
+    mock_pipeline.return_value = lambda x: dummy_output
+    result = preprocess_dicom_series("dummy_path.dcm", "MR")
+    assert result == dummy_output
+
+    # Test lowercase and "MRI" variant
+    result2 = preprocess_dicom_series("dummy_path.dcm", "mri")
+    assert result2 == dummy_output
