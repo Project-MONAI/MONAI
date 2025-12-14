@@ -3,6 +3,7 @@
 from typing import Union
 from os import PathLike
 
+from monai.data import MetaTensor
 from monai.transforms import (
     Compose,
     LoadImage,
@@ -11,7 +12,8 @@ from monai.transforms import (
     NormalizeIntensity,
 )
 
-SUPPORTED_MODALITIES = "CT, MR, MRI"
+# Use a tuple for programmatic checks and formatting
+SUPPORTED_MODALITIES = ("CT", "MR", "MRI")
 
 
 def get_ct_preprocessing_pipeline() -> Compose:
@@ -61,7 +63,7 @@ def get_mri_preprocessing_pipeline() -> Compose:
 def preprocess_dicom_series(
     dicom_path: Union[str, bytes, PathLike],
     modality: str,
-) -> "MetaTensor":
+) -> MetaTensor:
     """
     Preprocess a DICOM series based on modality.
 
@@ -86,6 +88,8 @@ def preprocess_dicom_series(
     elif modality in ("MR", "MRI"):
         transform = get_mri_preprocessing_pipeline()
     else:
-        raise ValueError(f"Unsupported modality: {modality}. Supported values: {SUPPORTED_MODALITIES}")
+        raise ValueError(
+            f"Unsupported modality: {modality}. Supported values: {', '.join(SUPPORTED_MODALITIES)}"
+        )
 
     return transform(dicom_path)
