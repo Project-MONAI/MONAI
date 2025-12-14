@@ -1,4 +1,7 @@
+"""Clinical DICOM preprocessing utilities for CT and MRI modalities."""
+
 from typing import Union
+from os import PathLike
 
 from monai.transforms import (
     Compose,
@@ -8,10 +11,18 @@ from monai.transforms import (
     NormalizeIntensity,
 )
 
+SUPPORTED_MODALITIES = "CT, MR, MRI"
 
-def get_ct_preprocessing_pipeline():
+
+def get_ct_preprocessing_pipeline() -> Compose:
     """
-    CT preprocessing pipeline using standard HU windowing.
+    Build a CT preprocessing pipeline using standard HU windowing.
+
+    The pipeline applies LoadImage, EnsureChannelFirst, and ScaleIntensityRange
+    with HU window [-1000, 400] normalized to [0.0, 1.0].
+
+    Returns:
+        Compose: A composed transform pipeline for CT preprocessing.
     """
     return Compose(
         [
@@ -28,9 +39,15 @@ def get_ct_preprocessing_pipeline():
     )
 
 
-def get_mri_preprocessing_pipeline():
+def get_mri_preprocessing_pipeline() -> Compose:
     """
-    MRI preprocessing pipeline using intensity normalization.
+    Build an MRI preprocessing pipeline using intensity normalization.
+
+    The pipeline applies LoadImage, EnsureChannelFirst, and NormalizeIntensity
+    with nonzero=True to normalize only non-zero voxels.
+
+    Returns:
+        Compose: A composed transform pipeline for MRI preprocessing.
     """
     return Compose(
         [
@@ -42,21 +59,25 @@ def get_mri_preprocessing_pipeline():
 
 
 def preprocess_dicom_series(
-    dicom_path: Union[str, bytes],
+    dicom_path: Union[str, bytes, PathLike],
     modality: str,
-):
+) -> "MetaTensor":
     """
     Preprocess a DICOM series based on modality.
 
     Args:
         dicom_path: Path to DICOM file or directory.
-        modality: CT, MR, or MRI.
+        modality: Imaging modality. Supported values: "CT", "MR", "MRI" (case-insensitive).
 
     Returns:
-        Preprocessed image.
+        MetaTensor: Preprocessed image with intensity values normalized based on modality.
+
+    Raises:
+        TypeError: If modality is not a string.
+        ValueError: If modality is not one of the supported values.
     """
     if not isinstance(modality, str):
-        raise TypeError("modality must be a string")
+        raise TypeError(f"modality must be a string, got {type(modality).__name__}")
 
     modality = modality.strip().upper()
 
@@ -65,6 +86,6 @@ def preprocess_dicom_series(
     elif modality in ("MR", "MRI"):
         transform = get_mri_preprocessing_pipeline()
     else:
-        raise ValueError("Unsupported modality")
+        raise ValueError(f"Unsupported modality: {modality}. Supported values: {SUPPORTED_MODALITIES}")
 
     return transform(dicom_path)
