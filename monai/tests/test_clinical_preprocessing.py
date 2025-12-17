@@ -26,7 +26,7 @@ def test_ct_preprocessing_pipeline():
     assert scale_transform.b_min == 0.0
     assert scale_transform.b_max == 1.0
     assert scale_transform.clip is True
-    
+
     # Verify LoadImage configuration
     load_transform = pipeline.transforms[0]
     assert load_transform.image_only is True
@@ -44,7 +44,7 @@ def test_mri_preprocessing_pipeline():
     # Verify MRI-specific normalization parameter
     normalize_transform = pipeline.transforms[2]
     assert normalize_transform.nonzero is True
-    
+
     # Verify LoadImage configuration
     load_transform = pipeline.transforms[0]
     assert load_transform.image_only is True
@@ -54,7 +54,7 @@ def test_preprocess_dicom_series_invalid_modality():
     """Test preprocess_dicom_series raises UnsupportedModalityError for unsupported modality."""
     with pytest.raises(UnsupportedModalityError) as exc_info:
         preprocess_dicom_series("dummy_path.dcm", "PET")
-    
+
     error_message = str(exc_info.value)
     # Check that all required strings are present (separate assertions, no OR operator)
     assert "CT" in error_message
