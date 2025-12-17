@@ -1,53 +1,114 @@
-import pytest
-from monai.transforms import LoadImage, EnsureChannelFirst, ScaleIntensityRange, NormalizeIntensity
-from monai.transforms.clinical_preprocessing import (
-    get_ct_preprocessing_pipeline,
-    get_mri_preprocessing_pipeline,
-    preprocess_dicom_series,
-    UnsupportedModalityError,
-    ModalityTypeError,
-)
+"""
+Clinical preprocessing transforms for medical imaging data.
+
+This module provides preprocessing pipelines for different medical imaging modalities.
+"""
+
+from typing import Union
+from monai.transforms import Compose, LoadImage, EnsureChannelFirst, ScaleIntensityRange, NormalizeIntensity
 
 
-def test_ct_preprocessing_pipeline():
-    """Test CT preprocessing pipeline returns expected transform composition and parameters."""
-    pipeline = get_ct_preprocessing_pipeline()
-    assert hasattr(pipeline, 'transforms')
-    assert len(pipeline.transforms) == 3
-    assert isinstance(pipeline.transforms[0], LoadImage)
-    assert isinstance(pipeline.transforms[1], EnsureChannelFirst)
-    assert isinstance(pipeline.transforms[2], ScaleIntensityRange)
-
-    # Verify CT-specific HU window parameters
-    scale_transform = pipeline.transforms[2]
-    assert scale_transform.a_min == -1000
-    assert scale_transform.a_max == 400
-    assert scale_transform.b_min == 0.0
-    assert scale_transform.b_max == 1.0
-    assert scale_transform.clip is True
+class ModalityTypeError(TypeError):
+    """Exception raised when modality parameter is not a string."""
+    pass
 
 
-def test_mri_preprocessing_pipeline():
-    """Test MRI preprocessing pipeline returns expected transform composition and parameters."""
-    pipeline = get_mri_preprocessing_pipeline()
-    assert hasattr(pipeline, 'transforms')
-    assert len(pipeline.transforms) == 3
-    assert isinstance(pipeline.transforms[0], LoadImage)
-    assert isinstance(pipeline.transforms[1], EnsureChannelFirst)
-    assert isinstance(pipeline.transforms[2], NormalizeIntensity)
-
-    # Verify MRI-specific normalization parameter
-    normalize_transform = pipeline.transforms[2]
-    assert normalize_transform.nonzero is True
+class UnsupportedModalityError(ValueError):
+    """Exception raised when an unsupported modality is requested."""
+    pass
 
 
-def test_preprocess_dicom_series_invalid_modality():
-    """Test preprocess_dicom_series raises UnsupportedModalityError for unsupported modality."""
-    with pytest.raises(UnsupportedModalityError, match=r"Unsupported modality.*PET.*CT, MR, MRI"):
-        preprocess_dicom_series("dummy_path.dcm", "PET")
+def get_ct_preprocessing_pipeline() -> Compose:
+    """
+    Create a preprocessing pipeline for CT (Computed Tomography) images.
+    
+    Returns:
+        Compose: A transform composition for CT preprocessing.
+        
+    The pipeline consists of:
+    1. LoadImage - Load DICOM series
+    2. EnsureChannelFirst - Add channel dimension
+    3. ScaleIntensityRange - Scale Hounsfield Units (HU) from [-1000, 400] to [0, 1]
+    
+    Note:
+        The HU window [-1000, 400] is a common soft tissue window.
+    """
+    return Compose([
+        LoadImage(image_only=True),
+        EnsureChannelFirst(),
+        ScaleIntensityRange(a_min=-1000, a_max=400, b_min=0.0, b_max=1.0, clip=True)
+    ])
 
 
-def test_preprocess_dicom_series_invalid_type():
-    """Test preprocess_dicom_series raises ModalityTypeError for non-string modality."""
-    with pytest.raises(ModalityTypeError, match=r"modality must be a string, got int"):
-        preprocess_dicom_series("dummy_path.dcm", 123)
+def get_mri_preprocessing_pipeline() -> Compose:
+    """
+    Create a preprocessing pipeline for MRI (Magnetic Resonance Imaging) images.
+    
+    Returns:
+        Compose: A transform composition for MRI preprocessing.
+        
+    The pipeline consists of:
+    1. LoadImage - Load DICOM series
+    2. EnsureChannelFirst - Add channel dimension
+    3. NormalizeIntensity - Normalize non-zero voxels
+    
+    Note:
+        Normalization is applied only to non-zero voxels to avoid bias from background.
+    """
+    return Compose([
+        LoadImage(image_only=True),
+        EnsureChannelFirst(),
+        NormalizeIntensity(nonzero=True)
+    ])
+
+
+def preprocess_dicom_series(path: str, modality: str) -> Union[dict, None]:
+    """
+    Preprocess a DICOM series based on the imaging modality.
+    
+    Args:
+        path: Path to the DICOM series directory or file.
+        modality: Imaging modality (case-insensitive). Supported values:
+                  "CT", "MR", "MRI" (MRI is treated as synonym for MR).
+    
+    Returns:
+        The preprocessed image data.
+    
+    Raises:
+        ModalityTypeError: If modality is not a string.
+        UnsupportedModalityError: If modality is not supported.
+    """
+    # Validate input type
+    if not isinstance(modality, str):
+        raise ModalityTypeError(f"modality must be a string, got {type(modality).__name__}")
+    
+    # Normalize modality string (strip whitespace, convert to uppercase)
+    modality_clean = modality.strip().upper()
+    
+    # Map MRI to MR (treat as synonyms)
+    if modality_clean == "MRI":
+        modality_clean = "MR"
+    
+    # Select appropriate preprocessing pipeline
+    if modality_clean == "CT":
+        pipeline = get_ct_preprocessing_pipeline()
+    elif modality_clean == "MR":
+        pipeline = get_mri_preprocessing_pipeline()
+    else:
+        supported = ["CT", "MR", "MRI"]
+        raise UnsupportedModalityError(
+            f"Unsupported modality '{modality}'. Supported modalities: {', '.join(supported)}"
+        )
+    
+    # Apply preprocessing pipeline
+    return pipeline(path)
+
+
+# Export the public API
+__all__ = [
+    "ModalityTypeError",
+    "UnsupportedModalityError", 
+    "get_ct_preprocessing_pipeline",
+    "get_mri_preprocessing_pipeline",
+    "preprocess_dicom_series",
+]
