@@ -7,13 +7,8 @@
 3. EndoVis - MICCAI Challenge Datasets
 """
 
-import os
 import argparse
-import urllib.request
 from pathlib import Path
-from typing import List
-import zipfile
-import gdown
 
 
 class DatasetDownloader:
