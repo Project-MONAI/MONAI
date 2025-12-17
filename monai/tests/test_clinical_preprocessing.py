@@ -26,8 +26,8 @@ def test_ct_preprocessing_pipeline():
     assert scale_transform.b_min == 0.0
     assert scale_transform.b_max == 1.0
     assert scale_transform.clip is True
-
-    # Verify LoadImage configuration (as suggested in review)
+    
+    # Verify LoadImage configuration
     load_transform = pipeline.transforms[0]
     assert load_transform.image_only is True
 
@@ -44,20 +44,19 @@ def test_mri_preprocessing_pipeline():
     # Verify MRI-specific normalization parameter
     normalize_transform = pipeline.transforms[2]
     assert normalize_transform.nonzero is True
-
-    # Verify LoadImage configuration (as suggested in review)
+    
+    # Verify LoadImage configuration
     load_transform = pipeline.transforms[0]
     assert load_transform.image_only is True
 
 
 def test_preprocess_dicom_series_invalid_modality():
     """Test preprocess_dicom_series raises UnsupportedModalityError for unsupported modality."""
-    # More robust error matching (as suggested in review)
     with pytest.raises(UnsupportedModalityError) as exc_info:
         preprocess_dicom_series("dummy_path.dcm", "PET")
-
+    
     error_message = str(exc_info.value)
-    # Check that all required strings are present (NO OR OPERATOR - separate assertions)
+    # Check that all required strings are present (separate assertions, no OR operator)
     assert "CT" in error_message
     assert "MR" in error_message
     assert "MRI" in error_message
@@ -71,15 +70,10 @@ def test_preprocess_dicom_series_invalid_type():
         preprocess_dicom_series("dummy_path.dcm", 123)
 
 
-# ------------------------
-# Tests for valid modalities
-# ------------------------
-
 @patch("monai.transforms.clinical_preprocessing.get_ct_preprocessing_pipeline")
 def test_preprocess_dicom_series_ct(mock_pipeline):
     """Test preprocess_dicom_series successfully runs for CT modality."""
     dummy_output = "ct_processed"
-    # Fixed: Use Mock instead of lambda with unused argument (as suggested in review)
     mock_pipeline.return_value = Mock(return_value=dummy_output)
     result = preprocess_dicom_series("dummy_path.dcm", "CT")
     assert result == dummy_output
@@ -93,7 +87,6 @@ def test_preprocess_dicom_series_ct(mock_pipeline):
 def test_preprocess_dicom_series_mr(mock_pipeline):
     """Test preprocess_dicom_series successfully runs for MR modality."""
     dummy_output = "mr_processed"
-    # Fixed: Use Mock instead of lambda with unused argument (as suggested in review)
     mock_pipeline.return_value = Mock(return_value=dummy_output)
     result = preprocess_dicom_series("dummy_path.dcm", "MR")
     assert result == dummy_output
