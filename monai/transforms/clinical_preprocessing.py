@@ -4,8 +4,8 @@ Clinical preprocessing transforms for medical imaging data.
 This module provides preprocessing pipelines for different medical imaging modalities.
 """
 
-from typing import Union
 from monai.transforms import Compose, LoadImage, EnsureChannelFirst, ScaleIntensityRange, NormalizeIntensity
+from monai.data import MetaTensor
 
 
 class ModalityTypeError(TypeError):
@@ -21,15 +21,15 @@ class UnsupportedModalityError(ValueError):
 def get_ct_preprocessing_pipeline() -> Compose:
     """
     Create a preprocessing pipeline for CT (Computed Tomography) images.
-
+    
     Returns:
         Compose: A transform composition for CT preprocessing.
-
+        
     The pipeline consists of:
     1. LoadImage - Load DICOM series
     2. EnsureChannelFirst - Add channel dimension
     3. ScaleIntensityRange - Scale Hounsfield Units (HU) from [-1000, 400] to [0, 1]
-
+    
     Note:
         The HU window [-1000, 400] is a common soft tissue window.
     """
@@ -43,15 +43,15 @@ def get_ct_preprocessing_pipeline() -> Compose:
 def get_mri_preprocessing_pipeline() -> Compose:
     """
     Create a preprocessing pipeline for MRI (Magnetic Resonance Imaging) images.
-
+    
     Returns:
         Compose: A transform composition for MRI preprocessing.
-
+        
     The pipeline consists of:
     1. LoadImage - Load DICOM series
     2. EnsureChannelFirst - Add channel dimension
     3. NormalizeIntensity - Normalize non-zero voxels
-
+    
     Note:
         Normalization is applied only to non-zero voxels to avoid bias from background.
     """
@@ -62,18 +62,18 @@ def get_mri_preprocessing_pipeline() -> Compose:
     ])
 
 
-def preprocess_dicom_series(path: str, modality: str) -> Union[dict, None]:
+def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
     """
     Preprocess a DICOM series based on the imaging modality.
-
+    
     Args:
         path: Path to the DICOM series directory or file.
         modality: Imaging modality (case-insensitive). Supported values:
                   "CT", "MR", "MRI" (MRI is treated as synonym for MR).
-
+    
     Returns:
-        The preprocessed image data.
-
+        MetaTensor: The preprocessed image data with metadata.
+    
     Raises:
         ModalityTypeError: If modality is not a string.
         UnsupportedModalityError: If modality is not supported.
@@ -81,14 +81,14 @@ def preprocess_dicom_series(path: str, modality: str) -> Union[dict, None]:
     # Validate input type
     if not isinstance(modality, str):
         raise ModalityTypeError(f"modality must be a string, got {type(modality).__name__}")
-
+    
     # Normalize modality string (strip whitespace, convert to uppercase)
     modality_clean = modality.strip().upper()
-
+    
     # Map MRI to MR (treat as synonyms)
     if modality_clean == "MRI":
         modality_clean = "MR"
-
+    
     # Select appropriate preprocessing pipeline
     if modality_clean == "CT":
         pipeline = get_ct_preprocessing_pipeline()
@@ -99,7 +99,7 @@ def preprocess_dicom_series(path: str, modality: str) -> Union[dict, None]:
         raise UnsupportedModalityError(
             f"Unsupported modality '{modality}'. Supported modalities: {', '.join(supported)}"
         )
-
+    
     # Apply preprocessing pipeline
     return pipeline(path)
 
@@ -107,7 +107,7 @@ def preprocess_dicom_series(path: str, modality: str) -> Union[dict, None]:
 # Export the public API
 __all__ = [
     "ModalityTypeError",
-    "UnsupportedModalityError",
+    "UnsupportedModalityError", 
     "get_ct_preprocessing_pipeline",
     "get_mri_preprocessing_pipeline",
     "preprocess_dicom_series",
