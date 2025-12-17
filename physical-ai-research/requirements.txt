@@ -1,0 +1,78 @@
+# Physical AI Research - Requirements
+# Python 3.10+
+
+# Core Dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# MONAI Ecosystem
+monai[all]>=1.3.0
+# monai-generative @ git+https://github.com/Project-MONAI/GenerativeModels.git
+
+# Medical Imaging
+nibabel>=5.0.0
+SimpleITK>=2.2.0
+pydicom>=2.3.0
+
+# Computer Vision & Video Processing
+opencv-python>=4.8.0
+imageio>=2.31.0
+imageio-ffmpeg>=0.4.8
+scikit-image>=0.21.0
+albumentations>=1.3.0
+
+# Deep Learning Utilities
+einops>=0.6.1
+timm>=0.9.0
+transformers>=4.30.0
+
+# Metrics & Evaluation
+scikit-learn>=1.3.0
+pytorch-fid>=0.3.0  # FVD 계산용
+lpips>=0.1.4  # Perceptual similarity
+
+# Data Processing
+pandas>=2.0.0
+h5py>=3.9.0
+tqdm>=4.65.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+tensorboard>=2.13.0
+wandb>=0.15.0  # Experiment tracking (optional)
+
+# Configuration
+pyyaml>=6.0
+omegaconf>=2.3.0
+hydra-core>=1.3.0
+
+# Isaac Sim / ORBIT-Surgical (별도 설치 필요)
+# Isaac Sim은 NVIDIA Omniverse를 통해 설치
+# https://docs.omniverse.nvidia.com/isaacsim/latest/index.html
+
+# LeRobot (Hugging Face)
+# lerobot @ git+https://github.com/huggingface/lerobot.git
+
+# Utilities
+gdown>=4.7.0  # Google Drive downloads
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Development Tools
+jupyter>=1.0.0
+ipywidgets>=8.0.0
+black>=23.0.0
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# 3D Processing (for OpenUSD, future)
+# pxr>=23.0  # USD (Universal Scene Description)
+# trimesh>=3.23.0
+
+# Optional: Video Generation
+# diffusers>=0.20.0  # Hugging Face Diffusers for Cosmos
+# accelerate>=0.21.0
