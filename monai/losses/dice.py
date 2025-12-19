@@ -674,6 +674,7 @@ class DiceCELoss(_Loss):
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
         label_smoothing: float = 0.0,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -737,6 +738,7 @@ class DiceCELoss(_Loss):
             smooth_dr=smooth_dr,
             batch=batch,
             weight=dice_weight,
+            soft_label=soft_label,
         )
         self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction, label_smoothing=label_smoothing)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
