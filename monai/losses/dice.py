@@ -716,6 +716,8 @@ class DiceCELoss(_Loss):
             label_smoothing: a value in [0, 1] range. If > 0, the labels are smoothed
                 by the given factor to reduce overfitting.
                 Defaults to 0.0.
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the DiceLoss will be used.
 
         """
         super().__init__()
