@@ -114,15 +114,15 @@ class FocalLoss(_Loss):
         self.gamma = gamma
         self.weight = weight
         self.use_softmax = use_softmax
-        weight = torch.as_tensor(weight) if weight is not None else None
-        self.register_buffer("class_weight", weight)
-        self.class_weight: None | torch.Tensor
         self.alpha: float | torch.Tensor | None
 
         if isinstance(alpha, (list, tuple)):
             self.alpha = torch.tensor(alpha)
         else:
             self.alpha = alpha
+        weight = torch.as_tensor(weight) if weight is not None else None
+        self.register_buffer("class_weight", weight)
+        self.class_weight: None | torch.Tensor
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -165,8 +165,6 @@ class FocalLoss(_Loss):
         target = target.float()
 
         alpha_arg: float | torch.Tensor | None = self.alpha
-        if isinstance(alpha_arg, torch.Tensor):
-            alpha_arg = alpha_arg.to(input.device)
 
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
@@ -228,13 +226,16 @@ def softmax_focal_loss(
     loss: torch.Tensor = -(1 - input_ls.exp()).pow(gamma) * input_ls * target
 
     if alpha is not None:
-        alpha_t = torch.as_tensor(alpha, device=input.device, dtype=input.dtype)
+        if isinstance(alpha, torch.Tensor):
+            alpha_t = alpha.to(device=input.device, dtype=input.dtype)
+        else:
+            alpha_t = torch.tensor(alpha, device=input.device, dtype=input.dtype)
 
         if alpha_t.ndim == 0:  # scalar
             alpha_val = alpha_t.item()
             # (1-alpha) for the background class and alpha for the other classes
             alpha_fac = torch.tensor([1 - alpha_val] + [alpha_val] * (target.shape[1] - 1)).to(loss)
-        else:  # sequence
+        else:  # tensor (sequence)
             if alpha_t.shape[0] != target.shape[1]:
                 raise ValueError(
                     f"The length of alpha ({alpha_t.shape[0]}) must match the number of classes ({target.shape[1]})."
@@ -272,11 +273,15 @@ def sigmoid_focal_loss(
     loss = (invprobs * gamma).exp() * loss
 
     if alpha is not None:
-        alpha_t = torch.as_tensor(alpha, device=input.device, dtype=input.dtype)
+        if isinstance(alpha, torch.Tensor):
+            alpha_t = alpha.to(device=input.device, dtype=input.dtype)
+        else:
+            alpha_t = torch.tensor(alpha, device=input.device, dtype=input.dtype)
+
         if alpha_t.ndim == 0:  # scalar
             # alpha if t==1; (1-alpha) if t==0
             alpha_factor = target * alpha_t + (1 - target) * (1 - alpha_t)
-        else:  # sequence / per-channel alpha
+        else:  # tensor (sequence)
             if alpha_t.shape[0] != target.shape[1]:
                 raise ValueError(
                     f"The length of alpha ({alpha_t.shape[0]}) must match the number of classes ({target.shape[1]})."
