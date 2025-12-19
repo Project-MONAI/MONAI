@@ -165,9 +165,9 @@ class FocalLoss(_Loss):
                 if isinstance(self.alpha, (float, int)):
                     alpha_arg = None
                     warnings.warn("`include_background=False`, scalar `alpha` ignored when using softmax.")
-            loss = softmax_focal_loss(input, target, self.gamma, self.alpha_arg)
+            loss = softmax_focal_loss(input, target, self.gamma, alpha_arg)
         else:
-            loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha_arg)
+            loss = sigmoid_focal_loss(input, target, self.gamma, alpha_arg)
 
         num_of_classes = target.shape[1]
         if self.class_weight is not None and num_of_classes != 1:
