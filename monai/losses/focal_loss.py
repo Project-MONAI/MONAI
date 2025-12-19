@@ -112,12 +112,17 @@ class FocalLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.gamma = gamma
-        self.alpha = alpha
         self.weight = weight
         self.use_softmax = use_softmax
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
+        self.alpha: float | torch.Tensor | None
+
+        if isinstance(alpha, (list, tuple)):
+            self.alpha = torch.tensor(alpha)
+        else:
+            self.alpha = alpha
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -159,7 +164,10 @@ class FocalLoss(_Loss):
         input = input.float()
         target = target.float()
 
-        alpha_arg = self.alpha
+        alpha_arg: float | torch.Tensor | None = self.alpha
+        if isinstance(alpha_arg, torch.Tensor):
+            alpha_arg = alpha_arg.to(input.device)
+
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
                 if isinstance(self.alpha, (float, int)):
@@ -208,7 +216,7 @@ class FocalLoss(_Loss):
 
 
 def softmax_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | Sequence[float] | None = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | torch.Tensor | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
@@ -241,7 +249,7 @@ def softmax_focal_loss(
 
 
 def sigmoid_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | Sequence[float] | None = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | torch.Tensor | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
