@@ -223,8 +223,9 @@ def softmax_focal_loss(
         alpha_t = torch.as_tensor(alpha, device=input.device, dtype=input.dtype)
 
         if alpha_t.ndim == 0:  # scalar
+            alpha_val = alpha_t.item()
             # (1-alpha) for the background class and alpha for the other classes
-            alpha_fac = torch.tensor([1 - alpha] + [alpha] * (target.shape[1] - 1)).to(loss)
+            alpha_fac = torch.tensor([1 - alpha_val] + [alpha_val] * (target.shape[1] - 1)).to(loss)
         else:  # sequence
             if alpha_t.shape[0] != target.shape[1]:
                 raise ValueError(
