@@ -115,11 +115,12 @@ class FocalLoss(_Loss):
         self.weight = weight
         self.use_softmax = use_softmax
         self.alpha: float | torch.Tensor | None
-
-        if isinstance(alpha, (list, tuple)):
-            self.alpha = torch.tensor(alpha)
+        if alpha is None:
+            self.alpha = None
+        elif isinstance(alpha, (float, int)):
+            self.alpha = float(alpha)
         else:
-            self.alpha = alpha
+            self.alpha = torch.as_tensor(alpha)
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
@@ -165,6 +166,8 @@ class FocalLoss(_Loss):
         target = target.float()
 
         alpha_arg: float | torch.Tensor | None = self.alpha
+        if isinstance(alpha_arg, torch.Tensor):
+            alpha_arg = alpha_arg.to(input.device)
 
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
