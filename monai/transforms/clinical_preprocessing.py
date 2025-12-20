@@ -15,7 +15,10 @@ Clinical preprocessing transforms for medical imaging data.
 This module provides modality-specific preprocessing pipelines for common medical imaging modalities.
 """
 
-from typing import Any
+from typing import Union
+
+import numpy as np
+import torch
 
 from monai.transforms import (
     Compose,
@@ -42,6 +45,10 @@ def get_ct_preprocessing_pipeline() -> Compose:
         Compose: Transform composition for CT preprocessing.
             Applies Hounsfield Unit (HU) windowing [-1000, 400] scaled to [0, 1].
             This range captures lung (-1000 to -400 HU) and soft tissue (0 to 100 HU) contrast.
+
+    Note:
+        Output will be a single-channel tensor with shape (1, H, W, D)
+        and values in range [0, 1].
     """
     return Compose(
         [
@@ -66,6 +73,10 @@ def get_mri_preprocessing_pipeline() -> Compose:
         Compose: Transform composition for MRI preprocessing.
             Normalizes intensities using nonzero voxels only, excluding background regions
             typical in MRI acquisitions.
+
+    Note:
+        Output will be a single-channel tensor with shape (1, H, W, D)
+        normalized based on nonzero voxel statistics.
     """
     return Compose(
         [
@@ -76,23 +87,24 @@ def get_mri_preprocessing_pipeline() -> Compose:
     )
 
 
-def preprocess_dicom_series(path: str, modality: str) -> Any:
-    """Preprocess a DICOM series or file based on imaging modality.
+def preprocess_medical_image(path: str, modality: str) -> Union[torch.Tensor, np.ndarray]:
+    """
+    Preprocess a medical image based on imaging modality.
 
     Args:
-        path: Path to the DICOM file or directory containing a DICOM series.
+        path: Path to the medical image file. Supports various formats including
+            DICOM, NIfTI, and others supported by MONAI's LoadImage transform.
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        Any: Preprocessed image data.
+        Preprocessed image data as a tensor or numpy array.
 
     Raises:
         ModalityTypeError: If modality is not a string.
         UnsupportedModalityError: If the provided modality is not supported.
     """
     if not isinstance(modality, str):
-        error_msg = "modality must be a string"
-        raise ModalityTypeError(error_msg)
+        raise ModalityTypeError("modality must be a string")
 
     modality_clean = modality.strip().upper()
 
@@ -101,13 +113,33 @@ def preprocess_dicom_series(path: str, modality: str) -> Any:
     elif modality_clean == "CT":
         pipeline = get_ct_preprocessing_pipeline()
     else:
-        error_msg = (
-            f"Unsupported modality '{modality}'. "
-            f"Supported modalities: CT, MR, MRI"
+        raise UnsupportedModalityError(
+            f"Unsupported modality '{modality}'. Supported modalities: CT, MR, MRI"
         )
-        raise UnsupportedModalityError(error_msg)
 
     return pipeline(path)
+
+
+# Keep the old function name for backward compatibility
+def preprocess_dicom_series(path: str, modality: str) -> Union[torch.Tensor, np.ndarray]:
+    """
+    Preprocess a DICOM series or file based on imaging modality.
+
+    Note: This function also supports other medical image formats
+    (NIfTI, etc.) through MONAI's LoadImage transform.
+
+    Args:
+        path: Path to the DICOM file or directory containing a DICOM series.
+        modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
+
+    Returns:
+        Preprocessed image data.
+
+    Raises:
+        ModalityTypeError: If modality is not a string.
+        UnsupportedModalityError: If the provided modality is not supported.
+    """
+    return preprocess_medical_image(path, modality)
 
 
 __all__ = [
@@ -116,4 +148,5 @@ __all__ = [
     "get_ct_preprocessing_pipeline",
     "get_mri_preprocessing_pipeline",
     "preprocess_dicom_series",
+    "preprocess_medical_image",
 ]

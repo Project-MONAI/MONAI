@@ -22,6 +22,7 @@ from monai.transforms.clinical_preprocessing import (
     get_ct_preprocessing_pipeline,
     get_mri_preprocessing_pipeline,
     preprocess_dicom_series,
+    preprocess_medical_image,
 )
 
 
@@ -64,6 +65,11 @@ def test_invalid_modality_type():
 
     assert "modality must be a string" in str(exc.value)
 
+    with pytest.raises(ModalityTypeError) as exc:
+        preprocess_medical_image("dummy", None)
+
+    assert "modality must be a string" in str(exc.value)
+
 
 def test_unsupported_modality():
     """Test unsupported modality."""
@@ -76,15 +82,39 @@ def test_unsupported_modality():
     assert "MR" in msg
     assert "MRI" in msg
 
+    with pytest.raises(UnsupportedModalityError) as exc:
+        preprocess_medical_image("dummy", "PET")
+
+    msg = str(exc.value)
+    assert "Unsupported modality" in msg
+    assert "CT" in msg
+    assert "MR" in msg
+    assert "MRI" in msg
+
 
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
 def test_modality_case_insensitivity(mock_load):
-    """Test case-insensitive modality handling."""
+    """Test case-insensitive modality handling with whitespace trimming."""
     mock_load.return_value = Mock(return_value=Mock())
 
-    for modality in ["CT", "ct", "Ct", "CT ", "MR", "mr", "MRI", "mri", " MrI "]:
+    test_cases = [
+        ("CT", True),
+        ("ct", True),
+        ("Ct", True),
+        ("CT ", True),
+        (" CT", True),
+        ("MR", True),
+        ("mr", True),
+        ("MRI", True),
+        ("mri", True),
+        (" MrI ", True),
+    ]
+
+    for modality, _ in test_cases:
         result = preprocess_dicom_series("dummy.dcm", modality)
-        assert result is not None
+        assert result is not None, f"Failed for modality: '{modality}'"
+        result2 = preprocess_medical_image("dummy.dcm", modality)
+        assert result2 is not None, f"preprocess_medical_image failed for modality: '{modality}'"
 
 
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
@@ -93,6 +123,24 @@ def test_mr_modality_distinct(mock_load):
     mock_load.return_value = Mock(return_value=Mock())
     result = preprocess_dicom_series("dummy.dcm", "MR")
     assert result is not None
+    result2 = preprocess_medical_image("dummy.dcm", "MR")
+    assert result2 is not None
+
+
+@patch("monai.transforms.clinical_preprocessing.LoadImage")
+def test_edge_cases(mock_load):
+    """Test edge cases for modality input."""
+    mock_load.return_value = Mock(return_value=Mock())
+
+    with pytest.raises(UnsupportedModalityError):
+        preprocess_dicom_series("dummy.dcm", "")
+
+    with pytest.raises(UnsupportedModalityError):
+        preprocess_dicom_series("dummy.dcm", "   ")
+
+    long_modality = "CT" * 100
+    with pytest.raises(UnsupportedModalityError):
+        preprocess_dicom_series("dummy.dcm", long_modality)
 
 
 def test_preprocess_dicom_series_integration(tmp_path):
@@ -106,3 +154,6 @@ def test_preprocess_dicom_series_integration(tmp_path):
         result = preprocess_dicom_series(str(test_file), modality)
         assert result is not None
         assert hasattr(result, "shape")
+        result2 = preprocess_medical_image(str(test_file), modality)
+        assert result2 is not None
+        assert hasattr(result2, "shape")
