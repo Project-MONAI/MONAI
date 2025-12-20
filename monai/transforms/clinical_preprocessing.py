@@ -15,9 +15,6 @@ Clinical preprocessing transforms for medical imaging data.
 This module provides modality-specific preprocessing pipelines for common medical imaging modalities.
 """
 
-from typing import Union
-
-import numpy as np
 import torch
 
 from monai.transforms import (
@@ -31,10 +28,16 @@ from monai.transforms import (
 
 class ModalityTypeError(TypeError):
     """Raised when modality is not a string."""
+    def __init__(self):
+        super().__init__("modality must be a string")
 
 
 class UnsupportedModalityError(ValueError):
     """Raised when an unsupported modality is requested."""
+    def __init__(self, modality: str):
+        super().__init__(
+            f"Unsupported modality '{modality}'. Supported modalities: CT, MR, MRI"
+        )
 
 
 def get_ct_preprocessing_pipeline() -> Compose:
@@ -87,7 +90,7 @@ def get_mri_preprocessing_pipeline() -> Compose:
     )
 
 
-def preprocess_medical_image(path: str, modality: str) -> Union[torch.Tensor, np.ndarray]:
+def preprocess_medical_image(path: str, modality: str) -> torch.Tensor:
     """
     Preprocess a medical image based on imaging modality.
 
@@ -97,14 +100,14 @@ def preprocess_medical_image(path: str, modality: str) -> Union[torch.Tensor, np
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        Preprocessed image data as a tensor or numpy array.
+        Preprocessed image data as a torch.Tensor (or MetaTensor with metadata).
 
     Raises:
         ModalityTypeError: If modality is not a string.
         UnsupportedModalityError: If the provided modality is not supported.
     """
     if not isinstance(modality, str):
-        raise ModalityTypeError("modality must be a string")
+        raise ModalityTypeError()
 
     modality_clean = modality.strip().upper()
 
@@ -113,15 +116,13 @@ def preprocess_medical_image(path: str, modality: str) -> Union[torch.Tensor, np
     elif modality_clean == "CT":
         pipeline = get_ct_preprocessing_pipeline()
     else:
-        raise UnsupportedModalityError(
-            f"Unsupported modality '{modality}'. Supported modalities: CT, MR, MRI"
-        )
+        raise UnsupportedModalityError(modality)
 
     return pipeline(path)
 
 
 # Keep the old function name for backward compatibility
-def preprocess_dicom_series(path: str, modality: str) -> Union[torch.Tensor, np.ndarray]:
+def preprocess_dicom_series(path: str, modality: str) -> torch.Tensor:
     """
     Preprocess a DICOM series or file based on imaging modality.
 
@@ -133,7 +134,7 @@ def preprocess_dicom_series(path: str, modality: str) -> Union[torch.Tensor, np.
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        Preprocessed image data.
+        Preprocessed image data as a torch.Tensor (or MetaTensor with metadata).
 
     Raises:
         ModalityTypeError: If modality is not a string.

@@ -78,6 +78,7 @@ def test_unsupported_modality():
 
     msg = str(exc.value)
     assert "Unsupported modality" in msg
+    assert "PET" in msg
     assert "CT" in msg
     assert "MR" in msg
     assert "MRI" in msg
@@ -87,6 +88,7 @@ def test_unsupported_modality():
 
     msg = str(exc.value)
     assert "Unsupported modality" in msg
+    assert "PET" in msg
     assert "CT" in msg
     assert "MR" in msg
     assert "MRI" in msg
