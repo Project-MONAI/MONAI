@@ -81,11 +81,9 @@ def test_unsupported_modality():
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
 def test_modality_case_insensitivity(mock_load):
     """Test case-insensitive modality handling."""
-    # Mock the LoadImage to avoid actual file I/O
     mock_load.return_value = Mock(return_value=Mock())
 
     for modality in ["CT", "ct", "Ct", "CT ", "MR", "mr", "MRI", "mri", " MrI "]:
-        # Should not raise modality errors
         result = preprocess_dicom_series("dummy.dcm", modality)
         assert result is not None
 
@@ -100,13 +98,11 @@ def test_mr_modality_distinct(mock_load):
 
 def test_preprocess_dicom_series_integration(tmp_path):
     """Integration test with dummy NIfTI file."""
-    # Create a dummy NIfTI file for testing
     dummy_data = np.random.randn(64, 64, 64).astype(np.float32)
     test_file = tmp_path / "test.nii.gz"
 
     write_nifti(dummy_data, test_file)
 
-    # Test with each modality (including both MR and MRI)
     for modality in ["CT", "MR", "MRI"]:
         result = preprocess_dicom_series(str(test_file), modality)
         assert result is not None

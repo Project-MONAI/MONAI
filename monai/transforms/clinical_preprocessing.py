@@ -15,7 +15,8 @@ Clinical preprocessing transforms for medical imaging data.
 This module provides modality-specific preprocessing pipelines for common medical imaging modalities.
 """
 
-from monai.data import MetaTensor
+from typing import Any
+
 from monai.transforms import (
     Compose,
     EnsureChannelFirst,
@@ -38,9 +39,9 @@ def get_ct_preprocessing_pipeline() -> Compose:
     Create a preprocessing pipeline for CT images.
 
     Returns:
-        Compose: Transform composition for CT preprocessing. Applies HU windowing
-            [-1000, 400] scaled to [0, 1] with clipping, suitable for soft tissue
-            and lung visualization.
+        Compose: Transform composition for CT preprocessing.
+            Applies Hounsfield Unit (HU) windowing [-1000, 400] scaled to [0, 1].
+            This range captures lung (-1000 to -400 HU) and soft tissue (0 to 100 HU) contrast.
     """
     return Compose(
         [
@@ -62,9 +63,9 @@ def get_mri_preprocessing_pipeline() -> Compose:
     Create a preprocessing pipeline for MRI images.
 
     Returns:
-        Compose: Transform composition for MRI preprocessing. Normalizes using
-            mean/std computed over non-zero voxels only, appropriate for MRI
-            data with background regions.
+        Compose: Transform composition for MRI preprocessing.
+            Normalizes intensities using nonzero voxels only, excluding background regions
+            typical in MRI acquisitions.
     """
     return Compose(
         [
@@ -75,7 +76,7 @@ def get_mri_preprocessing_pipeline() -> Compose:
     )
 
 
-def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
+def preprocess_dicom_series(path: str, modality: str) -> Any:
     """Preprocess a DICOM series or file based on imaging modality.
 
     Args:
@@ -83,14 +84,15 @@ def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        MetaTensor: Preprocessed image tensor with metadata.
+        Any: Preprocessed image data.
 
     Raises:
         ModalityTypeError: If modality is not a string.
         UnsupportedModalityError: If the provided modality is not supported.
     """
     if not isinstance(modality, str):
-        raise ModalityTypeError("modality must be a string")
+        error_msg = "modality must be a string"
+        raise ModalityTypeError(error_msg)
 
     modality_clean = modality.strip().upper()
 
@@ -99,9 +101,11 @@ def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
     elif modality_clean == "CT":
         pipeline = get_ct_preprocessing_pipeline()
     else:
-        raise UnsupportedModalityError(
-            f"Unsupported modality '{modality}'. Supported modalities: CT, MR, MRI"
+        error_msg = (
+            f"Unsupported modality '{modality}'. "
+            f"Supported modalities: CT, MR, MRI"
         )
+        raise UnsupportedModalityError(error_msg)
 
     return pipeline(path)
 
