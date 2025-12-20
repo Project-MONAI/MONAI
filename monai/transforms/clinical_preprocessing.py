@@ -15,8 +15,7 @@ Clinical preprocessing transforms for medical imaging data.
 This module provides modality-specific preprocessing pipelines for common medical imaging modalities.
 """
 
-from typing import Any
-
+from monai.data import MetaTensor
 from monai.transforms import (
     Compose,
     EnsureChannelFirst,
@@ -39,7 +38,9 @@ def get_ct_preprocessing_pipeline() -> Compose:
     Create a preprocessing pipeline for CT images.
 
     Returns:
-        Compose: Transform composition for CT preprocessing.
+        Compose: Transform composition for CT preprocessing. Applies HU windowing
+            [-1000, 400] scaled to [0, 1] with clipping, suitable for soft tissue
+            and lung visualization.
     """
     return Compose(
         [
@@ -61,7 +62,9 @@ def get_mri_preprocessing_pipeline() -> Compose:
     Create a preprocessing pipeline for MRI images.
 
     Returns:
-        Compose: Transform composition for MRI preprocessing.
+        Compose: Transform composition for MRI preprocessing. Normalizes using
+            mean/std computed over non-zero voxels only, appropriate for MRI
+            data with background regions.
     """
     return Compose(
         [
@@ -72,7 +75,7 @@ def get_mri_preprocessing_pipeline() -> Compose:
     )
 
 
-def preprocess_dicom_series(path: str, modality: str) -> Any:
+def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
     """Preprocess a DICOM series or file based on imaging modality.
 
     Args:
@@ -80,7 +83,7 @@ def preprocess_dicom_series(path: str, modality: str) -> Any:
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        The preprocessed image data.
+        MetaTensor: Preprocessed image tensor with metadata.
 
     Raises:
         ModalityTypeError: If modality is not a string.

@@ -90,6 +90,14 @@ def test_modality_case_insensitivity(mock_load):
         assert result is not None
 
 
+@patch("monai.transforms.clinical_preprocessing.LoadImage")
+def test_mr_modality_distinct(mock_load):
+    """Test MR modality is handled separately from MRI."""
+    mock_load.return_value = Mock(return_value=Mock())
+    result = preprocess_dicom_series("dummy.dcm", "MR")
+    assert result is not None
+
+
 def test_preprocess_dicom_series_integration(tmp_path):
     """Integration test with dummy NIfTI file."""
     # Create a dummy NIfTI file for testing
@@ -98,8 +106,8 @@ def test_preprocess_dicom_series_integration(tmp_path):
 
     write_nifti(dummy_data, test_file)
 
-    # Test with each modality
-    for modality in ["CT", "MRI"]:
+    # Test with each modality (including both MR and MRI)
+    for modality in ["CT", "MR", "MRI"]:
         result = preprocess_dicom_series(str(test_file), modality)
         assert result is not None
         assert hasattr(result, "shape")
