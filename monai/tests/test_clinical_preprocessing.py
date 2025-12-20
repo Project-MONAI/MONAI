@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -78,14 +80,21 @@ def test_unsupported_modality():
 
 def test_modality_case_insensitivity():
     """Test case-insensitive modality handling."""
-    # These should all work without error
+    # Test each case variation
     for modality in ["CT", "ct", "Ct", "CT ", "MR", "mr", "MRI", "mri", " MrI "]:
+        # Just test that the function doesn't raise modality-related errors
+        # We're not testing actual image loading, just modality parsing
         try:
-            # We're not actually loading an image, just checking the function doesn't fail on modality parsing
-            if isinstance(modality, str) and modality.strip().upper() in {"CT", "MR", "MRI"}:
-                assert True
+            # This will fail on file loading, but not on modality parsing
+            preprocess_dicom_series("non_existent_file.dcm", modality)
         except (ModalityTypeError, UnsupportedModalityError):
             pytest.fail(f"Modality {modality!r} should be accepted")
+        except FileNotFoundError:
+            # This is expected - the file doesn't exist, but modality parsing worked
+            pass
+        except Exception:
+            # Any other error is fine for this test
+            pass
 
 
 def test_preprocess_dicom_series_integration(tmp_path):
@@ -98,9 +107,6 @@ def test_preprocess_dicom_series_integration(tmp_path):
 
     # Test with each modality
     for modality in ["CT", "MRI"]:
-        try:
-            result = preprocess_dicom_series(str(test_file), modality)
-            assert result is not None
-            assert hasattr(result, "shape")
-        except Exception as e:
-            pytest.fail(f"Failed to preprocess with modality {modality}: {e}")
+        result = preprocess_dicom_series(str(test_file), modality)
+        assert result is not None
+        assert hasattr(result, "shape")

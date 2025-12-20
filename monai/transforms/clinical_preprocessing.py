@@ -80,7 +80,7 @@ def preprocess_dicom_series(path: str, modality: str) -> Any:
         modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        Preprocessed image data (typically a MetaTensor or NumPy array).
+        The preprocessed image data.
 
     Raises:
         ModalityTypeError: If modality is not a string.
