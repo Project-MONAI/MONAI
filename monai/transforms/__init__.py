@@ -680,6 +680,16 @@ from .utility.dictionary import (
     TransposeD,
     TransposeDict,
 )
+
+# Clinical preprocessing utilities
+from .clinical_preprocessing import (
+    ModalityTypeError,
+    UnsupportedModalityError,
+    get_ct_preprocessing_pipeline,
+    get_mri_preprocessing_pipeline,
+    preprocess_dicom_series,
+)
+
 from .utils import (
     Fourier,
     allow_missing_keys_mode,

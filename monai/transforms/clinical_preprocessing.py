@@ -1,113 +1,111 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Clinical preprocessing transforms for medical imaging data.
 
-This module provides preprocessing pipelines for different medical imaging modalities.
+This module provides modality-specific preprocessing pipelines for common medical imaging modalities.
 """
 
-from monai.data import MetaTensor
-from monai.transforms import Compose, LoadImage, EnsureChannelFirst, ScaleIntensityRange, NormalizeIntensity
+from typing import Any
+
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirst,
+    LoadImage,
+    NormalizeIntensity,
+    ScaleIntensityRange,
+)
 
 
 class ModalityTypeError(TypeError):
-    """Exception raised when modality parameter is not a string."""
-    pass
+    """Raised when modality is not a string."""
 
 
 class UnsupportedModalityError(ValueError):
-    """Exception raised when an unsupported modality is requested."""
-    pass
+    """Raised when an unsupported modality is requested."""
 
 
 def get_ct_preprocessing_pipeline() -> Compose:
     """
-    Create a preprocessing pipeline for CT (Computed Tomography) images.
-    
+    Create a preprocessing pipeline for CT images.
+
     Returns:
-        Compose: A transform composition for CT preprocessing.
-        
-    The pipeline consists of:
-    1. LoadImage - Load DICOM series
-    2. EnsureChannelFirst - Add channel dimension
-    3. ScaleIntensityRange - Scale Hounsfield Units (HU) from [-1000, 400] to [0, 1]
-    
-    Note:
-        The HU window [-1000, 400] is a common soft tissue window.
+        Compose: Transform composition for CT preprocessing.
     """
-    return Compose([
-        LoadImage(image_only=True),
-        EnsureChannelFirst(),
-        ScaleIntensityRange(a_min=-1000, a_max=400, b_min=0.0, b_max=1.0, clip=True)
-    ])
+    return Compose(
+        [
+            LoadImage(image_only=True),
+            EnsureChannelFirst(),
+            ScaleIntensityRange(
+                a_min=-1000,
+                a_max=400,
+                b_min=0.0,
+                b_max=1.0,
+                clip=True,
+            ),
+        ]
+    )
 
 
 def get_mri_preprocessing_pipeline() -> Compose:
     """
-    Create a preprocessing pipeline for MRI (Magnetic Resonance Imaging) images.
-    
+    Create a preprocessing pipeline for MRI images.
+
     Returns:
-        Compose: A transform composition for MRI preprocessing.
-        
-    The pipeline consists of:
-    1. LoadImage - Load DICOM series
-    2. EnsureChannelFirst - Add channel dimension
-    3. NormalizeIntensity - Normalize non-zero voxels
-    
-    Note:
-        Normalization is applied only to non-zero voxels to avoid bias from background.
+        Compose: Transform composition for MRI preprocessing.
     """
-    return Compose([
-        LoadImage(image_only=True),
-        EnsureChannelFirst(),
-        NormalizeIntensity(nonzero=True)
-    ])
+    return Compose(
+        [
+            LoadImage(image_only=True),
+            EnsureChannelFirst(),
+            NormalizeIntensity(nonzero=True),
+        ]
+    )
 
 
-def preprocess_dicom_series(path: str, modality: str) -> MetaTensor:
-    """
-    Preprocess a DICOM series based on the imaging modality.
+def preprocess_dicom_series(path: str, modality: str) -> Any:
+    """Preprocess a DICOM series or file based on imaging modality.
 
     Args:
-        path: Path to the DICOM series directory or file.
-        modality: Imaging modality (case-insensitive). Supported values:
-                  "CT", "MR", "MRI" (MRI is treated as synonym for MR).
+        path: Path to the DICOM file or directory containing a DICOM series.
+        modality: Imaging modality. Supported values are "CT", "MR", and "MRI" (case-insensitive).
 
     Returns:
-        MetaTensor: The preprocessed image data with metadata.
+        Preprocessed image data (typically a MetaTensor or NumPy array).
 
     Raises:
         ModalityTypeError: If modality is not a string.
-        UnsupportedModalityError: If modality is not supported.
+        UnsupportedModalityError: If the provided modality is not supported.
     """
-    # Validate input type
     if not isinstance(modality, str):
-        raise ModalityTypeError(f"modality must be a string, got {type(modality).__name__}")
-    
-    # Normalize modality string (strip whitespace, convert to uppercase)
+        raise ModalityTypeError("modality must be a string")
+
     modality_clean = modality.strip().upper()
-    
-    # Map MRI to MR (treat as synonyms)
-    if modality_clean == "MRI":
-        modality_clean = "MR"
-    
-    # Select appropriate preprocessing pipeline
-    if modality_clean == "CT":
-        pipeline = get_ct_preprocessing_pipeline()
-    elif modality_clean == "MR":
+
+    if modality_clean in {"MR", "MRI"}:
         pipeline = get_mri_preprocessing_pipeline()
+    elif modality_clean == "CT":
+        pipeline = get_ct_preprocessing_pipeline()
     else:
-        supported = ["CT", "MR", "MRI"]
         raise UnsupportedModalityError(
-            f"Unsupported modality '{modality}'. Supported modalities: {', '.join(supported)}"
+            f"Unsupported modality '{modality}'. Supported modalities: CT, MR, MRI"
         )
-    
-    # Apply preprocessing pipeline
+
     return pipeline(path)
 
 
-# Export the public API
 __all__ = [
     "ModalityTypeError",
-    "UnsupportedModalityError", 
+    "UnsupportedModalityError",
     "get_ct_preprocessing_pipeline",
     "get_mri_preprocessing_pipeline",
     "preprocess_dicom_series",
