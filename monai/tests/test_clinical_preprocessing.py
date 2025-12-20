@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -95,9 +93,9 @@ def test_preprocess_dicom_series_integration(tmp_path):
     # Create a dummy NIfTI file for testing
     dummy_data = np.random.randn(64, 64, 64).astype(np.float32)
     test_file = tmp_path / "test.nii.gz"
-    
+
     write_nifti(dummy_data, test_file)
-    
+
     # Test with each modality
     for modality in ["CT", "MRI"]:
         try:
