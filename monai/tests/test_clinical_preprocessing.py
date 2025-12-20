@@ -99,20 +99,9 @@ def test_modality_case_insensitivity(mock_load):
     """Test case-insensitive modality handling with whitespace trimming."""
     mock_load.return_value = Mock(return_value=Mock())
 
-    test_cases = [
-        ("CT", True),
-        ("ct", True),
-        ("Ct", True),
-        ("CT ", True),
-        (" CT", True),
-        ("MR", True),
-        ("mr", True),
-        ("MRI", True),
-        ("mri", True),
-        (" MrI ", True),
-    ]
+    test_cases = ["CT", "ct", "Ct", "CT ", " CT", "MR", "mr", "MRI", "mri", " MrI "]
 
-    for modality, _ in test_cases:
+    for modality in test_cases:
         result = preprocess_dicom_series("dummy.dcm", modality)
         assert result is not None, f"Failed for modality: '{modality}'"
         result2 = preprocess_medical_image("dummy.dcm", modality)
@@ -156,6 +145,16 @@ def test_preprocess_dicom_series_integration(tmp_path):
         result = preprocess_dicom_series(str(test_file), modality)
         assert result is not None
         assert hasattr(result, "shape")
+        assert len(result.shape) == 4  # (C, H, W, D)
+        assert result.shape[0] == 1    # single channel
+        
+        if modality == "CT":
+            # CT output should be in [0, 1] due to ScaleIntensityRange
+            assert result.min() >= 0.0
+            assert result.max() <= 1.0
+        
         result2 = preprocess_medical_image(str(test_file), modality)
         assert result2 is not None
         assert hasattr(result2, "shape")
+        assert len(result2.shape) == 4
+        assert result2.shape[0] == 1
