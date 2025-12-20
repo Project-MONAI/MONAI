@@ -147,12 +147,12 @@ def test_preprocess_dicom_series_integration(tmp_path):
         assert hasattr(result, "shape")
         assert len(result.shape) == 4  # (C, H, W, D)
         assert result.shape[0] == 1    # single channel
-        
+
         if modality == "CT":
             # CT output should be in [0, 1] due to ScaleIntensityRange
             assert result.min() >= 0.0
             assert result.max() <= 1.0
-        
+
         result2 = preprocess_medical_image(str(test_file), modality)
         assert result2 is not None
         assert hasattr(result2, "shape")
