@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tempfile
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -78,23 +78,16 @@ def test_unsupported_modality():
     assert "MRI" in msg
 
 
-def test_modality_case_insensitivity():
+@patch("monai.transforms.clinical_preprocessing.LoadImage")
+def test_modality_case_insensitivity(mock_load):
     """Test case-insensitive modality handling."""
-    # Test each case variation
+    # Mock the LoadImage to avoid actual file I/O
+    mock_load.return_value = Mock(return_value=Mock())
+
     for modality in ["CT", "ct", "Ct", "CT ", "MR", "mr", "MRI", "mri", " MrI "]:
-        # Just test that the function doesn't raise modality-related errors
-        # We're not testing actual image loading, just modality parsing
-        try:
-            # This will fail on file loading, but not on modality parsing
-            preprocess_dicom_series("non_existent_file.dcm", modality)
-        except (ModalityTypeError, UnsupportedModalityError):
-            pytest.fail(f"Modality {modality!r} should be accepted")
-        except FileNotFoundError:
-            # This is expected - the file doesn't exist, but modality parsing worked
-            pass
-        except Exception:
-            # Any other error is fine for this test
-            pass
+        # Should not raise modality errors
+        result = preprocess_dicom_series("dummy.dcm", modality)
+        assert result is not None
 
 
 def test_preprocess_dicom_series_integration(tmp_path):
