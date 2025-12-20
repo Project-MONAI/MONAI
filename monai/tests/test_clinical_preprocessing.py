@@ -97,7 +97,8 @@ def test_unsupported_modality():
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
 def test_modality_case_insensitivity(mock_load):
     """Test case-insensitive modality handling with whitespace trimming."""
-    mock_load.return_value = Mock(return_value=Mock())
+    mock_image = Mock()
+    mock_load.return_value = Mock(return_value=mock_image)
 
     test_cases = ["CT", "ct", "Ct", "CT ", " CT", "MR", "mr", "MRI", "mri", " MrI "]
 
@@ -111,7 +112,8 @@ def test_modality_case_insensitivity(mock_load):
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
 def test_mr_modality_distinct(mock_load):
     """Test MR modality is handled separately from MRI."""
-    mock_load.return_value = Mock(return_value=Mock())
+    mock_image = Mock()
+    mock_load.return_value = Mock(return_value=mock_image)
     result = preprocess_dicom_series("dummy.dcm", "MR")
     assert result is not None
     result2 = preprocess_medical_image("dummy.dcm", "MR")
@@ -121,7 +123,8 @@ def test_mr_modality_distinct(mock_load):
 @patch("monai.transforms.clinical_preprocessing.LoadImage")
 def test_edge_cases(mock_load):
     """Test edge cases for modality input."""
-    mock_load.return_value = Mock(return_value=Mock())
+    mock_image = Mock()
+    mock_load.return_value = Mock(return_value=mock_image)
 
     with pytest.raises(UnsupportedModalityError):
         preprocess_dicom_series("dummy.dcm", "")
@@ -152,6 +155,12 @@ def test_preprocess_dicom_series_integration(tmp_path):
             # CT output should be in [0, 1] due to ScaleIntensityRange
             assert result.min() >= 0.0
             assert result.max() <= 1.0
+        elif modality in ["MR", "MRI"]:
+            # NormalizeIntensity should yield mean≈0, std≈1 for nonzero voxels
+            nonzero_mask = result != 0
+            if nonzero_mask.any():
+                assert abs(result[nonzero_mask].mean()) < 0.1
+                assert abs(result[nonzero_mask].std() - 1.0) < 0.2
         
         result2 = preprocess_medical_image(str(test_file), modality)
         assert result2 is not None
