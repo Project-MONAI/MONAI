@@ -376,9 +376,9 @@ from .signal.array import (
     SignalRandAddSquarePulsePartial,
     SignalRandDrop,
     SignalRandScale,
-    SignalRandShift,
-    SignalRemoveFrequency,
+    SignalRemoveFrequency
 )
+from .signal import RadialFourier3D, RadialFourierFeatures3D
 from .signal.dictionary import SignalFillEmptyd, SignalFillEmptyD, SignalFillEmptyDict
 from .smooth_field.array import (
     RandSmoothDeform,
