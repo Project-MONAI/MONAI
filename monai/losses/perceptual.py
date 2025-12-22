@@ -76,7 +76,7 @@ class PerceptualLoss(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        network_type: str = PercetualNetworkType.alex,
+        network_type: str = PerceptualNetworkType.alex,
         is_fake_3d: bool = True,
         fake_3d_ratio: float = 0.5,
         cache_dir: str | None = None,
@@ -99,10 +99,10 @@ class PerceptualLoss(nn.Module):
         if channel_wise and "medicalnet_" not in network_type:
             raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
 
-        if network_type.lower() not in list(PercetualNetworkType):
+        if network_type.lower() not in list(PerceptualNetworkType):
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join(PercetualNetworkType)
+                % ", ".join(PerceptualNetworkType)
             )
 
         if cache_dir:
