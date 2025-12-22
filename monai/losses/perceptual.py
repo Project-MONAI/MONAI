@@ -49,7 +49,7 @@ class PerceptualLoss(nn.Module):
 
     Args:
         spatial_dims: number of spatial dimensions.
-        network_type : str
+        network_type: str | PercetualNetworkType = PercetualNetworkType.alex,
             One of:
             - "alex"
             - "vgg"
