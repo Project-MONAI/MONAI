@@ -133,7 +133,7 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
             msg = f"No ImageWriter backend found for {fmt}."
             if package_hint:
                 msg += f" Please install '{package_hint}' (e.g., pip install {package_hint})."
-        
+
             raise OptionalImportError(msg)
 
     writer_tuple = ensure_tuple(avail_writers)
