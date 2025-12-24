@@ -115,26 +115,26 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
             continue
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
-    if not avail_writers and error_if_not_found:
-        RECOMMENDED_PACKAGES = {
-            "png": "Pillow",
-            "jpg": "Pillow",
-            "jpeg": "Pillow",
-            "nii": "nibabel or SimpleITK",
-            "nii.gz": "nibabel or SimpleITK",
-            "nrrd": "pynrrd",
-            "tif": "Pillow or tifffile",
-            "tiff": "Pillow or tifffile",
-        }
+        if not avail_writers and error_if_not_found:
+            recommended_packages = {
+                "png": "Pillow",
+                "jpg": "Pillow",
+                "jpeg": "Pillow",
+                "nii": "nibabel or SimpleITK",
+                "nii.gz": "nibabel or SimpleITK",
+                "nrrd": "pynrrd",
+                "tif": "Pillow or tifffile",
+                "tiff": "Pillow or tifffile",
+            }
 
-        fmt_clean = fmt.replace(".", "").lower()
-        package_hint = RECOMMENDED_PACKAGES.get(fmt_clean, "")
+            fmt_clean = fmt.replace(".", "").lower()
+            package_hint = recommended_packages.get(fmt_clean, "")
 
-        msg = f"No ImageWriter backend found for {fmt}."
-        if package_hint:
-            msg += f" Please install '{package_hint}' (e.g., pip install {package_hint})."
+            msg = f"No ImageWriter backend found for {fmt}."
+            if package_hint:
+                msg += f" Please install '{package_hint}' (e.g., pip install {package_hint})."
         
-        raise OptionalImportError(msg)
+            raise OptionalImportError(msg)
 
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
