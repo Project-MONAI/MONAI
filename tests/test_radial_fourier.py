@@ -12,6 +12,8 @@
 Tests for the 3D Radial Fourier Transform.
 """
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -33,8 +35,6 @@ class TestRadialFourier3D(unittest.TestCase):
         # Create test data
         self.test_image_3d = torch.randn(1, 32, 64, 64, device=self.device)  # Batch, D, H, W
 
-
-    def tearDown(self):
         """Clean up after tests."""
         set_determinism(seed=None)
 
