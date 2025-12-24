@@ -25,10 +25,10 @@ from torch.fft import fftn, fftshift, ifftn, ifftshift
 
 from monai.config import NdarrayOrTensor
 from monai.transforms.transform import Transform
-from monai.utils import convert_data_type, optional_import
+from monai.utils import convert_data_type
 
 # Optional imports for type checking
-spatial, _ = optional_import("monai.utils", name="spatial")
+# spatial, _ = optional_import("monai.utils", name="spatial")  # Commented out unused import
 
 
 class RadialFourier3D(Transform):
@@ -59,6 +59,10 @@ class RadialFourier3D(Transform):
         >>> transform = RadialFourier3D(radial_bins=64, return_magnitude=True)
         >>> image = torch.randn(1, 128, 128, 96)  # Batch, Height, Width, Depth
         >>> result = transform(image)  # Shape: (1, 64)
+
+    Raises:
+        ValueError: If max_frequency not in (0.0, 1.0], radial_bins < 1, or both
+            return_magnitude and return_phase are False.
     """
 
     def __init__(
@@ -89,12 +93,13 @@ class RadialFourier3D(Transform):
         if not return_magnitude and not return_phase:
             raise ValueError("At least one of return_magnitude or return_phase must be True")
 
-    def _compute_radial_coordinates(self, shape: tuple[int, ...]) -> torch.Tensor:
+    def _compute_radial_coordinates(self, shape: tuple[int, ...], device: torch.device = None) -> torch.Tensor:
         """
         Compute radial distance from frequency domain center.
 
         Args:
             shape: spatial dimensions (D, H, W) or (H, W, D) depending on dims order.
+            device: device to create tensor on.
 
         Returns:
             Tensor of same spatial shape with radial distances.
@@ -103,7 +108,7 @@ class RadialFourier3D(Transform):
         coords = []
         for dim_size in shape:
             # Create frequency range from -0.5 to 0.5
-            freq = torch.fft.fftfreq(dim_size)
+            freq = torch.fft.fftfreq(dim_size, device=device)
             coords.append(freq)
 
         # Create meshgrid and compute radial distance
@@ -176,7 +181,7 @@ class RadialFourier3D(Transform):
             spectrum = spectrum / norm_factor
 
         # Compute radial coordinates
-        radial_coords = self._compute_radial_coordinates(spatial_shape)
+        radial_coords = self._compute_radial_coordinates(spatial_shape, device=spectrum.device)
 
         # Apply radial binning if requested
         if self.radial_bins is not None:
@@ -217,7 +222,8 @@ class RadialFourier3D(Transform):
             if self.max_frequency < 1.0:
                 freq_mask = radial_coords <= (self.max_frequency * 0.5)
                 # Expand mask to match spectrum dimensions
-                for _ in range(len(self.spatial_dims)):
+                n_non_spatial = len(spectrum.shape) - len(spatial_shape)
+                for _ in range(n_non_spatial):
                     freq_mask = freq_mask.unsqueeze(0)
                 spectrum = spectrum * freq_mask
 

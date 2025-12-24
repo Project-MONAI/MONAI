@@ -76,7 +76,7 @@ class TestRadialFourier3D(unittest.TestCase):
     def test_inverse_transform(self):
         """Test approximate inverse transform."""
         # Use full spectrum for invertibility
-        transform = RadialFourier3D(radial_bins=None, normalize=True)
+        transform = RadialFourier3D(radial_bins=None, normalize=True, return_magnitude=True, return_phase=True)
 
         # Forward transform
         spectrum = transform(self.test_image_3d)
@@ -86,6 +86,9 @@ class TestRadialFourier3D(unittest.TestCase):
 
         # Should have same shape
         self.assertEqual(reconstructed.shape, self.test_image_3d.shape)
+
+        # Should approximately reconstruct original
+        self.assertTrue(torch.allclose(reconstructed, self.test_image_3d, atol=1e-5))
 
     def test_deterministic(self):
         """Test that transform is deterministic."""
