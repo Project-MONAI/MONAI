@@ -36,7 +36,7 @@ exclude = '''
 
 [tool.pycln]
 all = true
-exclude = "monai/bundle/__main__.py"
+exclude = "monai/bundle/__main__.py|monai/transforms/__init__.py"
 
 [tool.ruff]
 line-length = 133

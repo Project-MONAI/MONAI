@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from typing import Optional, Union
 
@@ -33,14 +32,11 @@ from monai.utils import convert_data_type
 class RadialFourier3D(Transform):
     """
     Computes the 3D Radial Fourier Transform of medical imaging data.
-
     This transform converts 3D medical images into radial frequency domain representations,
     which is particularly useful for handling anisotropic resolution common in medical scans
     (e.g., different resolution in axial vs coronal planes).
-
     The radial transform provides rotation-invariant frequency analysis and can help
     normalize frequency representations across datasets with different acquisition parameters.
-
     Args:
         normalize: if True, normalize the output by the number of voxels.
         return_magnitude: if True, return magnitude of the complex result.
@@ -48,17 +44,14 @@ class RadialFourier3D(Transform):
         radial_bins: number of radial bins for frequency aggregation. If None, returns full 3D spectrum.
         max_frequency: maximum normalized frequency to include (0.0 to 1.0).
         spatial_dims: spatial dimensions to apply transform to. Default is last three dimensions.
-
     Returns:
         Radial Fourier transform of input data. Shape depends on parameters:
         - If radial_bins is None: complex tensor of same spatial shape as input
         - If radial_bins is set: real tensor of shape (radial_bins,) for magnitude/phase
-
     Example:
         >>> transform = RadialFourier3D(radial_bins=64, return_magnitude=True)
         >>> image = torch.randn(1, 128, 128, 96)  # Batch, Height, Width, Depth
         >>> result = transform(image)  # Shape: (1, 64)
-
     Raises:
         ValueError: If max_frequency not in (0.0, 1.0], radial_bins < 1, or both
             return_magnitude and return_phase are False.
@@ -107,11 +100,26 @@ class RadialFourier3D(Transform):
         coords = []
         for dim_size in shape:
             # Create frequency range from -0.5 to 0.5
-            freq = torch.fft.fftfreq(dim_size, device=device)
+            # Compatible with older PyTorch versions
+            if hasattr(torch.fft, 'fftfreq'):
+                freq = torch.fft.fftfreq(dim_size, device=device)
+            else:
+                # Fallback for older PyTorch versions (pre-1.8)
+                n = dim_size
+                val = 1.0 / n
+                freq = torch.arange(-(n//2), (n+1)//2, device=device) * val
+                freq = torch.roll(freq, n//2)
             coords.append(freq)
 
         # Create meshgrid and compute radial distance
-        mesh = torch.meshgrid(coords, indexing="ij")
+        # Compatible with older PyTorch versions (pre-1.10)
+        try:
+            mesh = torch.meshgrid(coords, indexing="ij")
+        except TypeError:
+            # Older PyTorch doesn't support indexing parameter
+            mesh = torch.meshgrid(coords)
+            # Note: older meshgrid uses ij indexing by default in PyTorch
+
         radial = torch.sqrt(sum(c**2 for c in mesh))
 
         return radial
@@ -176,7 +184,9 @@ class RadialFourier3D(Transform):
 
         # Normalize if requested
         if self.normalize:
-            norm_factor = math.prod(spatial_shape)
+            norm_factor = 1
+            for dim in spatial_shape:
+                norm_factor *= dim
             spectrum = spectrum / norm_factor
 
         # Compute radial coordinates
@@ -272,7 +282,10 @@ class RadialFourier3D(Transform):
             result = fftshift(result, dim=self.spatial_dims)
 
             if self.normalize:
-                result = result * math.prod(original_shape)
+                shape_product = 1
+                for dim in original_shape:
+                    shape_product *= dim
+                result = result * shape_product
 
             result, *_ = convert_data_type(result.real, type(radial_data))
             return result
@@ -287,18 +300,14 @@ class RadialFourier3D(Transform):
 class RadialFourierFeatures3D(Transform):
     """
     Extract radial Fourier features for medical image analysis.
-
     Computes multiple radial Fourier transforms with different parameters
     to create a comprehensive frequency feature representation.
-
     Args:
         n_bins_list: list of radial bin counts to compute.
         return_types: list of return types: 'magnitude', 'phase', or 'complex'.
         normalize: if True, normalize the output.
-
     Returns:
         Concatenated radial Fourier features.
-
     Example:
         >>> transform = RadialFourierFeatures3D(n_bins_list=[32, 64, 128])
         >>> image = torch.randn(1, 128, 128, 96)
