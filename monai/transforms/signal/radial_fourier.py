@@ -104,7 +104,7 @@ class RadialFourier3D(Transform):
 
         # Create meshgrid and compute radial distance
         mesh = torch.meshgrid(coords, indexing="ij")
-        radial = torch.sqrt(torch.stack([c**2 for c in mesh]).sum(dim=0))
+        radial = torch.sqrt(sum(c**2 for c in mesh))
 
         return radial
 
@@ -340,18 +340,14 @@ class RadialFourierFeatures3D(Transform):
             feat = transform(img)
             features.append(feat)
 
-        # Concatenate along last dimension
-        if features:
-            # Convert all features to tensors if any are numpy arrays
-            features_tensors = []
-            for feat in features:
-                if isinstance(feat, np.ndarray):
-                    features_tensors.append(torch.from_numpy(feat))
-                else:
-                    features_tensors.append(feat)
-            output = torch.cat(features_tensors, dim=-1)
-        else:
-            raise ValueError("No features extracted. This should not happen with validated parameters.")
+        # Convert all features to tensors if any are numpy arrays
+        features_tensors = []
+        for feat in features:
+            if isinstance(feat, np.ndarray):
+                features_tensors.append(torch.from_numpy(feat))
+            else:
+                features_tensors.append(feat)
+        output = torch.cat(features_tensors, dim=-1)
 
         # Convert to original type if needed
         if isinstance(img, np.ndarray):
