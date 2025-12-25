@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Optional, Union
 
@@ -182,9 +183,7 @@ class RadialFourier3D(Transform):
 
         # Normalize if requested
         if self.normalize:
-            norm_factor = 1
-            for dim in spatial_shape:
-                norm_factor *= dim
+            norm_factor = math.prod(spatial_shape)
             spectrum = spectrum / norm_factor
 
         # Compute radial coordinates
@@ -208,9 +207,7 @@ class RadialFourier3D(Transform):
             spatial_size = spectrum_flat.shape[-1]
 
             # Reshape to 2D: (non_spatial_product, spatial_size)
-            non_spatial_product = 1
-            for dim in non_spatial_dims:
-                non_spatial_product *= dim
+            non_spatial_product = math.prod(non_spatial_dims)
 
             spectrum_2d = spectrum_flat.reshape(non_spatial_product, spatial_size)
 
@@ -289,9 +286,7 @@ class RadialFourier3D(Transform):
             result = fftshift(result, dim=self.spatial_dims)
 
             if self.normalize:
-                shape_product = 1
-                for dim in original_shape:
-                    shape_product *= dim
+                shape_product = math.prod(original_shape)
                 result = result * shape_product
 
             result, *_ = convert_data_type(result.real, type(radial_data))
