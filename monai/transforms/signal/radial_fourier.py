@@ -186,8 +186,8 @@ class RadialFourier3D(Transform):
         if len(spatial_shape) != 3:
             raise ValueError("Expected 3 spatial dimensions")
 
-        # Compute 3D FFT
-        # Shift zero frequency to center and compute FFT
+        # Compute 3D FFT with proper frequency centering
+        # Apply ifftshift to input to align with FFT convention, then fftshift output to center zero frequency
         spectrum = fftn(ifftshift(img_tensor, dim=self.spatial_dims), dim=self.spatial_dims)
         spectrum = fftshift(spectrum, dim=self.spatial_dims)
 
@@ -375,7 +375,15 @@ class RadialFourierFeatures3D(Transform):
                 self.transforms.append(transform)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """Extract radial Fourier features."""
+        """
+        Extract radial Fourier features.
+
+        Args:
+            img: input medical image data. Expected shape: (..., D, H, W).
+
+        Returns:
+            Concatenated feature vector with shape (..., total_features).
+        """
         features = []
         for transform in self.transforms:
             feat = transform(img)
