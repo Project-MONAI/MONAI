@@ -99,12 +99,17 @@ def pad_nd(
         if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"}:
             # Try PyTorch pad for these modes; fallback to NumPy on error.
             _pad = _pt_pad
-        return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
+        call_kwargs = dict(kwargs)
+        if mode != "constant":
+            call_kwargs.pop("value", None)
+        return _pad(img, pad_width=to_pad, mode=mode, **call_kwargs)
+    except NotImplementedError:
+        return _np_pad(img, pad_width=to_pad, mode=mode,  **call_kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
-        if isinstance(err, NotImplementedError) or any(
+        if any(
             k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
         ):
-            return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+            return _np_pad(img, pad_width=to_pad, mode=mode,  **call_kwargs)
         raise ValueError(
             f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"
         ) from err
