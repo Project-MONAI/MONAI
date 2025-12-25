@@ -8,12 +8,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
-Signal processing transforms for medical imaging.
+Tests for signal processing transforms.
 """
 
-from __future__ import annotations
-
-from .radial_fourier import RadialFourier3D, RadialFourierFeatures3D
-
-__all__ = ["RadialFourier3D", "RadialFourierFeatures3D"]
+# Optional: re-export test classes for convenience (if you want)
+# from .test_radial_fourier import TestRadialFourier3D, TestRadialFourierFeatures3D
