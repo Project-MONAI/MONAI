@@ -48,8 +48,10 @@ class RadialFourier3D(Transform):
 
     Returns:
         Radial Fourier transform of input data. Shape depends on parameters:
-        - If radial_bins is None: complex tensor of same spatial shape as input
-        - If radial_bins is set: real tensor of shape (radial_bins,) for magnitude/phase
+        - If radial_bins is None: same spatial shape as input; magnitude and phase
+          (if both requested) are concatenated along the last dimension, doubling it.
+        - If radial_bins is set: shape (..., radial_bins) or (..., 2*radial_bins) if both
+          magnitude and phase are requested, preserving leading (batch/channel) dimensions.
 
     Raises:
         ValueError: If max_frequency not in (0.0, 1.0], radial_bins < 1,
@@ -293,6 +295,7 @@ class RadialFourierFeatures3D(Transform):
     Args:
         n_bins_list: list of radial bin counts to compute.
         return_types: list of return types: 'magnitude', 'phase', or 'complex'.
+            'complex' returns both magnitude and phase concatenated as real values.
         normalize: if True, normalize the output.
 
     Returns:
