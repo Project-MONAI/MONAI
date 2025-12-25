@@ -99,26 +99,11 @@ class RadialFourier3D(Transform):
         coords = []
         for dim_size in shape:
             # Create frequency range from -0.5 to 0.5
-            # Compatible with older PyTorch versions
-            if hasattr(torch.fft, 'fftfreq'):
-                freq = torch.fft.fftfreq(dim_size, device=device)
-            else:
-                # Fallback for older PyTorch versions (pre-1.8)
-                n = dim_size
-                val = 1.0 / n
-                freq = torch.arange(-(n//2), (n+1)//2, device=device) * val
-                freq = torch.roll(freq, n//2)
+            freq = torch.fft.fftfreq(dim_size, device=device)
             coords.append(freq)
 
         # Create meshgrid and compute radial distance
-        # Compatible with older PyTorch versions (pre-1.10)
-        try:
-            mesh = torch.meshgrid(coords, indexing="ij")
-        except TypeError:
-            # Older PyTorch doesn't support indexing parameter
-            mesh = torch.meshgrid(coords)
-            # Note: older meshgrid uses ij indexing by default in PyTorch
-
+        mesh = torch.meshgrid(coords, indexing="ij")
         radial = torch.sqrt(torch.stack([c**2 for c in mesh]).sum(dim=0))
 
         return radial
@@ -258,7 +243,7 @@ class RadialFourier3D(Transform):
             Reconstructed spatial data.
 
         Note:
-            This is an approximate inverse when radial_bins is used.
+            Only exact inverse is supported (radial_bins=None). Raises NotImplementedError otherwise.
         """
         if self.radial_bins is None:
             # Direct inverse FFT
