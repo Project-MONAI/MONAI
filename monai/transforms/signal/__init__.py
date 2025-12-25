@@ -12,6 +12,8 @@
 Signal processing transforms for medical imaging.
 """
 
+from __future__ import annotations
+
 from .radial_fourier import RadialFourier3D, RadialFourierFeatures3D
 
 __all__ = ["RadialFourier3D", "RadialFourierFeatures3D"]

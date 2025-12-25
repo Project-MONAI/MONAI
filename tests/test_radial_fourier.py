@@ -56,8 +56,7 @@ class TestRadialFourier3D(unittest.TestCase):
     def test_complex_input(self):
         """Test with complex-valued input."""
         complex_image = torch.complex(
-            torch.randn(1, 32, 64, 64, device=self.device),
-            torch.randn(1, 32, 64, 64, device=self.device),
+            torch.randn(1, 32, 64, 64, device=self.device), torch.randn(1, 32, 64, 64, device=self.device)
         )
         transform = RadialFourier3D(radial_bins=32, return_magnitude=True)
         result = transform(complex_image)
