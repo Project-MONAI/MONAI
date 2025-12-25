@@ -180,11 +180,9 @@ class TestRadialFourierFeatures3D(unittest.TestCase):
         self.assertEqual(features.shape, (2, 16 * 2))
 
     def test_empty_bins_list(self):
-        """Test with empty bins list."""
-        transform = RadialFourierFeatures3D(n_bins_list=[], return_types=["magnitude"])
-        features = transform(self.test_image)
-        # Should return original image when no transforms
-        self.assertEqual(features.shape, self.test_image.shape)
+        """Test with empty bins list raises ValueError."""
+        with self.assertRaises(ValueError):
+            RadialFourierFeatures3D(n_bins_list=[], return_types=["magnitude"])
 
     def test_numpy_compatibility(self):
         """Test with numpy input."""
