@@ -18,7 +18,6 @@ import math
 from collections.abc import Sequence
 from typing import Optional, Union
 
-import numpy as np
 import torch
 from torch.fft import fftn, fftshift, ifftn, ifftshift
 
@@ -37,25 +36,38 @@ class RadialFourier3D(Transform):
     normalize frequency representations across datasets with different acquisition parameters.
 
     Args:
-        normalize (bool): if True, normalize the output by the number of voxels.
-        return_magnitude (bool): if True, return magnitude of the complex result.
-        return_phase (bool): if True, return phase of the complex result.
-        radial_bins (Optional[int]): number of radial bins for frequency aggregation.
+        normalize: if True, normalize the output by the number of voxels.
+        return_magnitude: if True, return magnitude of the complex result.
+        return_phase: if True, return phase of the complex result.
+        radial_bins: number of radial bins for frequency aggregation.
             If None, returns full 3D spectrum.
-        max_frequency (float): maximum normalized frequency to include (0.0 to 1.0).
-        spatial_dims (Union[int, Sequence[int]]): spatial dimensions to apply transform to.
+        max_frequency: maximum normalized frequency to include (0.0 to 1.0).
+        spatial_dims: spatial dimensions to apply transform to.
             Default is last three dimensions.
 
     Returns:
         Radial Fourier transform of input data. Shape depends on parameters:
-        - If radial_bins is None: same spatial shape as input; magnitude and phase
-          (if both requested) are concatenated along the last dimension, doubling it.
-        - If radial_bins is set: shape (..., radial_bins) or (..., 2*radial_bins) if both
-          magnitude and phase are requested, preserving leading (batch/channel) dimensions.
+        - If radial_bins is None and only magnitude OR phase is requested:
+          same spatial shape as input (..., D, H, W)
+        - If radial_bins is None and both magnitude AND phase are requested:
+          shape (..., D, H, 2*W) [magnitude and phase concatenated along last dimension]
+        - If radial_bins is set and only magnitude OR phase is requested:
+          shape (..., radial_bins)
+        - If radial_bins is set and both magnitude AND phase are requested:
+          shape (..., 2*radial_bins)
 
     Raises:
         ValueError: If max_frequency not in (0.0, 1.0], radial_bins < 1,
             or both return_magnitude and return_phase are False.
+
+    Example:
+        >>> transform = RadialFourier3D(radial_bins=32, return_magnitude=True)
+        >>> image = torch.randn(1, 128, 128, 96)
+        >>> features = transform(image)  # Shape: (1, 32)
+        >>>
+        >>> transform = RadialFourier3D(radial_bins=None, return_magnitude=True, return_phase=True)
+        >>> image = torch.randn(1, 128, 128, 96)
+        >>> spectrum = transform(image)  # Shape: (1, 128, 128, 192) - magnitude+phase concatenated
     """
 
     def __init__(
@@ -80,9 +92,9 @@ class RadialFourier3D(Transform):
 
         # Validate parameters
         if not 0.0 < max_frequency <= 1.0:
-            raise ValueError(f"max_frequency must be in (0.0, 1.0], got {max_frequency}")
+            raise ValueError("max_frequency must be in (0.0, 1.0]")
         if radial_bins is not None and radial_bins < 1:
-            raise ValueError(f"radial_bins must be >= 1, got {radial_bins}")
+            raise ValueError("radial_bins must be >= 1")
         if not return_magnitude and not return_phase:
             raise ValueError("At least one of return_magnitude or return_phase must be True")
 
@@ -132,11 +144,11 @@ class RadialFourier3D(Transform):
         result_real = torch.zeros(self.radial_bins, dtype=spectrum.real.dtype, device=spectrum.device)
         result_imag = torch.zeros(self.radial_bins, dtype=spectrum.imag.dtype, device=spectrum.device)
 
-        # Bin the frequencies - spectrum and radial_coords are both 1D
+        # Bin the frequencies using torch.bucketize
+        bin_indices = torch.bucketize(radial_coords, bin_edges[1:-1], right=False)
         for i in range(self.radial_bins):
-            mask = (radial_coords >= bin_edges[i]) & (radial_coords < bin_edges[i + 1])
+            mask = bin_indices == i
             if mask.any():
-                # spectrum is 1D, so we can index it directly
                 result_real[i] = spectrum.real[mask].mean()
                 result_imag[i] = spectrum.imag[mask].mean()
 
@@ -154,14 +166,25 @@ class RadialFourier3D(Transform):
                  where D, H, W are spatial dimensions.
 
         Returns:
-            Transformed data in radial frequency domain.
+            Transformed data in radial frequency domain. Shape depends on parameters:
+            - If radial_bins is None and only magnitude OR phase is requested:
+              same spatial shape as input (..., D, H, W)
+            - If radial_bins is None and both magnitude AND phase are requested:
+              shape (..., D, H, 2*W) [magnitude and phase concatenated along last dimension]
+            - If radial_bins is set and only magnitude OR phase is requested:
+              shape (..., radial_bins)
+            - If radial_bins is set and both magnitude AND phase are requested:
+              shape (..., 2*radial_bins)
+
+        Raises:
+            ValueError: If input does not have exactly 3 spatial dimensions.
         """
         # Convert to tensor if needed
         img_tensor, *_ = convert_data_type(img, torch.Tensor)
         # Get spatial dimensions
         spatial_shape = tuple(img_tensor.shape[d] for d in self.spatial_dims)
         if len(spatial_shape) != 3:
-            raise ValueError(f"Expected 3 spatial dimensions, got {len(spatial_shape)}")
+            raise ValueError("Expected 3 spatial dimensions")
 
         # Compute 3D FFT
         # Shift zero frequency to center and compute FFT
@@ -238,11 +261,17 @@ class RadialFourier3D(Transform):
         Inverse transform from radial frequency domain to spatial domain.
 
         Args:
-            radial_data: data in radial frequency domain.
+            radial_data: data in radial frequency domain. When both magnitude and phase
+                are requested with radial_bins=None, they should be concatenated along
+                the last dimension (magnitude first, then phase).
             original_shape: original spatial shape (D, H, W).
 
         Returns:
             Reconstructed spatial data.
+
+        Raises:
+            ValueError: If input dimensions don't match expected shape for magnitude+phase concatenation.
+            NotImplementedError: If radial_bins is not None.
 
         Note:
             Only exact inverse is supported (radial_bins=None). Raises NotImplementedError otherwise.
@@ -258,9 +287,8 @@ class RadialFourier3D(Transform):
                 last_dim = radial_tensor.shape[-1]
                 if last_dim != original_shape[-1] * 2:
                     raise ValueError(
-                        f"For inverse with magnitude+phase and radial_bins=None, "
-                        f"expected last dimension to be doubled. "
-                        f"Got {last_dim}, expected {original_shape[-1] * 2}"
+                        "For inverse with magnitude+phase and radial_bins=None, "
+                        "expected last dimension to be doubled."
                     )
 
                 split_size = original_shape[-1]
@@ -295,16 +323,26 @@ class RadialFourierFeatures3D(Transform):
     Args:
         n_bins_list: list of radial bin counts to compute.
         return_types: list of return types: 'magnitude', 'phase', or 'complex'.
-            'complex' returns both magnitude and phase concatenated as real values.
+            'complex' returns both magnitude and phase concatenated as real values
+            along the last dimension (when radial_bins=None) or along the feature
+            dimension (when radial_bins is set).
         normalize: if True, normalize the output.
 
     Returns:
-        Concatenated radial Fourier features.
+        Concatenated radial Fourier features. Shape: (..., total_features) where
+        total_features = sum(bins * (2 if return_type=='complex' else 1) for bins in n_bins_list).
+
+    Raises:
+        ValueError: If n_bins_list or return_types is empty.
 
     Example:
         >>> transform = RadialFourierFeatures3D(n_bins_list=[32, 64, 128])
         >>> image = torch.randn(1, 128, 128, 96)
         >>> features = transform(image)  # Shape: (1, 32+64+128=224)
+        >>>
+        >>> transform = RadialFourierFeatures3D(n_bins_list=[16, 32], return_types=['complex'])
+        >>> image = torch.randn(1, 128, 128, 96)
+        >>> features = transform(image)  # Shape: (1, (16+32)*2=96)
     """
 
     def __init__(
@@ -343,17 +381,14 @@ class RadialFourierFeatures3D(Transform):
             feat = transform(img)
             features.append(feat)
 
-        # Convert all features to tensors if any are numpy arrays
+        # Convert all features to tensors using convert_data_type
         features_tensors = []
         for feat in features:
-            if isinstance(feat, np.ndarray):
-                features_tensors.append(torch.from_numpy(feat))
-            else:
-                features_tensors.append(feat)
+            feat_tensor, *_ = convert_data_type(feat, torch.Tensor)
+            features_tensors.append(feat_tensor)
         output = torch.cat(features_tensors, dim=-1)
 
-        # Convert to original type if needed
-        if isinstance(img, np.ndarray):
-            output = output.cpu().numpy()
+        # Convert back to original type
+        output, *_ = convert_data_type(output, type(img))
 
         return output
