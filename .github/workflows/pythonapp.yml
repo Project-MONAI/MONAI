@@ -127,6 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
       shell: bash
     steps:
     - uses: actions/checkout@v6
@@ -136,26 +137,25 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: '3.9'
-    - name: cache weekly timestamp
+    - name: Get pip cache dir
       id: pip-cache
       run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-    - name: cache for pip
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+    - name: Cache pip (packaging)
       uses: actions/cache@v4
-      id: cache
       with:
-        path: |
-          ~/.cache/pip
-          ~/.cache/torch
-        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ${{ runner.os }}-packaging-pip-${{ hashFiles('requirements*.txt', 'setup.cfg', 'pyproject.toml') }}
     - name: Install dependencies
       run: |
+        df -h
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --user --upgrade pip setuptools wheel twine packaging
-        # install the latest pytorch for testing
+        # install CPU-only pytorch for testing to keep runner disk usage manageable
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=2.5.1 torchvision
+        python -m pip install --no-cache-dir torch==2.5.1+cpu torchvision==0.20.1+cpu --index-url https://download.pytorch.org/whl/cpu
+        df -h
     - name: Check packages
       run: |
         pip uninstall monai
@@ -184,7 +184,7 @@ jobs:
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from wheel
-        python -m pip install monai*.whl
+        python -m pip install --no-cache-dir monai*.whl
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
         python -m pip uninstall -y monai
@@ -195,7 +195,8 @@ jobs:
         # install from tar.gz
         name=$(ls *.tar.gz | head -n1)
         echo $name
-        python -m pip install $name[all]
+        # avoid installing monai[all] here (it pulls very large optional deps like itk/mlflow/clearml/lpips)
+        python -m pip install --no-cache-dir "$name"
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
     - name: Quick test
@@ -205,8 +206,8 @@ jobs:
         cp ${{ steps.root.outputs.pwd }}/requirements*.txt .
         cp -r ${{ steps.root.outputs.pwd }}/tests .
         ls -al
-        python -m pip install -r requirements-dev.txt
-        python -m unittest -v
+        python -m pip install -r requirements-min.txt
+        python -m tests.min_tests
       env:
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
