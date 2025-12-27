@@ -62,7 +62,7 @@ def test_pad_multiple_modes_dtype_preserved(mode, dtype):
     """Test that pad_nd preserves dtype across multiple padding modes."""
     img = torch.ones((1, 4, 4), dtype=dtype)
     to_pad = [(0, 0), (1, 1), (2, 2)]
-    
+
     kwargs = {"value": 0} if mode == "constant" else {}
     out = pad_nd(img, to_pad, mode=mode, **kwargs)
 
