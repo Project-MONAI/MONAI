@@ -104,12 +104,16 @@ def pad_nd(
             call_kwargs.pop("value", None)
         return _pad(img, pad_width=to_pad, mode=mode, **call_kwargs)
     except NotImplementedError:
-        return _np_pad(img, pad_width=to_pad, mode=mode,  **call_kwargs)
+        # PyTorch does not support this combination, fall back to NumPy
+        return _np_pad(img, pad_width=to_pad, mode=mode, **call_kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
+        # PyTorch may raise generic errors for unsupported modes/dtypes or kwargs.
+        # Since there are no stable exception types for these cases, we fall back
+        # to NumPy by matching known error message patterns.
         if any(
             k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
         ):
-            return _np_pad(img, pad_width=to_pad, mode=mode,  **call_kwargs)
+            return _np_pad(img, pad_width=to_pad, mode=mode, **call_kwargs)
         raise ValueError(
             f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"
         ) from err
