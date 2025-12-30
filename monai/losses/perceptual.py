@@ -95,11 +95,8 @@ class PerceptualLoss(nn.Module):
 
         if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
-                "Unrecognised criterion entered for Perceptual Loss. Must be one in: {}".format(
-                    ", ".join(PercetualNetworkType)
-                )
+                f"Unrecognised criterion entered for Perceptual Loss. Must be one in: {', '.join(PercetualNetworkType)}"
             )
-
         if cache_dir:
             torch.hub.set_dir(cache_dir)
             # raise a warning that this may change the default cache dir for all torch.hub calls
