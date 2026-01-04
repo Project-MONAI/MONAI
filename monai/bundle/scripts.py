@@ -17,7 +17,6 @@ import os
 import re
 import urllib
 import warnings
-import zipfile
 from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
