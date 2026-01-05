@@ -115,7 +115,7 @@ class DenseBlock(nn.Sequential):
             layer = Pseudo3DLayer(
                 spatial_dims, num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob
             )
-            self.add_module("denselayer%d" % (i + 1), layer)
+            self.add_module(f"denselayer{i + 1}", layer)
 
 
 class UpTransition(nn.Sequential):
