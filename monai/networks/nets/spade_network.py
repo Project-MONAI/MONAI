@@ -161,7 +161,7 @@ class SPADEEncoder(nn.Module):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(
                     "Each dimension of your input must be divisible by 2 ** (autoencoder depth)."
-                    "The shape in position %d, %d is not divisible by %d. " % (s_ind, s_, len(channels))
+                    f"The shape in position {s_ind}, {s_} is not divisible by {len(channels)}. "
                 )
         self.input_shape = input_shape
         self.latent_spatial_shape = [s_ // (2 ** len(self.channels)) for s_ in self.input_shape]
@@ -260,7 +260,7 @@ class SPADEDecoder(nn.Module):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(
                     "Each dimension of your input must be divisible by 2 ** (autoencoder depth)."
-                    "The shape in position %d, %d is not divisible by %d. " % (s_ind, s_, len(channels))
+                    f"The shape in position {s_ind}, {s_} is not divisible by {len(channels)}. "
                 )
         self.latent_spatial_shape = [s_ // (2 ** len(self.num_channels)) for s_ in input_shape]
 
