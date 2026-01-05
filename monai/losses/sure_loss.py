@@ -195,6 +195,7 @@ class SURELoss(_Loss):
             )
 
         # compute loss
-        loss = sure_loss_function(operator, x, y_pseudo_gt, y_ref, self.eps, self.perturb_noise, complex_input)
+        eps = self.eps if self.eps is not None else -1.0
+        loss = sure_loss_function(operator, x, y_pseudo_gt, y_ref, eps, self.perturb_noise, complex_input)
 
         return loss
