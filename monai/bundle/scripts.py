@@ -29,7 +29,7 @@ import torch
 from torch.cuda import is_available
 
 from monai._version import get_versions
-from monai.apps.utils import _basename, download_url, extractall, get_logger, _extract_zip
+from monai.apps.utils import _basename, _extract_zip, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -289,6 +289,7 @@ def _download_from_ngc_private(
     extract_path = download_path / f"{filename}"
     _extract_zip(zip_path, extract_path)
     logger.info(f"Writing into directory: {extract_path}.")
+
 
 def _get_ngc_token(api_key, retry=0):
     """Try to connect to NGC."""
