@@ -48,7 +48,7 @@ def get_rand_fname(len=10, suffix=".nii.gz"):
 class TestResampleToMatch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.fnames = []
         cls.tmpdir = tempfile.mkdtemp()
         for key in ("0000_t2_tse_tra_4", "0000_ep2d_diff_tra_7"):
@@ -62,7 +62,7 @@ class TestResampleToMatch(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["monai.data.NibabelWriter", ITKWriter]))
     def test_correct(self, reader, writer):

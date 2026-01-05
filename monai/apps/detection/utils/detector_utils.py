@@ -91,7 +91,7 @@ def check_training_targets(
             if boxes.numel() == 0:
                 warnings.warn(
                     f"Warning: Given target boxes has shape of {boxes.shape}. "
-                    f"The detector reshaped it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
+                    f"The detector reshaped it with boxes = torch.reshape(boxes, [0, {2 * spatial_dims}])."
                 )
             else:
                 raise ValueError(
