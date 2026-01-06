@@ -29,12 +29,9 @@ from monai.transforms.inverse import InvertibleTransform
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.lazy.functional import apply_pending_transforms
 from monai.transforms.traits import ThreadUnsafe
-from monai.transforms.transform import (  # noqa: F401
+from monai.transforms.transform import (
     LazyTransform,
-    MapTransform,
     Randomizable,
-    RandomizableTransform,
-    Transform,
     apply_transform,
 )
 from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed

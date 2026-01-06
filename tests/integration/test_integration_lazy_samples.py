@@ -137,7 +137,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 ops = [0]
                 if len(item.applied_operations) > 1:
                     found = False
-                    for idx, n in enumerate(item.applied_operations):  # noqa
+                    for idx, n in enumerate(item.applied_operations):
                         if n["class"] == "RandCropByPosNegLabel":
                             found = True
                             break
