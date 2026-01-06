@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable, Sequence
-from functools import cache, partial
+from functools import partial
 from types import ModuleType
 from typing import Any
 
