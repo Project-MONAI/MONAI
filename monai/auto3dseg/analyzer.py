@@ -915,7 +915,9 @@ class ImageHistogram(Analyzer):
             if not isinstance(_hist_bins, int) or _hist_bins < 0:
                 raise ValueError(f"Expected {i + 1}. hist_bins value to be positive integer but got {_hist_bins}")
             if not isinstance(_hist_range, list) or len(_hist_range) != 2:
-                raise ValueError(f"Expected {i + 1}. hist_range values to be list of length 2 but received {_hist_range}")
+                raise ValueError(
+                    f"Expected {i + 1}. hist_range values to be list of length 2 but received {_hist_range}"
+                )
 
     def __call__(self, data: dict) -> dict:
         """
