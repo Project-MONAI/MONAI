@@ -18,7 +18,6 @@ import argparse
 
 import torch
 
-
 Tensor = torch.Tensor
 
 NUM_REPEATS = 1000000
