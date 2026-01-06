@@ -374,6 +374,47 @@ class TestFocalLoss(unittest.TestCase):
             test_input = torch.ones(2, 2, 8, 8)
             test_script_save(loss, test_input, test_input)
 
+    def test_alpha_sequence_broadcasting(self):
+        """
+        Test FocalLoss with alpha as a sequence for proper broadcasting.
+        """
+        num_classes = 3
+        alpha_seq = [0.1, 0.5, 2.0]
+        batch_size = 2
+        spatial_dims = (4, 4)
+
+        devices = ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]
+
+        for device in devices:
+            logits = torch.randn(batch_size, num_classes, *spatial_dims, device=device)
+            target = torch.randint(0, num_classes, (batch_size, 1, *spatial_dims), device=device)
+
+            # Case 1: Softmax + Alpha Sequence
+            loss_func_softmax = FocalLoss(
+                to_onehot_y=True, gamma=2.0, alpha=alpha_seq, use_softmax=True, reduction="mean"
+            )
+            loss_soft = loss_func_softmax(logits, target)
+
+            self.assertTrue(torch.is_tensor(loss_soft))
+            self.assertEqual(loss_soft.ndim, 0)
+            self.assertTrue(loss_soft > 0, f"Softmax loss on {device} should be positive")
+
+            # Case 2: Sigmoid + Alpha Sequence
+            loss_func_sigmoid = FocalLoss(
+                to_onehot_y=True, gamma=2.0, alpha=alpha_seq, use_softmax=False, reduction="mean"
+            )
+            loss_sig = loss_func_sigmoid(logits, target)
+
+            self.assertTrue(torch.is_tensor(loss_sig))
+            self.assertEqual(loss_sig.ndim, 0)
+            self.assertTrue(loss_sig > 0, f"Sigmoid loss on {device} should be positive")
+
+            # Case 3: Error Handling (Mismatched alpha length)
+            if device == devices[0]:
+                wrong_alpha = [0.1, 0.5]
+                with self.assertRaisesRegex(ValueError, "length of alpha"):
+                    FocalLoss(to_onehot_y=True, alpha=wrong_alpha, use_softmax=True)(logits, target)
+
 
 if __name__ == "__main__":
     unittest.main()
