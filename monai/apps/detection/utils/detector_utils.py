@@ -95,7 +95,7 @@ def check_training_targets(
                 )
             else:
                 raise ValueError(
-                    f"Expected target boxes to be a tensor of shape [N, {2* spatial_dims}], got {boxes.shape}.)."
+                    f"Expected target boxes to be a tensor of shape [N, {2 * spatial_dims}], got {boxes.shape}.)."
                 )
         if not torch.is_floating_point(boxes):
             raise ValueError(f"Expected target boxes to be a float tensor, got {boxes.dtype}.")
