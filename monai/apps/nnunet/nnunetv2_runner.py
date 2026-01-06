@@ -18,7 +18,7 @@ import subprocess
 from typing import Any
 
 import monai
-from monai.apps.nnunet.utils import NNUNETMode as M
+from monai.apps.nnunet.utils import NNUNETMode as M  # noqa: N814
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
@@ -34,7 +34,7 @@ logger = monai.apps.utils.get_logger(__name__)
 __all__ = ["nnUNetV2Runner"]
 
 
-class nnUNetV2Runner:
+class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
     neural networks for medical image segmentation tasks.
