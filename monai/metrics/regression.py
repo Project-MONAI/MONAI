@@ -231,7 +231,7 @@ class SSIMMetric(RegressionMetric):
 
     .. math::
         \operatorname {SSIM}(x,y) =\frac {(2 \mu_x \mu_y + c_1)(2 \sigma_{xy} + c_2)}{((\mu_x^2 + \
-                \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}
+                \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2))}
 
     For more info, visit
         https://vicuesoft.com/glossary/term/ssim-ms-ssim/
