@@ -24,7 +24,7 @@ from monai.config import KeysCollection
 from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.utils import min_version, optional_import
+from monai.utils import deprecated, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -155,26 +155,18 @@ class RemapLabelsToSequentiald(MapTransform):
         return d
 
 
+@deprecated(since="1.6", removed="1.8", msg_suffix="Use `RemapLabelsToSequentiald` instead.")
 class NormalizeLabelsInDatasetd(RemapLabelsToSequentiald):
     """
-    .. deprecated:: 1.5.0
-        `NormalizeLabelsInDatasetd` is deprecated. Use :class:`RemapLabelsToSequentiald` instead.
+    .. deprecated:: 1.6.0
+        `NormalizeLabelsInDatasetd` is deprecated and will be removed in version 1.8.0.
+        Use :class:`RemapLabelsToSequentiald` instead.
 
     This class is maintained for backward compatibility. Please use RemapLabelsToSequentiald
     which better describes the transform's functionality.
     """
 
-    def __init__(
-        self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
-    ):
-        warnings.warn(
-            "NormalizeLabelsInDatasetd is deprecated and will be removed in a future version. "
-            "Please use RemapLabelsToSequentiald instead, which better describes what the transform does: "
-            "remapping label values to sequential indices (0, 1, 2, 3, ...).",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(keys, label_names, allow_missing_keys)
+    pass
 
 
 class SingleLabelSelectiond(MapTransform):

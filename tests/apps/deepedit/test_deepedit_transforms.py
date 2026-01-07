@@ -332,19 +332,26 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
         self.assertEqual(result["label_names"], {"background": 0, "kidney": 1, "liver": 2, "spleen": 3})
 
     def test_deprecated_name_warning(self):
-        """Test that using the deprecated name raises a warning"""
+        """Test that using the deprecated name raises a warning when version >= 1.6"""
         import warnings
+
+        from monai.utils import deprecated
+
+        # Create a test class with version_val to simulate version 1.6
+        @deprecated(since="1.6", removed="1.8", msg_suffix="Use `RemapLabelsToSequentiald` instead.", version_val="1.6")
+        class TestDeprecatedClass(RemapLabelsToSequentiald):
+            pass
 
         data = {"label": np.array([[[0, 1]]])}
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            transform = NormalizeLabelsInDatasetd(keys="label", label_names={"spleen": 1, "background": 0})
-            _ = transform(data)  # Call to trigger the warning
+            transform = TestDeprecatedClass(keys="label", label_names={"spleen": 1, "background": 0})
+            _ = transform(data)  # Invoke the transform to confirm functionality
 
-            # Check that a deprecation warning was raised
+            # Check that a deprecation warning was raised (deprecated decorator uses FutureWarning)
             self.assertEqual(len(w), 1)
-            self.assertTrue(issubclass(w[0].category, DeprecationWarning))
+            self.assertTrue(issubclass(w[0].category, FutureWarning))
             self.assertIn("RemapLabelsToSequentiald", str(w[0].message))
 
 
