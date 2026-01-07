@@ -30,22 +30,11 @@ repos:
     rev: v0.7.0
     hooks:
     -   id: ruff
-        args:
-        - --fix
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
-    hooks:
-      - id: pyupgrade
-        args: [--py39-plus, --keep-runtime-typing]
-        name: Upgrade code with exceptions
+        args: ["--fix"]
         exclude: |
           (?x)(
               ^versioneer.py|
-              ^monai/_version.py|
-              ^monai/networks/| # avoid typing rewrites
-              ^monai/apps/detection/utils/anchor_utils.py| # avoid typing rewrites
-              ^tests/test_compute_panoptic_quality.py # avoid typing rewrites
+              ^monai/_version.py
           )
 
   - repo: https://github.com/asottile/yesqa

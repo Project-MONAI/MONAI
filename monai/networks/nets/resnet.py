@@ -240,7 +240,7 @@ class ResNet(nn.Module):
             elif block == "bottleneck":
                 block = ResNetBottleneck
             else:
-                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
+                raise ValueError(f"Unknown block '{block}', use basic or bottleneck")
 
         conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]

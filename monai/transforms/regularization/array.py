@@ -41,7 +41,7 @@ class Mixer(RandomizableTransform):
         """
         super().__init__()
         if alpha <= 0:
-            raise ValueError(f"Expected positive number, but got {alpha = }")
+            raise ValueError(f"Expected positive number, but got {alpha=}")
         self.alpha = alpha
         self.batch_size = batch_size
 

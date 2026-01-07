@@ -18,7 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any
 
 import torch
 
@@ -242,8 +242,8 @@ def unroll_input(input_names, input_example):
 
 
 def parse_groups(
-    ret: List[torch.Tensor], output_lists: List[List[int]]
-) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
+    ret: list[torch.Tensor], output_lists: list[list[int]]
+) -> tuple[torch.Tensor | list[torch.Tensor], ...]:
     """
     Implements parsing of 'output_lists' arg of trt_compile().
 
@@ -261,7 +261,7 @@ def parse_groups(
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
     """
-    groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+    groups: tuple[torch.Tensor | list[torch.Tensor], ...] = tuple()
     cur = 0
     for l in range(len(output_lists)):
         gl = output_lists[l]
@@ -273,7 +273,7 @@ def parse_groups(
             groups = (*groups, ret[cur : cur + gl[0]])
             cur = cur + gl[0]
         elif gl[0] == -1:
-            rev_groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+            rev_groups: tuple[torch.Tensor | list[torch.Tensor], ...] = tuple()
             rcur = len(ret)
             for rl in range(len(output_lists) - 1, l, -1):
                 rgl = output_lists[rl]
@@ -601,8 +601,8 @@ def trt_forward(self, *argv, **kwargs):
 def trt_compile(
     model: torch.nn.Module,
     base_path: str,
-    args: Dict[str, Any] | None = None,
-    submodule: Union[str, List[str]] | None = None,
+    args: dict[str, Any] | None = None,
+    submodule: str | list[str] | None = None,
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
@@ -625,7 +625,7 @@ def trt_compile(
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
 
-    default_args: Dict[str, Any] = {
+    default_args: dict[str, Any] = {
         "method": "onnx",
         "precision": "fp16",
         "build_args": {"builder_optimization_level": 5, "precision_constraints": "obey"},

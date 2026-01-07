@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
-from typing import Union
 
 import numpy as np
 import torch
@@ -388,7 +387,7 @@ class SegResNetDS(nn.Module):
         a = [i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())]
         return all(a)
 
-    def _forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
+    def _forward(self, x: torch.Tensor) -> None | torch.Tensor | list[torch.Tensor]:
         if self.preprocess is not None:
             x = self.preprocess(x)
 
@@ -424,7 +423,7 @@ class SegResNetDS(nn.Module):
         # return a list of DS outputs
         return outputs
 
-    def forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> None | torch.Tensor | list[torch.Tensor]:
         return self._forward(x)
 
 
@@ -485,7 +484,7 @@ class SegResNetDS2(SegResNetDS):
 
     def forward(  # type: ignore
         self, x: torch.Tensor, with_point: bool = True, with_label: bool = True
-    ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
+    ) -> tuple[None | torch.Tensor | list[torch.Tensor], None | torch.Tensor | list[torch.Tensor]]:
         """
         Args:
             x: input tensor.

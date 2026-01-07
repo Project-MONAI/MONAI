@@ -33,7 +33,7 @@ class TestTransform(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.orig_value = str(MONAIEnvVars.debug())
 
     @classmethod
@@ -42,7 +42,7 @@ class TestTransform(unittest.TestCase):
             os.environ["MONAI_DEBUG"] = cls.orig_value
         else:
             os.environ.pop("MONAI_DEBUG")
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_raise(self):
         for transform in (FaultyTransform(), mt.Lambda(faulty_lambda)):
