@@ -291,16 +291,14 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
         # Test case 1: liver first, then kidney, then spleen
         data1 = {"label": label.copy()}
         transform1 = RemapLabelsToSequentiald(
-            keys="label",
-            label_names={"liver": 6, "kidney": 3, "spleen": 1, "background": 0}
+            keys="label", label_names={"liver": 6, "kidney": 3, "spleen": 1, "background": 0}
         )
         result1 = transform1(data1)
 
         # Test case 2: spleen first, then kidney, then liver (different order)
         data2 = {"label": label.copy()}
         transform2 = RemapLabelsToSequentiald(
-            keys="label",
-            label_names={"spleen": 1, "kidney": 3, "liver": 6, "background": 0}
+            keys="label", label_names={"spleen": 1, "kidney": 3, "liver": 6, "background": 0}
         )
         result2 = transform2(data2)
 
@@ -321,8 +319,7 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
         label = np.array([[[0, 1, 2, 5]]])  # background, spleen, kidney, liver
         data = {"label": label.copy()}
         transform = RemapLabelsToSequentiald(
-            keys="label",
-            label_names={"spleen": 1, "kidney": 2, "liver": 5, "background": 0}
+            keys="label", label_names={"spleen": 1, "kidney": 2, "liver": 5, "background": 0}
         )
         result = transform(data)
 
@@ -332,27 +329,53 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
         self.assertEqual(result["label_names"], {"background": 0, "kidney": 1, "liver": 2, "spleen": 3})
 
     def test_deprecated_name_warning(self):
-        """Test that using the deprecated name raises a warning when version >= 1.6"""
+        """Test that NormalizeLabelsInDatasetd is properly deprecated.
+
+        The deprecation warning only triggers when MONAI version >= 1.6 (since="1.6").
+        This test verifies:
+        1. The actual NormalizeLabelsInDatasetd class is marked as deprecated in docstring
+        2. The class is a subclass of RemapLabelsToSequentiald
+        3. The deprecation mechanism works correctly (tested via version_val simulation)
+        4. The actual class functions correctly
+        """
         import warnings
 
         from monai.utils import deprecated
 
-        # Create a test class with version_val to simulate version 1.6
-        @deprecated(since="1.6", removed="1.8", msg_suffix="Use `RemapLabelsToSequentiald` instead.", version_val="1.6")
-        class TestDeprecatedClass(RemapLabelsToSequentiald):
+        # Verify NormalizeLabelsInDatasetd docstring indicates deprecation
+        self.assertIn("deprecated", NormalizeLabelsInDatasetd.__doc__.lower())
+        self.assertIn("RemapLabelsToSequentiald", NormalizeLabelsInDatasetd.__doc__)
+
+        # Verify NormalizeLabelsInDatasetd is a subclass of RemapLabelsToSequentiald
+        self.assertTrue(issubclass(NormalizeLabelsInDatasetd, RemapLabelsToSequentiald))
+
+        # Test the deprecation mechanism using version_val to simulate version 1.6
+        # This verifies the @deprecated decorator behavior that NormalizeLabelsInDatasetd uses
+        @deprecated(
+            since="1.6",
+            removed="1.8",
+            msg_suffix="Use `RemapLabelsToSequentiald` instead.",
+            version_val="1.6",  # Simulate version 1.6 to trigger warning
+        )
+        class DeprecatedNormalizeLabels(RemapLabelsToSequentiald):
             pass
 
         data = {"label": np.array([[[0, 1]]])}
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            transform = TestDeprecatedClass(keys="label", label_names={"spleen": 1, "background": 0})
-            _ = transform(data)  # Invoke the transform to confirm functionality
+            transform = DeprecatedNormalizeLabels(keys="label", label_names={"spleen": 1, "background": 0})
+            _ = transform(data)
 
-            # Check that a deprecation warning was raised (deprecated decorator uses FutureWarning)
+            # Check that a deprecation warning was raised
             self.assertEqual(len(w), 1)
             self.assertTrue(issubclass(w[0].category, FutureWarning))
             self.assertIn("RemapLabelsToSequentiald", str(w[0].message))
+
+        # Verify the actual NormalizeLabelsInDatasetd class works correctly
+        transform_actual = NormalizeLabelsInDatasetd(keys="label", label_names={"spleen": 1, "background": 0})
+        result = transform_actual({"label": np.array([[[0, 1]]])})
+        self.assertIn("label", result)
 
 
 class TestResizeGuidanceMultipleLabelCustomd(unittest.TestCase):

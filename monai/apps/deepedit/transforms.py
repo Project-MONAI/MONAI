@@ -134,9 +134,7 @@ class RemapLabelsToSequentiald(MapTransform):
             label = np.zeros(d[key].shape)
 
             # Sort label names to ensure deterministic ordering (exclude background)
-            sorted_labels = sorted(
-                [(k, v) for k, v in self.label_names.items() if k != "background"]
-            )
+            sorted_labels = sorted([(k, v) for k, v in self.label_names.items() if k != "background"])
 
             # Always set background to 0 first
             if "background" in self.label_names:
