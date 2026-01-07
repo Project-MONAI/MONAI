@@ -79,10 +79,10 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
 
 TEST_ALPHA_BROADCASTING = []
 for case in TEST_DEVICES:
-    device = case[0]
+    dev = case[0]
     for include_background in [True, False]:
         for use_softmax in [True, False]:
-            TEST_ALPHA_BROADCASTING.append([device, include_background, use_softmax])
+            TEST_ALPHA_BROADCASTING.append([dev, include_background, use_softmax])
 
 
 class TestFocalLoss(unittest.TestCase):

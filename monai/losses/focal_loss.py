@@ -164,16 +164,17 @@ class FocalLoss(_Loss):
         loss: Optional[torch.Tensor] = None
         input = input.float()
         target = target.float()
-
+        alpha_arg = self.alpha
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
                 if isinstance(self.alpha, (float, int)):
+                    alpha_arg = None
                     warnings.warn(
                         "`include_background=False`, scalar `alpha` ignored when using softmax.", stacklevel=2
                     )
-            loss = softmax_focal_loss(input, target, self.gamma, self.alpha)
+            loss = softmax_focal_loss(input, target, self.gamma, alpha_arg)
         else:
-            loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
+            loss = sigmoid_focal_loss(input, target, self.gamma, alpha_arg)
 
         num_of_classes = target.shape[1]
         if self.class_weight is not None and num_of_classes != 1:
