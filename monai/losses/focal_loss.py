@@ -82,7 +82,8 @@ class FocalLoss(_Loss):
             gamma: value of the exponent gamma in the definition of the Focal loss. Defaults to 2.
             alpha: value of the alpha in the definition of the alpha-balanced Focal loss.
                 The value should be in [0, 1].
-                If a sequence is provided, it must match the number of classes (after excluding background if set).
+                If a sequence is provided, its length must match the number of classes
+                (excluding the background class if `include_background=False`).
                 Defaults to None.
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
@@ -289,8 +290,10 @@ def sigmoid_focal_loss(
             # Reshape alpha for broadcasting: (1, C, 1, 1...)
             broadcast_dims = [-1] + [1] * len(target.shape[2:])
             alpha_t = alpha_t.view(broadcast_dims)
-            # Apply alpha_c if t==1, (1-alpha_c) if t==0 for channel c
-            alpha_factor = target * alpha_t + (1 - target) * (1 - alpha_t)
+            # Apply per-class weight only to positive samples
+            # For positive samples (target==1): multiply by alpha[c]
+            # For negative samples (target==0): keep weight as 1.0
+            alpha_factor = torch.where(target == 1, alpha_t, torch.ones_like(alpha_t))
 
         loss = alpha_factor * loss
 

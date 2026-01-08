@@ -24,7 +24,8 @@ from monai.networks import one_hot
 from tests.test_utils import TEST_DEVICES, test_script_save
 
 TEST_CASES = []
-for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
+for case in TEST_DEVICES:
+    device = case[0]
     input_data = {
         "input": torch.tensor(
             [[[[1.0, 1.0], [0.5, 0.0]], [[1.0, 1.0], [0.5, 0.0]], [[1.0, 1.0], [0.5, 0.0]]]], device=device
@@ -79,10 +80,10 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
 
 TEST_ALPHA_BROADCASTING = []
 for case in TEST_DEVICES:
-    dev = case[0]
+    device = case[0]
     for include_background in [True, False]:
         for use_softmax in [True, False]:
-            TEST_ALPHA_BROADCASTING.append([dev, include_background, use_softmax])
+            TEST_ALPHA_BROADCASTING.append([device, include_background, use_softmax])
 
 
 class TestFocalLoss(unittest.TestCase):
