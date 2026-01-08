@@ -112,7 +112,7 @@ def get_nnunet_trainer(
                 fold = int(fold)
             except ValueError as e:
                 print(
-                    f'Unable to convert given value for fold to int: {fold}. fold must bei either "all" or an integer!'
+                    f'Unable to convert given value for fold to int: {fold}. Fold must bei either "all" or an integer!'
                 )
                 raise e
 
@@ -124,7 +124,7 @@ def get_nnunet_trainer(
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
 
-    assert not (continue_training and only_run_validation), "Cannot set --c and --val flag at the same time. Dummy."
+    assert not (continue_training and only_run_validation), "Cannot set --c and --val flag at the same time."
 
     maybe_load_checkpoint(nnunet_trainer, continue_training, only_run_validation)
     nnunet_trainer.on_train_start()  # Added to Initialize Trainer
