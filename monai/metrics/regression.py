@@ -265,7 +265,7 @@ def compute_mape_metric(y_pred: torch.Tensor, y: torch.Tensor, epsilon: float = 
         MAPE value as percentage
     """
     flt = partial(torch.flatten, start_dim=1)
-    percentage_error = torch.abs((y - y_pred) / (torch.abs(y) + epsilon)) * 100.0
+    percentage_error = torch.abs(y - y_pred) / torch.clamp(torch.abs(y), min=epsilon) * 100.0
     return torch.mean(flt(percentage_error), dim=-1, keepdim=True)
 
 
