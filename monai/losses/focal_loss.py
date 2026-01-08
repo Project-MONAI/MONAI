@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -161,7 +160,7 @@ class FocalLoss(_Loss):
         if target.shape != input.shape:
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
-        loss: Optional[torch.Tensor] = None
+        loss: torch.Tensor | None = None
         input = input.float()
         target = target.float()
         alpha_arg = self.alpha

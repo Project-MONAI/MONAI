@@ -19,10 +19,10 @@ import re
 import tempfile
 import warnings
 from collections import OrderedDict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch

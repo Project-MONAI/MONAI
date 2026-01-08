@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Optional
 
 import numpy as np
 import torch
@@ -41,7 +40,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:  # type: ignore
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -175,7 +174,7 @@ class MixedOp(nn.Module):
             if arch_c > 0:
                 self.ops.append(ops[op_name](c))
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor] = None):
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None = None):
         """
         Args:
             x: input tensor.
@@ -303,7 +302,7 @@ class Cell(CellInterface):
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:
         """
         Args:
             x: input tensor
@@ -574,9 +573,8 @@ class TopologyConstruction(nn.Module):
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         print(
-            "{} - Length of input patch is recommended to be a multiple of {:d}.".format(
-                datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
-            )
+            f"{datetime.datetime.now()}"
+            f" - Length of input patch is recommended to be a multiple of {2 ** (num_depths + int(use_downsample)):d}."
         )
 
         self._spatial_dims = spatial_dims

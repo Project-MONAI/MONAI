@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -123,8 +123,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def __init__(
         self,
         in_channels: int,
-        se_layer: Optional[nn.Module] = None,
-        dropout_layer: Optional[nn.Dropout2d] = None,
+        se_layer: nn.Module | None = None,
+        dropout_layer: nn.Dropout2d | None = None,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
@@ -360,8 +360,8 @@ class Quicknat(nn.Module):
         # Valid options : NONE, CSE, SSE, CSSE
         se_block: str = "None",
         drop_out: float = 0,
-        act: Union[Tuple, str] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        act: tuple | str = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
         adn_ordering: str = "NA",
     ) -> None:
         self.act = act
