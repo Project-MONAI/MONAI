@@ -112,7 +112,7 @@ def get_nnunet_trainer(
                 fold = int(fold)
             except ValueError as e:
                 print(
-                    f'Unable to convert given value for fold to int: {fold}. Fold must bei either "all" or an integer!'
+                    f'Unable to convert given value for fold to int: {fold}. Fold must be either "all" or an integer!'
                 )
                 raise e
 
