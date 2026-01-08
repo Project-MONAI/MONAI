@@ -255,12 +255,12 @@ def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func: Call
 def compute_mape_metric(y_pred: torch.Tensor, y: torch.Tensor, epsilon: float = 1e-7) -> torch.Tensor:
     """
     Compute Mean Absolute Percentage Error.
-    
+
     Args:
         y_pred: predicted values
         y: ground truth values
         epsilon: small value to avoid division by zero
-    
+
     Returns:
         MAPE value as percentage
     """
