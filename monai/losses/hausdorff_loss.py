@@ -83,7 +83,7 @@ class HausdorffDTLoss(_Loss):
         super().__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        if int(sigmoid) + int(softmax) > 1:
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
 
         self.alpha = alpha
