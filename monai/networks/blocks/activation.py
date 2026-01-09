@@ -168,7 +168,7 @@ class GEGLU(nn.Module):
     r"""Applies the element-wise function:
 
     .. math::
-        \text{GEGLU}(x) = x_1 * \text{Sigmoid}(x_2)
+        \text{GEGLU}(x) = x_1 * \text{GELU}(x_2)
 
     where :math:`x_1` and :math:`x_2` are split from the input tensor along the last dimension.
 
