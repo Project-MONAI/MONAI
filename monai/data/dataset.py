@@ -232,6 +232,7 @@ class PersistentDataset(Dataset):
         reset_ops_id: bool = True,
         track_meta: bool = False,
         weights_only: bool = True,
+        in_memory: bool = False,
     ) -> None:
         """
         Args:
@@ -273,6 +274,10 @@ class PersistentDataset(Dataset):
                 other safe objects. Setting this to `False` is required for loading `MetaTensor`
                 objects saved with `track_meta=True`, however this creates the possibility of remote
                 code execution through `torch.load` so be aware of the security implications of doing so.
+            in_memory: if `True`, keep the pre-processed data in an in-memory dictionary after first access.
+                This combines the benefits of persistent storage (data survives restarts) with faster RAM access.
+                When data is accessed, it is first loaded from disk cache and then stored in memory.
+                Default to `False`.
 
         Raises:
             ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
@@ -299,6 +304,13 @@ class PersistentDataset(Dataset):
             )
         self.track_meta = track_meta
         self.weights_only = weights_only
+        self.in_memory = in_memory
+        self._memory_cache: dict[str, Any] = {}
+
+    @property
+    def memory_cache_size(self) -> int:
+        """Return the number of items currently stored in the in-memory cache."""
+        return len(self._memory_cache)
 
     def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -326,6 +338,7 @@ class PersistentDataset(Dataset):
 
         """
         self.data = data
+        self._memory_cache = {}
         if self.cache_dir is not None and self.cache_dir.exists():
             shutil.rmtree(self.cache_dir, ignore_errors=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -389,14 +402,24 @@ class PersistentDataset(Dataset):
 
         """
         hashfile = None
+        # compute cache key once for both disk and memory caching
+        data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+        data_item_md5 += self.transform_hash
+        cache_key = f"{data_item_md5}.pt"
+
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            hashfile = self.cache_dir / cache_key
+
+        # check in-memory cache first
+        if self.in_memory and cache_key in self._memory_cache:
+            return self._memory_cache[cache_key]
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                return torch.load(hashfile, weights_only=self.weights_only)
+                _item_transformed = torch.load(hashfile, weights_only=self.weights_only)
+                if self.in_memory:
+                    self._memory_cache[cache_key] = _item_transformed
+                return _item_transformed
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -409,6 +432,8 @@ class PersistentDataset(Dataset):
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:
+            if self.in_memory:
+                self._memory_cache[cache_key] = _item_transformed
             return _item_transformed
         try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
@@ -431,6 +456,8 @@ class PersistentDataset(Dataset):
                         pass
         except PermissionError:  # project-monai/monai issue #3613
             pass
+        if self.in_memory:
+            self._memory_cache[cache_key] = _item_transformed
         return _item_transformed
 
     def _transform(self, index: int):

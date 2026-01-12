@@ -15,6 +15,7 @@ import contextlib
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -199,6 +200,111 @@ class TestDataset(unittest.TestCase):
 
                 im = test_dataset[0]["image"]
                 self.assertIsInstance(im, expected_type)
+
+    def test_in_memory_cache(self):
+        """Test in_memory caching feature that combines persistent storage with RAM caching."""
+        items = [[list(range(i))] for i in range(5)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            # First, create the persistent cache
+            ds1 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=False)
+            # Access all items to populate disk cache
+            _ = list(ds1)
+
+            # Now create a new dataset with in_memory=True
+            ds2 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=True)
+
+            # Memory cache should be empty initially
+            self.assertEqual(ds2.memory_cache_size, 0)
+
+            # Access items - they should be loaded from disk and cached in memory
+            _ = ds2[0]
+            self.assertEqual(ds2.memory_cache_size, 1)
+
+            _ = ds2[1]
+            self.assertEqual(ds2.memory_cache_size, 2)
+
+            # Access all items
+            _ = list(ds2)
+            self.assertEqual(ds2.memory_cache_size, 5)
+
+            # Accessing same item again should use memory cache (same result)
+            result1 = ds2[0]
+            result2 = ds2[0]
+            self.assertEqual(result1, result2)
+
+            # Test set_data clears in-memory cache
+            ds2.set_data(items[:3])
+            self.assertEqual(ds2.memory_cache_size, 0)
+
+    def test_in_memory_without_cache_dir(self):
+        """Test in_memory caching works even without a cache_dir (pure RAM cache)."""
+        items = [[list(range(i))] for i in range(3)]
+
+        ds = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=None, in_memory=True)
+
+        # Memory cache should be empty initially
+        self.assertEqual(ds.memory_cache_size, 0)
+
+        # Access items - they should be cached in memory
+        _ = ds[0]
+        self.assertEqual(ds.memory_cache_size, 1)
+
+        _ = list(ds)
+        self.assertEqual(ds.memory_cache_size, 3)
+
+    def test_automatic_hybrid_caching(self):
+        """
+        Test that in_memory=True provides automatic hybrid caching:
+        - ALL samples automatically persist to disk
+        - ALL samples automatically cache to RAM after first access
+        - No manual specification of which samples go where (unlike torchdatasets)
+        - Simulates restart scenario: disk cache survives, RAM cache rebuilds automatically
+        """
+        items = [[list(range(i))] for i in range(5)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            # === First "session": populate both disk and RAM cache ===
+            ds1 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=True)
+
+            # Access all items - should automatically cache to BOTH disk AND RAM
+            for i in range(len(items)):
+                _ = ds1[i]
+
+            # Verify: ALL samples are in RAM (automatic, no manual specification)
+            self.assertEqual(ds1.memory_cache_size, 5)
+
+            # Verify: ALL samples are on disk (count .pt files)
+            cache_files = list(Path(tempdir).glob("*.pt"))
+            self.assertEqual(len(cache_files), 5)
+
+            # === Simulate "restart": new dataset instance, same cache_dir ===
+            # This is the key benefit over CacheDataset - disk cache survives restart
+            ds2 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=True)
+
+            # RAM cache starts empty (simulating fresh process)
+            self.assertEqual(ds2.memory_cache_size, 0)
+
+            # Access all items - should load from disk and automatically cache to RAM
+            results = [ds2[i] for i in range(len(items))]
+
+            # Verify: ALL samples now in RAM again (automatic rebuild from disk)
+            self.assertEqual(ds2.memory_cache_size, 5)
+
+            # Verify: Results are correct
+            for i, result in enumerate(results):
+                self.assertEqual(result, [list(range(i))])
+
+            # === Verify RAM cache provides fast repeated access ===
+            # Accessing same items again should hit RAM cache (same objects)
+            for i in range(len(items)):
+                result1 = ds2[i]
+                result2 = ds2[i]
+                # Should return equivalent results
+                self.assertEqual(result1, result2)
+
+            # RAM cache size unchanged (no duplicate entries)
+            self.assertEqual(ds2.memory_cache_size, 5)
 
 
 if __name__ == "__main__":
