@@ -72,7 +72,7 @@ extend-ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
   "B018",
-  #"C901",
+  "C901",
 ]
 
 [tool.ruff.lint.mccabe]
