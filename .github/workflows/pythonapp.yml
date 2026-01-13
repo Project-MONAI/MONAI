@@ -22,7 +22,7 @@ jobs:
   #   - docker-py3-pip- (shared)
   #   - ubuntu py37 pip-
   #   - os-latest-pip- (shared)
-  flake8-py3:
+  lint-py3:
     runs-on: ubuntu-latest
     strategy:
       matrix:

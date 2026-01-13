@@ -5,7 +5,7 @@ on:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
 
 jobs:
-  flake8-py3:
+  lint-py3:
     runs-on: ubuntu-latest
     strategy:
       matrix:
