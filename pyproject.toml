@@ -69,6 +69,15 @@ extend-ignore = [
   "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "B018",
+  #"C901",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
 [tool.pytype]
 # Space-separated list of files or directories to exclude.
 exclude = ["versioneer.py", "_version.py"]
