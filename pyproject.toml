@@ -62,17 +62,17 @@ extend-ignore = [
   "NPY002", # numpy-legacy-random
   "E203", # whitespace before ':' (pycodestyle)
   "E501", # line too long (pycodestyle)
-  "W503", # line break before binary operator (pycodestyle)
-  "W504", # line break after binary operator (pycodestyle)
+  #"W503", # line break before binary operator (pycodestyle)
+  #"W504", # line break after binary operator (pycodestyle)
   "C408", # unnecessary collection call (flake8-comprehensions)
   "N812", # lowercase imported as non lowercase (pep8-naming)
   "B023", # function uses loop variable (flake8-bugbear)
   "B905", # zip() without an explicit strict= parameter (flake8-bugbear)
   "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
-  "B907", # missing copyright notice at top of file (flake8-bugbear)
-  "B908", # missing author, email or maintainer (flake8-bugbear)
-  "B036", # useless expression (flake8-bugbear)
-  "E704", # multiple statements on one line (def) (pycodestyle)
+  #"B907", # missing copyright notice at top of file (flake8-bugbear)
+  #"B908", # missing author, email or maintainer (flake8-bugbear)
+  #"B036", # useless expression (flake8-bugbear)
+  #"E704", # multiple statements on one line (def) (pycodestyle)
 ]
 
 [tool.pytype]
