@@ -21,7 +21,7 @@ from typing import Any, TypeVar
 
 from monai.utils.module import version_leq
 
-from .. import __version__
+from monai import __version__
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
 T = TypeVar("T", type, Callable)

@@ -105,4 +105,3 @@ class ReduceTrait:
     This interface can be extended from by people adapting transforms to the MONAI framework as well
     as by implementors of MONAI transforms.
     """
-
