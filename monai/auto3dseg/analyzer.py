@@ -468,10 +468,13 @@ class LabelStats(Analyzer):
         """
         d: dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
-        if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
-            using_cuda = True
-        else:
-            using_cuda = False
+        image_tensor = d[self.image_key]
+        label_tensor = d[self.label_key]
+        using_cuda = (
+            isinstance(image_tensor, (torch.Tensor, MetaTensor)) and image_tensor.device.type == "cuda"
+        ) or (
+            isinstance(label_tensor, (torch.Tensor, MetaTensor)) and label_tensor.device.type == "cuda"
+        )
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
