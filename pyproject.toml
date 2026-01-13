@@ -73,10 +73,15 @@ extend-ignore = [
 "tests/**" = [
   "B018",
   "C901",
+  "N999",
+  "N801"
+]
+"monai/apps/detection/utils/ATSS_matcher.py" = [
+  "N999"
 ]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 20
+max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.

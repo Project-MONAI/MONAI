@@ -201,7 +201,7 @@ def deprecated_arg(
                 # if name is specified and new_name is not specified
                 kwargs[new_name] = kwargs[name]
                 try:
-                    sig.bind(*args, **kwargs).arguments
+                    _ = sig.bind(*args, **kwargs).arguments
                 except TypeError:
                     # multiple values for new_name using both args and kwargs
                     kwargs.pop(new_name, None)
