@@ -99,7 +99,6 @@ class ShapeError(Exception):
     """
 
 
-
 class TRTEngine:
     """
     An auxiliary class to implement running of TRT optimized engines

@@ -75,7 +75,6 @@ class RandomizableTrait:
     """
 
 
-
 class MultiSampleTrait:
     """
     An interface to indicate that the transform has the capability to return multiple samples
@@ -83,7 +82,6 @@ class MultiSampleTrait:
     extended from by people adapting transforms to the MONAI framework as well as by implementors
     of MONAI transforms.
     """
-
 
 
 class ThreadUnsafe:
@@ -95,7 +93,6 @@ class ThreadUnsafe:
     This type is typically used by :py:class:`monai.data.CacheDataset` and
     its extensions, where the transform cache is built with multiple threads.
     """
-
 
 
 class ReduceTrait:

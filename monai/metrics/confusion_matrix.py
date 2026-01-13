@@ -176,9 +176,7 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     return torch.stack([tp, fp, tn, fn], dim=-1)
 
 
-def compute_confusion_matrix_metric(
-        metric_name: str, confusion_matrix: torch.Tensor
-) -> torch.Tensor:
+def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Tensor) -> torch.Tensor:
     """
     This function is used to compute confusion matrix related metric.
 

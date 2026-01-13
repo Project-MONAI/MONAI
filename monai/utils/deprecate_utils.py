@@ -19,9 +19,8 @@ from functools import wraps
 from types import FunctionType
 from typing import Any, TypeVar
 
-from monai.utils.module import version_leq
-
 from monai import __version__
+from monai.utils.module import version_leq
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
 T = TypeVar("T", type, Callable)
