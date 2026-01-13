@@ -74,7 +74,6 @@ class RandomizableTrait:
     implementors of MONAI transforms.
     """
 
-    pass
 
 
 class MultiSampleTrait:
@@ -85,7 +84,6 @@ class MultiSampleTrait:
     of MONAI transforms.
     """
 
-    pass
 
 
 class ThreadUnsafe:
@@ -98,7 +96,6 @@ class ThreadUnsafe:
     its extensions, where the transform cache is built with multiple threads.
     """
 
-    pass
 
 
 class ReduceTrait:
@@ -109,4 +106,3 @@ class ReduceTrait:
     as by implementors of MONAI transforms.
     """
 
-    pass
