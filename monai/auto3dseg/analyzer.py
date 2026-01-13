@@ -485,7 +485,7 @@ class LabelStats(Analyzer):
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
         nda_foregrounds: list[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
-        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
+        nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
