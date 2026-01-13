@@ -471,9 +471,9 @@ class LabelStats(Analyzer):
         image_tensor = d[self.image_key]
         label_tensor = d[self.label_key]
         using_cuda = (
-            isinstance(image_tensor, MetaTensor) and image_tensor.device.type == "cuda"
+            isinstance(image_tensor, torch.Tensor) and image_tensor.device.type == "cuda"
         ) or (
-            isinstance(label_tensor, MetaTensor) and label_tensor.device.type == "cuda"
+            isinstance(label_tensor, torch.Tensor) and label_tensor.device.type == "cuda"
         )
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
