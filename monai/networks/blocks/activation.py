@@ -177,6 +177,14 @@ class GEGLU(nn.Module):
     Shape:
         - Input: :math:`(N, *, 2 * D)`
         - Output: :math:`(N, *, D)`, where `*` means, any number of additional dimensions
+
+    Examples::
+
+        >>> import torch
+        >>> from monai.networks.layers.factories import Act
+        >>> m = Act['geglu']()
+        >>> input = torch.randn(2, 8)  # last dim must be even
+        >>> output = m(input)
     """
 
     def forward(self, input: torch.Tensor):
