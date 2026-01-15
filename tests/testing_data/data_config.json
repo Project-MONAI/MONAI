@@ -62,12 +62,12 @@
         },
         "copd1_highres_INSP_STD_COPD_img": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/copd1_highres_INSP_STD_COPD_img.nii.gz",
-            "hash_type": "sha512",
+            "hash_type": "sha256",
             "hash_val": "9c10df5829d0ea682cd51d42b8646e2e9cbe89ce42582fb5aa819f3be6716ccf"
         },
         "copd1_highres_EXP_STD_COPD_img": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/copd1_highres_EXP_STD_COPD_img.nii.gz",
-            "hash_type": "sha512",
+            "hash_type": "sha256",
             "hash_val": "fb911fe9b5caa9f41750dfccd914f54dadf951f6d4f8b83d498e0480807f4903"
         },
         "CT_2D_head_fixed": {
