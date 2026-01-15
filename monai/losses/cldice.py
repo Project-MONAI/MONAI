@@ -130,7 +130,7 @@ class SoftclDiceLoss(_Loss):
         """
         Args:
             iter_: Number of iterations for skeletonization. Defaults to 3.
-            smooth: Smoothing parameter. Defaults to 1.0.
+            smooth: Smoothing parameter to avoid division by zero. Defaults to 1.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -158,6 +158,8 @@ class SoftclDiceLoss(_Loss):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
+        if smooth <= 0:
+            raise ValueError(f"smooth must be a positive value but got {smooth}.")
         self.iter = iter_
         self.smooth = smooth
         self.include_background = include_background
@@ -220,7 +222,7 @@ class SoftclDiceLoss(_Loss):
         tsens = (torch.sum(torch.multiply(skel_true, input), dim=reduce_axis) + self.smooth) / (
             torch.sum(skel_true, dim=reduce_axis) + self.smooth
         )
-        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens)
+        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens + 1e-8)
 
         # Apply reduction
         if self.reduction == LossReduction.MEAN.value:
@@ -264,7 +266,7 @@ class SoftDiceclDiceLoss(_Loss):
             iter_: Number of iterations for skeletonization, used by clDice. Defaults to 3.
             alpha: Weighing factor for cldice component. Total loss = (1 - alpha) * dice + alpha * cldice.
                 Defaults to 0.5.
-            smooth: Smoothing parameter, used by both Dice and clDice. Defaults to 1.0.
+            smooth: Smoothing parameter to avoid division by zero, used by both Dice and clDice. Defaults to 1.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -288,6 +290,8 @@ class SoftDiceclDiceLoss(_Loss):
 
         """
         super().__init__()
+        if smooth <= 0:
+            raise ValueError(f"smooth must be a positive value but got {smooth}.")
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
