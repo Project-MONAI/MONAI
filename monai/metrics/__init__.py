@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
 from .average_precision import AveragePrecisionMetric, compute_average_precision
+from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
 from .f_beta_score import FBetaScore
