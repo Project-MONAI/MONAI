@@ -2198,6 +2198,7 @@ MONAI_NAMESPACE_DEVICE { // cpu
       bool,                                     \
       bool,                                     \
       bool,                                     \
+      bool,                                     \
       bool);                                    \
   template std::deque<Tensor> pushpull(         \
       const SourceType&,                        \
