@@ -244,7 +244,22 @@ class MaskedDiceLoss(DiceLoss):
         Args follow :py:class:`monai.losses.DiceLoss`.
         """
         super().__init__(*args, **kwargs)
-        self.spatial_weighted = MaskedLoss(loss=super().forward)
+        self.dice = DiceLoss(
+            include_background=self.include_background,
+            to_onehot_y=self.to_onehot_y,
+            sigmoid=False,
+            softmax=False,
+            other_act=None,
+            squared_pred=self.squared_pred,
+            jaccard=self.jaccard,
+            reduction=self.reduction,
+            smooth_nr=self.smooth_nr,
+            smooth_dr=self.smooth_dr,
+            batch=self.batch,
+            weight=self.class_weight,
+            soft_label=self.soft_label,
+        )
+        self.spatial_weighted = MaskedLoss(loss=self.dice.forward)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
@@ -253,6 +268,19 @@ class MaskedDiceLoss(DiceLoss):
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
+
+        if self.sigmoid:
+            input = torch.sigmoid(input)
+
+        n_pred_ch = input.shape[1]
+        if self.softmax:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `softmax=True` ignored.")
+            else:
+                input = torch.softmax(input, 1)
+
+        if self.other_act is not None:
+            input = self.other_act(input)
         return self.spatial_weighted(input=input, target=target, mask=mask)  # type: ignore[no-any-return]
 
 
