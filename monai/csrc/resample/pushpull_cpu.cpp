@@ -35,7 +35,7 @@ limitations under the License.
 // . [DONE] spatial gradient mode (without multiplication with output gradient)
 // . [DONE] second order gradients (backward pass for spatial gradients)
 // . performance tests
-// . input bound/inter are always vectors -> clean unused constructors
+// . [DONE] input bound/inter are always vectors -> clean unused constructors
 
 #include <ATen/ATen.h>
 #include <limits>
@@ -2187,39 +2187,42 @@ MONAI_NAMESPACE_DEVICE { // cpu
   //                    FUNCTIONAL FORM WITH DISPATCH
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#define PUSHPULL_INSTANTIATE3(BoundType0, InterpolationType0, SourceType0) \
-  template std::deque<Tensor> pushpull(                                    \
-      const SourceType0&,                                                  \
-      const Tensor&,                                                       \
-      const Tensor&,                                                       \
-      BoundType0,                                                          \
-      InterpolationType0,                                                  \
-      bool,                                                                \
-      bool,                                                                \
-      bool,                                                                \
-      bool,                                                                \
-      bool,                                                                \
-      bool);                                                               \
-  template std::deque<Tensor> pushpull(                                    \
-      const SourceType0&, const Tensor&, BoundType0, InterpolationType0, bool, bool, bool, bool, bool, bool)
-#define PUSHPULL_INSTANTIATE2(BoundType0, InterpolationType0)         \
-  PUSHPULL_INSTANTIATE3(BoundType0, InterpolationType0, IntArrayRef); \
-  PUSHPULL_INSTANTIATE3(BoundType0, InterpolationType0, Tensor)
-#define PUSHPULL_INSTANTIATE1(BoundType0)               \
-  PUSHPULL_INSTANTIATE2(BoundType0, InterpolationType); \
-  PUSHPULL_INSTANTIATE2(BoundType0, InterpolationVectorRef)
-#define PUSHPULL_INSTANTIATE        \
-  PUSHPULL_INSTANTIATE1(BoundType); \
-  PUSHPULL_INSTANTIATE1(BoundVectorRef)
+#define PUSHPULL_INSTANTIATE_SOURCE(SourceType) \
+  template std::deque<Tensor> pushpull(         \
+      const SourceType&,                        \
+      const Tensor&,                            \
+      const Tensor&,                            \
+      BoundVectorRef,                           \
+      InterpolationVectorRef,                   \
+      bool,                                     \
+      bool,                                     \
+      bool,                                     \
+      bool,                                     \
+      bool);                                    \
+  template std::deque<Tensor> pushpull(         \
+      const SourceType&,                        \
+      const Tensor&,                            \
+      BoundVectorRef,                           \
+      InterpolationVectorRef,                   \
+      bool,                                     \
+      bool,                                     \
+      bool,                                     \
+      bool,                                     \
+      bool,                                     \
+      bool)
+
+#define PUSHPULL_INSTANTIATE              \
+  PUSHPULL_INSTANTIATE_SOURCE(IntArrayRef); \
+  PUSHPULL_INSTANTIATE_SOURCE(Tensor)
 
   // Two arguments (source, grid)
-  // > `bound` and `interpolation` can be single arguments or vectors.
-  template <typename BoundType, typename InterpolationType, typename SourceType>
+  // > bound and interpolation are strictly VectorRef.
+  template <typename SourceType>
   MONAI_HOST std::deque<Tensor> pushpull(
       const SourceType& source,
       const Tensor& grid,
-      BoundType bound,
-      InterpolationType interpolation,
+      BoundVectorRef bound,
+      InterpolationVectorRef interpolation,
       bool extrapolate,
       bool do_pull,
       bool do_push,
@@ -2238,15 +2241,14 @@ MONAI_NAMESPACE_DEVICE { // cpu
   }
 
   // Three arguments (source, grid, target)
-  // > `bound` and `interpolation` can be single arguments or vectors.
-  // > `source` can be a tensor or a vector of dimensions.
-  template <typename BoundType, typename InterpolationType, typename SourceType>
+  // > bound and interpolation are strictly VectorRef.
+  template <typename SourceType>
   MONAI_HOST std::deque<Tensor> pushpull(
       const SourceType& source,
       const Tensor& grid,
       const Tensor& target,
-      BoundType bound,
-      InterpolationType interpolation,
+      BoundVectorRef bound,
+      InterpolationVectorRef interpolation,
       bool extrapolate,
       bool do_pull,
       bool do_push,
