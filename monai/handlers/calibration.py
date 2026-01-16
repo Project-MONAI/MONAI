@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.config import IgniteInfo
 from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import CalibrationErrorMetric, CalibrationReduction
 from monai.utils import MetricReduction
