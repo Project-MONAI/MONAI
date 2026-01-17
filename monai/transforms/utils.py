@@ -2109,7 +2109,9 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True, align_co
         return np.eye(r + 1)
     if align_corners:
         # Match interpolate behavior: (src-1)/(dst-1)
-        s = np.array([(float(o) - 1) / max(float(n) - 1, 1) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
+        s = np.array(
+            [(float(o) - 1) / max(float(n) - 1, 1) for o, n in zip(spatial_size, new_spatial_size)], dtype=float
+        )
     else:
         # Standard scaling: src/dst
         s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
