@@ -540,7 +540,8 @@ class Spacing(InvertibleTransform, LazyTransform):
         if self.recompute_affine and isinstance(data_array, MetaTensor):
             if lazy_:
                 raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
-            a = scale_affine(original_spatial_shape, actual_shape)
+            ac = align_corners if align_corners is not None else False
+            a = scale_affine(original_spatial_shape, actual_shape, align_corners=ac)
             data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
         return data_array
 

@@ -2090,7 +2090,7 @@ def convert_to_contiguous(
         return data
 
 
-def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_size, new_spatial_size, centered: bool = True, align_corners: bool = False):
     """
     Compute the scaling matrix according to the new spatial size
 
@@ -2098,6 +2098,7 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
         centered: whether the scaling is with respect to the image center (True, default) or corner (False).
+        align_corners: if True, use (size-1) based scaling to match torch.nn.functional.interpolate behavior.
 
     Returns:
         the scaling matrix.
@@ -2106,9 +2107,16 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
         return np.eye(r + 1)
-    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
+    if align_corners:
+        # Match interpolate behavior: (src-1)/(dst-1)
+        s = np.array([(float(o) - 1) / max(float(n) - 1, 1) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
+    else:
+        # Standard scaling: src/dst
+        s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
     scale = create_scale(r, s.tolist())
-    if centered:
+    if centered and not align_corners:
+        # For align_corners=False, add offset to center the scaling
+        # For align_corners=True, the scaling is inherently centered (corners map to corners)
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
     return scale
 
