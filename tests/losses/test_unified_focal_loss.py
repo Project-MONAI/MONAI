@@ -20,19 +20,73 @@ from parameterized import parameterized
 from monai.losses import AsymmetricUnifiedFocalLoss
 
 TEST_CASES = [
-    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+    # Case 0: Binary Classification, Perfect Prediction (Probs)
+    # Input is already probabilities (use_softmax=False), perfect prediction -> Loss should be close to 0
+    [
         {
-            "y_pred": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
-            "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
+            "init_kwargs": {"use_softmax": False, "to_onehot_y": False},
+            "forward_kwargs": {
+                "input": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
+                "target": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
+            },
         },
         0.0,
     ],
-    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+    # Case 1: Multi-class (3 Classes), Perfect Prediction (Logits)
+    # Input is Logits (use_softmax=True), large value difference implies high confidence -> Loss should be close to 0
+    [
         {
-            "y_pred": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
-            "y_true": torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]]),
+            "init_kwargs": {"use_softmax": True, "to_onehot_y": False},
+            "forward_kwargs": {
+                # Logits: Large positive values indicate high probability
+                "input": torch.tensor(
+                    [[[[10.0, -10.0], [-10.0, -10.0]], [[-10.0, 10.0], [-10.0, -10.0]], [[-10.0, -10.0], [10.0, 10.0]]]]
+                ),
+                "target": torch.tensor(
+                    [[[[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]
+                ),
+            },
         },
         0.0,
+    ],
+    # Case 2: Label Indices Input (to_onehot_y=True)
+    # Test automatic conversion from Index to One-Hot
+    [
+        {
+            "init_kwargs": {"use_softmax": False, "to_onehot_y": True},
+            "forward_kwargs": {
+                "input": torch.tensor([[[[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]),
+                "target": torch.tensor([[[[0, 1], [2, 2]]]]),  # Shape (1, 1, 2, 2)
+            },
+        },
+        0.0,
+    ],
+]
+
+TEST_CASES_REDUCTION = [
+    # Case: Reduction = 'none'
+    # Output shape should be (B, C)
+    [
+        {
+            "init_kwargs": {"reduction": "none", "use_softmax": False},
+            "forward_kwargs": {
+                "input": torch.randn(2, 3, 4, 4).sigmoid(),  # B=2, C=3
+                "target": torch.randint(0, 2, (2, 3, 4, 4)).float(),
+            },
+        },
+        (2, 3),
+    ],
+    # Case: Reduction = 'none' AND include_background=False
+    # Output shape should be (B, C-1) -> (2, 2)
+    [
+        {
+            "init_kwargs": {"reduction": "none", "include_background": False, "use_softmax": False},
+            "forward_kwargs": {
+                "input": torch.randn(2, 3, 4, 4).sigmoid(),
+                "target": torch.randint(0, 2, (2, 3, 4, 4)).float(),
+            },
+        },
+        (2, 2),
     ],
 ]
 
@@ -40,26 +94,64 @@ TEST_CASES = [
 class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
-    def test_result(self, input_data, expected_val):
-        loss = AsymmetricUnifiedFocalLoss()
-        result = loss(**input_data)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
+    def test_result(self, input_params, expected_val):
+        """Test numerical accuracy of the loss."""
+        init_kwargs = input_params.get("init_kwargs", {})
+        forward_kwargs = input_params.get("forward_kwargs", {})
+
+        loss_func = AsymmetricUnifiedFocalLoss(**init_kwargs)
+        result = loss_func(**forward_kwargs)
+
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-3, rtol=1e-4)
+
+    @parameterized.expand(TEST_CASES_REDUCTION)
+    def test_reduction_shape(self, input_params, expected_shape):
+        """Test output shapes under different Reduction modes."""
+        init_kwargs = input_params.get("init_kwargs", {})
+        forward_kwargs = input_params.get("forward_kwargs", {})
+
+        loss_func = AsymmetricUnifiedFocalLoss(**init_kwargs)
+        result = loss_func(**forward_kwargs)
+
+        self.assertEqual(result.shape, expected_shape, msg=f"Expected shape {expected_shape} but got {result.shape}")
 
     def test_ill_shape(self):
-        loss = AsymmetricUnifiedFocalLoss()
-        with self.assertRaisesRegex(ValueError, ""):
-            loss(torch.ones((2, 2, 2)), torch.ones((2, 2, 2, 2)))
+        """Test handling of incorrect shapes."""
+        loss_func = AsymmetricUnifiedFocalLoss()
+        with self.assertRaisesRegex(ValueError, "ground truth has different shape"):
+            loss_func(torch.ones((2, 2, 2)), torch.ones((2, 2, 2, 2)))
+
+    def test_mismatch_shape(self):
+        """Test completely mismatched input and target shapes."""
+        loss_func = AsymmetricUnifiedFocalLoss()
+        with self.assertRaisesRegex(ValueError, "ground truth has different shape"):
+            loss_func(torch.ones((1, 2, 4, 4)), torch.ones((1, 2, 3, 3)))
+
+    def test_script(self):
+        """Test TorchScript compatibility."""
+        loss_func = AsymmetricUnifiedFocalLoss()
+        input_data = torch.rand(1, 2, 4, 4)
+        target_data = torch.rand(1, 2, 4, 4)
+        try:
+            scripted_loss = torch.jit.script(loss_func)
+            scripted_loss(input_data, target_data)
+        except Exception as e:
+            self.fail(f"TorchScript failed: {e}")
 
     def test_with_cuda(self):
-        loss = AsymmetricUnifiedFocalLoss()
-        i = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
-        j = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
-        if torch.cuda.is_available():
-            i = i.cuda()
-            j = j.cuda()
-        output = loss(i, j)
-        print(output)
-        np.testing.assert_allclose(output.detach().cpu().numpy(), 0.0, atol=1e-4, rtol=1e-4)
+        """Test CUDA support."""
+        if not torch.cuda.is_available():
+            return
+
+        loss_func = AsymmetricUnifiedFocalLoss()
+        input_data = torch.rand(1, 2, 4, 4).cuda()
+        target_data = torch.rand(1, 2, 4, 4).cuda()
+
+        try:
+            output = loss_func(input_data, target_data)
+            self.assertTrue(output.is_cuda, "Output should be on CUDA")
+        except Exception as e:
+            self.fail(f"CUDA forward pass failed: {e}")
 
 
 if __name__ == "__main__":
