@@ -73,6 +73,12 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             epsilon: Small value to prevent division by zero or log(0). Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
+        if not 0 <= weight <= 1:
+            raise ValueError(f"weight must be in [0, 1], got {weight}")
+        if not 0 <= delta <= 1:
+            raise ValueError(f"delta must be in [0, 1], got {delta}")
+        if gamma <= 0:
+            raise ValueError(f"gamma must be > 0, got {gamma}")
         self.weight = weight
         self.delta = delta
         self.gamma = gamma
@@ -97,7 +103,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 if target.shape[1] == 1:
                     target = one_hot(target, num_classes=n_pred_ch)
@@ -139,7 +145,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         back_dice_loss = 1 - dice_class[:, 0:1]
 
         # Foreground: (1 - Dice)^(1 - gamma)
-        fore_dice_loss = (1 - dice_class[:, 1:]) * torch.pow(1 - dice_class[:, 1:], -self.gamma)
+        fore_dice_loss = torch.pow(torch.clamp(1 - dice_class[:, 1:], min=self.epsilon), 1 - self.gamma)
 
         # Combine
         if self.include_background:

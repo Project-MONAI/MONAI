@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.losses import AsymmetricUnifiedFocalLoss
 
 TEST_CASES = [
-    # Case 0: Binary Classification, Perfect Prediction (Probs)
+    # Case: Binary Classification, Perfect Prediction (Probs)
     # Input is already probabilities (use_softmax=False), perfect prediction -> Loss should be close to 0
     [
         {
@@ -32,7 +32,7 @@ TEST_CASES = [
         },
         0.0,
     ],
-    # Case 1: Multi-class (3 Classes), Perfect Prediction (Logits)
+    # Case: Multi-class (3 Classes), Perfect Prediction (Logits)
     # Input is Logits (use_softmax=True), large value difference implies high confidence -> Loss should be close to 0
     [
         {
@@ -49,7 +49,7 @@ TEST_CASES = [
         },
         0.0,
     ],
-    # Case 2: Label Indices Input (to_onehot_y=True)
+    # Case: Label Indices Input (to_onehot_y=True)
     # Test automatic conversion from Index to One-Hot
     [
         {
@@ -61,6 +61,21 @@ TEST_CASES = [
         },
         0.0,
     ],
+    # Case: Imperfect Prediction
+    [
+        {
+            "init_kwargs": {"use_softmax": True, "to_onehot_y": False},
+            "forward_kwargs": {
+                "input": torch.tensor(
+                    [[[[ -10.0, -10.0]], [[ 10.0, 10.0]], [[ -10.0, -10.0]]]] # B=1, C=3, H=1, W=2
+                ),
+                "target": torch.tensor(
+                    [[[[ 1.0, 1.0]], [[ 0.0, 0.0]], [[ 0.0, 0.0]]]]
+                ),
+            },
+        },
+        1.518984, 
+    ],
 ]
 
 TEST_CASES_REDUCTION = [
@@ -70,7 +85,7 @@ TEST_CASES_REDUCTION = [
         {
             "init_kwargs": {"reduction": "none", "use_softmax": False},
             "forward_kwargs": {
-                "input": torch.randn(2, 3, 4, 4).sigmoid(),  # B=2, C=3
+                "input": torch.randn(2, 3, 4, 4).sigmoid(),
                 "target": torch.randint(0, 2, (2, 3, 4, 4)).float(),
             },
         },
@@ -141,7 +156,7 @@ class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
     def test_with_cuda(self):
         """Test CUDA support."""
         if not torch.cuda.is_available():
-            return
+            self.skipTest("CUDA not available")
 
         loss_func = AsymmetricUnifiedFocalLoss()
         input_data = torch.rand(1, 2, 4, 4).cuda()
