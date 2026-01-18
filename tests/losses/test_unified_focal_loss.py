@@ -56,7 +56,7 @@ TEST_CASES = [
             "init_kwargs": {"use_softmax": False, "to_onehot_y": True},
             "forward_kwargs": {
                 "input": torch.tensor([[[[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]),
-                "target": torch.tensor([[[[0, 1], [2, 2]]]]),  # Shape (1, 1, 2, 2)
+                "target": torch.tensor([[[[0, 1], [2, 2]]]]),
             },
         },
         0.0,
@@ -66,15 +66,11 @@ TEST_CASES = [
         {
             "init_kwargs": {"use_softmax": True, "to_onehot_y": False},
             "forward_kwargs": {
-                "input": torch.tensor(
-                    [[[[ -10.0, -10.0]], [[ 10.0, 10.0]], [[ -10.0, -10.0]]]] # B=1, C=3, H=1, W=2
-                ),
-                "target": torch.tensor(
-                    [[[[ 1.0, 1.0]], [[ 0.0, 0.0]], [[ 0.0, 0.0]]]]
-                ),
+                "input": torch.tensor([[[[-10.0, -10.0]], [[10.0, 10.0]], [[-10.0, -10.0]]]]),
+                "target": torch.tensor([[[[1.0, 1.0]], [[0.0, 0.0]], [[0.0, 0.0]]]]),
             },
         },
-        1.518984, 
+        1.518984,
     ],
 ]
 
