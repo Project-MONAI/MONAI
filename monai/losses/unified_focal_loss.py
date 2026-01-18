@@ -32,7 +32,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
     Michael Yeung, Computerized Medical Imaging and Graphics
-    
+
     Example:
         >>> import torch
         >>> from monai.losses import AsymmetricUnifiedFocalLoss
