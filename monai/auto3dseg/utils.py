@@ -504,11 +504,13 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
     if algo is None:
         raise ValueError(f"Failed to instantiate Algo from target '{target}' with paths {template_paths}")
 
-    # Restore the state
+    # Restore the state (skip template_path as it's set to the working import path below)
     for attr, value in state.items():
-        if hasattr(algo, attr):
+        if attr != "template_path" and hasattr(algo, attr):
             setattr(algo, attr, value)
 
+    # Use the path that successfully imported the class, not the original saved path
+    # (the original path may no longer exist if the workdir was moved)
     algo.template_path = used_template_path
 
     if file_dir != os.path.abspath(algo.get_output_path()):
