@@ -22,30 +22,72 @@ __all__ = ["CalibrationError"]
 
 class CalibrationError(IgniteMetricHandler):
     """
-    Computes Calibration Error and reports the aggregated value according to `metric_reduction`
-    over all accumulated iterations. Can return the expected, average, or maximum calibration error.
+    Ignite handler to compute Calibration Error during training or evaluation.
+
+    **Why Calibration Matters:**
+
+    A well-calibrated model produces probability estimates that match the true likelihood of correctness.
+    For example, predictions with 80% confidence should be correct approximately 80% of the time.
+    Modern neural networks often exhibit poor calibration (typically overconfident), which can be
+    problematic in medical imaging where probability estimates may inform clinical decisions.
+
+    This handler wraps :py:class:`~monai.metrics.CalibrationErrorMetric` for use with PyTorch Ignite
+    engines, automatically computing and aggregating calibration errors across iterations.
+
+    **Supported Calibration Metrics:**
+
+    - **Expected Calibration Error (ECE)**: Weighted average of per-bin errors (most common).
+    - **Average Calibration Error (ACE)**: Unweighted average across bins.
+    - **Maximum Calibration Error (MCE)**: Worst-case calibration error.
 
     Args:
-        num_bins: number of bins to calculate calibration. Defaults to 20.
-        include_background: whether to include calibration error computation on the first channel of
-            the predicted output. Defaults to True.
-        calibration_reduction: Method for calculating calibration error values from binned data.
-            Available modes are `"expected"`, `"average"`, and `"maximum"`. Defaults to `"expected"`.
-        metric_reduction: Mode of reduction to apply to the metrics.
-            Reduction is only applied to non-NaN values.
-            Available reduction modes are `"none"`, `"mean"`, `"sum"`, `"mean_batch"`,
-            `"sum_batch"`, `"mean_channel"`, and `"sum_channel"`.
-            Defaults to `"mean"`. If set to `"none"`, no reduction will be performed.
-        output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
-            construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
-            lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-            `engine.state` and `output_transform` inherit from the ignite concept:
-            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
-            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
-        save_details: whether to save metric computation details per image, for example: calibration error
-            of every image. default to True, will save to `engine.state.metric_details` dict with the
-            metric name as key.
+        num_bins: Number of equally-spaced bins for calibration computation. Defaults to 20.
+        include_background: Whether to include the first channel (index 0) in computation.
+            Set to ``False`` to exclude background in segmentation tasks. Defaults to ``True``.
+        calibration_reduction: Calibration error reduction mode. Options: ``"expected"`` (ECE),
+            ``"average"`` (ACE), ``"maximum"`` (MCE). Defaults to ``"expected"``.
+        metric_reduction: Reduction across batch/channel after computing per-sample errors.
+            Options: ``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``. Defaults to ``"mean"``.
+        output_transform: Callable to extract ``(y_pred, y)`` from ``engine.state.output``.
+            See `Ignite concepts <https://pytorch.org/ignite/concepts.html#state>`_ and
+            the batch output transform tutorial in the MONAI tutorials repository.
+        save_details: If ``True``, saves per-sample/per-channel metric values to
+            ``engine.state.metric_details[name]``. Defaults to ``True``.
 
+    References:
+        - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
+          https://proceedings.mlr.press/v70/guo17a.html
+        - Barfoot, T., et al. "Average Calibration Error: A Differentiable Loss for Improved
+          Reliability in Image Segmentation." MICCAI 2024.
+          https://papers.miccai.org/miccai-2024/091-Paper3075.html
+
+    See Also:
+        - :py:class:`~monai.metrics.CalibrationErrorMetric`: The underlying metric class.
+        - :py:func:`~monai.metrics.calibration_binning`: Low-level binning for reliability diagrams.
+
+    Example:
+        >>> from monai.handlers import CalibrationError, from_engine
+        >>> from ignite.engine import Engine
+        >>>
+        >>> def evaluation_step(engine, batch):
+        ...     # Returns dict with "pred" (probabilities) and "label" (one-hot)
+        ...     return {"pred": model(batch["image"]), "label": batch["label"]}
+        >>>
+        >>> evaluator = Engine(evaluation_step)
+        >>>
+        >>> # Attach calibration error handler
+        >>> CalibrationError(
+        ...     num_bins=15,
+        ...     include_background=False,
+        ...     calibration_reduction="expected",
+        ...     output_transform=from_engine(["pred", "label"]),
+        ... ).attach(evaluator, name="ECE")
+        >>>
+        >>> # After evaluation, access results
+        >>> evaluator.run(val_loader)
+        >>> ece = evaluator.state.metrics["ECE"]
+        >>> print(f"Expected Calibration Error: {ece:.4f}")
     """
 
     def __init__(
@@ -64,8 +106,4 @@ class CalibrationError(IgniteMetricHandler):
             metric_reduction=metric_reduction,
         )
 
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

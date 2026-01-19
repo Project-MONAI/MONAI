@@ -88,17 +88,9 @@ class TestHandlerCalibrationError(unittest.TestCase):
 
         # Test data: 2 batches with 2 channels each
         y_pred = torch.tensor(
-            [
-                [[[0.7, 0.3], [0.1, 0.9]], [[0.7, 0.3], [0.5, 0.5]]],
-                [[[0.9, 0.9], [0.3, 0.3]], [[0.1, 0.1], [0.9, 0.7]]],
-            ]
+            [[[[0.7, 0.3], [0.1, 0.9]], [[0.7, 0.3], [0.5, 0.5]]], [[[0.9, 0.9], [0.3, 0.3]], [[0.1, 0.1], [0.9, 0.7]]]]
         ).to(_device)
-        y = torch.tensor(
-            [
-                [[[1, 0], [0, 1]], [[0, 1], [1, 0]]],
-                [[[1, 1], [0, 0]], [[0, 0], [1, 1]]],
-            ]
-        ).to(_device)
+        y = torch.tensor([[[[1, 0], [0, 1]], [[0, 1], [1, 0]]], [[[1, 1], [0, 0]], [[0, 0], [1, 1]]]]).to(_device)
 
         # Create data as list of batches (2 iterations)
         data = [{"pred": y_pred, "label": y}, {"pred": y_pred, "label": y}]

@@ -180,6 +180,15 @@ Metrics
 .. autoclass:: MetricsReloadedCategorical
     :members:
 
+`Calibration Error`
+-------------------
+.. autofunction:: calibration_binning
+
+.. autoclass:: CalibrationReduction
+    :members:
+
+.. autoclass:: CalibrationErrorMetric
+    :members:
 
 
 Utilities

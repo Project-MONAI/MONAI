@@ -20,11 +20,7 @@ from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 from monai.utils.enums import StrEnum
 
-__all__ = [
-    "calibration_binning",
-    "CalibrationErrorMetric",
-    "CalibrationReduction",
-]
+__all__ = ["calibration_binning", "CalibrationErrorMetric", "CalibrationReduction"]
 
 
 def calibration_binning(
@@ -32,39 +28,62 @@ def calibration_binning(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Compute calibration bins for predicted probabilities and ground truth labels.
-    This function calculates the mean predicted probabilities, mean ground truths,
-    and bin counts for each bin using a hard binning calibration approach.
+
+    This function implements hard binning for calibration analysis, grouping predictions
+    into bins based on their confidence values and computing statistics for each bin.
+    These statistics can be used to assess model calibration or plot reliability diagrams.
+
+    A well-calibrated model should have predicted probabilities that match empirical accuracy.
+    For example, among all predictions with 80% confidence, approximately 80% should be correct.
+    This function provides the per-bin statistics needed to evaluate this property.
 
     The function operates on input and target tensors with batch and channel dimensions,
     handling each batch and channel separately. For bins that do not contain any elements,
     the mean predicted values and mean ground truth values are set to NaN.
 
     Args:
-        y_pred: predicted tensor with shape [batch, channel, spatial], where spatial
-            can be any number of dimensions. The y_pred tensor represents probabilities.
-            Values should be in the range [0, 1] (probabilities).
-        y: Target tensor with the same shape as y_pred. It represents ground truth values.
-        num_bins: The number of bins to use for calibration. Defaults to 20. Must be >= 1.
-        right: If False (default), the bins include the left boundary and exclude the right boundary.
-            If True, the bins exclude the left boundary and include the right boundary.
+        y_pred: Predicted probabilities with shape ``(B, C, spatial...)``, where B is batch size,
+            C is number of classes/channels, and spatial can be any number of dimensions (H, W, D, etc.).
+            Values should be in the range [0, 1].
+        y: Ground truth tensor with the same shape as ``y_pred``. Should be one-hot encoded
+            or contain binary values (0 or 1) indicating the true class membership.
+        num_bins: Number of equally-spaced bins to divide the [0, 1] probability range into.
+            Defaults to 20. Must be >= 1.
+        right: Determines bin boundary inclusion. If False (default), bins include the left
+            boundary and exclude the right (i.e., [left, right)). If True, bins exclude the
+            left boundary and include the right (i.e., (left, right]).
 
     Returns:
-        A tuple of three tensors:
-            - mean_p_per_bin: Tensor of shape [batch_size, num_channels, num_bins] containing
-              the mean predicted values in each bin.
-            - mean_gt_per_bin: Tensor of shape [batch_size, num_channels, num_bins] containing
-              the mean ground truth values in each bin.
-            - bin_counts: Tensor of shape [batch_size, num_channels, num_bins] containing
-              the count of elements in each bin.
+        A tuple of three tensors, each with shape ``(B, C, num_bins)``:
+            - **mean_p_per_bin**: Mean predicted probability for samples in each bin.
+            - **mean_gt_per_bin**: Mean ground truth value (empirical accuracy) for samples in each bin.
+            - **bin_counts**: Number of samples falling into each bin.
+
+        Bins with no samples have NaN values for mean_p_per_bin and mean_gt_per_bin.
 
     Raises:
-        ValueError: If the input and target shapes do not match, if the input has fewer than 3 dimensions,
-            or if num_bins < 1.
+        ValueError: If ``y_pred`` and ``y`` have different shapes, if input has fewer than
+            3 dimensions, or if ``num_bins < 1``.
+
+    References:
+        - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
+          https://proceedings.mlr.press/v70/guo17a.html
+        - Barfoot, T., et al. "Average Calibration Error: A Differentiable Loss for Improved
+          Reliability in Image Segmentation." MICCAI 2024.
+          https://papers.miccai.org/miccai-2024/091-Paper3075.html
 
     Note:
-        This function currently uses nested for loops over batch and channel dimensions
-        for binning operations. Future improvements may include vectorizing these operations
-        for enhanced performance.
+        This function uses nested loops over batch and channel dimensions for binning operations.
+        For reliability diagram visualization, use the returned statistics to plot mean predicted
+        probability vs. empirical accuracy for each bin.
+
+    Example:
+        >>> import torch
+        >>> # Binary segmentation: batch=1, channels=2, spatial=4x4
+        >>> y_pred = torch.rand(1, 2, 4, 4)  # predicted probabilities
+        >>> y = torch.randint(0, 2, (1, 2, 4, 4)).float()  # one-hot ground truth
+        >>> mean_p, mean_gt, counts = calibration_binning(y_pred, y, num_bins=10)
+        >>> # mean_p, mean_gt, counts each have shape (1, 2, 10)
     """
     # Input validation
     if y_pred.shape != y.shape:
@@ -76,10 +95,7 @@ def calibration_binning(
 
     batch_size, num_channels = y_pred.shape[:2]
     boundaries = torch.linspace(
-        start=0.0,
-        end=1.0 + torch.finfo(torch.float32).eps,
-        steps=num_bins + 1,
-        device=y_pred.device,
+        start=0.0, end=1.0 + torch.finfo(torch.float32).eps, steps=num_bins + 1, device=y_pred.device
     )
 
     mean_p_per_bin = torch.zeros(batch_size, num_channels, num_bins, device=y_pred.device)
@@ -124,11 +140,18 @@ def calibration_binning(
 
 class CalibrationReduction(StrEnum):
     """
-    Enumeration of calibration error reduction methods.
+    Enumeration of calibration error reduction methods for aggregating per-bin calibration errors.
 
-    - EXPECTED: Expected Calibration Error (ECE) - weighted average by bin count
-    - AVERAGE: Average Calibration Error (ACE) - simple average across bins
-    - MAXIMUM: Maximum Calibration Error (MCE) - maximum error across bins
+    - **EXPECTED**: Expected Calibration Error (ECE) - weighted average of per-bin errors by bin count.
+      This is the most commonly used calibration metric, giving more weight to bins with more samples.
+    - **AVERAGE**: Average Calibration Error (ACE) - unweighted mean of per-bin errors.
+      Treats all bins equally regardless of sample count.
+    - **MAXIMUM**: Maximum Calibration Error (MCE) - worst-case calibration error across all bins.
+      Useful for identifying the confidence range with poorest calibration.
+
+    References:
+        - Naeini, M.P., et al. "Obtaining Well Calibrated Probabilities Using Bayesian Binning." AAAI 2015.
+        - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
     """
 
     EXPECTED = "expected"
@@ -139,49 +162,91 @@ class CalibrationReduction(StrEnum):
 class CalibrationErrorMetric(CumulativeIterationMetric):
     """
     Compute the Calibration Error between predicted probabilities and ground truth labels.
-    This metric is suitable for multi-class tasks and supports batched inputs.
 
-    The input `y_pred` represents the model's predicted probabilities, and `y` represents the ground truth labels.
-    `y_pred` is expected to have probabilities, and `y` should be in one-hot format. You can use suitable transforms
-    in `monai.transforms.post` to achieve the desired format.
+    **Why Calibration Matters:**
 
-    The `include_background` parameter can be set to `False` to exclude the first category (channel index 0),
-    which is conventionally assumed to be the background. This is particularly useful in segmentation tasks where
-    the background class might skew the calibration results.
+    A well-calibrated classifier produces probability estimates that reflect true correctness likelihood.
+    For instance, if a model predicts 80% probability for class A, a well calibrated and reliable model
+    should be correct approximately 80% of the time among all such predictions.
+    Modern neural networks, despite high accuracy, are often poorly calibrated, as they tend to be
+    overconfident in their predictions.
+    This is particularly important in medical imaging where probability estimates may inform clinical decisions.
 
-    The metric supports both single-channel and multi-channel data. For multi-channel data, the input tensors
-    should be in the format of BCHW[D], where B is the batch size, C is the number of channels, and HW[D]
-    are the spatial dimensions.
+    **How It Works:**
+
+    This metric uses a binning approach: predictions are grouped into bins based on their confidence
+    (predicted probability), and for each bin, the average confidence is compared to the empirical
+    accuracy (fraction of correct predictions). The calibration error measures the discrepancy between
+    these values across all bins.
+
+    Three reduction modes are supported:
+
+    - **Expected Calibration Error (ECE)**: Weighted average of per-bin errors, where weights are
+      proportional to the number of samples in each bin. Most commonly used metric.
+    - **Average Calibration Error (ACE)**: Simple unweighted average across bins.
+    - **Maximum Calibration Error (MCE)**: The largest calibration error among all bins.
+
+    The metric supports both single-channel and multi-channel data in the format ``(B, C, H, W[, D])``,
+    where B is batch size, C is number of classes, and H, W, D are spatial dimensions.
 
     Args:
-        num_bins: Number of bins to divide probabilities into for calibration calculation. Defaults to 20.
-        include_background: Whether to include computation on the first channel of the predicted output.
-            Defaults to `True`.
-        calibration_reduction: Method for calculating calibration error values from binned data.
-            Available modes are `"expected"`, `"average"`, and `"maximum"`. Defaults to `"expected"`.
-        metric_reduction: Mode of reduction to apply to the metrics.
-            Reduction is only applied to non-NaN values.
-            Available reduction modes are `"none"`, `"mean"`, `"sum"`, `"mean_batch"`,
-            `"sum_batch"`, `"mean_channel"`, and `"sum_channel"`.
-            Defaults to `"mean"`. If set to `"none"`, no reduction will be performed.
-        get_not_nans: Whether to return the count of non-NaN values.
-            If `True`, `aggregate()` returns a tuple (metric, not_nans). Defaults to `False`.
-        right: Whether to use the right or left bin edge for binning. Defaults to `False` (left).
+        num_bins: Number of equally-spaced bins to divide the [0, 1] probability range into.
+            Defaults to 20.
+        include_background: Whether to include the first channel (index 0) in the computation.
+            Set to ``False`` to exclude background class, which is useful in segmentation tasks
+            where background may dominate and skew calibration results. Defaults to ``True``.
+        calibration_reduction: Method for calculating calibration error from binned data.
+            Available modes: ``"expected"`` (ECE), ``"average"`` (ACE), ``"maximum"`` (MCE).
+            Defaults to ``"expected"``.
+        metric_reduction: Reduction mode to apply across batch/channel dimensions after computing
+            per-sample calibration errors. Available modes: ``"none"``, ``"mean"``, ``"sum"``,
+            ``"mean_batch"``, ``"sum_batch"``, ``"mean_channel"``, ``"sum_channel"``.
+            Defaults to ``"mean"``.
+        get_not_nans: If ``True``, ``aggregate()`` returns a tuple ``(metric, not_nans)`` where
+            ``not_nans`` is the count of non-NaN values. Defaults to ``False``.
+        right: Bin boundary inclusion rule. If ``False`` (default), bins are ``[left, right)``.
+            If ``True``, bins are ``(left, right]``.
 
-    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+    References:
+        - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
+          https://proceedings.mlr.press/v70/guo17a.html
+        - Barfoot, T., et al. "Average Calibration Error: A Differentiable Loss for Improved
+          Reliability in Image Segmentation." MICCAI 2024.
+          https://papers.miccai.org/miccai-2024/091-Paper3075.html
+
+    See Also:
+        - :py:class:`monai.handlers.CalibrationError`: Ignite handler wrapper for this metric.
+        - :py:func:`calibration_binning`: Low-level binning function for reliability diagrams.
 
     Example:
+        Typical execution steps follow :py:class:`monai.metrics.metric.Cumulative`.
+
+        >>> import torch
+        >>> from monai.metrics import CalibrationErrorMetric
         >>> from monai.transforms import Activations, AsDiscrete
-        >>> # Transforms to convert model outputs to probabilities and labels to one-hot
-        >>> softmax = Activations(softmax=True)  # or sigmoid=True for binary/multi-label
-        >>> to_onehot = AsDiscrete(to_onehot=num_classes)
-        >>> metric = CalibrationErrorMetric(num_bins=15, include_background=False, calibration_reduction="expected")
+        >>>
+        >>> # Setup transforms for probability conversion
+        >>> num_classes = 3
+        >>> softmax = Activations(softmax=True)  # convert logits to probabilities
+        >>> to_onehot = AsDiscrete(to_onehot=num_classes)  # convert labels to one-hot
+        >>>
+        >>> # Create metric (Expected Calibration Error, excluding background)
+        >>> metric = CalibrationErrorMetric(
+        ...     num_bins=15,
+        ...     include_background=False,
+        ...     calibration_reduction="expected"
+        ... )
+        >>>
+        >>> # Evaluation loop
         >>> for batch_data in dataloader:
-        >>>     logits, labels = model(batch_data)
-        >>>     preds = softmax(logits)  # convert logits to probabilities
-        >>>     labels_onehot = to_onehot(labels)  # convert labels to one-hot format
-        >>>     metric(y_pred=preds, y=labels_onehot)
+        ...     logits, labels = model(batch_data)
+        ...     preds = softmax(logits)  # shape: (B, C, H, W) with values in [0, 1]
+        ...     labels_onehot = to_onehot(labels)  # shape: (B, C, H, W) with values 0 or 1
+        ...     metric(y_pred=preds, y=labels_onehot)
+        >>>
+        >>> # Get final calibration error
         >>> ece = metric.aggregate()
+        >>> print(f"Expected Calibration Error: {ece:.4f}")
     """
 
     def __init__(
@@ -231,8 +296,14 @@ class CalibrationErrorMetric(CumulativeIterationMetric):
         elif self.calibration_reduction == CalibrationReduction.AVERAGE:
             return torch.nanmean(abs_diff, dim=-1)  # Average across all dimensions, ignoring nan
         elif self.calibration_reduction == CalibrationReduction.MAXIMUM:
-            abs_diff_no_nan = torch.nan_to_num(abs_diff, nan=0.0)
-            return torch.max(abs_diff_no_nan, dim=-1).values  # Maximum across all dimensions
+            # Replace NaN with -inf for max computation, then restore NaN for all-NaN cases
+            abs_diff_for_max = torch.nan_to_num(abs_diff, nan=float("-inf"))
+            max_vals = torch.max(abs_diff_for_max, dim=-1).values
+            # Restore NaN where all bins were empty (max is -inf)
+            max_vals = torch.where(
+                max_vals == float("-inf"), torch.tensor(float("nan"), device=max_vals.device), max_vals
+            )
+            return max_vals
         else:
             raise ValueError(f"Unsupported calibration reduction: {self.calibration_reduction}")
 
