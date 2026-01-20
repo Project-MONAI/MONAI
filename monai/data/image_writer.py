@@ -424,7 +424,7 @@ class ITKWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -586,7 +586,7 @@ class NibabelWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -738,7 +738,7 @@ class PILWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
