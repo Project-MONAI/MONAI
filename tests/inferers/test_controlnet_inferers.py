@@ -700,7 +700,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         x = torch.linspace(-10, 10, 20)
         cdf_approx = inferer._approx_standard_normal_cdf(x)
         cdf_true = norm.cdf(x)
-        torch.testing.assert_allclose(cdf_approx, cdf_true, atol=1e-3, rtol=1e-5)
+        torch.testing.assert_close(cdf_approx, torch.as_tensor(cdf_true, dtype=cdf_approx.dtype), atol=1e-3, rtol=1e-5)
 
     @parameterized.expand(CNDM_TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
