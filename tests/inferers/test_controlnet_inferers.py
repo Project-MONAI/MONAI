@@ -1014,7 +1014,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
+        if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
             input_shape_seg = list(input_shape)
             if "label_nc" in stage_2_params.keys():
                 input_shape_seg[1] = stage_2_params["label_nc"]
@@ -1084,7 +1084,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
+        if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
             input_shape_seg = list(input_shape)
             if "label_nc" in stage_2_params.keys():
                 input_shape_seg[1] = stage_2_params["label_nc"]
@@ -1168,7 +1168,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
 
         timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
+        if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
             input_shape_seg = list(input_shape)
             if "label_nc" in stage_2_params.keys():
                 input_shape_seg[1] = stage_2_params["label_nc"]
@@ -1250,7 +1250,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
+        if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
             input_shape_seg = list(input_shape)
             if "label_nc" in stage_2_params.keys():
                 input_shape_seg[1] = stage_2_params["label_nc"]
@@ -1331,7 +1331,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
 
         timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
+        if dm_model_type == "SPADEDiffusionModelUNet" or ae_model_type == "SPADEAutoencoderKL":
             input_shape_seg = list(input_shape)
             if "label_nc" in stage_2_params.keys():
                 input_shape_seg[1] = stage_2_params["label_nc"]
