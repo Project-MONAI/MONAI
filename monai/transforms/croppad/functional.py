@@ -100,8 +100,8 @@ def pad_nd(
             # Try PyTorch pad for these modes; fallback to NumPy on error.
             _pad = _pt_pad
         call_kwargs = dict(kwargs)
-        if mode != "constant":
-            call_kwargs.pop("value", None)
+        if mode != "constant" and "value" in call_kwargs:
+            raise ValueError("'value' argument is only valid when mode='constant'")
         return _pad(img, pad_width=to_pad, mode=mode, **call_kwargs)
     except NotImplementedError:
         # PyTorch does not support this combination, fall back to NumPy
