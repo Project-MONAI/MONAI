@@ -781,6 +781,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
             stage_1 = VQVAE(**autoencoder_params)
+        if ae_model_type == "SPADEAutoencoderKL":
+            stage_1 = SPADEAutoencoderKL(**autoencoder_params)
         if dm_model_type == "SPADEDiffusionModelUNet":
             stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
         else:
@@ -803,7 +805,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
             timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-            if dm_model_type == "SPADEDiffusionModelUNet":
+            if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
                     input_shape_seg[1] = stage_2_params["label_nc"]
@@ -852,6 +854,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             stage_1 = VQVAE(**autoencoder_params)
         if dm_model_type == "SPADEDiffusionModelUNet":
             stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
+        if ae_model_type == "SPADEAutoencoderKL":
+            stage_1 = SPADEAutoencoderKL(**autoencoder_params)
         else:
             stage_2 = DiffusionModelUNet(**stage_2_params)
         controlnet = ControlNet(**controlnet_params)
