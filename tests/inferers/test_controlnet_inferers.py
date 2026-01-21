@@ -852,6 +852,10 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
         else:
             stage_2 = DiffusionModelUNet(**stage_2_params)
+        if ae_model_type == "AutoencoderKL":
+            stage_1 = AutoencoderKL(**autoencoder_params)
+        if ae_model_type == "VQVAE":
+            stage_1 = VQVAE(**autoencoder_params)
         if ae_model_type == "SPADEAutoencoderKL":
             stage_1 = SPADEAutoencoderKL(**autoencoder_params)
         controlnet = ControlNet(**controlnet_params)
