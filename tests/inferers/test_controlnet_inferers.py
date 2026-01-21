@@ -201,6 +201,45 @@ LATENT_CNDM_TEST_CASES = [
         (1, 1, 16, 16, 16),
         (1, 3, 4, 4, 4),
     ],
+    [
+        "SPADEAutoencoderKL",
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4),
+            "latent_channels": 3,
+            "attention_levels": [False, False],
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "label_nc": 5,
+        },
+        "SPADEDiffusionModelUNet",
+        {
+            "spatial_dims": 2,
+            "in_channels": 3,
+            "out_channels": 3,
+            "channels": [4, 4],
+            "norm_num_groups": 4,
+            "attention_levels": [False, False],
+            "num_res_blocks": 1,
+            "num_head_channels": 4,
+            "label_nc": 5,
+        },
+        {
+            "spatial_dims": 2,
+            "in_channels": 3,
+            "channels": [4, 4],
+            "attention_levels": [False, False],
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "num_head_channels": 4,
+            "conditioning_embedding_num_channels": [16],
+            "conditioning_embedding_in_channels": 1,
+        },
+        (1, 1, 8, 8),
+        (1, 3, 4, 4),
+    ],
 ]
 LATENT_CNDM_TEST_CASES_DIFF_SHAPES = [
     [
@@ -905,7 +944,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             else:
                 input_shape_seg[1] = autoencoder_params["label_nc"]
             input_seg = torch.randn(input_shape_seg).to(device)
-            sample = inferer.sample(
+            sample, intermediates = inferer.sample(
                 input_noise=noise,
                 autoencoder_model=stage_1,
                 diffusion_model=stage_2,
@@ -913,11 +952,9 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
                 seg=input_seg,
                 controlnet=controlnet,
                 cn_cond=mask,
+                save_intermediates=True,
+                intermediate_steps=1,
             )
-
-            # TODO: this isn't correct, should the above produce intermediates as well?
-            # This test has always passed so is this branch not being used?
-            intermediates = None
         else:
             sample, intermediates = inferer.sample(
                 input_noise=noise,
