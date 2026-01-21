@@ -68,9 +68,9 @@ def calibration_binning(
     References:
         - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
           https://proceedings.mlr.press/v70/guo17a.html
-        - Barfoot, T., et al. "Average Calibration Error: A Differentiable Loss for Improved
-          Reliability in Image Segmentation." MICCAI 2024.
-          https://papers.miccai.org/miccai-2024/091-Paper3075.html
+        - Barfoot, T., et al. "}}} Average Calibration Losses for Reliable Uncertainty in
+          Medical Image Segmentation." arXiv:2506.03942v3, 2025.
+          https://arxiv.org/abs/2506.03942v3
 
     Note:
         This function uses nested loops over batch and channel dimensions for binning operations.
@@ -210,9 +210,9 @@ class CalibrationErrorMetric(CumulativeIterationMetric):
     References:
         - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.
           https://proceedings.mlr.press/v70/guo17a.html
-        - Barfoot, T., et al. "Average Calibration Error: A Differentiable Loss for Improved
-          Reliability in Image Segmentation." MICCAI 2024.
-          https://papers.miccai.org/miccai-2024/091-Paper3075.html
+        - Barfoot, T., et al. "}}} Average Calibration Losses for Reliable Uncertainty in
+          Medical Image Segmentation." arXiv:2506.03942v3, 2025.
+          https://arxiv.org/abs/2506.03942v3
 
     See Also:
         - :py:class:`monai.handlers.CalibrationError`: Ignite handler wrapper for this metric.
