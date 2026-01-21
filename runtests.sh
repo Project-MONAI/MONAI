@@ -81,6 +81,7 @@ function print_usage {
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --ruff            : perform \"ruff\" code format checks"
+    echo "    --flake8          : perform \"ruff\" code format checks (deprecated alias for --ruff)"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
@@ -300,6 +301,10 @@ do
             doPylintFormat=true
         ;;
         --ruff)
+            doRuffFormat=true
+        ;;
+        --flake8)
+            echo "${red}warning: --flake8 is deprecated, please use --ruff instead.${noColor}"
             doRuffFormat=true
         ;;
         --precommit)
