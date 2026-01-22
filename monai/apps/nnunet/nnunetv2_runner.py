@@ -529,17 +529,26 @@ class nnUNetV2Runner:  # noqa: N801
         run_cmd(cmd, shell=True)
 
     def train_single_model_command(self, config, fold, gpu_id, kwargs):
-        if isinstance(gpu_id, (tuple, list)):
+        device_setting = ""
+        num_gpus = 1
+        if isinstance(gpu_id, str):
+            device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+            num_gpus = 1
+        elif isinstance(gpu_id, (tuple, list)):
             if len(gpu_id) > 1:
-                gpu_ids_str = ""
-                for _i in range(len(gpu_id)):
-                    gpu_ids_str += f"{gpu_id[_i]},"
-                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str[:-1]}"
-            else:
+                gpu_ids_str = ",".join(str(x) for x in gpu_id)
+                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str}"
+                num_gpus = len(gpu_id)
+            elif len(gpu_id) == 1:
                 device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
+                num_gpus = 1
         else:
             device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
-        num_gpus = 1 if isinstance(gpu_id, int) or len(gpu_id) == 1 else len(gpu_id)
+            num_gpus = 1
+        env_cuda = os.environ.get("CUDA_VISIBLE_DEVICES")
+        if env_cuda is not None and device_setting == "CUDA_VISIBLE_DEVICES=0":
+            logger.info(f"Using existing environment variable CUDA_VISIBLE_DEVICES='{env_cuda}'")
+            device_setting = ""
 
         cmd = (
             f"{device_setting} nnUNetv2_train "
@@ -779,7 +788,7 @@ class nnUNetV2Runner:  # noqa: N801
         part_id: int = 0,
         num_processes_preprocessing: int = -1,
         num_processes_segmentation_export: int = -1,
-        gpu_id: int = 0,
+        gpu_id: int | str = 0,
     ) -> None:
         """
         Use this to run inference with nnU-Net. This function is used when you want to manually specify a folder containing
@@ -815,7 +824,10 @@ class nnUNetV2Runner:  # noqa: N801
                 More is not always better. Beware of out-of-RAM issues.
             gpu_id: which GPU to use for prediction.
         """
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+        if "CUDA_VISIBLE_DEVICES" in os.environ and gpu_id == 0:
+            logger.info(f"Predict: Using existing CUDA_VISIBLE_DEVICES={os.environ['CUDA_VISIBLE_DEVICES']}")
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
 
         from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
