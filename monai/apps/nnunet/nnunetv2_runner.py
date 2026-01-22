@@ -822,9 +822,11 @@ class nnUNetV2Runner:  # noqa: N801
             num_processes_preprocessing: out-of-RAM issues.
             num_processes_segmentation_export: Number of processes used for segmentation export.
                 More is not always better. Beware of out-of-RAM issues.
-            gpu_id: which GPU to use for prediction.
+            gpu_id: GPU device index (int) or MIG UUID (str) for prediction.
+                If CUDA_VISIBLE_DEVICES is already set and gpu_id is 0, the existing
+                environment variable is preserved.
         """
-        if "CUDA_VISIBLE_DEVICES" in os.environ and gpu_id == 0:
+        if "CUDA_VISIBLE_DEVICES" in os.environ and (gpu_id == 0 or gpu_id == "0"): 
             logger.info(f"Predict: Using existing CUDA_VISIBLE_DEVICES={os.environ['CUDA_VISIBLE_DEVICES']}")
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
