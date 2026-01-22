@@ -528,13 +528,29 @@ class nnUNetV2Runner:  # noqa: N801
         cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
         run_cmd(cmd, shell=True)
 
-    def train_single_model_command(self, config, fold, gpu_id, kwargs):
+    def train_single_model_command(
+        self, config: str, fold: int, gpu_id: int | str | tuple | list, kwargs: dict[str, Any]
+    ) -> str:
+        """
+        Build the shell command string for training a single nnU-Net model.
+
+        Args:
+            config: Configuration name (e.g., "3d_fullres").
+            fold: Cross-validation fold index (0-4).
+            gpu_id: Device selector—int, str (MIG UUID), or tuple/list for multi-GPU.
+            kwargs: Additional CLI arguments forwarded to nnUNetv2_train.
+
+        Returns:
+            Shell command string.
+        """
         device_setting = ""
         num_gpus = 1
         if isinstance(gpu_id, str):
             device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
             num_gpus = 1
         elif isinstance(gpu_id, (tuple, list)):
+            if len(gpu_id) == 0:
+                raise ValueError("gpu_id tuple/list cannot be empty")
             if len(gpu_id) > 1:
                 gpu_ids_str = ",".join(str(x) for x in gpu_id)
                 device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str}"
@@ -550,8 +566,9 @@ class nnUNetV2Runner:  # noqa: N801
             logger.info(f"Using existing environment variable CUDA_VISIBLE_DEVICES='{env_cuda}'")
             device_setting = ""
 
+        prefix = f"{device_setting} " if device_setting else ""
         cmd = (
-            f"{device_setting} nnUNetv2_train "
+            f"{prefix}nnUNetv2_train "
             + f"{self.dataset_name_or_id} {config} {fold} "
             + f"-tr {self.trainer_class_name} -num_gpus {num_gpus}"
         )
