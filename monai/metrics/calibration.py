@@ -20,7 +20,7 @@ from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 from monai.utils.enums import StrEnum
 
-__all__ = ["calibration_binning", "CalibrationErrorMetric", "CalibrationReduction"]
+__all__ = ["CalibrationErrorMetric", "CalibrationReduction", "calibration_binning"]
 
 
 def calibration_binning(
@@ -292,7 +292,13 @@ class CalibrationErrorMetric(CumulativeIterationMetric):
 
         if self.calibration_reduction == CalibrationReduction.EXPECTED:
             # Calculate the weighted sum of absolute differences
-            return torch.nansum(abs_diff * bin_counts, dim=-1) / torch.sum(bin_counts, dim=-1)
+            # Handle zero denominator case (all bins empty) by returning NaN
+            denom = torch.sum(bin_counts, dim=-1)
+            zero_mask = denom == 0
+            safe_denom = torch.where(zero_mask, torch.ones_like(denom), denom)
+            result = torch.nansum(abs_diff * bin_counts, dim=-1) / safe_denom
+            result = torch.where(zero_mask, torch.full_like(result, float("nan")), result)
+            return result
         elif self.calibration_reduction == CalibrationReduction.AVERAGE:
             return torch.nanmean(abs_diff, dim=-1)  # Average across all dimensions, ignoring nan
         elif self.calibration_reduction == CalibrationReduction.MAXIMUM:
@@ -300,9 +306,7 @@ class CalibrationErrorMetric(CumulativeIterationMetric):
             abs_diff_for_max = torch.nan_to_num(abs_diff, nan=float("-inf"))
             max_vals = torch.max(abs_diff_for_max, dim=-1).values
             # Restore NaN where all bins were empty (max is -inf)
-            max_vals = torch.where(
-                max_vals == float("-inf"), torch.tensor(float("nan"), device=max_vals.device), max_vals
-            )
+            max_vals = torch.where(max_vals == float("-inf"), torch.full_like(max_vals, float("nan")), max_vals)
             return max_vals
         else:
             raise ValueError(f"Unsupported calibration reduction: {self.calibration_reduction}")

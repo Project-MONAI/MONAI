@@ -231,6 +231,146 @@ class TestCalibrationErrorMetricValue(unittest.TestCase):
         assert_allclose(result, expected_max, atol=1e-4, rtol=1e-4)
 
 
+class TestCalibrationErrorEmptyBins(unittest.TestCase):
+    """Test edge cases when all bins are empty (division by zero scenarios)."""
+
+    def test_expected_reduction_all_empty_bins_returns_nan(self):
+        """Test that EXPECTED reduction returns NaN when all bins are empty (division by zero case)."""
+        from unittest import mock
+
+        y_pred = torch.tensor([[[[0.5, 0.5], [0.5, 0.5]]]]).to(_device)
+        y = torch.tensor([[[[1, 1], [1, 1]]]]).to(_device)
+
+        metric = CalibrationErrorMetric(
+            num_bins=5,
+            include_background=True,
+            calibration_reduction=CalibrationReduction.EXPECTED,
+            metric_reduction=MetricReduction.NONE,
+        )
+
+        # Mock calibration_binning to return zero bin_counts (all empty bins)
+        def mock_binning(y_pred, y, num_bins, right):
+            batch_size, num_channels = y_pred.shape[:2]
+            device = y_pred.device
+            mean_p = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            mean_gt = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            counts = torch.zeros((batch_size, num_channels, num_bins), device=device)
+            return mean_p, mean_gt, counts
+
+        with mock.patch("monai.metrics.calibration.calibration_binning", side_effect=mock_binning):
+            metric(y_pred=y_pred, y=y)
+            result = metric.aggregate()
+
+        # All bins empty should result in NaN
+        self.assertTrue(torch.isnan(result).all(), "Result should be NaN when all bins are empty")
+
+    def test_average_reduction_all_empty_bins_returns_nan(self):
+        """Test that AVERAGE reduction returns NaN when all bins are empty."""
+        from unittest import mock
+
+        y_pred = torch.tensor([[[[0.5, 0.5], [0.5, 0.5]]]]).to(_device)
+        y = torch.tensor([[[[1, 1], [1, 1]]]]).to(_device)
+
+        metric = CalibrationErrorMetric(
+            num_bins=5,
+            include_background=True,
+            calibration_reduction=CalibrationReduction.AVERAGE,
+            metric_reduction=MetricReduction.NONE,
+        )
+
+        def mock_binning(y_pred, y, num_bins, right):
+            batch_size, num_channels = y_pred.shape[:2]
+            device = y_pred.device
+            mean_p = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            mean_gt = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            counts = torch.zeros((batch_size, num_channels, num_bins), device=device)
+            return mean_p, mean_gt, counts
+
+        with mock.patch("monai.metrics.calibration.calibration_binning", side_effect=mock_binning):
+            metric(y_pred=y_pred, y=y)
+            result = metric.aggregate()
+
+        self.assertTrue(torch.isnan(result).all(), "Result should be NaN when all bins are empty")
+
+    def test_maximum_reduction_all_empty_bins_returns_nan(self):
+        """Test that MAXIMUM reduction returns NaN when all bins are empty."""
+        from unittest import mock
+
+        y_pred = torch.tensor([[[[0.5, 0.5], [0.5, 0.5]]]]).to(_device)
+        y = torch.tensor([[[[1, 1], [1, 1]]]]).to(_device)
+
+        metric = CalibrationErrorMetric(
+            num_bins=5,
+            include_background=True,
+            calibration_reduction=CalibrationReduction.MAXIMUM,
+            metric_reduction=MetricReduction.NONE,
+        )
+
+        def mock_binning(y_pred, y, num_bins, right):
+            batch_size, num_channels = y_pred.shape[:2]
+            device = y_pred.device
+            mean_p = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            mean_gt = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            counts = torch.zeros((batch_size, num_channels, num_bins), device=device)
+            return mean_p, mean_gt, counts
+
+        with mock.patch("monai.metrics.calibration.calibration_binning", side_effect=mock_binning):
+            metric(y_pred=y_pred, y=y)
+            result = metric.aggregate()
+
+        self.assertTrue(torch.isnan(result).all(), "Result should be NaN when all bins are empty")
+
+    def test_expected_reduction_with_zeros_only_returns_nan(self):
+        """Test EXPECTED reduction returns NaN for channels where all bin_counts are zero.
+
+        This tests the actual division-by-zero fix: if we have values that all fall
+        outside the valid probability range [0, 1], all bins would be empty.
+        """
+        # Create a 2-channel tensor where one channel has valid data and one is out of range
+        # Note: calibration_binning clamps values, but we can test with very extreme distributions
+        # that result in some channels having all NaN abs_diff
+        # A simpler test: create data where bin_counts sum to zero for a channel
+
+        # Use mock to simulate the scenario where bin_counts are zero for one channel
+        from unittest import mock
+
+        y_pred = torch.tensor([[[[0.5, 0.5], [0.5, 0.5]], [[0.5, 0.5], [0.5, 0.5]]]]).to(_device)
+        y = torch.tensor([[[[1, 1], [1, 1]], [[1, 1], [1, 1]]]]).to(_device)
+
+        metric = CalibrationErrorMetric(
+            num_bins=5,
+            include_background=True,
+            calibration_reduction=CalibrationReduction.EXPECTED,
+            metric_reduction=MetricReduction.NONE,
+        )
+
+        # Mock calibration_binning to return zero bin_counts for first channel
+        def mock_binning(y_pred, y, num_bins, right):
+            batch_size, num_channels = y_pred.shape[:2]
+            device = y_pred.device
+
+            # Create normal results for channel 1, all zeros for channel 0
+            mean_p = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            mean_gt = torch.full((batch_size, num_channels, num_bins), float("nan"), device=device)
+            counts = torch.zeros((batch_size, num_channels, num_bins), device=device)
+
+            # Channel 1 has some data
+            mean_p[0, 1, 2] = 0.5
+            mean_gt[0, 1, 2] = 0.6
+            counts[0, 1, 2] = 4.0
+
+            return mean_p, mean_gt, counts
+
+        with mock.patch("monai.metrics.calibration.calibration_binning", side_effect=mock_binning):
+            metric(y_pred=y_pred, y=y)
+            result = metric.aggregate()
+
+        # Channel 0 should be NaN (all bins empty), Channel 1 should have a value
+        self.assertTrue(torch.isnan(result[0, 0]).item(), "Channel 0 should be NaN when all bins are empty")
+        self.assertFalse(torch.isnan(result[0, 1]).item(), "Channel 1 should have a valid value")
+        assert_allclose(result[0, 1], torch.tensor(0.1, device=_device), atol=1e-4, rtol=1e-4)
+
+
 class TestCalibrationErrorMetricOptions(unittest.TestCase):
 
     def test_include_background_false(self):
