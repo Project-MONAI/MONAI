@@ -32,9 +32,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution, UpSample
-from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
-from monai.utils import ensure_tuple_rep
 
 __all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv"]
 
