@@ -526,7 +526,7 @@ class nnUNetV2Runner:  # noqa: N801
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
         cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
-        run_cmd(cmd, shell=True)
+        run_cmd(cmd, shell=True)  # type: ignore
 
     def train_single_model_command(
         self, config: str, fold: int, gpu_id: int | str | tuple | list, kwargs: dict[str, Any]
@@ -542,6 +542,9 @@ class nnUNetV2Runner:  # noqa: N801
 
         Returns:
             Shell command string.
+
+        Raises:
+            ValueError: If gpu_id is an empty tuple or list.
         """
         device_setting = ""
         num_gpus = 1
