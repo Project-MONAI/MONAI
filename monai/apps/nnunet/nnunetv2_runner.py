@@ -826,7 +826,7 @@ class nnUNetV2Runner:  # noqa: N801
                 If CUDA_VISIBLE_DEVICES is already set and gpu_id is 0, the existing
                 environment variable is preserved.
         """
-        if "CUDA_VISIBLE_DEVICES" in os.environ and (gpu_id == 0 or gpu_id == "0"): 
+        if "CUDA_VISIBLE_DEVICES" in os.environ and (gpu_id == 0 or gpu_id == "0"):
             logger.info(f"Predict: Using existing CUDA_VISIBLE_DEVICES={os.environ['CUDA_VISIBLE_DEVICES']}")
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
