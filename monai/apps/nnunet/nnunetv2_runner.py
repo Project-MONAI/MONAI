@@ -525,12 +525,12 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs.pop("npz")
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
-        cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
-        run_cmd(cmd, shell=True)  # type: ignore
+        cmd, env = self.train_single_model_command(config, fold, gpu_id, kwargs)
+        run_cmd(cmd, env=env)
 
     def train_single_model_command(
         self, config: str, fold: int, gpu_id: int | str | tuple | list, kwargs: dict[str, Any]
-    ) -> str:
+    ) -> tuple[list[str], dict[str, str]]:
         """
         Build the shell command string for training a single nnU-Net model.
 
@@ -546,43 +546,49 @@ class nnUNetV2Runner:  # noqa: N801
         Raises:
             ValueError: If gpu_id is an empty tuple or list.
         """
-        device_setting = ""
+        env = os.environ.copy()
+        device_setting: str | None = None
         num_gpus = 1
         if isinstance(gpu_id, str):
-            device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+            device_setting = gpu_id
             num_gpus = 1
         elif isinstance(gpu_id, (tuple, list)):
             if len(gpu_id) == 0:
                 raise ValueError("gpu_id tuple/list cannot be empty")
             if len(gpu_id) > 1:
-                gpu_ids_str = ",".join(str(x) for x in gpu_id)
-                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str}"
+                device_setting = ",".join(str(x) for x in gpu_id)
                 num_gpus = len(gpu_id)
             elif len(gpu_id) == 1:
-                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
+                device_setting = str(gpu_id[0])
                 num_gpus = 1
         else:
-            device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+            device_setting = str(gpu_id)
             num_gpus = 1
-        env_cuda = os.environ.get("CUDA_VISIBLE_DEVICES")
-        if env_cuda is not None and device_setting == "CUDA_VISIBLE_DEVICES=0":
+        env_cuda = env.get("CUDA_VISIBLE_DEVICES")
+        if env_cuda is not None and device_setting == "0":
             logger.info(f"Using existing environment variable CUDA_VISIBLE_DEVICES='{env_cuda}'")
-            device_setting = ""
+            device_setting = None
+        elif device_setting is not None:
+            env["CUDA_VISIBLE_DEVICES"] = device_setting
 
-        prefix = f"{device_setting} " if device_setting else ""
-        cmd = (
-            f"{prefix}nnUNetv2_train "
-            + f"{self.dataset_name_or_id} {config} {fold} "
-            + f"-tr {self.trainer_class_name} -num_gpus {num_gpus}"
-        )
+        cmd = [
+            "nnUNetv2_train",
+            f"{self.dataset_name_or_id}",
+            f"{config}",
+            f"{fold}",
+            "-tr",
+            f"{self.trainer_class_name}",
+            "-num_gpus",
+            f"{num_gpus}",
+        ]
         if self.export_validation_probabilities:
-            cmd += " --npz"
+            cmd.append("--npz")
         for _key, _value in kwargs.items():
             if _key == "p" or _key == "pretrained_weights":
-                cmd += f" -{_key} {_value}"
+                cmd.extend([f"-{_key}", f"{_value}"])
             else:
-                cmd += f" --{_key} {_value}"
-        return cmd
+                cmd.extend([f"--{_key}", f"{_value}"])
+        return cmd, env
 
     def train(
         self,
