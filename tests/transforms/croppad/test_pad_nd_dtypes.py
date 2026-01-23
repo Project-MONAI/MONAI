@@ -70,7 +70,10 @@ class TestPadNdDtypes(unittest.TestCase):
 
     @parameterized.expand(DTYPES)
     def test_pad_dtype_no_error_and_dtype_preserved(self, dtype):
-        """Test that pad_nd handles various dtypes without error and preserves dtype."""
+        """Test that pad_nd handles various dtypes without error and preserves dtype.
+        Args:
+            dtype: Input dtype under test.
+        """
         img = torch.ones((1, 4, 4), dtype=dtype)
         to_pad = [(0, 0), (1, 1), (2, 2)]
         out = pad_nd(img, to_pad, mode="constant", value=0)
@@ -80,7 +83,11 @@ class TestPadNdDtypes(unittest.TestCase):
 
     @parameterized.expand(MODES_DTYPES)
     def test_pad_multiple_modes_dtype_preserved(self, mode, dtype):
-        """Test that pad_nd preserves dtype across multiple padding modes."""
+        """Test that pad_nd preserves dtype across multiple padding modes.
+        Args:
+            mode: Padding mode under test.
+            dtype: Input dtype under test.
+        """
         img = torch.ones((1, 4, 4), dtype=dtype)
         to_pad = [(0, 0), (1, 1), (2, 2)]
 
