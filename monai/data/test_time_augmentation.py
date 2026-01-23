@@ -159,20 +159,21 @@ class TestTimeAugmentation:
 
     def _check_transforms(self):
         """Should be at least 1 random transform, and all random transforms should be invertible."""
-        ts = [self.transform] if not isinstance(self.transform, Compose) else self.transform.transforms
-        randoms = np.array([isinstance(t, Randomizable) for t in ts])
-        invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
-        # check at least 1 random
-        if sum(randoms) == 0:
-            warnings.warn(
-                "TTA usually has at least a `Randomizable` transform or `Compose` contains `Randomizable` transforms."
-            )
-        # check that whenever randoms is True, invertibles is also true
-        for r, i in zip(randoms, invertibles):
-            if r and not i:
-                warnings.warn(
-                    f"Not all applied random transform(s) are invertible. Problematic transform: {type(r).__name__}"
-                )
+        transforms = [self.transform] if not isinstance(self.transform, Compose) else self.transform.transforms
+        warns = []
+        randoms = []
+
+        for idx, t in enumerate(transforms):
+            if isinstance(t, Randomizable):
+                randoms.append(t)
+                if self.apply_inverse_to_pred and not isinstance(t, InvertibleTransform):
+                    warns.append(f"Transform #{idx} (type {type(t).__name__}) is random but not invertible.")
+
+        if len(randoms) == 0:
+            warns.append("TTA usually requires at least one `Randomizable` transform in the given transform sequence.")
+
+        if len(warns) > 0:
+            warnings.warn("TTA has encountered issues with the given transforms:" + "\n  ".join(warns))
 
     def __call__(
         self, data: dict[str, Any], num_examples: int = 10
