@@ -23,6 +23,19 @@ from parameterized.parameterized import parameterized
 import monai.transforms.croppad.functional as F
 from monai.transforms.croppad.functional import pad_nd
 
+DTYPES = [torch.bool, torch.int8, torch.int16, torch.int32, torch.int64, torch.uint8, torch.float32]
+MODES_DTYPES = [
+    ("constant", torch.bool),
+    ("constant", torch.int8),
+    ("constant", torch.float32),
+    ("reflect", torch.bool),
+    ("reflect", torch.int8),
+    ("reflect", torch.float32),
+    ("replicate", torch.bool),
+    ("replicate", torch.int8),
+    ("replicate", torch.float32),
+]
+
 
 class TestPadNdDtypes(unittest.TestCase):
     def test_pad_uses_pt_for_bool(self):
@@ -55,7 +68,7 @@ class TestPadNdDtypes(unittest.TestCase):
         self.assertEqual(out.dtype, img.dtype)
         self.assertEqual(out.shape, (1, 6, 8))
 
-    @parameterized.expand([torch.bool, torch.int8, torch.int16, torch.int32, torch.int64, torch.uint8, torch.float32])
+    @parameterized.expand(DTYPES)
     def test_pad_dtype_no_error_and_dtype_preserved(self, dtype):
         """Test that pad_nd handles various dtypes without error and preserves dtype."""
         img = torch.ones((1, 4, 4), dtype=dtype)
@@ -65,19 +78,7 @@ class TestPadNdDtypes(unittest.TestCase):
         self.assertEqual(out.shape, (1, 6, 8))
         self.assertEqual(out.dtype, img.dtype)
 
-    @parameterized.expand(
-        [
-            ("constant", torch.bool),
-            ("constant", torch.int8),
-            ("constant", torch.float32),
-            ("reflect", torch.bool),
-            ("reflect", torch.int8),
-            ("reflect", torch.float32),
-            ("replicate", torch.bool),
-            ("replicate", torch.int8),
-            ("replicate", torch.float32),
-        ]
-    )
+    @parameterized.expand(MODES_DTYPES)
     def test_pad_multiple_modes_dtype_preserved(self, mode, dtype):
         """Test that pad_nd preserves dtype across multiple padding modes."""
         img = torch.ones((1, 4, 4), dtype=dtype)
@@ -94,7 +95,7 @@ class TestPadNdDtypes(unittest.TestCase):
         img = torch.ones((1, 4, 4))
         to_pad = [(0, 0), (1, 1), (2, 2)]
         with self.assertRaises(ValueError):
-            pad_nd(img, to_pad, mode="reflect", **{"value": 0})
+            pad_nd(img, to_pad, mode="reflect", value=0)
 
 
 if __name__ == "__main__":
