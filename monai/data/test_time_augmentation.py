@@ -16,7 +16,6 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
