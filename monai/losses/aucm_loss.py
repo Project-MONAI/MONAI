@@ -60,10 +60,8 @@ class AUCMLoss(_Loss):
                 'v1' includes class prior, 'v2' removes this dependency.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
-
-                - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-                - ``"sum"``: the output will be summed.
+                Note: This loss is computed at the batch level and always returns a scalar.
+                The reduction parameter is accepted for API consistency but has no effect.
 
         Raises:
             ValueError: When ``version`` is not one of ["v1", "v2"].
@@ -97,6 +95,7 @@ class AUCMLoss(_Loss):
 
         Raises:
             ValueError: When input or target have incorrect shapes.
+            ValueError: When target contains non-binary values.
         """
         if input.shape[1] != 1:
             raise ValueError(f"Input should have 1 channel for binary classification, got {input.shape[1]}")
@@ -108,11 +107,14 @@ class AUCMLoss(_Loss):
         input = input.flatten()
         target = target.flatten()
 
+        if not torch.all((target == 0) | (target == 1)):
+            raise ValueError("Target must contain only binary values (0 or 1)")
+
         pos_mask = (target == 1).float()
         neg_mask = (target == 0).float()
 
         if self.version == "v1":
-            p = self.imratio if self.imratio is not None else pos_mask.mean()
+            p = float(self.imratio) if self.imratio is not None else float(pos_mask.mean().item())
             loss = (
                 (1 - p) * self._safe_mean((input - self.a) ** 2, pos_mask)
                 + p * self._safe_mean((input - self.b) ** 2, neg_mask)

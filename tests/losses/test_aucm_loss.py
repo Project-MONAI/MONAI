@@ -69,6 +69,14 @@ class TestAUCMLoss(unittest.TestCase):
         with self.assertRaises(ValueError):
             loss_fn(input, target)
 
+    def test_non_binary_target(self):
+        """Test that non-binary target values raise ValueError."""
+        loss_fn = AUCMLoss()
+        input = torch.randn(32, 1)
+        target = torch.tensor([[0.5], [1.0], [2.0]] * 10 + [[0.0]])  # Contains non-binary values
+        with self.assertRaises(ValueError):
+            loss_fn(input, target)
+
     def test_backward(self):
         """Test that gradients can be computed."""
         loss_fn = AUCMLoss()
