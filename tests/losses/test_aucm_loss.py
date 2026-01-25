@@ -20,7 +20,10 @@ from tests.test_utils import test_script_save
 
 
 class TestAUCMLoss(unittest.TestCase):
+    """Test cases for AUCMLoss."""
+
     def test_v1(self):
+        """Test AUCMLoss with version 'v1'."""
         loss_fn = AUCMLoss(version="v1")
         input = torch.randn(32, 1, requires_grad=True)
         target = torch.randint(0, 2, (32, 1)).float()
@@ -29,6 +32,7 @@ class TestAUCMLoss(unittest.TestCase):
         self.assertEqual(loss.ndim, 0)
 
     def test_v2(self):
+        """Test AUCMLoss with version 'v2'."""
         loss_fn = AUCMLoss(version="v2")
         input = torch.randn(32, 1, requires_grad=True)
         target = torch.randint(0, 2, (32, 1)).float()
@@ -37,10 +41,12 @@ class TestAUCMLoss(unittest.TestCase):
         self.assertEqual(loss.ndim, 0)
 
     def test_invalid_version(self):
+        """Test that invalid version raises ValueError."""
         with self.assertRaises(ValueError):
             AUCMLoss(version="invalid")
 
     def test_invalid_input_shape(self):
+        """Test that invalid input shape raises ValueError."""
         loss_fn = AUCMLoss()
         input = torch.randn(32, 2)  # Wrong channel
         target = torch.randint(0, 2, (32, 1)).float()
@@ -48,6 +54,7 @@ class TestAUCMLoss(unittest.TestCase):
             loss_fn(input, target)
 
     def test_invalid_target_shape(self):
+        """Test that invalid target shape raises ValueError."""
         loss_fn = AUCMLoss()
         input = torch.randn(32, 1)
         target = torch.randint(0, 2, (32, 2)).float()  # Wrong channel
@@ -55,6 +62,7 @@ class TestAUCMLoss(unittest.TestCase):
             loss_fn(input, target)
 
     def test_shape_mismatch(self):
+        """Test that mismatched shapes raise ValueError."""
         loss_fn = AUCMLoss()
         input = torch.randn(32, 1)
         target = torch.randint(0, 2, (16, 1)).float()
@@ -62,6 +70,7 @@ class TestAUCMLoss(unittest.TestCase):
             loss_fn(input, target)
 
     def test_backward(self):
+        """Test that gradients can be computed."""
         loss_fn = AUCMLoss()
         input = torch.randn(32, 1, requires_grad=True)
         target = torch.randint(0, 2, (32, 1)).float()
@@ -70,6 +79,7 @@ class TestAUCMLoss(unittest.TestCase):
         self.assertIsNotNone(input.grad)
 
     def test_script_save(self):
+        """Test that the loss can be saved as TorchScript."""
         loss_fn = AUCMLoss()
         test_script_save(loss_fn, torch.randn(32, 1), torch.randint(0, 2, (32, 1)).float())
 

@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch
 import torch.nn as nn
 from torch.nn.modules.loss import _Loss
@@ -93,6 +92,9 @@ class AUCMLoss(_Loss):
             input: the shape should be B1HW[D], where the channel dimension is 1 for binary classification.
             target: the shape should be B1HW[D], with values 0 or 1.
 
+        Returns:
+            torch.Tensor: scalar AUCM loss.
+
         Raises:
             ValueError: When input or target have incorrect shapes.
         """
@@ -112,25 +114,29 @@ class AUCMLoss(_Loss):
         if self.version == "v1":
             p = self.imratio if self.imratio is not None else pos_mask.mean()
             loss = (
-                (1 - p) * self._safe_mean((input - self.a) ** 2 * pos_mask)
-                + p * self._safe_mean((input - self.b) ** 2 * neg_mask)
+                (1 - p) * self._safe_mean((input - self.a) ** 2, pos_mask)
+                + p * self._safe_mean((input - self.b) ** 2, neg_mask)
                 + 2
                 * self.alpha
-                * (p * (1 - p) * self.margin + self._safe_mean(p * input * neg_mask - (1 - p) * input * pos_mask))
+                * (
+                    p * (1 - p) * self.margin
+                    + self._safe_mean(p * input * neg_mask - (1 - p) * input * pos_mask, pos_mask + neg_mask)
+                )
                 - p * (1 - p) * self.alpha**2
             )
         else:
             loss = (
-                self._safe_mean((input - self.a) ** 2 * pos_mask)
-                + self._safe_mean((input - self.b) ** 2 * neg_mask)
-                + 2 * self.alpha * (self.margin + self._safe_mean(input * neg_mask) - self._safe_mean(input * pos_mask))
+                self._safe_mean((input - self.a) ** 2, pos_mask)
+                + self._safe_mean((input - self.b) ** 2, neg_mask)
+                + 2 * self.alpha * (self.margin + self._safe_mean(input, neg_mask) - self._safe_mean(input, pos_mask))
                 - self.alpha**2
             )
 
         return loss
 
-    def _safe_mean(self, tensor: torch.Tensor) -> torch.Tensor:
-        """Compute mean safely, returning 0 if tensor is empty."""
-        if tensor.numel() == 0 or tensor.count_nonzero() == 0:
+    def _safe_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """Compute mean safely over masked elements."""
+        denom = mask.sum()
+        if denom == 0:
             return torch.tensor(0.0, device=tensor.device, dtype=tensor.dtype)
-        return tensor.sum() / tensor.count_nonzero()
+        return (tensor * mask).sum() / denom
