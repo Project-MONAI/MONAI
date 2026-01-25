@@ -34,7 +34,6 @@ from monai.networks.nets.magnus import (
     TransformerPath,
 )
 
-
 # Test cases for MAGNUS model
 MAGNUS_TEST_CASES = [
     # (spatial_dims, in_channels, out_channels, input_shape, expected_output_shape)

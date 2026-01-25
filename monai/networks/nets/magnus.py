@@ -25,7 +25,6 @@ Reference:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -55,10 +54,15 @@ class CNNPath(nn.Module):
         spatial_dims: int,
         in_channels: int,
         features: Sequence[int],
-        norm: Union[str, tuple] = "batch",
-        act: Union[str, tuple] = "relu",
+        norm: str | tuple = "batch",
+        act: str | tuple = "relu",
         dropout: float = 0.0,
     ) -> None:
+        """
+        Initialize the CNN encoder path.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
         self.stages = nn.ModuleList()
@@ -140,6 +144,11 @@ class TransformerPath(nn.Module):
         dropout: float = 0.1,
         mlp_ratio: float = 4.0,
     ) -> None:
+        """
+        Initialize the Vision Transformer path.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
         self.patch_size = patch_size
@@ -147,9 +156,7 @@ class TransformerPath(nn.Module):
 
         # Patch embedding via convolution
         conv_type = nn.Conv3d if spatial_dims == 3 else nn.Conv2d
-        self.embedding = conv_type(
-            in_channels, hidden_dim, kernel_size=patch_size, stride=patch_size
-        )
+        self.embedding = conv_type(in_channels, hidden_dim, kernel_size=patch_size, stride=patch_size)
 
         # Learnable positional embedding (will be interpolated for different input sizes)
         # Initialize with a reasonable default size, will adapt dynamically
@@ -254,16 +261,19 @@ class CrossModalAttentionFusion(nn.Module):
         num_heads: int,
         dropout: float = 0.0,
     ) -> None:
+        """
+        Initialize the cross-modal attention fusion module.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         if channels % num_heads != 0:
-            raise ValueError(
-                f"channels ({channels}) must be divisible by num_heads ({num_heads})."
-            )
+            raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
 
         self.spatial_dims = spatial_dims
         self.num_heads = num_heads
         self.head_dim = channels // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.dropout = nn.Dropout(dropout)
 
         conv_type = nn.Conv3d if spatial_dims == 3 else nn.Conv2d
@@ -296,9 +306,7 @@ class CrossModalAttentionFusion(nn.Module):
         # Interpolate ViT features to match CNN spatial dimensions
         if cnn_feat.shape[2:] != vit_feat.shape[2:]:
             mode = "trilinear" if self.spatial_dims == 3 else "bilinear"
-            vit_feat = F.interpolate(
-                vit_feat, size=spatial_shape, mode=mode, align_corners=False
-            )
+            vit_feat = F.interpolate(vit_feat, size=spatial_shape, mode=mode, align_corners=False)
 
         # Compute Q, K, V for both paths
         q_c, k_c, v_c = self.to_qkv_cnn(cnn_feat).chunk(3, dim=1)
@@ -353,23 +361,25 @@ class ScaleAdaptiveConv(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_sizes: Sequence[int] = (3, 5, 7),
-        norm: Union[str, tuple] = "batch",
-        act: Union[str, tuple] = "relu",
+        norm: str | tuple = "batch",
+        act: str | tuple = "relu",
     ) -> None:
+        """
+        Initialize the scale-adaptive convolution module.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
 
         conv_type = nn.Conv3d if spatial_dims == 3 else nn.Conv2d
 
-        self.convs = nn.ModuleList([
-            conv_type(in_channels, out_channels, k, padding=k // 2, bias=False)
-            for k in kernel_sizes
-        ])
+        self.convs = nn.ModuleList(
+            [conv_type(in_channels, out_channels, k, padding=k // 2, bias=False) for k in kernel_sizes]
+        )
 
         # Shared normalization and activation
-        self.norm = get_norm_layer(
-            name=norm, spatial_dims=spatial_dims, channels=out_channels
-        )
+        self.norm = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=out_channels)
         self.act = get_act_layer(name=act)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -405,6 +415,11 @@ class SEBlock(nn.Module):
         channels: int,
         reduction: int = 16,
     ) -> None:
+        """
+        Initialize the Squeeze-and-Excitation block.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
 
@@ -463,11 +478,16 @@ class DecoderBlock(nn.Module):
         in_channels: int,
         skip_channels: int,
         out_channels: int,
-        norm: Union[str, tuple] = "batch",
-        act: Union[str, tuple] = "relu",
+        norm: str | tuple = "batch",
+        act: str | tuple = "relu",
         dropout: float = 0.0,
         use_se: bool = True,
     ) -> None:
+        """
+        Initialize the decoder block.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
 
@@ -585,16 +605,21 @@ class MAGNUS(nn.Module):
         features: Sequence[int] = (64, 128, 256, 512),
         vit_depth: int = 6,
         vit_patch_size: int = 16,
-        vit_num_heads: Optional[int] = None,
-        fusion_num_heads: Optional[int] = None,
+        vit_num_heads: int | None = None,
+        fusion_num_heads: int | None = None,
         scale_kernel_sizes: Sequence[int] = (3, 5, 7),
-        norm: Union[str, tuple] = "batch",
-        act: Union[str, tuple] = "relu",
+        norm: str | tuple = "batch",
+        act: str | tuple = "relu",
         dropout: float = 0.0,
         vit_dropout: float = 0.1,
         deep_supervision: bool = False,
         aux_weights: Sequence[float] = (0.4, 0.3, 0.3),
     ) -> None:
+        """
+        Initialize the MAGNUS model.
+
+        See class docstring for argument descriptions.
+        """
         super().__init__()
 
         if spatial_dims not in (2, 3):
@@ -704,9 +729,7 @@ class MAGNUS(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> Union[torch.Tensor, tuple[torch.Tensor, list[torch.Tensor]]]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Forward pass of MAGNUS.
 
