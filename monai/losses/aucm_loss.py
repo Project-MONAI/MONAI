@@ -65,6 +65,7 @@ class AUCMLoss(_Loss):
 
         Raises:
             ValueError: When ``version`` is not one of ["v1", "v2"].
+            ValueError: When ``imratio`` is not in [0, 1].
 
         Example:
             >>> import torch
@@ -77,6 +78,8 @@ class AUCMLoss(_Loss):
         super().__init__(reduction=LossReduction(reduction).value)
         if version not in ["v1", "v2"]:
             raise ValueError(f"version should be 'v1' or 'v2', got {version}")
+        if imratio is not None and not (0.0 <= imratio <= 1.0):
+            raise ValueError(f"imratio must be in [0, 1], got {imratio}")
         self.margin = margin
         self.imratio = imratio
         self.version = version
@@ -95,8 +98,11 @@ class AUCMLoss(_Loss):
 
         Raises:
             ValueError: When input or target have incorrect shapes.
+            ValueError: When input or target have fewer than 2 dimensions.
             ValueError: When target contains non-binary values.
         """
+        if input.ndim < 2 or target.ndim < 2:
+            raise ValueError("Input and target must have at least 2 dimensions (B, C, ...)")
         if input.shape[1] != 1:
             raise ValueError(f"Input should have 1 channel for binary classification, got {input.shape[1]}")
         if target.shape[1] != 1:

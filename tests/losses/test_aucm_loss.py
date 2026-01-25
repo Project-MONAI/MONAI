@@ -45,6 +45,13 @@ class TestAUCMLoss(unittest.TestCase):
         with self.assertRaises(ValueError):
             AUCMLoss(version="invalid")
 
+    def test_invalid_imratio(self):
+        """Test that invalid imratio raises ValueError."""
+        with self.assertRaises(ValueError):
+            AUCMLoss(imratio=1.5)
+        with self.assertRaises(ValueError):
+            AUCMLoss(imratio=-0.1)
+
     def test_invalid_input_shape(self):
         """Test that invalid input shape raises ValueError."""
         loss_fn = AUCMLoss()
@@ -61,6 +68,14 @@ class TestAUCMLoss(unittest.TestCase):
         with self.assertRaises(ValueError):
             loss_fn(input, target)
 
+    def test_insufficient_dimensions(self):
+        """Test that tensors with insufficient dimensions raise ValueError."""
+        loss_fn = AUCMLoss()
+        input = torch.randn(32)  # 1D tensor
+        target = torch.randint(0, 2, (32, 1)).float()
+        with self.assertRaises(ValueError):
+            loss_fn(input, target)
+
     def test_shape_mismatch(self):
         """Test that mismatched shapes raise ValueError."""
         loss_fn = AUCMLoss()
@@ -73,7 +88,7 @@ class TestAUCMLoss(unittest.TestCase):
         """Test that non-binary target values raise ValueError."""
         loss_fn = AUCMLoss()
         input = torch.randn(32, 1)
-        target = torch.tensor([[0.5], [1.0], [2.0]] * 10 + [[0.0]])  # Contains non-binary values
+        target = torch.tensor([[0.5], [1.0], [2.0], [0.0]] * 8)  # 32x1, still non-binary
         with self.assertRaises(ValueError):
             loss_fn(input, target)
 
