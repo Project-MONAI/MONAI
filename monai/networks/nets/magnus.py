@@ -115,7 +115,8 @@ class TransformerPath(nn.Module):
     Vision Transformer path for global context modeling.
 
     Applies patch embedding followed by transformer encoder layers
-    to capture long-range dependencies.
+    to capture long-range dependencies. Includes learnable positional
+    embeddings that are interpolated to match varying input sizes.
 
     Args:
         spatial_dims: number of spatial dimensions (2 or 3).
@@ -150,6 +151,14 @@ class TransformerPath(nn.Module):
             in_channels, hidden_dim, kernel_size=patch_size, stride=patch_size
         )
 
+        # Learnable positional embedding (will be interpolated for different input sizes)
+        # Initialize with a reasonable default size, will adapt dynamically
+        self.pos_embed = nn.Parameter(torch.zeros(1, 256, hidden_dim))
+        nn.init.trunc_normal_(self.pos_embed, std=0.02)
+
+        # Dropout for positional embedding
+        self.pos_drop = nn.Dropout(p=dropout)
+
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=hidden_dim,
@@ -164,6 +173,31 @@ class TransformerPath(nn.Module):
 
         # Layer normalization
         self.norm = nn.LayerNorm(hidden_dim)
+
+    def _interpolate_pos_encoding(self, x: torch.Tensor, num_patches: int) -> torch.Tensor:
+        """
+        Interpolate positional embeddings to match the number of patches.
+
+        Args:
+            x: input tensor for device reference.
+            num_patches: target number of patches.
+
+        Returns:
+            Interpolated positional embeddings of shape (1, num_patches, hidden_dim).
+        """
+        if num_patches == self.pos_embed.shape[1]:
+            return self.pos_embed
+
+        # Interpolate positional embeddings
+        pos_embed = self.pos_embed.transpose(1, 2)  # (1, hidden_dim, N)
+        pos_embed = F.interpolate(
+            pos_embed,
+            size=num_patches,
+            mode="linear",
+            align_corners=False,
+        )
+        pos_embed = pos_embed.transpose(1, 2)  # (1, num_patches, hidden_dim)
+        return pos_embed
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -182,6 +216,12 @@ class TransformerPath(nn.Module):
 
         # Flatten spatial dims: (B, hidden_dim, *spatial) -> (B, N, hidden_dim)
         x_flat = x_embedded.flatten(2).transpose(1, 2)
+        num_patches = x_flat.shape[1]
+
+        # Add positional encoding
+        pos_embed = self._interpolate_pos_encoding(x_flat, num_patches)
+        x_flat = x_flat + pos_embed
+        x_flat = self.pos_drop(x_flat)
 
         # Apply transformer
         x_transformed = self.transformer(x_flat)
@@ -512,7 +552,10 @@ class MAGNUS(nn.Module):
         dropout: dropout ratio. Default: 0.0.
         vit_dropout: dropout ratio for transformer. Default: 0.1.
         deep_supervision: whether to return auxiliary outputs. Default: False.
-        aux_weights: weights for auxiliary losses. Default: (0.4, 0.3, 0.3).
+        aux_weights: suggested weights for auxiliary losses when using deep supervision.
+            These weights are stored as an attribute for user convenience but are NOT
+            applied internally. Users should apply them externally when computing the
+            total loss. Default: (0.4, 0.3, 0.3).
 
     Example:
         >>> import torch
