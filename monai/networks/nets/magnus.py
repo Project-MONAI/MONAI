@@ -33,7 +33,7 @@ import torch.nn.functional as F
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv", "SEBlock", "DecoderBlock"]
+__all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv", "MagnusSEBlock", "DecoderBlock"]
 
 
 class CNNPath(nn.Module):
@@ -399,9 +399,9 @@ class ScaleAdaptiveConv(nn.Module):
         return out
 
 
-class SEBlock(nn.Module):
+class MagnusSEBlock(nn.Module):
     """
-    Squeeze-and-Excitation block for channel recalibration.
+    Squeeze-and-Excitation block for channel recalibration in MAGNUS.
 
     Args:
         spatial_dims: number of spatial dimensions (2 or 3).
@@ -516,7 +516,7 @@ class DecoderBlock(nn.Module):
         )
 
         # Optional SE block
-        self.se = SEBlock(spatial_dims, out_channels) if use_se else nn.Identity()
+        self.se = MagnusSEBlock(spatial_dims, out_channels) if use_se else nn.Identity()
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
         """

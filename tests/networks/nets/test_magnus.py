@@ -31,8 +31,8 @@ from monai.networks.nets.magnus import (
     CNNPath,
     CrossModalAttentionFusion,
     DecoderBlock,
+    MagnusSEBlock,
     ScaleAdaptiveConv,
-    SEBlock,
     TransformerPath,
 )
 
@@ -305,12 +305,12 @@ class TestScaleAdaptiveConv(unittest.TestCase):
         self.assertEqual(y.shape, (1, 64, 32, 32))
 
 
-class TestSEBlock(unittest.TestCase):
-    """Test cases for SEBlock."""
+class TestMagnusSEBlock(unittest.TestCase):
+    """Test cases for MagnusSEBlock."""
 
     def test_se_block_3d(self):
-        """Test SEBlock 3D output shape."""
-        model = SEBlock(spatial_dims=3, channels=64, reduction=16)
+        """Test MagnusSEBlock 3D output shape."""
+        model = MagnusSEBlock(spatial_dims=3, channels=64, reduction=16)
         model.eval()
 
         x = torch.randn(1, 64, 8, 8, 8)
@@ -320,8 +320,8 @@ class TestSEBlock(unittest.TestCase):
         self.assertEqual(y.shape, x.shape)
 
     def test_se_block_2d(self):
-        """Test SEBlock 2D output shape."""
-        model = SEBlock(spatial_dims=2, channels=128, reduction=8)
+        """Test MagnusSEBlock 2D output shape."""
+        model = MagnusSEBlock(spatial_dims=2, channels=128, reduction=8)
         model.eval()
 
         x = torch.randn(2, 128, 16, 16)
@@ -331,9 +331,9 @@ class TestSEBlock(unittest.TestCase):
         self.assertEqual(y.shape, x.shape)
 
     def test_se_block_minimum_reduction(self):
-        """Test SEBlock with small channel count."""
+        """Test MagnusSEBlock with small channel count."""
         # Reduction should be at least 1
-        model = SEBlock(spatial_dims=2, channels=4, reduction=16)
+        model = MagnusSEBlock(spatial_dims=2, channels=4, reduction=16)
         model.eval()
 
         x = torch.randn(1, 4, 8, 8)
