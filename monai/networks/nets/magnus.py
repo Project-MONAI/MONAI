@@ -33,7 +33,7 @@ import torch.nn.functional as F
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv"]
+__all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv", "SEBlock", "DecoderBlock"]
 
 
 class CNNPath(nn.Module):
@@ -176,7 +176,7 @@ class TransformerPath(nn.Module):
             batch_first=True,
             norm_first=True,
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=depth)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=depth, enable_nested_tensor=False)
 
         # Layer normalization
         self.norm = nn.LayerNorm(hidden_dim)

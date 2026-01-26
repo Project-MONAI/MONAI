@@ -30,7 +30,9 @@ from monai.networks.nets.magnus import (
     MAGNUS,
     CNNPath,
     CrossModalAttentionFusion,
+    DecoderBlock,
     ScaleAdaptiveConv,
+    SEBlock,
     TransformerPath,
 )
 
@@ -301,6 +303,101 @@ class TestScaleAdaptiveConv(unittest.TestCase):
             y = model(x)
 
         self.assertEqual(y.shape, (1, 64, 32, 32))
+
+
+class TestSEBlock(unittest.TestCase):
+    """Test cases for SEBlock."""
+
+    def test_se_block_3d(self):
+        """Test SEBlock 3D output shape."""
+        model = SEBlock(spatial_dims=3, channels=64, reduction=16)
+        model.eval()
+
+        x = torch.randn(1, 64, 8, 8, 8)
+        with torch.no_grad():
+            y = model(x)
+
+        self.assertEqual(y.shape, x.shape)
+
+    def test_se_block_2d(self):
+        """Test SEBlock 2D output shape."""
+        model = SEBlock(spatial_dims=2, channels=128, reduction=8)
+        model.eval()
+
+        x = torch.randn(2, 128, 16, 16)
+        with torch.no_grad():
+            y = model(x)
+
+        self.assertEqual(y.shape, x.shape)
+
+    def test_se_block_minimum_reduction(self):
+        """Test SEBlock with small channel count."""
+        # Reduction should be at least 1
+        model = SEBlock(spatial_dims=2, channels=4, reduction=16)
+        model.eval()
+
+        x = torch.randn(1, 4, 8, 8)
+        with torch.no_grad():
+            y = model(x)
+
+        self.assertEqual(y.shape, x.shape)
+
+
+class TestDecoderBlock(unittest.TestCase):
+    """Test cases for DecoderBlock."""
+
+    def test_decoder_block_3d(self):
+        """Test DecoderBlock 3D output shape."""
+        model = DecoderBlock(
+            spatial_dims=3,
+            in_channels=128,
+            skip_channels=64,
+            out_channels=64,
+        )
+        model.eval()
+
+        x = torch.randn(1, 128, 8, 8, 8)
+        skip = torch.randn(1, 64, 16, 16, 16)
+        with torch.no_grad():
+            y = model(x, skip)
+
+        self.assertEqual(y.shape, (1, 64, 16, 16, 16))
+
+    def test_decoder_block_2d(self):
+        """Test DecoderBlock 2D output shape."""
+        model = DecoderBlock(
+            spatial_dims=2,
+            in_channels=256,
+            skip_channels=128,
+            out_channels=128,
+            use_se=True,
+        )
+        model.eval()
+
+        x = torch.randn(1, 256, 8, 8)
+        skip = torch.randn(1, 128, 16, 16)
+        with torch.no_grad():
+            y = model(x, skip)
+
+        self.assertEqual(y.shape, (1, 128, 16, 16))
+
+    def test_decoder_block_no_se(self):
+        """Test DecoderBlock without SE block."""
+        model = DecoderBlock(
+            spatial_dims=3,
+            in_channels=64,
+            skip_channels=32,
+            out_channels=32,
+            use_se=False,
+        )
+        model.eval()
+
+        x = torch.randn(1, 64, 4, 4, 4)
+        skip = torch.randn(1, 32, 8, 8, 8)
+        with torch.no_grad():
+            y = model(x, skip)
+
+        self.assertEqual(y.shape, (1, 32, 8, 8, 8))
 
 
 class TestMAGNUSMemory(unittest.TestCase):

@@ -73,7 +73,7 @@ from .mednext import (
     MedNeXtSmall,
     MedNextSmall,
 )
-from .magnus import MAGNUS, CNNPath, CrossModalAttentionFusion, ScaleAdaptiveConv, TransformerPath
+from .magnus import MAGNUS, CNNPath, CrossModalAttentionFusion, DecoderBlock, ScaleAdaptiveConv, SEBlock, TransformerPath
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
