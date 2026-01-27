@@ -33,7 +33,15 @@ import torch.nn.functional as F
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["MAGNUS", "CNNPath", "TransformerPath", "CrossModalAttentionFusion", "ScaleAdaptiveConv", "MagnusSEBlock", "DecoderBlock"]
+__all__ = [
+    "MAGNUS",
+    "CNNPath",
+    "TransformerPath",
+    "CrossModalAttentionFusion",
+    "ScaleAdaptiveConv",
+    "MagnusSEBlock",
+    "DecoderBlock",
+]
 
 
 class CNNPath(nn.Module):
@@ -203,8 +211,8 @@ class TransformerPath(nn.Module):
             mode="linear",
             align_corners=False,
         )
-        pos_embed = pos_embed.transpose(1, 2)  # (1, num_patches, hidden_dim)
-        return pos_embed
+        result: torch.Tensor = pos_embed.transpose(1, 2)  # (1, num_patches, hidden_dim)
+        return result
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -235,9 +243,9 @@ class TransformerPath(nn.Module):
         x_transformed = self.norm(x_transformed)
 
         # Reshape back to spatial: (B, N, hidden_dim) -> (B, hidden_dim, *spatial)
-        x_reshaped = x_transformed.transpose(1, 2).view(B, self.hidden_dim, *spatial_shape)
+        x_out: torch.Tensor = x_transformed.transpose(1, 2).view(B, self.hidden_dim, *spatial_shape)
 
-        return x_reshaped
+        return x_out
 
 
 class CrossModalAttentionFusion(nn.Module):
@@ -334,7 +342,7 @@ class CrossModalAttentionFusion(nn.Module):
         out_v = out_v.contiguous().view(B, C, *spatial_shape)
 
         # Combine and project
-        fused = self.to_out(out_c + out_v)
+        fused: torch.Tensor = self.to_out(out_c + out_v)
 
         return fused
 
@@ -395,8 +403,8 @@ class ScaleAdaptiveConv(nn.Module):
         outs = [conv(x) for conv in self.convs]
         out = torch.stack(outs, dim=0).sum(dim=0)
         out = self.norm(out)
-        out = self.act(out)
-        return out
+        result: torch.Tensor = self.act(out)
+        return result
 
 
 class MagnusSEBlock(nn.Module):
@@ -454,7 +462,8 @@ class MagnusSEBlock(nn.Module):
         else:
             y = y.view(b, c, 1, 1)
 
-        return x * y.expand_as(x)
+        result: torch.Tensor = x * y.expand_as(x)
+        return result
 
 
 class DecoderBlock(nn.Module):
@@ -795,4 +804,5 @@ class MAGNUS(nn.Module):
         if self.deep_supervision:
             return seg_logits, aux_outputs
 
-        return seg_logits
+        result: torch.Tensor = seg_logits
+        return result
