@@ -24,7 +24,7 @@ from monai.config import KeysCollection
 from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.utils import min_version, optional_import
+from monai.utils import deprecated, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -84,18 +84,44 @@ class DiscardAddGuidanced(MapTransform):
         return d
 
 
-class NormalizeLabelsInDatasetd(MapTransform):
+class RemapLabelsToSequentiald(MapTransform):
+    """
+    Remap label values from a dataset-specific schema to sequential indices (0, 1, 2, 3, ...).
+
+    This transform takes labels with arbitrary values defined in a label dictionary and remaps them
+    to a sequential range starting from 1 (with background always set to 0). This is useful for
+    standardizing labels across different datasets or ensuring labels are in a contiguous range.
+
+    The output label indices are assigned in alphabetical order by label name to ensure
+    deterministic behavior regardless of input dictionary ordering.
+
+    Args:
+        keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+        label_names: Dictionary mapping label names to their current values in the dataset.
+            For example: {"spleen": 1, "liver": 6, "background": 0}
+            Will be remapped to: {"background": 0, "liver": 1, "spleen": 2}
+            (alphabetically sorted, excluding background)
+        allow_missing_keys: If True, missing keys in the data dictionary will not raise an error
+
+    Example:
+        >>> transform = RemapLabelsToSequentiald(
+        ...     keys="label",
+        ...     label_names={"liver": 6, "spleen": 1, "background": 0}
+        ... )
+        >>> # Input label has values [0, 1, 6]
+        >>> # Output label will have values [0, 1, 2] (background=0, liver=1, spleen=2)
+        >>> # And updates d["label_names"] to {"background": 0, "liver": 1, "spleen": 2}
+
+    Note:
+        - Background label (if present) is always mapped to 0
+        - Non-background labels are mapped to sequential indices 1, 2, 3, ... in alphabetical order
+        - Undefined labels (not in label_names) will be set to 0 (background)
+        - The transform updates the data dictionary with a new "label_names" key containing the remapped values
+    """
 
     def __init__(
         self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
     ):
-        """
-        Normalize label values according to label names dictionary
-
-        Args:
-            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-            label_names: all label names
-        """
         super().__init__(keys, allow_missing_keys)
 
         self.label_names = label_names or {}
@@ -106,13 +132,18 @@ class NormalizeLabelsInDatasetd(MapTransform):
             # Dictionary containing new label numbers
             new_label_names = {}
             label = np.zeros(d[key].shape)
-            # Making sure the range values and number of labels are the same
-            for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
-                if key_label != "background":
-                    new_label_names[key_label] = idx
-                    label[d[key] == val_label] = idx
-                if key_label == "background":
-                    new_label_names["background"] = 0
+
+            # Sort label names to ensure deterministic ordering (exclude background)
+            sorted_labels = sorted([(k, v) for k, v in self.label_names.items() if k != "background"])
+
+            # Always set background to 0 first
+            if "background" in self.label_names:
+                new_label_names["background"] = 0
+
+            # Assign sequential indices to sorted non-background labels
+            for idx, (key_label, val_label) in enumerate(sorted_labels, start=1):
+                new_label_names[key_label] = idx
+                label[d[key] == val_label] = idx
 
             d["label_names"] = new_label_names
             if isinstance(d[key], MetaTensor):
@@ -120,6 +151,20 @@ class NormalizeLabelsInDatasetd(MapTransform):
             else:
                 d[key] = label
         return d
+
+
+@deprecated(since="1.6", removed="1.8", msg_suffix="Use `RemapLabelsToSequentiald` instead.")
+class NormalizeLabelsInDatasetd(RemapLabelsToSequentiald):
+    """
+    .. deprecated:: 1.6.0
+        `NormalizeLabelsInDatasetd` is deprecated and will be removed in version 1.8.0.
+        Use :class:`RemapLabelsToSequentiald` instead.
+
+    This class is maintained for backward compatibility. Please use RemapLabelsToSequentiald
+    which better describes the transform's functionality.
+    """
+
+    pass
 
 
 class SingleLabelSelectiond(MapTransform):
