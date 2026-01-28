@@ -109,7 +109,7 @@ class CNNPath(nn.Module):
         Forward pass returning features from each stage.
 
         Args:
-            x: input tensor of shape (B, C, *spatial_dims).
+            x: input tensor of shape ``(B, C, *spatial_dims)``.
 
         Returns:
             List of feature tensors from each encoder stage,
@@ -214,14 +214,14 @@ class TransformerPath(nn.Module):
         Forward pass through transformer path.
 
         Args:
-            x: input tensor of shape (B, C, *spatial_dims).
+            x: input tensor of shape ``(B, C, *spatial_dims)``.
 
         Returns:
-            Transformed features of shape (B, hidden_dim, *reduced_spatial_dims).
+            Transformed features of shape ``(B, hidden_dim, *reduced_spatial_dims)``.
         """
         # Patch embedding: (B, C, D, H, W) -> (B, hidden_dim, Dp, Hp, Wp)
         x_embedded = self.embedding(x)
-        B = x_embedded.shape[0]
+        batch_size = x_embedded.shape[0]
         spatial_shape = x_embedded.shape[2:]
 
         # Flatten spatial dims: (B, hidden_dim, *spatial) -> (B, N, hidden_dim)
@@ -238,7 +238,7 @@ class TransformerPath(nn.Module):
         x_transformed = self.norm(x_transformed)
 
         # Reshape back to spatial: (B, N, hidden_dim) -> (B, hidden_dim, *spatial)
-        x_out: torch.Tensor = x_transformed.transpose(1, 2).view(B, self.hidden_dim, *spatial_shape)
+        x_out: torch.Tensor = x_transformed.transpose(1, 2).view(batch_size, self.hidden_dim, *spatial_shape)
 
         return x_out
 
@@ -289,13 +289,13 @@ class CrossModalAttentionFusion(nn.Module):
         Forward pass for cross-modal attention fusion.
 
         Args:
-            cnn_feat: CNN features of shape (B, C, *spatial_dims).
-            vit_feat: ViT features of shape (B, C, *spatial_dims_vit).
+            cnn_feat: CNN features of shape ``(B, C, *spatial_dims)``.
+            vit_feat: ViT features of shape ``(B, C, *spatial_dims_vit)``.
 
         Returns:
-            Fused features of shape (B, C, *spatial_dims).
+            Fused features of shape ``(B, C, *spatial_dims)``.
         """
-        B, C = cnn_feat.shape[:2]
+        batch_size, channels = cnn_feat.shape[:2]
         spatial_shape = cnn_feat.shape[2:]
         heads = self.num_heads
 
@@ -310,7 +310,7 @@ class CrossModalAttentionFusion(nn.Module):
 
         # Reshape for multi-head attention: (B, heads, head_dim, N)
         def reshape_for_attention(t: torch.Tensor) -> torch.Tensor:
-            return t.view(B, heads, self.head_dim, -1)
+            return t.view(batch_size, heads, self.head_dim, -1)
 
         q_c, k_c, v_c = map(reshape_for_attention, (q_c, k_c, v_c))
         q_v, k_v, v_v = map(reshape_for_attention, (q_v, k_v, v_v))
@@ -326,8 +326,8 @@ class CrossModalAttentionFusion(nn.Module):
         out_v = torch.einsum("b h i j, b h d j -> b h d i", attn_vc, v_c)
 
         # Reshape back to spatial
-        out_c = out_c.contiguous().view(B, C, *spatial_shape)
-        out_v = out_v.contiguous().view(B, C, *spatial_shape)
+        out_c = out_c.contiguous().view(batch_size, channels, *spatial_shape)
+        out_v = out_v.contiguous().view(batch_size, channels, *spatial_shape)
 
         # Combine and project
         fused: torch.Tensor = self.to_out(out_c + out_v)
@@ -383,10 +383,10 @@ class ScaleAdaptiveConv(nn.Module):
         Forward pass with multi-scale convolutions.
 
         Args:
-            x: input tensor of shape (B, C, *spatial_dims).
+            x: input tensor of shape ``(B, C, *spatial_dims)``.
 
         Returns:
-            Multi-scale features of shape (B, out_channels, *spatial_dims).
+            Multi-scale features of shape ``(B, out_channels, *spatial_dims)``.
         """
         outs = [conv(x) for conv in self.convs]
         out = torch.stack(outs, dim=0).sum(dim=0)
@@ -430,7 +430,7 @@ class MagnusSEBlock(nn.Module):
         Forward pass for SE block.
 
         Args:
-            x: input tensor of shape (B, C, *spatial_dims).
+            x: input tensor of shape ``(B, C, *spatial_dims)``.
 
         Returns:
             Channel-recalibrated tensor of same shape.
@@ -723,14 +723,13 @@ class MAGNUS(nn.Module):
         Forward pass of MAGNUS.
 
         Args:
-            x: input tensor of shape (B, in_channels, *spatial_dims).
+            x: input tensor of shape ``(B, in_channels, *spatial_dims)``.
 
         Returns:
-            If deep_supervision is False:
-                Segmentation logits of shape (B, out_channels, *spatial_dims).
-            If deep_supervision is True:
-                Tuple of (main_output, auxiliary_outputs) where auxiliary_outputs
-                is a list of intermediate segmentation maps.
+            If ``deep_supervision`` is False, returns segmentation logits of shape
+            ``(B, out_channels, *spatial_dims)``.
+            If ``deep_supervision`` is True, returns tuple of (main_output, auxiliary_outputs)
+            where auxiliary_outputs is a list of intermediate segmentation maps.
         """
         input_shape = x.shape[2:]
 
