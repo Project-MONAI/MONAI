@@ -53,6 +53,15 @@ from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
+from .magnus import (
+    MAGNUS,
+    CNNPath,
+    CrossModalAttentionFusion,
+    DecoderBlock,
+    MagnusSEBlock,
+    ScaleAdaptiveConv,
+    TransformerPath,
+)
 from .masked_autoencoder_vit import MaskedAutoEncoderViT
 from .mednext import (
     MedNeXt,
@@ -72,15 +81,6 @@ from .mednext import (
     MedNeXtS,
     MedNeXtSmall,
     MedNextSmall,
-)
-from .magnus import (
-    MAGNUS,
-    CNNPath,
-    CrossModalAttentionFusion,
-    DecoderBlock,
-    MagnusSEBlock,
-    ScaleAdaptiveConv,
-    TransformerPath,
 )
 from .milmodel import MILModel
 from .netadapter import NetAdapter
