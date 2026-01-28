@@ -46,20 +46,11 @@ MAGNUS_TEST_CASES = [
 ]
 
 # Test cases for individual components
-CNN_PATH_TEST_CASES = [
-    (3, 1, (32, 64, 128), (1, 1, 64, 64, 64)),
-    (2, 3, (64, 128, 256), (1, 3, 128, 128)),
-]
+CNN_PATH_TEST_CASES = [(3, 1, (32, 64, 128), (1, 1, 64, 64, 64)), (2, 3, (64, 128, 256), (1, 3, 128, 128))]
 
-TRANSFORMER_PATH_TEST_CASES = [
-    (3, 1, 256, 8, 4, 8, (1, 1, 64, 64, 64)),
-    (2, 3, 128, 4, 2, 16, (1, 3, 128, 128)),
-]
+TRANSFORMER_PATH_TEST_CASES = [(3, 1, 256, 8, 4, 8, (1, 1, 64, 64, 64)), (2, 3, 128, 4, 2, 16, (1, 3, 128, 128))]
 
-FUSION_TEST_CASES = [
-    (3, 256, 8, (1, 256, 8, 8, 8), (1, 256, 4, 4, 4)),
-    (2, 128, 4, (1, 128, 16, 16), (1, 128, 8, 8)),
-]
+FUSION_TEST_CASES = [(3, 256, 8, (1, 256, 8, 8, 8), (1, 256, 4, 4, 4)), (2, 128, 4, (1, 128, 16, 16), (1, 128, 8, 8))]
 
 
 class TestMAGNUS(unittest.TestCase):
@@ -67,12 +58,7 @@ class TestMAGNUS(unittest.TestCase):
 
     @parameterized.expand(MAGNUS_TEST_CASES)
     def test_magnus_shape(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        input_shape: tuple,
-        expected_shape: tuple,
+        self, spatial_dims: int, in_channels: int, out_channels: int, input_shape: tuple, expected_shape: tuple
     ):
         """Test MAGNUS output shape."""
         model = MAGNUS(
@@ -115,11 +101,7 @@ class TestMAGNUS(unittest.TestCase):
 
     def test_magnus_different_norms(self):
         """Test MAGNUS with different normalization types."""
-        norms = [
-            "batch",
-            "instance",
-            ("group", {"num_groups": 8}),  # GroupNorm requires num_groups
-        ]
+        norms = ["batch", "instance", ("group", {"num_groups": 8})]  # GroupNorm requires num_groups
         for norm in norms:
             model = MAGNUS(
                 spatial_dims=3,
@@ -140,14 +122,7 @@ class TestMAGNUS(unittest.TestCase):
 
     def test_magnus_gradient_flow(self):
         """Test gradient flow through MAGNUS."""
-        model = MAGNUS(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=2,
-            features=(32, 64),
-            vit_depth=1,
-            vit_patch_size=8,
-        )
+        model = MAGNUS(spatial_dims=3, in_channels=1, out_channels=2, features=(32, 64), vit_depth=1, vit_patch_size=8)
         model.train()
 
         x = torch.randn(1, 1, 32, 32, 32, requires_grad=True)
@@ -168,19 +143,9 @@ class TestCNNPath(unittest.TestCase):
     """Test cases for CNNPath."""
 
     @parameterized.expand(CNN_PATH_TEST_CASES)
-    def test_cnn_path_shape(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        features: tuple,
-        input_shape: tuple,
-    ):
+    def test_cnn_path_shape(self, spatial_dims: int, in_channels: int, features: tuple, input_shape: tuple):
         """Test CNNPath output shapes."""
-        model = CNNPath(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            features=features,
-        )
+        model = CNNPath(spatial_dims=spatial_dims, in_channels=in_channels, features=features)
         model.eval()
 
         x = torch.randn(*input_shape)
@@ -234,20 +199,9 @@ class TestCrossModalAttentionFusion(unittest.TestCase):
     """Test cases for CrossModalAttentionFusion."""
 
     @parameterized.expand(FUSION_TEST_CASES)
-    def test_fusion_shape(
-        self,
-        spatial_dims: int,
-        channels: int,
-        num_heads: int,
-        cnn_shape: tuple,
-        vit_shape: tuple,
-    ):
+    def test_fusion_shape(self, spatial_dims: int, channels: int, num_heads: int, cnn_shape: tuple, vit_shape: tuple):
         """Test CrossModalAttentionFusion output shape."""
-        model = CrossModalAttentionFusion(
-            spatial_dims=spatial_dims,
-            channels=channels,
-            num_heads=num_heads,
-        )
+        model = CrossModalAttentionFusion(spatial_dims=spatial_dims, channels=channels, num_heads=num_heads)
         model.eval()
 
         cnn_feat = torch.randn(*cnn_shape)
@@ -262,11 +216,7 @@ class TestCrossModalAttentionFusion(unittest.TestCase):
     def test_fusion_invalid_channels(self):
         """Test fusion raises error when channels not divisible by heads."""
         with self.assertRaises(ValueError):
-            CrossModalAttentionFusion(
-                spatial_dims=3,
-                channels=100,
-                num_heads=8,  # 100 % 8 != 0
-            )
+            CrossModalAttentionFusion(spatial_dims=3, channels=100, num_heads=8)  # 100 % 8 != 0
 
 
 class TestScaleAdaptiveConv(unittest.TestCase):
@@ -274,12 +224,7 @@ class TestScaleAdaptiveConv(unittest.TestCase):
 
     def test_scale_adaptive_conv_3d(self):
         """Test ScaleAdaptiveConv 3D output shape."""
-        model = ScaleAdaptiveConv(
-            spatial_dims=3,
-            in_channels=64,
-            out_channels=128,
-            kernel_sizes=(3, 5, 7),
-        )
+        model = ScaleAdaptiveConv(spatial_dims=3, in_channels=64, out_channels=128, kernel_sizes=(3, 5, 7))
         model.eval()
 
         x = torch.randn(1, 64, 16, 16, 16)
@@ -290,12 +235,7 @@ class TestScaleAdaptiveConv(unittest.TestCase):
 
     def test_scale_adaptive_conv_2d(self):
         """Test ScaleAdaptiveConv 2D output shape."""
-        model = ScaleAdaptiveConv(
-            spatial_dims=2,
-            in_channels=32,
-            out_channels=64,
-            kernel_sizes=(3, 5),
-        )
+        model = ScaleAdaptiveConv(spatial_dims=2, in_channels=32, out_channels=64, kernel_sizes=(3, 5))
         model.eval()
 
         x = torch.randn(1, 32, 32, 32)
@@ -348,12 +288,7 @@ class TestDecoderBlock(unittest.TestCase):
 
     def test_decoder_block_3d(self):
         """Test DecoderBlock 3D output shape."""
-        model = DecoderBlock(
-            spatial_dims=3,
-            in_channels=128,
-            skip_channels=64,
-            out_channels=64,
-        )
+        model = DecoderBlock(spatial_dims=3, in_channels=128, skip_channels=64, out_channels=64)
         model.eval()
 
         x = torch.randn(1, 128, 8, 8, 8)
@@ -365,13 +300,7 @@ class TestDecoderBlock(unittest.TestCase):
 
     def test_decoder_block_2d(self):
         """Test DecoderBlock 2D output shape."""
-        model = DecoderBlock(
-            spatial_dims=2,
-            in_channels=256,
-            skip_channels=128,
-            out_channels=128,
-            use_se=True,
-        )
+        model = DecoderBlock(spatial_dims=2, in_channels=256, skip_channels=128, out_channels=128, use_se=True)
         model.eval()
 
         x = torch.randn(1, 256, 8, 8)
@@ -383,13 +312,7 @@ class TestDecoderBlock(unittest.TestCase):
 
     def test_decoder_block_no_se(self):
         """Test DecoderBlock without SE block."""
-        model = DecoderBlock(
-            spatial_dims=3,
-            in_channels=64,
-            skip_channels=32,
-            out_channels=32,
-            use_se=False,
-        )
+        model = DecoderBlock(spatial_dims=3, in_channels=64, skip_channels=32, out_channels=32, use_se=False)
         model.eval()
 
         x = torch.randn(1, 64, 4, 4, 4)
@@ -407,12 +330,7 @@ class TestMAGNUSMemory(unittest.TestCase):
     def test_magnus_cuda(self):
         """Test MAGNUS on CUDA."""
         model = MAGNUS(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=2,
-            features=(32, 64, 128),
-            vit_depth=2,
-            vit_patch_size=8,
+            spatial_dims=3, in_channels=1, out_channels=2, features=(32, 64, 128), vit_depth=2, vit_patch_size=8
         ).cuda()
         model.eval()
 

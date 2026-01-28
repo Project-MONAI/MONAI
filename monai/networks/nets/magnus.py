@@ -205,12 +205,7 @@ class TransformerPath(nn.Module):
 
         # Interpolate positional embeddings
         pos_embed = self.pos_embed.transpose(1, 2)  # (1, hidden_dim, N)
-        pos_embed = F.interpolate(
-            pos_embed,
-            size=num_patches,
-            mode="linear",
-            align_corners=False,
-        )
+        pos_embed = F.interpolate(pos_embed, size=num_patches, mode="linear", align_corners=False)
         result: torch.Tensor = pos_embed.transpose(1, 2)  # (1, num_patches, hidden_dim)
         return result
 
@@ -262,13 +257,7 @@ class CrossModalAttentionFusion(nn.Module):
         dropout: dropout rate for attention weights.
     """
 
-    def __init__(
-        self,
-        spatial_dims: int,
-        channels: int,
-        num_heads: int,
-        dropout: float = 0.0,
-    ) -> None:
+    def __init__(self, spatial_dims: int, channels: int, num_heads: int, dropout: float = 0.0) -> None:
         """
         Initialize the cross-modal attention fusion module.
 
@@ -292,8 +281,7 @@ class CrossModalAttentionFusion(nn.Module):
 
         # Output projection
         self.to_out = nn.Sequential(
-            conv_type(channels, channels, 1),
-            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            conv_type(channels, channels, 1), nn.Dropout(dropout) if dropout > 0 else nn.Identity()
         )
 
     def forward(self, cnn_feat: torch.Tensor, vit_feat: torch.Tensor) -> torch.Tensor:
@@ -417,12 +405,7 @@ class MagnusSEBlock(nn.Module):
         reduction: channel reduction ratio for the squeeze operation.
     """
 
-    def __init__(
-        self,
-        spatial_dims: int,
-        channels: int,
-        reduction: int = 16,
-    ) -> None:
+    def __init__(self, spatial_dims: int, channels: int, reduction: int = 16) -> None:
         """
         Initialize the Squeeze-and-Excitation block.
 
@@ -671,10 +654,7 @@ class MAGNUS(nn.Module):
 
         # Cross-modal attention fusion
         self.fusion = CrossModalAttentionFusion(
-            spatial_dims=spatial_dims,
-            channels=vit_hidden_dim,
-            num_heads=fusion_num_heads,
-            dropout=dropout,
+            spatial_dims=spatial_dims, channels=vit_hidden_dim, num_heads=fusion_num_heads, dropout=dropout
         )
 
         # Scale-adaptive convolution
