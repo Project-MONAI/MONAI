@@ -291,9 +291,13 @@ class TestDataset(unittest.TestCase):
             # Verify: ALL samples now in RAM again (automatic rebuild from disk)
             self.assertEqual(ds2.memory_cache_size, 5)
 
-            # Verify: Results are correct
+            # Verify: Results are correct (transformed by _InplaceXform)
             for i, result in enumerate(results):
-                self.assertEqual(result, [list(range(i))])
+                if i == 0:
+                    expected = [[1]]  # empty list -> append 1
+                else:
+                    expected = [[np.pi] + list(range(1, i))]  # data[0] = 0 + np.pi
+                self.assertEqual(result, expected)
 
             # === Verify RAM cache provides fast repeated access ===
             # Accessing same items again should hit RAM cache (same objects)

@@ -435,6 +435,8 @@ class PersistentDataset(Dataset):
             if self.in_memory:
                 self._memory_cache[cache_key] = _item_transformed
             return _item_transformed
+        # Convert to tensor for disk storage (and memory cache consistency)
+        _item_converted = convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta)
         try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
@@ -442,7 +444,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta),
+                    obj=_item_converted,
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -457,7 +459,7 @@ class PersistentDataset(Dataset):
         except PermissionError:  # project-monai/monai issue #3613
             pass
         if self.in_memory:
-            self._memory_cache[cache_key] = _item_transformed
+            self._memory_cache[cache_key] = _item_converted
         return _item_transformed
 
     def _transform(self, index: int):
