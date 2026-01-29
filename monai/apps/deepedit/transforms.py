@@ -165,7 +165,6 @@ class NormalizeLabelsInDatasetd(RemapLabelsToSequentiald):
     """
 
 
-
 class SingleLabelSelectiond(MapTransform):
 
     def __init__(
