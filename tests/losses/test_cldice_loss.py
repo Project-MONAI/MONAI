@@ -72,7 +72,6 @@ COMBINED_CASES = [
 
 
 class TestSoftclDiceLoss(unittest.TestCase):
-
     @parameterized.expand(CLDICE_CASES)
     def test_result(self, loss_params, input_data, expected_val):
         loss = SoftclDiceLoss(**loss_params)
@@ -109,7 +108,6 @@ class TestSoftclDiceLoss(unittest.TestCase):
 
 
 class TestSoftDiceclDiceLoss(unittest.TestCase):
-
     @parameterized.expand(COMBINED_CASES)
     def test_result(self, loss_params, input_data, expected_val):
         loss = SoftDiceclDiceLoss(**loss_params)

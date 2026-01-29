@@ -161,6 +161,8 @@ class SoftclDiceLoss(_Loss):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
+        if not isinstance(iter_, int):
+            raise TypeError(f"iter_ must be an integer but got {type(iter_).__name__}.")
         if iter_ < 0:
             raise ValueError(f"iter_ must be a non-negative integer but got {iter_}.")
         self.iter = iter_
@@ -299,6 +301,8 @@ class SoftDiceclDiceLoss(_Loss):
 
         """
         super().__init__()
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError(f"alpha must be in [0, 1] but got {alpha}.")
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
