@@ -38,7 +38,7 @@ CLDICE_CASES = [
     [{}, ONES_2D, 0.0],
     [{}, ONES_3D, 0.0],
     [
-        {"sigmoid": True, "smooth": 1e-5},
+        {"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[0.5, 0.5], [0.5, 0.5]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
@@ -46,7 +46,7 @@ CLDICE_CASES = [
         0.192777,
     ],
     [
-        {"softmax": True, "smooth": 1e-5},
+        {"softmax": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
         {
             "input": torch.tensor([[[[2.0, 0.0], [0.0, 2.0]], [[-2.0, 0.0], [0.0, -2.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
@@ -54,7 +54,7 @@ CLDICE_CASES = [
         0.148760,
     ],
     [
-        {"to_onehot_y": True, "smooth": 1e-5},
+        {"to_onehot_y": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
         {
             "input": torch.tensor([[[[0.9, 0.1], [0.1, 0.9]], [[0.1, 0.9], [0.9, 0.1]]]]),
             "target": torch.tensor([[[[0, 1], [1, 0]]]]),
@@ -65,9 +65,9 @@ CLDICE_CASES = [
 
 COMBINED_CASES = [
     [{"alpha": 0.5}, ONES_2D, 0.0],
-    [{"alpha": 0.5, "smooth": 1e-5}, PARTIAL_OVERLAP, 0.624995],
-    [{"alpha": 0.0, "smooth": 1e-5}, PARTIAL_OVERLAP, 0.250000],  # pure Dice
-    [{"alpha": 1.0, "smooth": 1e-5}, PARTIAL_OVERLAP, 0.999990],  # pure clDice
+    [{"alpha": 0.5, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.624995],
+    [{"alpha": 0.0, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.250000],  # pure Dice
+    [{"alpha": 1.0, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.999990],  # pure clDice
 ]
 
 

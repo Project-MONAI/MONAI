@@ -21,6 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.dice import DiceLoss
 from monai.networks import one_hot
 from monai.utils import LossReduction
+from monai.utils.deprecate_utils import deprecated_arg
 
 
 def soft_erode(img: torch.Tensor) -> torch.Tensor:  # type: ignore
@@ -119,7 +120,8 @@ class SoftclDiceLoss(_Loss):
     def __init__(
         self,
         iter_: int = 3,
-        smooth: float = 1.0,
+        smooth_nr: float = 1.0,
+        smooth_dr: float = 1.0,
         include_background: bool = True,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -129,8 +131,9 @@ class SoftclDiceLoss(_Loss):
     ) -> None:
         """
         Args:
-            iter_: Number of iterations for skeletonization. Defaults to 3.
-            smooth: Smoothing parameter to avoid division by zero. Defaults to 1.0.
+            iter_: Number of iterations for skeletonization. Must be a non-negative integer. Defaults to 3.
+            smooth_nr: a small constant added to the numerator to avoid zero. Defaults to 1.0.
+            smooth_dr: a small constant added to the denominator to avoid nan. Defaults to 1.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -158,16 +161,19 @@ class SoftclDiceLoss(_Loss):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
-        if smooth <= 0:
-            raise ValueError(f"smooth must be a positive value but got {smooth}.")
+        if iter_ < 0:
+            raise ValueError(f"iter_ must be a non-negative integer but got {iter_}.")
         self.iter = iter_
-        self.smooth = smooth
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
 
+    @deprecated_arg("y_pred", since="1.5", removed="1.8", new_name="input", msg_suffix="please use `input` instead.")
+    @deprecated_arg("y_true", since="1.5", removed="1.8", new_name="target", msg_suffix="please use `target` instead.")
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -186,7 +192,7 @@ class SoftclDiceLoss(_Loss):
 
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, dim=1)
 
@@ -195,13 +201,13 @@ class SoftclDiceLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 target = target[:, 1:]
                 input = input[:, 1:]
@@ -216,13 +222,14 @@ class SoftclDiceLoss(_Loss):
         # reduce_axis includes all dimensions except batch (dim 0)
         reduce_axis: list[int] = list(range(1, len(input.shape)))
 
-        tprec = (torch.sum(torch.multiply(skel_pred, target), dim=reduce_axis) + self.smooth) / (
-            torch.sum(skel_pred, dim=reduce_axis) + self.smooth
+        tprec = (torch.sum(torch.multiply(skel_pred, target), dim=reduce_axis) + self.smooth_nr) / (
+            torch.sum(skel_pred, dim=reduce_axis) + self.smooth_dr
         )
-        tsens = (torch.sum(torch.multiply(skel_true, input), dim=reduce_axis) + self.smooth) / (
-            torch.sum(skel_true, dim=reduce_axis) + self.smooth
+        tsens = (torch.sum(torch.multiply(skel_true, input), dim=reduce_axis) + self.smooth_nr) / (
+            torch.sum(skel_true, dim=reduce_axis) + self.smooth_dr
         )
-        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens + 1e-8)
+        # Add small epsilon for numerical stability in harmonic mean
+        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens + 1e-7)
 
         # Apply reduction
         if self.reduction == LossReduction.MEAN.value:
@@ -253,7 +260,8 @@ class SoftDiceclDiceLoss(_Loss):
         self,
         iter_: int = 3,
         alpha: float = 0.5,
-        smooth: float = 1.0,
+        smooth_nr: float = 1.0,
+        smooth_dr: float = 1.0,
         include_background: bool = True,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -263,10 +271,11 @@ class SoftDiceclDiceLoss(_Loss):
     ) -> None:
         """
         Args:
-            iter_: Number of iterations for skeletonization, used by clDice. Defaults to 3.
+            iter_: Number of iterations for skeletonization, used by clDice. Must be a non-negative integer. Defaults to 3.
             alpha: Weighing factor for cldice component. Total loss = (1 - alpha) * dice + alpha * cldice.
                 Defaults to 0.5.
-            smooth: Smoothing parameter to avoid division by zero, used by both Dice and clDice. Defaults to 1.0.
+            smooth_nr: a small constant added to the numerator to avoid zero, used by both Dice and clDice. Defaults to 1.0.
+            smooth_dr: a small constant added to the denominator to avoid nan, used by both Dice and clDice. Defaults to 1.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -290,8 +299,6 @@ class SoftDiceclDiceLoss(_Loss):
 
         """
         super().__init__()
-        if smooth <= 0:
-            raise ValueError(f"smooth must be a positive value but got {smooth}.")
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
@@ -299,12 +306,13 @@ class SoftDiceclDiceLoss(_Loss):
             softmax=softmax,
             other_act=other_act,
             reduction=reduction,
-            smooth_nr=smooth,
-            smooth_dr=smooth,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
         )
         self.cldice = SoftclDiceLoss(
             iter_=iter_,
-            smooth=smooth,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
             include_background=include_background,
             to_onehot_y=False,
             sigmoid=sigmoid,
@@ -315,6 +323,8 @@ class SoftDiceclDiceLoss(_Loss):
         self.alpha = alpha
         self.to_onehot_y = to_onehot_y
 
+    @deprecated_arg("y_pred", since="1.5", removed="1.8", new_name="input", msg_suffix="please use `input` instead.")
+    @deprecated_arg("y_true", since="1.5", removed="1.8", new_name="target", msg_suffix="please use `target` instead.")
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -328,20 +338,18 @@ class SoftDiceclDiceLoss(_Loss):
         """
         if input.dim() != target.dim():
             raise ValueError(
-                "the number of dimensions for input and target should be the same, "
-                f"got shape {input.shape} and {target.shape}."
+                f"the number of dimensions for input and target should be the same, got shape {input.shape} and {target.shape}."
             )
 
         if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
             raise ValueError(
-                "number of channels for target is neither 1 nor the same as input, "
-                f"got shape {input.shape} and {target.shape}."
+                f"number of channels for target is neither 1 nor the same as input, got shape {input.shape} and {target.shape}."
             )
 
         if self.to_onehot_y:
             n_pred_ch = input.shape[1]
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
