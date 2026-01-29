@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import PanopticQualityMetric, compute_panoptic_quality
+from monai.metrics.panoptic_quality import compute_mean_iou
 from tests.test_utils import SkipIfNoModule
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -161,17 +162,24 @@ class TestPanopticQualityMetric(unittest.TestCase):
 
     def test_compute_mean_iou(self):
         """Test mean IoU computation from confusion matrix."""
-        from monai.metrics.panoptic_quality import compute_mean_iou
-
         input_params, y_pred, y_gt = TEST_CM_CASE_1
         metric = PanopticQualityMetric(**input_params)
         metric(y_pred, y_gt)
         confusion_matrix = metric.aggregate()
         mean_iou = compute_mean_iou(confusion_matrix)
+
         # Check shape is correct
         self.assertEqual(mean_iou.shape, confusion_matrix.shape[:-1])
+
         # Check values are non-negative
         self.assertTrue(torch.all(mean_iou >= 0))
+
+        # Validate against expected values
+        # mean_iou = iou_sum / (tp + smooth_numerator)
+        tp = confusion_matrix[..., 0]
+        iou_sum = confusion_matrix[..., 3]
+        expected_mean_iou = iou_sum / (tp + 1e-6)  # smooth_numerator=1e-6 is default
+        np.testing.assert_allclose(mean_iou.cpu().numpy(), expected_mean_iou.cpu().numpy(), atol=1e-4)
 
     def test_metric_name_filtering(self):
         """Test that metric_name parameter properly filters output."""
