@@ -371,50 +371,18 @@ class ZarrAvgMergerTests(unittest.TestCase):
         arguments = dict(arguments)
 
         # Handle compressor/codecs based on zarr version
-        if "compressor" in arguments and is_zarr_v3:
-            # For zarr v3, convert compressor to codecs
-            if arguments["compressor"] != "default" and arguments["compressor"] is not None:
-                compressor_name = arguments["compressor"].lower()
-                if compressor_name == "lz4":
-                    arguments["codecs"] = ZARR_V3_LZ4_CODECS
-                elif compressor_name == "pickle":
-                    arguments["codecs"] = ZARR_V3_PICKLE_CODECS
-                elif compressor_name == "lzma":
-                    arguments["codecs"] = ZARR_V3_LZMA_CODECS
-                # Remove compressor as it's not supported in zarr v3
-                del arguments["compressor"]
-        elif "compressor" in arguments and not is_zarr_v3:
+        if "compressor" in arguments and not is_zarr_v3:
             # For zarr v2, use the compressor registry
             if arguments["compressor"] != "default" and arguments["compressor"] is not None:
                 arguments["compressor"] = codec_reg[arguments["compressor"].lower()]()
 
         # Same for value_compressor
-        if "value_compressor" in arguments and is_zarr_v3:
-            if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
-                compressor_name = arguments["value_compressor"].lower()
-                if compressor_name == "lz4":
-                    arguments["value_codecs"] = ZARR_V3_LZ4_CODECS
-                elif compressor_name == "pickle":
-                    arguments["value_codecs"] = ZARR_V3_PICKLE_CODECS
-                elif compressor_name == "lzma":
-                    arguments["value_codecs"] = ZARR_V3_LZMA_CODECS
-                del arguments["value_compressor"]
-        elif "value_compressor" in arguments and not is_zarr_v3:
+        if "value_compressor" in arguments and not is_zarr_v3:
             if arguments["value_compressor"] != "default" and arguments["value_compressor"] is not None:
                 arguments["value_compressor"] = codec_reg[arguments["value_compressor"].lower()]()
 
         # Same for count_compressor
-        if "count_compressor" in arguments and is_zarr_v3:
-            if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
-                compressor_name = arguments["count_compressor"].lower()
-                if compressor_name == "lz4":
-                    arguments["count_codecs"] = ZARR_V3_LZ4_CODECS
-                elif compressor_name == "pickle":
-                    arguments["count_codecs"] = ZARR_V3_PICKLE_CODECS
-                elif compressor_name == "lzma":
-                    arguments["count_codecs"] = ZARR_V3_LZMA_CODECS
-                del arguments["count_compressor"]
-        elif "count_compressor" in arguments and not is_zarr_v3:
+        if "count_compressor" in arguments and not is_zarr_v3:
             if arguments["count_compressor"] != "default" and arguments["count_compressor"] is not None:
                 arguments["count_compressor"] = codec_reg[arguments["count_compressor"].lower()]()
 
