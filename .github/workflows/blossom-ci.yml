@@ -73,6 +73,24 @@ jobs:
         run: |
              echo detect.excluded.detector.types=PIP >> application.properties
 
+      - name: Debug version info
+        run: |
+             git fetch --tags --force
+             git rev-parse HEAD
+             git tag --points-at HEAD || true
+             git describe --tags --long --dirty || true
+             python -c "import monai; print(monai.__version__)" || true
+             pip show monai | sed -n '1,8p' || true
+             python - <<'PY'
+             import importlib.metadata as md
+             try:
+                 print("metadata.version:", md.version("monai"))
+             except Exception as e:
+                 print("metadata.version error:", e)
+             PY
+             sed -n '1,15p' CITATION.cff
+             sed -n '1,25p' setup.cfg
+
       - name: Run blossom action
         uses: NVIDIA/blossom-action@main
         env:
