@@ -381,7 +381,7 @@ def _load_legacy_pickle(pkl_filename: str, template_path: PathLike | None = None
     algo_template_path = data.pop("template_path", None)
 
     template_paths_candidates: list[str] = []
-    _add_path_with_parent(template_paths_candidates, str(template_path) if template_path else None)
+    _add_path_with_parent(template_paths_candidates, template_path)
     _add_path_with_parent(template_paths_candidates, algo_template_path)
 
     pkl_dir = os.path.dirname(pkl_filename)
