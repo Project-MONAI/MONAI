@@ -324,8 +324,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     Returns:
         Filename of the saved Algo object (algo_object.json).
     """
-    state = {}
-    for attr in [
+    attrs = [
         "template_path",
         "data_stats_files",
         "data_list_file",
@@ -335,10 +334,9 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
         "name",
         "best_metric",
         "fill_records",
-        "device_setting",
-    ]:
-        if hasattr(algo, attr):
-            state[attr] = _make_json_serializable(getattr(algo, attr))
+        "device_setting"
+    ]
+    state = {a : _make_json_serializable(getattr(algo, a)) for a in attrs if hasattr(algo, a)}
 
     # Build target string for dynamic class instantiation
     cls = algo.__class__
