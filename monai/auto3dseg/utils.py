@@ -344,6 +344,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     cls = algo.__class__
     target = f"{cls.__module__}.{cls.__name__}"
 
+algo_meta_data= {str(k): _make_json_serializable(v) for k,v in algo_meta_data.items()}
     data: dict[str, Any] = {
         "_target_": target,
         "_state_": state,
