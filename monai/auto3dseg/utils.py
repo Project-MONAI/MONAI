@@ -292,8 +292,6 @@ def _make_json_serializable(value: Any) -> Any:
         return [_make_json_serializable(v) for v in value]
     if isinstance(value, dict):
         return {k: _make_json_serializable(v) for k, v in value.items()}
-    if hasattr(value, "__fspath__"):  # Path-like objects
-        return str(value)
     if isinstance(value, np.ndarray):
         return value.tolist()
     if isinstance(value, (np.integer, np.floating)):
