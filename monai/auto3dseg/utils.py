@@ -455,7 +455,7 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
         data = json.load(f)
 
     if not isinstance(data, dict):
-        raise ValueError(f"the data object is {data.__class__}. Dict is expected.")
+        raise ValueError(f"The data object type is {type(data)}, type dict is expected.")
 
     file_template_path = data.pop("template_path", None)
 
