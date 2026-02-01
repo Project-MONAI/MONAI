@@ -490,9 +490,8 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
     if algo is None:
         raise ValueError(f"Failed to instantiate Algo from target '{target}' with paths {template_paths}")
 
-    # Restore the state (skip template_path as it's set to the working import path below)
-    state_to_load = {k: v for k, v in state.items() if k != "template_path"}
-    algo.load_state_dict(state_to_load)
+    # Restore the state
+    algo.load_state_dict(state)
 
     # Use the path that successfully imported the class, not the original saved path
     # (the original path may no longer exist if the workdir was moved)

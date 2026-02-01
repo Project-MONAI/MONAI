@@ -373,9 +373,12 @@ class BundleAlgo(Algo):
 
         Returns:
             A dictionary containing the BundleAlgo state to serialize.
+
+        Note:
+            template_path is excluded as it is determined dynamically at load time
+            based on which path successfully imports the Algo class.
         """
         return {
-            "template_path": self.template_path,
             "data_stats_files": self.data_stats_files,
             "data_list_file": self.data_list_file,
             "mlflow_tracking_uri": self.mlflow_tracking_uri,
@@ -395,8 +398,7 @@ class BundleAlgo(Algo):
             state: A dictionary containing the state to restore.
         """
         for key, value in state.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+            setattr(self, key, value)
 
 
 # path to download the algo_templates

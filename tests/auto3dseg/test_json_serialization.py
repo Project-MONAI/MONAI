@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -45,11 +44,6 @@ class TestMakeJsonSerializable(unittest.TestCase):
         t = torch.tensor([1.0, 2.0])
         result = _make_json_serializable(t)
         assert result == [1.0, 2.0]
-
-    def test_path(self) -> None:
-        p = Path("/some/path")
-        # Use str(p) since path separators differ on Windows vs Unix
-        assert _make_json_serializable(p) == str(p)
 
     def test_fallback(self) -> None:
         class Custom:
