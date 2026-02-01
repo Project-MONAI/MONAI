@@ -221,7 +221,7 @@ class TrainableBilateralFilter(torch.nn.Module):
             self.len_spatial_sigma = 3
         else:
             raise ValueError(
-                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.ken_spatial_sigma}."
+                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.len_spatial_sigma}."
             )
 
         # Register sigmas as trainable parameters.
@@ -231,6 +231,10 @@ class TrainableBilateralFilter(torch.nn.Module):
         self.sigma_color = torch.nn.Parameter(torch.tensor(color_sigma))
 
     def forward(self, input_tensor):
+        if len(input_tensor.shape) < 3:
+            raise ValueError(
+                f"Input must have at least 3 dimensions (batch, channel, *spatial_dims), got {len(input_tensor.shape)}"
+            )
         if input_tensor.shape[1] != 1:
             raise ValueError(
                 f"Currently channel dimensions >1 ({input_tensor.shape[1]}) are not supported. "
@@ -239,24 +243,25 @@ class TrainableBilateralFilter(torch.nn.Module):
             )
 
         len_input = len(input_tensor.shape)
+        spatial_dims = len_input - 2
 
         # C++ extension so far only supports 5-dim inputs.
-        if len_input == 3:
+        if spatial_dims == 1:
             input_tensor = input_tensor.unsqueeze(3).unsqueeze(4)
-        elif len_input == 4:
+        elif spatial_dims == 2:
             input_tensor = input_tensor.unsqueeze(4)
 
-        if self.len_spatial_sigma != len_input:
-            raise ValueError(f"Spatial dimension ({len_input}) must match initialized len(spatial_sigma).")
+        if self.len_spatial_sigma != spatial_dims:
+            raise ValueError(f"Spatial dimension ({spatial_dims}) must match initialized len(spatial_sigma).")
 
         prediction = TrainableBilateralFilterFunction.apply(
             input_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
         )
 
         # Make sure to return tensor of the same shape as the input.
-        if len_input == 3:
+        if spatial_dims == 1:
             prediction = prediction.squeeze(4).squeeze(3)
-        elif len_input == 4:
+        elif spatial_dims == 2:
             prediction = prediction.squeeze(4)
 
         return prediction
@@ -389,7 +394,7 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             self.len_spatial_sigma = 3
         else:
             raise ValueError(
-                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.ken_spatial_sigma}."
+                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.len_spatial_sigma}."
             )
 
         # Register sigmas as trainable parameters.
