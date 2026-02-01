@@ -43,6 +43,31 @@ class Algo:
         """Returns the algo output paths for scripts location"""
         pass
 
+    def state_dict(self) -> dict:
+        """
+        Return state for serialization.
+
+        Subclasses should override this method to return a dictionary of
+        attributes that need to be serialized. This follows the PyTorch
+        convention for state management.
+
+        Returns:
+            A dictionary containing the state to serialize.
+        """
+        return {}
+
+    def load_state_dict(self, state: dict) -> None:
+        """
+        Restore state from a dictionary.
+
+        Subclasses should override this method to restore their state
+        from the dictionary returned by state_dict().
+
+        Args:
+            state: A dictionary containing the state to restore.
+        """
+        pass
+
 
 class AlgoGen(Randomizable):
     """

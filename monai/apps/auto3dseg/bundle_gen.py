@@ -367,6 +367,37 @@ class BundleAlgo(Algo):
         """Returns the algo output paths to find the algo scripts and configs."""
         return self.output_path
 
+    def state_dict(self) -> dict:
+        """
+        Return state for serialization.
+
+        Returns:
+            A dictionary containing the BundleAlgo state to serialize.
+        """
+        return {
+            "template_path": self.template_path,
+            "data_stats_files": self.data_stats_files,
+            "data_list_file": self.data_list_file,
+            "mlflow_tracking_uri": self.mlflow_tracking_uri,
+            "mlflow_experiment_name": self.mlflow_experiment_name,
+            "output_path": self.output_path,
+            "name": self.name,
+            "best_metric": self.best_metric,
+            "fill_records": self.fill_records,
+            "device_setting": self.device_setting,
+        }
+
+    def load_state_dict(self, state: dict) -> None:
+        """
+        Restore state from a dictionary.
+
+        Args:
+            state: A dictionary containing the state to restore.
+        """
+        for key, value in state.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
 
 # path to download the algo_templates
 default_algo_zip = (

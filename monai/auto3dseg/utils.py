@@ -322,19 +322,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     Returns:
         Filename of the saved Algo object (algo_object.json).
     """
-    attrs = [
-        "template_path",
-        "data_stats_files",
-        "data_list_file",
-        "mlflow_tracking_uri",
-        "mlflow_experiment_name",
-        "output_path",
-        "name",
-        "best_metric",
-        "fill_records",
-        "device_setting"
-    ]
-    state = {a : _make_json_serializable(getattr(algo, a)) for a in attrs if hasattr(algo, a)}
+    state = {k: _make_json_serializable(v) for k, v in algo.state_dict().items()}
 
     # Build target string for dynamic class instantiation
     cls = algo.__class__
@@ -503,9 +491,8 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
         raise ValueError(f"Failed to instantiate Algo from target '{target}' with paths {template_paths}")
 
     # Restore the state (skip template_path as it's set to the working import path below)
-    for attr, value in state.items():
-        if attr != "template_path" and hasattr(algo, attr):
-            setattr(algo, attr, value)
+    state_to_load = {k: v for k, v in state.items() if k != "template_path"}
+    algo.load_state_dict(state_to_load)
 
     # Use the path that successfully imported the class, not the original saved path
     # (the original path may no longer exist if the workdir was moved)

@@ -48,7 +48,8 @@ class TestMakeJsonSerializable(unittest.TestCase):
 
     def test_path(self) -> None:
         p = Path("/some/path")
-        assert _make_json_serializable(p) == "/some/path"
+        # Use str(p) since path separators differ on Windows vs Unix
+        assert _make_json_serializable(p) == str(p)
 
     def test_fallback(self) -> None:
         class Custom:
