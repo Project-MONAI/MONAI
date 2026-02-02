@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-01-28
+
+## What's Changed
+### Fixed
+* Fix Zip Slip vulnerability in NGC private bundle download (#8682)
+
 ## [1.5.1] - 2025-09-22
 
 ## What's Changed
@@ -1261,7 +1267,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.5.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.5.2...HEAD
+[1.5.2]: https://github.com/Project-MONAI/MONAI/compare/1.5.1...1.5.2
 [1.5.1]: https://github.com/Project-MONAI/MONAI/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...1.4.0
