@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import glob
 import os
+import shlex
 import subprocess
 from typing import Any
 
@@ -486,16 +487,16 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, gpu_id: tuple | list | int = 0, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: tuple | list | int | str = 0, **kwargs: Any) -> None:
         """
         Run the training on a single GPU with one specified configuration provided.
-        Note: this will override the environment variable `CUDA_VISIBLE_DEVICES`.
+        Note: if CUDA_VISIBLE_DEVICES is already set and gpu_id resolves to 0, the existing value is preserved;
+        otherwise it is set to gpu_id.
 
         Args:
             config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
-            gpu_id: an integer to select the device to use, or a tuple/list of GPU device indices used for multi-GPU
-                training (e.g., (0,1)). Default: 0.
+            gpu_id: an int, MIG UUID (str), or tuple/list of GPU indices for multi-GPU training (e.g., (0,1)). Default: 0.
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training_entry``.
 
@@ -541,7 +542,8 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs: Additional CLI arguments forwarded to nnUNetv2_train.
 
         Returns:
-            Shell command string.
+            Tuple of (cmd, env) where cmd is a list[str] of argv entries and env is a dict[str, str]
+            passed to the subprocess.
 
         Raises:
             ValueError: If gpu_id is an empty tuple or list.
@@ -672,8 +674,8 @@ class nnUNetV2Runner:  # noqa: N801
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
                         the_device = gpu_id_for_all[_index % n_devices]  # type: ignore
-                        cmd = self.train_single_model_command(_config, _i, the_device, kwargs)
-                        all_cmds[-1][the_device].append(cmd)
+                        cmd, env = self.train_single_model_command(_config, _i, the_device, kwargs)
+                        all_cmds[-1][the_device].append((cmd, env))
                         _index += 1
         return all_cmds
 
@@ -701,9 +703,10 @@ class nnUNetV2Runner:  # noqa: N801
             for gpu_id, gpu_cmd in cmds.items():
                 if not gpu_cmd:
                     continue
+                cmds_for_log = [shlex.join(cmd) for cmd, _ in gpu_cmd]
                 logger.info(
                     f"training - stage {s + 1}:\n"
-                    f"for gpu {gpu_id}, commands: {gpu_cmd}\n"
+                    f"for gpu {gpu_id}, commands: {cmds_for_log}\n"
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
@@ -711,9 +714,10 @@ class nnUNetV2Runner:  # noqa: N801
             for device_id in stage:
                 if not stage[device_id]:
                     continue
-                cmd_str = "; ".join(stage[device_id])
+                cmd_str = "; ".join(shlex.join(cmd) for cmd, _ in stage[device_id])
+                env = stage[device_id][0][1]
                 logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
+                processes.append(subprocess.Popen(cmd_str, shell=True, env=env, stdout=subprocess.DEVNULL))
             # finish this stage first
             for p in processes:
                 p.wait()
