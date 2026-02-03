@@ -302,7 +302,7 @@ def _make_json_serializable(value: Any) -> Any:
     return str(value)
 
 
-def _add_path_with_parent(paths: list[str], path: str | None) -> None:
+def _add_path_with_parent(paths: list[str], path: PathLike | None) -> None:
     """Add a path and its parent directory to the list if the path is a valid directory."""
     if path and os.path.isdir(str(path)):
         abs_path = os.path.abspath(str(path))
