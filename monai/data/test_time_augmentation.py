@@ -67,7 +67,7 @@ class TestTimeAugmentation:
     Args:
         transform: transform (or composed) to be applied to each realization. At least one transform must be of type
         `RandomizableTrait` (i.e. `Randomizable`, `RandomizableTransform`, or `RandomizableTrait`).
-        All random transforms must be of type `InvertibleTransform`.
+        When `apply_inverse_to_pred` is True, all random transforms must be of type `InvertibleTransform`.
         batch_size: number of realizations to infer at once.
         num_workers: how many subprocesses to use for data.
         inferrer_fn: function to use to perform inference.
@@ -172,7 +172,9 @@ class TestTimeAugmentation:
             warns.append("TTA usually requires at least one `Randomizable` transform in the given transform sequence.")
 
         if len(warns) > 0:
-            warnings.warn("TTA has encountered issues with the given transforms:" + "\n  ".join(warns))
+            warnings.warn(
+                "TTA has encountered issues with the given transforms:\n  " + "\n  ".join(warns), stacklevel=2
+            )
 
     def __call__(
         self, data: dict[str, Any], num_examples: int = 10
