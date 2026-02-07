@@ -719,7 +719,14 @@ def convert_to_onnx(
                 torch_versioned_kwargs["verify"] = verify
                 verify = False
         else:
-            mode_to_export = torch.jit.script(model, **kwargs)
+            # In PyTorch 2.6+, torch.onnx.export defaults to the dynamo-based exporter
+            # which uses torch.export.export internally and does not support ScriptModule.
+            # Pass the raw nn.Module directly; the new exporter captures all code paths.
+            _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
+            if _pt_major_minor >= (2, 6):
+                mode_to_export = model
+            else:
+                mode_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
