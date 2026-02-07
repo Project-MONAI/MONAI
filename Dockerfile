@@ -42,9 +42,6 @@ COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versionee
 COPY tests ./tests
 COPY monai ./monai
 
-# TODO: remove this line and torch.patch for 24.11
-RUN patch -R -d /usr/local/lib/python3.10/dist-packages/torch/onnx/ < ./monai/torch.patch
-
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 
