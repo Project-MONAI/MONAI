@@ -297,10 +297,11 @@ class TestDownload(unittest.TestCase):
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.3"})
     def test_download_ngc(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
-        with patch("monai.bundle.scripts.logger") as mock_logger:
-            with tempfile.TemporaryDirectory() as tempdir:
-                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
-                mock_logger.warning.assert_not_called()
+        with skip_if_downloading_fails():
+            with patch("monai.bundle.scripts.logger") as mock_logger:
+                with tempfile.TemporaryDirectory() as tempdir:
+                    download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
+                    mock_logger.warning.assert_not_called()
 
 
 @skip_if_no_cuda
