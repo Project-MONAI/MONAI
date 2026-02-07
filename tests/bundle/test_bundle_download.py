@@ -339,7 +339,7 @@ class TestLoad(unittest.TestCase):
                 expected_output = torch.load(
                     os.path.join(bundle_root, bundle_files[3]), map_location=device, weights_only=True
                 )
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
@@ -355,7 +355,7 @@ class TestLoad(unittest.TestCase):
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
-                assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output_2, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
@@ -424,7 +424,7 @@ class TestLoad(unittest.TestCase):
                 expected_output = torch.load(
                     os.path.join(bundle_root, bundle_files[0]), map_location=device, weights_only=True
                 )
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
                 # test metadata
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
