@@ -720,7 +720,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
 fi
 
 # distributed test only

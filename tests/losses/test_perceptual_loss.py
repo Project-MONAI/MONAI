@@ -88,7 +88,6 @@ class TestPerceptualLoss(unittest.TestCase):
             self.assertEqual(result.shape, torch.Size([]))
 
     @parameterized.expand(TEST_CASES)
-    @unittest.skip("Temporarily skipped: torch.hub GitHub API rate limit + KeyError bug in PyTorch 2.10")
     def test_identical_input(self, input_param, input_shape, target_shape):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(**input_param)
