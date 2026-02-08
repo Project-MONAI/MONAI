@@ -42,6 +42,17 @@ COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versionee
 COPY tests ./tests
 COPY monai ./monai
 
+# Revert apex's monkey-patching of clip_grad_norm_ which is incompatible with PyTorch 2.10+
+# apex replaces torch.nn.utils.clip_grad_norm_ with its own multi_tensor version that
+# fails with "Cannot access data pointer of Tensor that doesn't have storage"
+RUN APEX_INIT=$(python -c "import apex; print(apex.__file__)" 2>/dev/null) && \
+    if [ -n "$APEX_INIT" ] && grep -q "torch.nn.utils.clip_grad_norm_ = clip_grad_norm_" "$APEX_INIT"; then \
+      sed -i 's/torch\.nn\.utils\.clip_grad_norm_ = clip_grad_norm_/# & # disabled for PyTorch 2.10+ compat/' "$APEX_INIT" && \
+      echo "Patched apex clip_grad_norm_ in $APEX_INIT"; \
+    else \
+      echo "apex clip_grad_norm_ patch not found or apex not installed, skipping"; \
+    fi
+
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 
