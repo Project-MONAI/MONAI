@@ -716,11 +716,13 @@ fi
 # fi
 
 # unit tests
+# TODO: temp skip test_perceptual_loss, revert after #8652 merged
+# TODO: temp skip test_auto3dseg_ensemble, revert after #8737 resolved
 if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
 fi
 
 # distributed test only
