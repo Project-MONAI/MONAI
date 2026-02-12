@@ -38,6 +38,7 @@ jobs:
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
+        pip install --no-build-isolation "git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded"
         python -m pip install -r requirements-dev.txt
     - name: Lint and type check
       run: |
@@ -85,6 +86,7 @@ jobs:
         python -m pip install --user --upgrade pip wheel
         python -m pip install torch==2.5.1 torchvision==0.20.1
         cat "requirements-dev.txt"
+        pip install --no-build-isolation "git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded"
         python -m pip install -r requirements-dev.txt
         python -m pip list
         python setup.py develop  # test no compile installation
@@ -174,6 +176,7 @@ jobs:
         cp ${{ steps.root.outputs.pwd }}/requirements*.txt .
         cp -r ${{ steps.root.outputs.pwd }}/tests .
         ls -al
+        pip install --no-build-isolation "git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded"
         python -m pip install -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
         python -m unittest -v
       env:
