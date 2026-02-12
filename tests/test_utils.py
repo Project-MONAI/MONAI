@@ -73,9 +73,7 @@ if has_req:
 if has_gdown:
     DOWNLOAD_EXCEPTS += (file_url_error,)
 if has_hf_hub:
-    DOWNLOAD_EXCEPTS += (hf_http_error,)
-if _has_hf_local:
-    DOWNLOAD_EXCEPTS += (hf_local_entry_error,)
+    DOWNLOAD_EXCEPTS += (hf_http_error, hf_local_entry_error)
 
 DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
