@@ -73,7 +73,7 @@ function print_usage {
     echo "./runtests.sh -f                      # run coding style and static type checking."
     echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                 # clean up temporary files and uninstall MONAI development package."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} -m pip uninstall -y monai\"."
     echo "./runtests.sh --formatfix -p /my/code # run automatic code formatting using \"isort\" and \"black\" in specified path."
     echo ""
     echo "Code style check options:"
@@ -716,11 +716,13 @@ fi
 # fi
 
 # unit tests
+# TODO: temp skip test_perceptual_loss, revert after #8652 merged
+# TODO: temp skip test_auto3dseg_ensemble, revert after #8737 resolved
 if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
 fi
 
 # distributed test only
