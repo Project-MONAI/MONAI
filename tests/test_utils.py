@@ -57,6 +57,8 @@ from monai.utils.type_conversion import convert_data_type
 nib, _ = optional_import("nibabel")
 http_error, has_req = optional_import("requests", name="HTTPError")
 file_url_error, has_gdown = optional_import("gdown.exceptions", name="FileURLRetrievalError")
+hf_http_error, has_hf_hub = optional_import("huggingface_hub.errors", name="HfHubHTTPError")
+hf_local_entry_error, _has_hf_local = optional_import("huggingface_hub.errors", name="LocalEntryNotFoundError")
 
 
 quick_test_var = "QUICKTEST"
@@ -70,6 +72,8 @@ if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
 if has_gdown:
     DOWNLOAD_EXCEPTS += (file_url_error,)
+if has_hf_hub:
+    DOWNLOAD_EXCEPTS += (hf_http_error, hf_local_entry_error)
 
 DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
