@@ -38,7 +38,7 @@ jobs:
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
-        python -m pip install -r requirements-dev.txt
+        python -m pip install --no-build-isolation -r requirements-dev.txt
     - name: Lint and type check
       run: |
         # clean up temporary files
@@ -85,7 +85,7 @@ jobs:
         python -m pip install --user --upgrade pip wheel
         python -m pip install torch==2.5.1 torchvision==0.20.1
         cat "requirements-dev.txt"
-        python -m pip install -r requirements-dev.txt
+        python -m pip install --no-build-isolation -r requirements-dev.txt
         python -m pip list
         python setup.py develop  # test no compile installation
       shell: bash
@@ -174,7 +174,7 @@ jobs:
         cp ${{ steps.root.outputs.pwd }}/requirements*.txt .
         cp -r ${{ steps.root.outputs.pwd }}/tests .
         ls -al
-        python -m pip install -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-build-isolation -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
         python -m unittest -v
       env:
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354

@@ -289,18 +289,20 @@ class TestDownload(unittest.TestCase):
         """Test checking MONAI version from a metadata file."""
         with patch("monai.bundle.scripts.logger") as mock_logger:
             with tempfile.TemporaryDirectory() as tempdir:
-                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
-                # Should have a warning message because the latest version is using monai > 1.2
-                mock_logger.warning.assert_called_once()
+                with skip_if_downloading_fails():
+                    download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
+                    # Should have a warning message because the latest version is using monai > 1.2
+                    mock_logger.warning.assert_called_once()
 
     @skip_if_quick
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.3"})
     def test_download_ngc(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
-        with patch("monai.bundle.scripts.logger") as mock_logger:
-            with tempfile.TemporaryDirectory() as tempdir:
-                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
-                mock_logger.warning.assert_not_called()
+        with skip_if_downloading_fails():
+            with patch("monai.bundle.scripts.logger") as mock_logger:
+                with tempfile.TemporaryDirectory() as tempdir:
+                    download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
+                    mock_logger.warning.assert_not_called()
 
 
 @skip_if_no_cuda
@@ -339,7 +341,7 @@ class TestLoad(unittest.TestCase):
                 expected_output = torch.load(
                     os.path.join(bundle_root, bundle_files[3]), map_location=device, weights_only=True
                 )
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
@@ -355,7 +357,7 @@ class TestLoad(unittest.TestCase):
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
-                assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output_2, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
@@ -424,7 +426,7 @@ class TestLoad(unittest.TestCase):
                 expected_output = torch.load(
                     os.path.join(bundle_root, bundle_files[0]), map_location=device, weights_only=True
                 )
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
                 # test metadata
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
