@@ -134,6 +134,12 @@ class DiceMetric(CumulativeIterationMetric):
         Raises:
             ValueError: when `y_pred` has fewer than three dimensions.
         """
+
+        if isinstance(y_pred, torch.Tensor) and y_pred.ndim == 5 and y_pred.shape[-1] in (1, 3, 4):
+            y_pred = y_pred.permute(0, 4, 1, 2, 3).contiguous()
+        if isinstance(y, torch.Tensor) and y.ndim == 5 and y.shape[-1] in (1, 3, 4):
+            y = y.permute(0, 4, 1, 2, 3).contiguous()
+
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
