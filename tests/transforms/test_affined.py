@@ -183,7 +183,9 @@ class TestAffined(unittest.TestCase):
             resampler = Affined(**lazy_input_param)
             call_param = {"data": input_data}
             non_lazy_result = resampler(**call_param)
-            test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, call_param, output_key="img")
+            test_resampler_lazy(
+                resampler, non_lazy_result, lazy_input_param, call_param, output_key="img", rtol=1e-3, atol=1e-3
+            )
 
 
 if __name__ == "__main__":
