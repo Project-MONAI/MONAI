@@ -136,7 +136,7 @@ function print_version {
 
 function install_deps {
     echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}"${PY_EXE}" -m pip install -r requirements-dev.txt
+    ${cmdPrefix}"${PY_EXE}" -m pip install --no-build-isolation -r requirements-dev.txt
 }
 
 function compile_cpp {
