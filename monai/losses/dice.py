@@ -823,8 +823,10 @@ class DiceFocalLoss(_Loss):
         self,
         include_background: bool = True,
         to_onehot_y: bool = False,
-        sigmoid: bool = False,
-        softmax: bool = False,
+        sigmoid_dice: bool = False,
+        softmax_dice: bool = False,
+        sigmoid_focal: bool = True,
+        softmax_focal: bool = False,
         other_act: Callable | None = None,
         squared_pred: bool = False,
         jaccard: bool = False,
@@ -843,10 +845,10 @@ class DiceFocalLoss(_Loss):
             include_background: if False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert the ``target`` into the one-hot format,
                 using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
-            sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
-                don't need to specify activation function for `FocalLoss`.
-            softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
-                don't need to specify activation function for `FocalLoss`.
+            sigmoid_dice: if True, apply a sigmoid function to the prediction for the `DiceLoss`.
+            softmax_dice: if True, apply a softmax function to the prediction for the `DiceLoss`.
+            sigmoid_focal: if True, apply a sigmoid function to the prediction for `FocalLoss`.
+            softmax_focal: if True, apply a softmax function to the prediction for `FocalLoss`.
             other_act: callable function to execute other activation layers, Defaults to ``None``.
                 for example: `other_act = torch.tanh`. only used by the `DiceLoss`, not for `FocalLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
@@ -878,8 +880,8 @@ class DiceFocalLoss(_Loss):
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
-            sigmoid=sigmoid,
-            softmax=softmax,
+            sigmoid=sigmoid_dice,
+            softmax=softmax_dice,
             other_act=other_act,
             squared_pred=squared_pred,
             jaccard=jaccard,
@@ -896,6 +898,8 @@ class DiceFocalLoss(_Loss):
             weight=weight,
             alpha=alpha,
             reduction=reduction,
+            use_sigmoid=sigmoid_focal,
+            use_softmax=softmax_focal,
         )
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
@@ -953,8 +957,14 @@ class GeneralizedDiceFocalLoss(_Loss):
             Defaults to True.
         to_onehot_y: whether to convert the ``target`` into the one-hot format,
             using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
-        sigmoid (bool, optional): if True, apply a sigmoid function to the prediction. Defaults to False.
-        softmax (bool, optional): if True, apply a softmax function to the prediction. Defaults to False.
+        sigmoid_dice (bool, optional): if True, apply a sigmoid function to the prediction for `GeneralizedDiceLoss`.
+            Defaults to False.
+        softmax_dice (bool, optional): if True, apply a softmax function to the prediction for `GeneralizedDiceLoss`.
+            Defaults to False.
+        sigmoid_focal (bool, optional): if True, apply a sigmoid function to the prediction for `FocalLoss`.
+            Defaults to True.
+        softmax_focal (bool, optional): if True, apply a softmax function to the prediction for `FocalLoss`.
+            Defaults to False.
         other_act (Optional[Callable], optional): callable function to execute other activation layers,
             Defaults to ``None``. for example: `other_act = torch.tanh`.
             only used by the `GeneralizedDiceLoss`, not for the `FocalLoss`.
@@ -987,8 +997,10 @@ class GeneralizedDiceFocalLoss(_Loss):
         self,
         include_background: bool = True,
         to_onehot_y: bool = False,
-        sigmoid: bool = False,
-        softmax: bool = False,
+        sigmoid_dice: bool = False,
+        softmax_dice: bool = False,
+        sigmoid_focal: bool = True,
+        softmax_focal: bool = False,
         other_act: Callable | None = None,
         w_type: Weight | str = Weight.SQUARE,
         reduction: LossReduction | str = LossReduction.MEAN,
@@ -1004,8 +1016,8 @@ class GeneralizedDiceFocalLoss(_Loss):
         self.generalized_dice = GeneralizedDiceLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
-            sigmoid=sigmoid,
-            softmax=softmax,
+            sigmoid=sigmoid_dice,
+            softmax=softmax_dice,
             other_act=other_act,
             w_type=w_type,
             reduction=reduction,
@@ -1019,6 +1031,8 @@ class GeneralizedDiceFocalLoss(_Loss):
             gamma=gamma,
             weight=weight,
             reduction=reduction,
+            use_sigmoid=sigmoid_focal,
+            use_softmax=softmax_focal,
         )
         if lambda_gdl < 0.0:
             raise ValueError("lambda_gdl should be no less than 0.0.")

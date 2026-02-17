@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
 
 import numpy as np
 import torch
@@ -205,15 +206,19 @@ class TestFocalLoss(unittest.TestCase):
         self.assertNotAlmostEqual(max_error, 0.0, places=3)
 
     def test_bin_seg_2d(self):
-        for use_softmax in [True, False]:
+        for use_softmax, use_sigmoid in product([True, False], repeat=2):
             # define 2d examples
             target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
             # add another dimension corresponding to the batch (batch size = 1 here)
             target = target.unsqueeze(0)  # shape (1, H, W)
-            pred_very_good = 100 * F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float() - 50.0
+            if not use_sigmoid and not use_softmax:
+                # The prediction here are probabilities, not logits.
+                pred_very_good = F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float()
+            else:
+                pred_very_good = 100 * F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float() - 50.0
 
             # initialize the mean dice loss
-            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
 
             # focal loss for pred_very_good should be close to 0
             target = target.unsqueeze(1)  # shape (1, 1, H, W)
@@ -221,21 +226,25 @@ class TestFocalLoss(unittest.TestCase):
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
             # with alpha
-            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss(pred_very_good, target).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_empty_class_2d(self):
-        for use_softmax in [True, False]:
+        for use_softmax, use_sigmoid in product([True, False], repeat=2):
             num_classes = 2
             # define 2d examples
             target = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
             # add another dimension corresponding to the batch (batch size = 1 here)
             target = target.unsqueeze(0)  # shape (1, H, W)
-            pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float() - 500.0
+            if not use_sigmoid and not use_softmax:
+                # The prediction here are probabilities, not logits.
+                pred_very_good = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
+            else:
+                pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float() - 500.0
 
             # initialize the mean dice loss
-            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
 
             # focal loss for pred_very_good should be close to 0
             target = target.unsqueeze(1)  # shape (1, 1, H, W)
@@ -243,21 +252,25 @@ class TestFocalLoss(unittest.TestCase):
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
             # with alpha
-            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss(pred_very_good, target).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_multi_class_seg_2d(self):
-        for use_softmax in [True, False]:
+        for use_softmax, use_sigmoid in product([True, False], repeat=2):
             num_classes = 6  # labels 0 to 5
             # define 2d examples
             target = torch.tensor([[0, 0, 0, 0], [0, 1, 2, 0], [0, 3, 4, 0], [0, 0, 0, 0]])
             # add another dimension corresponding to the batch (batch size = 1 here)
             target = target.unsqueeze(0)  # shape (1, H, W)
-            pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float() - 500.0
+            if not use_sigmoid and not use_softmax:
+                # The prediction here are probabilities, not logits.
+                pred_very_good = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
+            else:
+                pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float() - 500.0
             # initialize the mean dice loss
-            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax)
-            loss_onehot = FocalLoss(to_onehot_y=False, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
+            loss_onehot = FocalLoss(to_onehot_y=False, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
 
             # focal loss for pred_very_good should be close to 0
             target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2)  # test one hot
@@ -270,15 +283,15 @@ class TestFocalLoss(unittest.TestCase):
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
             # with alpha
-            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss(pred_very_good, target).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
-            loss_onehot = FocalLoss(to_onehot_y=False, alpha=0.5, use_softmax=use_softmax)
+            loss_onehot = FocalLoss(to_onehot_y=False, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss_onehot(pred_very_good, target_one_hot).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_bin_seg_3d(self):
-        for use_softmax in [True, False]:
+        for use_softmax, use_sigmoid in product([True, False], repeat=2):
             num_classes = 2  # labels 0, 1
             # define 3d examples
             target = torch.tensor(
@@ -294,11 +307,17 @@ class TestFocalLoss(unittest.TestCase):
             # add another dimension corresponding to the batch (batch size = 1 here)
             target = target.unsqueeze(0)  # shape (1, H, W, D)
             target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3)  # test one hot
-            pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float() - 500.0
+            if not use_sigmoid and not use_softmax:
+                # The prediction here are probabilities, not logits.
+                pred_very_good = target_one_hot.clone().float()
+            else:
+                pred_very_good = (
+                    1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float() - 500.0
+                )
 
             # initialize the mean dice loss
-            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax)
-            loss_onehot = FocalLoss(to_onehot_y=False, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
+            loss_onehot = FocalLoss(to_onehot_y=False, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
 
             # focal loss for pred_very_good should be close to 0
             target = target.unsqueeze(1)  # shape (1, 1, H, W)
@@ -309,10 +328,10 @@ class TestFocalLoss(unittest.TestCase):
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
             # with alpha
-            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax)
+            loss = FocalLoss(to_onehot_y=True, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss(pred_very_good, target).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
-            loss_onehot = FocalLoss(to_onehot_y=False, alpha=0.5, use_softmax=use_softmax)
+            loss_onehot = FocalLoss(to_onehot_y=False, alpha=0.5, use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             focal_loss_good = float(loss_onehot(pred_very_good, target_one_hot).cpu())
             self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
@@ -369,8 +388,8 @@ class TestFocalLoss(unittest.TestCase):
             loss(chn_input, chn_target)
 
     def test_script(self):
-        for use_softmax in [True, False]:
-            loss = FocalLoss(use_softmax=use_softmax)
+        for use_softmax, use_sigmoid in product([True, False], repeat=2):
+            loss = FocalLoss(use_softmax=use_softmax, use_sigmoid=use_sigmoid)
             test_input = torch.ones(2, 2, 8, 8)
             test_script_save(loss, test_input, test_input)
 

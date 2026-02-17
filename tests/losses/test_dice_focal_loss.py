@@ -53,14 +53,12 @@ class TestDiceFocalLoss(unittest.TestCase):
                 for lambda_focal in [0.5, 1.0, 1.5]:
                     common_params = {
                         "include_background": False,
-                        "softmax": True,
                         "to_onehot_y": onehot,
                         "reduction": reduction,
                         "weight": weight,
                     }
-                    dice_focal = DiceFocalLoss(lambda_focal=lambda_focal, **common_params)
-                    dice = DiceLoss(**common_params)
-                    common_params.pop("softmax", None)
+                    dice_focal = DiceFocalLoss(lambda_focal=lambda_focal, softmax_dice=True, **common_params)
+                    dice = DiceLoss(softmax=True, **common_params)
                     focal = FocalLoss(**common_params)
                     result = dice_focal(pred, label)
                     expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
