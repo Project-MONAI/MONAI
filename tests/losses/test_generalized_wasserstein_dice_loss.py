@@ -249,15 +249,21 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
                     msg=f"Batch loss[{i}] != single loss for weighting_mode={w_mode}",
                 )
 
-        # Also test with mean reduction: batch loss should equal single-sample loss
+        # Also test with mean reduction using a non-trivial (poor) prediction
+        # so the expected loss is not near zero
+        pred_poor = 1000 * F.one_hot(1 - target_single, num_classes=2).permute(0, 3, 1, 2).float()
+        pred_poor_batch = pred_poor.repeat(2, 1, 1, 1)
+
         for w_mode in ["default", "GDL"]:
             loss_fn = GeneralizedWassersteinDiceLoss(
                 dist_matrix=np.array([[0.0, 1.0], [1.0, 0.0]]), weighting_mode=w_mode, reduction="mean"
             )
 
-            loss_single = float(loss_fn(pred_single, target_single))
-            loss_batch = float(loss_fn(pred_batch, target_batch))
+            loss_single = float(loss_fn(pred_poor, target_single))
+            loss_batch = float(loss_fn(pred_poor_batch, target_batch))
 
+            # Verify the loss is non-trivial (close to 1 for poor predictions)
+            self.assertGreater(loss_single, 0.5, msg=f"Expected non-trivial loss for weighting_mode={w_mode}")
             self.assertAlmostEqual(
                 loss_batch,
                 loss_single,
@@ -274,7 +280,8 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         target_b = torch.tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]).unsqueeze(0)
 
         pred_a = 1000 * F.one_hot(target_a, num_classes=2).permute(0, 3, 1, 2).float()
-        pred_b = 1000 * F.one_hot(target_b, num_classes=2).permute(0, 3, 1, 2).float()
+        # Use a poor prediction for sample b so its loss is non-trivial (~1.0)
+        pred_b = 1000 * F.one_hot(1 - target_b, num_classes=2).permute(0, 3, 1, 2).float()
 
         # Combine into a batch
         target_batch = torch.cat([target_a, target_b], dim=0)
