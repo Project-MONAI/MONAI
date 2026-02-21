@@ -372,7 +372,7 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
@@ -1191,7 +1191,7 @@ def replace_modules_temp(
 
 def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
     """
-    A utilty function to help freeze specific layers.
+    A utility function to help freeze specific layers.
 
     Args:
         model: a source PyTorch model to freeze layer.
@@ -1280,7 +1280,7 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
 class CastToFloat(torch.nn.Module):
     """
     Class used to add autocast protection for ONNX export
-    for forward methods with single return vaue
+    for forward methods with single return value
     """
 
     def __init__(self, mod):
