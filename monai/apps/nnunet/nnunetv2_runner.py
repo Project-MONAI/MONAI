@@ -34,7 +34,7 @@ logger = monai.apps.utils.get_logger(__name__)
 __all__ = ["nnUNetV2Runner"]
 
 
-class nnUNetV2Runner:
+class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
     neural networks for medical image segmentation tasks.
