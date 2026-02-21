@@ -591,7 +591,7 @@ def convert_box_mode(
 
     # check validity of corners
     spatial_dims = get_spatial_dims(boxes=boxes_t)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         if (corners[spatial_dims + axis] < corners[axis]).sum() > 0:
             warnings.warn("Given boxes has invalid values. The box size must be non-negative.")
 
@@ -731,7 +731,7 @@ def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
         whether ``boxes`` is valid
     """
     spatial_dims = get_spatial_dims(boxes=boxes)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         if (boxes[:, spatial_dims + axis] < boxes[:, axis]).sum() > 0:
             return False
     return True
@@ -1041,7 +1041,7 @@ def spatial_crop_boxes(
 
     # makes sure the bounding boxes are within the patch
     spatial_dims = get_spatial_dims(boxes=boxes, spatial_size=roi_end)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         boxes_t[:, axis] = boxes_t[:, axis].clamp(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
         boxes_t[:, axis + spatial_dims] = boxes_t[:, axis + spatial_dims].clamp(
             min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE
@@ -1134,7 +1134,7 @@ def non_max_suppression(
 
     # initialize the list of picked indexes
     pick = []
-    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
+    idxs = torch.Tensor(list(range(boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
 
     # keep looping while some indexes still remain in the indexes list
     while len(idxs) > 0:

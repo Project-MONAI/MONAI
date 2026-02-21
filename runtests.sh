@@ -43,7 +43,6 @@ doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
-doFlake8Format=false
 doPylintFormat=false
 doRuffFormat=false
 doRuffFix=false
@@ -60,7 +59,7 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--ruff]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
     echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
@@ -80,9 +79,9 @@ function print_usage {
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --black           : perform \"black\" code format checks"
     echo "    --isort           : perform \"isort\" import sort checks"
-    echo "    --flake8          : perform \"flake8\" code format checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --ruff            : perform \"ruff\" code format checks"
+    echo "    --flake8          : perform \"ruff\" code format checks (deprecated alias for --ruff)"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
@@ -267,7 +266,6 @@ do
         -f|--codeformat)
             doBlackFormat=true
             doIsortFormat=true
-            doFlake8Format=true
             # doPylintFormat=true  # https://github.com/Project-MONAI/MONAI/issues/7094
             doRuffFormat=true
             doCopyRight=true
@@ -299,13 +297,14 @@ do
         --isort)
             doIsortFormat=true
         ;;
-        --flake8)
-            doFlake8Format=true
-        ;;
         --pylint)
             doPylintFormat=true
         ;;
         --ruff)
+            doRuffFormat=true
+        ;;
+        --flake8)
+            echo "${red}warning: --flake8 is deprecated, please use --ruff instead.${noColor}"
             doRuffFormat=true
         ;;
         --precommit)
@@ -527,32 +526,6 @@ then
     then
         print_style_fail_msg
         exit ${black_status}
-    else
-        echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
-
-if [ $doFlake8Format = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    echo "${separator}${blue}flake8${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed flake8
-    then
-        install_deps
-    fi
-    ${cmdPrefix}"${PY_EXE}" -m flake8 --version
-
-    ${cmdPrefix}"${PY_EXE}" -m flake8 "$homedir" --count --statistics
-
-    flake8_status=$?
-    if [ ${flake8_status} -ne 0 ]
-    then
-        print_style_fail_msg
-        exit ${flake8_status}
     else
         echo "${green}passed!${noColor}"
     fi

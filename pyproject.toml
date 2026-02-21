@@ -39,12 +39,19 @@ all = true
 exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
-line-length = 133
+line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
 select = [
-  "E", "F", "W", # flake8
+  "B",  # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+  "C90",  # mccabe (complexity) - https://docs.astral.sh/ruff/rules/#mccabe-c90
+  "E",  # pycodestyle errors - https://docs.astral.sh/ruff/rules/#error-e
+  "F",  # pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
+  "N",  # pep8-naming - https://docs.astral.sh/ruff/rules/#pep8-naming-n
+  "PIE",  # flake8-pie - https://docs.astral.sh/ruff/rules/#flake8-pie-pie
+  "TID", # flake8-tidy-imports - https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+  "W",  # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#warning-w
   "NPY",         # NumPy specific rules
   "UP",          # pyupgrade
   # "RUF100",      # aka yesqa
@@ -53,7 +60,28 @@ extend-ignore = [
   "E741", # ambiguous variable name
   "F401", # unused import
   "NPY002", # numpy-legacy-random
+  "E203", # whitespace before ':' (pycodestyle)
+  "E501", # line too long (pycodestyle)
+  "C408", # unnecessary collection call (flake8-comprehensions)
+  "N812", # lowercase imported as non lowercase (pep8-naming)
+  "B023", # function uses loop variable (flake8-bugbear)
+  "B905", # zip() without an explicit strict= parameter (flake8-bugbear)
+  "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "B018",
+  "C901",
+  "N999",
+  "N801"
+]
+"monai/apps/detection/utils/ATSS_matcher.py" = [
+  "N999"
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.
