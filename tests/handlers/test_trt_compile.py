@@ -27,6 +27,9 @@ trt, trt_imported = optional_import("tensorrt", "10.1.0", min_version)
 torch_tensorrt, torch_trt_imported = optional_import("torch_tensorrt")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
+_, has_cudart = optional_import("cuda.bindings.runtime")
+if not has_cudart:
+    _, has_cudart = optional_import("cuda.cudart")
 
 TEST_CASE_1 = ["fp32"]
 TEST_CASE_2 = ["fp16"]
@@ -50,6 +53,7 @@ class ListAdd(torch.nn.Module):
 @skip_if_quick
 @unittest.skipUnless(trt_imported, "tensorrt is required")
 @unittest.skipUnless(polygraphy_imported, "polygraphy is required")
+@unittest.skipUnless(has_cudart, "cuda-python or cuda-bindings is required")
 @SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTCompile(unittest.TestCase):
     def setUp(self):
