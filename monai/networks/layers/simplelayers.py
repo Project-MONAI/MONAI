@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Sequence
 
 import torch
 import torch.nn.functional as F

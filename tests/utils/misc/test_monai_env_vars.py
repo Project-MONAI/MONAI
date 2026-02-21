@@ -21,7 +21,7 @@ class TestMONAIEnvVars(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.orig_value = str(MONAIEnvVars.debug())
 
     @classmethod
@@ -31,7 +31,7 @@ class TestMONAIEnvVars(unittest.TestCase):
         else:
             os.environ.pop("MONAI_DEBUG")
         print("MONAI debug value:", str(MONAIEnvVars.debug()))
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_monai_env_vars(self):
         for debug in (False, True):

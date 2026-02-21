@@ -494,7 +494,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             raise ValueError(f"dist_matrix must be C x C, got {dist_matrix.shape[0]} x {dist_matrix.shape[1]}.")
 
         if weighting_mode not in ["default", "GDL"]:
-            raise ValueError("weighting_mode must be either 'default' or 'GDL, got %s." % weighting_mode)
+            raise ValueError(f"weighting_mode must be either 'default' or 'GDL', got {weighting_mode}.")
 
         self.m = dist_matrix
         if isinstance(self.m, np.ndarray):
