@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -153,7 +152,7 @@ class FocalLoss(_Loss):
         if target.shape != input.shape:
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
-        loss: Optional[torch.Tensor] = None
+        loss: torch.Tensor | None = None
         input = input.float()
         target = target.float()
         if self.use_softmax:
@@ -203,7 +202,7 @@ class FocalLoss(_Loss):
 
 
 def softmax_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: Optional[float] = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
@@ -225,7 +224,7 @@ def softmax_focal_loss(
 
 
 def sigmoid_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: Optional[float] = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)

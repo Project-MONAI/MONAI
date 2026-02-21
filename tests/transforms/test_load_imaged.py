@@ -157,7 +157,7 @@ class TestConsistency(unittest.TestCase):
 class TestLoadImagedMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.tmpdir = tempfile.mkdtemp()
         test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
         cls.test_data = {}
@@ -168,7 +168,7 @@ class TestLoadImagedMeta(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_p, expected_shape, track_meta):
