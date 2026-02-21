@@ -230,6 +230,8 @@ class PersistentDataset(Dataset):
         pickle_protocol: int = DEFAULT_PROTOCOL,
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
+        track_meta: bool = False,
+        weights_only: bool = True,
     ) -> None:
         """
         Args:
@@ -264,7 +266,17 @@ class PersistentDataset(Dataset):
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
+            track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
+                default to `False`. Cannot be used with `weights_only=True`.
+            weights_only: keyword argument passed to `torch.load` when reading cached files.
+                default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
+                other safe objects. Setting this to `False` is required for loading `MetaTensor`
+                objects saved with `track_meta=True`, however this creates the possibility of remote
+                code execution through `torch.load` so be aware of the security implications of doing so.
 
+        Raises:
+            ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
+                prevents cached MetaTensors from being reloaded and causes perpetual cache regeneration.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -280,6 +292,13 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
+        if track_meta and weights_only:
+            raise ValueError(
+                "Invalid argument combination: `track_meta=True` cannot be used with `weights_only=True`. "
+                "To cache and reload MetaTensors, set `track_meta=True` and `weights_only=False`."
+            )
+        self.track_meta = track_meta
+        self.weights_only = weights_only
 
     def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -377,7 +396,7 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                return torch.load(hashfile, weights_only=True)
+                return torch.load(hashfile, weights_only=self.weights_only)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -398,7 +417,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=convert_to_tensor(_item_transformed, convert_numeric=False),
+                    obj=convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,

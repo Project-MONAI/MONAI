@@ -2,6 +2,7 @@
 requires = [
   "wheel",
   "setuptools",
+  "more-itertools>=8.0",
   "torch>=2.4.1",
   "ninja",
   "packaging"
@@ -45,6 +46,8 @@ target-version = "py39"
 select = [
   "E", "F", "W", # flake8
   "NPY",         # NumPy specific rules
+  "UP",          # pyupgrade
+  # "RUF100",      # aka yesqa
 ]
 extend-ignore = [
   "E741", # ambiguous variable name

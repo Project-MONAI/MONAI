@@ -17,7 +17,6 @@ import os
 import re
 import urllib
 import warnings
-import zipfile
 from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
@@ -30,7 +29,7 @@ import torch
 from torch.cuda import is_available
 
 from monai._version import get_versions
-from monai.apps.utils import _basename, download_url, extractall, get_logger
+from monai.apps.utils import _basename, _extract_zip, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -288,9 +287,8 @@ def _download_from_ngc_private(
     if remove_prefix:
         filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
     extract_path = download_path / f"{filename}"
-    with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(extract_path)
-        logger.info(f"Writing into directory: {extract_path}.")
+    _extract_zip(zip_path, extract_path)
+    logger.info(f"Writing into directory: {extract_path}.")
 
 
 def _get_ngc_token(api_key, retry=0):
