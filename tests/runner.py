@@ -39,7 +39,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         self.stream.write(f"Starting test: {name}...\n")
         super().startTest(test)
 
-    def stopTest(self, test):
+    def stopTest(self, test):  # noqa: N802
         """On test end, get time, print, store and do normal behaviour."""
         elapsed = time.time() - self.start_time
         name = self.getDescription(test)
