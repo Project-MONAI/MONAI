@@ -1,7 +1,7 @@
 # Requirements for minimal tests
 -r requirements.txt
 setuptools>=50.3.0,<66.0.0,!=60.6.0 ; python_version < "3.12"
-setuptools>=70.2.0; python_version >= "3.12"
+setuptools>=70.2.0,<=79.0.1; python_version >= "3.12"
 coverage>=5.5
 parameterized
 packaging
