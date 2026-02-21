@@ -32,7 +32,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.timed_tests = {}
 
-    def startTest(self, test):
+    def startTest(self, test):  # noqa: N802
         """Start timer, print test name, do normal test."""
         self.start_time = time.time()
         name = self.getDescription(test)
