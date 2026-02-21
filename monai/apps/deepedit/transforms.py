@@ -164,8 +164,6 @@ class NormalizeLabelsInDatasetd(RemapLabelsToSequentiald):
     which better describes the transform's functionality.
     """
 
-    pass
-
 
 class SingleLabelSelectiond(MapTransform):
 
