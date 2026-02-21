@@ -337,7 +337,7 @@ class WorkflowProfiler:
 
         class _Iterable:
 
-            def __iter__(_self):
+            def __iter__(self):
                 do_iter = True
                 orig_iter = iter(iterable)
                 caller = getframeinfo(stack()[1][0])
