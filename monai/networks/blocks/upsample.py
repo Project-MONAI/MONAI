@@ -195,7 +195,7 @@ class SubpixelUpsample(nn.Module):
     default single layer.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
