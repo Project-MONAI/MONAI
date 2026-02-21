@@ -87,12 +87,12 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install --no-build-isolation -r requirements-dev.txt
         python -m pip list
-        python setup.py develop  # test no compile installation
+        python -m pip install -e .  # test no compile installation
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
-        python setup.py develop --uninstall
-        BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
+        python -m pip uninstall -y monai
+        BUILD_MONAI=1 python -m pip install -e .  # compile the cpp extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
