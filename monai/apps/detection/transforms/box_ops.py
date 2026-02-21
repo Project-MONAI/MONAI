@@ -179,7 +179,7 @@ def flip_boxes(
     spatial_dims: int = get_spatial_dims(boxes=boxes)
     spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
     if flip_axes is None:
-        flip_axes = tuple(range(0, spatial_dims))
+        flip_axes = tuple(range(spatial_dims))
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
