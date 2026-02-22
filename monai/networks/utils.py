@@ -726,9 +726,9 @@ def convert_to_onnx(
             #   pass the raw nn.Module directly—the exporter handles it via torch.export.
             _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
             if _pt_major_minor >= (2, 9):
-                mode_to_export = model
+                model_to_export = model
             else:
-                mode_to_export = torch.jit.script(model, **kwargs)
+                model_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
