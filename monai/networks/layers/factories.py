@@ -95,7 +95,7 @@ class LayerFactory(ComponentStore):
         self.add(name.upper(), description, func)
         # append name to the docstring
         assert self.__doc__ is not None
-        self.__doc__ += f"{', ' if len(self.names)>1 else ' '}``{name}``"
+        self.__doc__ += f"{', ' if len(self.names) > 1 else ' '}``{name}``"
 
     def add_factory_class(self, name: str, cls: type, desc: str | None = None) -> None:
         """

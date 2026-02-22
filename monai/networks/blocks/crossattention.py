@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 import torch
 import torch.nn as nn
 
@@ -41,9 +39,9 @@ class CrossAttentionBlock(nn.Module):
         save_attn: bool = False,
         causal: bool = False,
         sequence_length: int | None = None,
-        rel_pos_embedding: Optional[str] = None,
-        input_size: Optional[Tuple] = None,
-        attention_dtype: Optional[torch.dtype] = None,
+        rel_pos_embedding: str | None = None,
+        input_size: tuple | None = None,
+        attention_dtype: torch.dtype | None = None,
         use_flash_attention: bool = False,
     ) -> None:
         """
@@ -134,7 +132,7 @@ class CrossAttentionBlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None):
+    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C

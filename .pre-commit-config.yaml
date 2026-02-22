@@ -9,7 +9,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -27,25 +27,14 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.0
+    rev: v0.14.11
     hooks:
-    -   id: ruff
-        args:
-        - --fix
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
-    hooks:
-      - id: pyupgrade
-        args: [--py39-plus, --keep-runtime-typing]
-        name: Upgrade code with exceptions
+    -   id: ruff-check
+        args: ["--fix"]
         exclude: |
           (?x)(
               ^versioneer.py|
-              ^monai/_version.py|
-              ^monai/networks/| # avoid typing rewrites
-              ^monai/apps/detection/utils/anchor_utils.py| # avoid typing rewrites
-              ^tests/test_compute_panoptic_quality.py # avoid typing rewrites
+              ^monai/_version.py
           )
 
   - repo: https://github.com/asottile/yesqa
@@ -66,7 +55,7 @@ repos:
           )$
 
   - repo: https://github.com/hadialqattan/pycln
-    rev: v2.5.0
+    rev: v2.6.0
     hooks:
       - id: pycln
         args: [--config=pyproject.toml]

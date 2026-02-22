@@ -10,9 +10,6 @@ tensorboard>=2.12.0  # https://github.com/Project-MONAI/MONAI/issues/7434
 scikit-image>=0.19.0
 tqdm>=4.47.0
 lmdb
-flake8>=3.8.1
-flake8-bugbear<=24.2.6  # https://github.com/Project-MONAI/MONAI/issues/7690
-flake8-comprehensions
 mccabe
 pep8-naming
 pycodestyle
@@ -54,6 +51,7 @@ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsRe
 onnx>=1.13.0
 onnxruntime
 onnxscript
+onnxruntime
 typeguard<3  # https://github.com/microsoft/nni/issues/5457
 filelock<3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
