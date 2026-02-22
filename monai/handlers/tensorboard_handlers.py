@@ -50,6 +50,11 @@ class TensorBoardHandler:
 
     def __init__(self, summary_writer: SummaryWriter | SummaryWriterX | None = None, log_dir: str = "./runs"):
         if summary_writer is None:
+            if SummaryWriter is None:
+                raise RuntimeError(
+                    "TensorBoardHandler requires tensorboard to be installed. "
+                    "Please install it with: pip install tensorboard"
+                )
             self._writer = SummaryWriter(log_dir=log_dir)
             self.internal_writer = True
         else:
