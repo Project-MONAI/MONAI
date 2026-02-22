@@ -145,9 +145,9 @@ function compile_cpp {
     ${cmdPrefix}"${PY_EXE}" -m pip uninstall -y monai
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}"${PY_EXE}" setup.py develop --user
+        BUILD_MONAI=1 CC=clang CXX=clang++ ${cmdPrefix}"${PY_EXE}" -m pip install -e .
     else
-        ${cmdPrefix}"${PY_EXE}" setup.py develop --user
+        BUILD_MONAI=1 ${cmdPrefix}"${PY_EXE}" -m pip install -e .
     fi
 }
 

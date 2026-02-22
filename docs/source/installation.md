@@ -135,23 +135,23 @@ You can install it by running:
 
 ```bash
 cd MONAI/
-python setup.py develop
+pip install -e .
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
 
 ```bash
 cd MONAI/
-BUILD_MONAI=1 python setup.py develop
+BUILD_MONAI=1 pip install -e .
 # for MacOS
-BUILD_MONAI=1 CC=clang CXX=clang++ python setup.py develop
+BUILD_MONAI=1 CC=clang CXX=clang++ pip install -e .
 ```
 
 To uninstall the package please run:
 
 ```bash
 cd MONAI/
-python setup.py develop --uninstall
+pip uninstall -y monai
 
 # to further clean up the MONAI/ folder (Bash script)
 ./runtests.sh --clean
