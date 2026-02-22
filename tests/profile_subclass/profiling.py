@@ -63,9 +63,8 @@ def main():
 
         b_min, b_avg, b_med, b_std = bench(tensor_1, tensor_2)
         print(
-            "Type {} time (microseconds):  min: {}, avg: {}, median: {}, and std {}.".format(
-                t.__name__, (10**6 * b_min), (10**6) * b_avg, (10**6) * b_med, (10**6) * b_std
-            )
+            f"Type {t.__name__} time (microseconds):"
+            f"  min: {10**6 * b_min}, avg: {(10**6) * b_avg}, median: {(10**6) * b_med}, and std {(10**6) * b_std}."
         )
 
 

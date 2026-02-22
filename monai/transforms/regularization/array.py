@@ -17,9 +17,8 @@ from math import ceil, sqrt
 import torch
 
 from monai.data.meta_obj import get_track_meta
+from monai.transforms.transform import RandomizableTransform
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
-
-from ..transform import RandomizableTransform
 
 __all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 
@@ -41,7 +40,7 @@ class Mixer(RandomizableTransform):
         """
         super().__init__()
         if alpha <= 0:
-            raise ValueError(f"Expected positive number, but got {alpha = }")
+            raise ValueError(f"Expected positive number, but got {alpha=}")
         self.alpha = alpha
         self.batch_size = batch_size
 
