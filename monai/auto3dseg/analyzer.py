@@ -470,7 +470,10 @@ class LabelStats(Analyzer):
         start = time.time()
         image_tensor = d[self.image_key]
         label_tensor = d[self.label_key]
-        using_cuda = any(isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor))
+        using_cuda = any(
+        isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda"
+        for t in (image_tensor, label_tensor)
+        )
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
