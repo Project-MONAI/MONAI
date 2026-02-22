@@ -143,6 +143,39 @@ class MAEMetric(RegressionMetric):
         return compute_mean_error_metrics(y_pred, y, func=self.abs_func)
 
 
+class MAPEMetric(RegressionMetric):
+    r"""Compute Mean Absolute Percentage Error between two tensors using function:
+
+    .. math::
+        \operatorname {MAPE}\left(Y, \hat{Y}\right) =\frac {100}{n}\sum _{i=1}^{n}\left|\frac{y_i-\hat{y_i}}{y_i}\right|.
+
+    More info: https://en.wikipedia.org/wiki/Mean_absolute_percentage_error
+
+    Input `y_pred` is compared with ground truth `y`.
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+    Note: Tackling the undefined error, a tiny epsilon value is added to the denominator part.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
+    Args:
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+        epsilon: float. Defaults to 1e-7.
+
+    """
+
+    def __init__(
+        self, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False, epsilon: float = 1e-7
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
+        self.epsilon = epsilon
+
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return compute_mape_metric(y_pred, y, epsilon=self.epsilon)
+
+
 class RMSEMetric(RegressionMetric):
     r"""Compute Root Mean Squared Error between two tensors using function:
 
@@ -218,6 +251,23 @@ def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func: Call
     # reduction of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
     return torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)
+
+
+def compute_mape_metric(y_pred: torch.Tensor, y: torch.Tensor, epsilon: float = 1e-7) -> torch.Tensor:
+    """
+    Compute Mean Absolute Percentage Error.
+
+    Args:
+        y_pred: predicted values
+        y: ground truth values
+        epsilon: small value to avoid division by zero
+
+    Returns:
+        MAPE value as percentage
+    """
+    flt = partial(torch.flatten, start_dim=1)
+    percentage_error = torch.abs(y - y_pred) / torch.clamp(torch.abs(y), min=epsilon) * 100.0
+    return torch.mean(flt(percentage_error), dim=-1, keepdim=True)
 
 
 class KernelType(StrEnum):

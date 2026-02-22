@@ -54,7 +54,7 @@ select = [
   "W",  # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#warning-w
   "NPY",         # NumPy specific rules
   "UP",          # pyupgrade
-  # "RUF100",      # aka yesqa
+  "RUF100",      # aka yesqa
 ]
 extend-ignore = [
   "E741", # ambiguous variable name
