@@ -223,7 +223,7 @@ class GlobalMutualInformationLoss(_Loss):
         """
         super().__init__(reduction=LossReduction(reduction).value)
         if num_bins <= 0:
-            raise ValueError("num_bins must > 0, got {num_bins}")
+            raise ValueError(f"num_bins must > 0, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])

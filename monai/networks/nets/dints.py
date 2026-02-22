@@ -627,7 +627,6 @@ class TopologyConstruction(nn.Module):
 
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
-        pass
 
 
 class TopologyInstance(TopologyConstruction):
