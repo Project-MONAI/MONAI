@@ -96,12 +96,7 @@ def pad_nd(
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     try:
         _pad = _np_pad
-        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and img.dtype not in {
-            torch.int16,
-            torch.int64,
-            torch.bool,
-            torch.uint8,
-        }:
+        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"}:
             _pad = _pt_pad
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
