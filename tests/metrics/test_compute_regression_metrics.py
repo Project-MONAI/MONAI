@@ -17,7 +17,7 @@ from functools import partial
 import numpy as np
 import torch
 
-from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
+from monai.metrics import MAEMetric, MAPEMetric, MSEMetric, PSNRMetric, RMSEMetric
 from monai.utils import set_determinism
 
 
@@ -44,6 +44,11 @@ def psnrmetric_np(max_val, y_pred, y):
     return np.mean(20 * np.log10(max_val) - 10 * np.log10(mse))
 
 
+def mapemetric_np(y_pred, y, epsilon=1e-7):
+    percentage_error = np.abs(y - y_pred) / np.clip(np.abs(y), a_min=epsilon, a_max=None) * 100.0
+    return np.mean(flatten(percentage_error))
+
+
 class TestRegressionMetrics(unittest.TestCase):
 
     def test_shape_reduction(self):
@@ -51,7 +56,7 @@ class TestRegressionMetrics(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # regression metrics to check
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        metrics = [MSEMetric, MAEMetric, MAPEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -94,8 +99,8 @@ class TestRegressionMetrics(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # regression metrics to check + truth metric function in numpy
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
-        metrics_np = [msemetric_np, maemetric_np, rmsemetric_np, partial(psnrmetric_np, max_val=1.0)]
+        metrics = [MSEMetric, MAEMetric, MAPEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        metrics_np = [msemetric_np, maemetric_np, mapemetric_np, rmsemetric_np, partial(psnrmetric_np, max_val=1.0)]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -117,14 +122,14 @@ class TestRegressionMetrics(unittest.TestCase):
                         out_tensor = mt.aggregate(reduction="mean")
                         out_np = mt_fn_np(y_pred=in_tensor_a.cpu().numpy(), y=in_tensor_b.cpu().numpy())
 
-                        np.testing.assert_allclose(out_tensor.cpu().numpy(), out_np, atol=1e-4)
+                        np.testing.assert_allclose(out_tensor.cpu().numpy(), out_np, atol=1e-3, rtol=1e-4)
 
     def test_ill_shape(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # regression metrics to check + truth metric function in numpy
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        metrics = [MSEMetric, MAEMetric, MAPEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
         basedim = 10
 
         # too small shape
@@ -143,8 +148,8 @@ class TestRegressionMetrics(unittest.TestCase):
     def test_same_input(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
-        results = [0.0, 0.0, 0.0, float("inf")]
+        metrics = [MSEMetric, MAEMetric, MAPEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        results = [0.0, 0.0, 0.0, 0.0, float("inf")]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -168,8 +173,8 @@ class TestRegressionMetrics(unittest.TestCase):
     def test_diff_input(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
-        results = [1.0, 1.0, 1.0, 0.0]
+        metrics = [MSEMetric, MAEMetric, MAPEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        results = [1.0, 1.0, 100.0, 1.0, 0.0]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
