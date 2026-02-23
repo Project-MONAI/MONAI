@@ -232,7 +232,7 @@ class SubpixelDownsample(nn.Module):
     Example: (1, 1, 4, 4) with r=2 becomes (1, 4, 2, 2).
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     The pixel unshuffle mechanism is the inverse operation of:
     https://github.com/Project-MONAI/MONAI/blob/dev/monai/networks/blocks/upsample.py
