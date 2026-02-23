@@ -601,6 +601,7 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         factors: Sequence[float] | float = 0,
         fixed_mean: bool = True,
         preserve_range: bool = False,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
@@ -611,8 +612,8 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
 
         """
@@ -626,17 +627,25 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         self.factor = self.factors[0]
         self.fixed_mean = fixed_mean
         self.preserve_range = preserve_range
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
         self.scaler = ScaleIntensityFixedMean(
-            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
+            factor=self.factor,
+            fixed_mean=self.fixed_mean,
+            preserve_range=self.preserve_range,
+            channel_wise=self.channel_wise,
+            dtype=self.dtype,
         )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        if self.channel_wise:
+            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -644,10 +653,24 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
+
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = ScaleIntensityFixedMean(
+                    factor=self.factor[i],  # type: ignore
+                    fixed_mean=self.fixed_mean,
+                    preserve_range=self.preserve_range,
+                    dtype=self.dtype,
+                )(d[None])[0]
+                out.append(out_channel)
+            ret: NdarrayOrTensor = torch.stack(out)
+            ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img.dtype)[0]
+            return ret
 
         return self.scaler(img, self.factor)
 
