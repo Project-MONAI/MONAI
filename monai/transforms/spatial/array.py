@@ -2166,6 +2166,13 @@ class Affine(InvertibleTransform, LazyTransform):
 
     This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
     for more information.
+
+    Note:
+        This transform assumes that the origin of the coordinate system is at the spatial center
+        of the image. When applying transformations (rotation, scaling, etc.), they are performed
+        relative to this center point. If you need transformations around a different origin,
+        you may need to compose this transform with translation operations or adjust your affine
+        matrix accordingly.
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -2228,10 +2235,12 @@ class Affine(InvertibleTransform, LazyTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            normalized: indicating whether the provided `affine` is defined to include a normalization
-                transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` (defined in ``create_grid``) to
-                `[0, size - 1]` or `[-1, 1]` in order to be compatible with the underlying resampling API.
-                If `normalized=False`, additional coordinate normalization will be applied before resampling.
+            normalized: indicates whether the provided `affine` matrix already includes coordinate
+                normalization. Set to ``True`` if your affine matrix is designed to work with normalized
+                coordinates (e.g., from image processing libraries that use normalized coordinate systems).
+                Set to ``False`` (default) if your affine matrix works with pixel/voxel coordinates centered
+                at the image center. When ``False``, MONAI will automatically apply the necessary coordinate
+                transformations. Most users should use the default ``False``.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``float32``.
@@ -2323,6 +2332,24 @@ class Affine(InvertibleTransform, LazyTransform):
 
     @classmethod
     def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size):
+        """
+        Compute the affine matrix for transforming image coordinates, accounting for
+        center-based coordinate system.
+
+        This function adjusts the provided affine transformation matrix to work with images
+        where transformations are applied relative to the image center rather than the origin.
+        It composes the input matrix with translation operations that shift between
+        corner-based and center-based coordinate systems.
+
+        Args:
+            spatial_rank: number of spatial dimensions (e.g., 2 for 2D, 3 for 3D).
+            mat: the base affine transformation matrix to be adjusted.
+            img_size: spatial dimensions of the input image.
+            sp_size: spatial dimensions of the output (transformed) image.
+
+        Returns:
+            The adjusted affine matrix that can be applied to image coordinates.
+        """
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])

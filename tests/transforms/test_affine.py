@@ -199,6 +199,48 @@ class TestAffine(unittest.TestCase):
             )
 
 
+class TestComputeWAffine(unittest.TestCase):
+    def test_identity_2d(self):
+        """Identity matrix with same input/output size should produce pure translation to/from center."""
+        mat = np.eye(3)
+        img_size = (4, 4)
+        sp_size = (4, 4)
+        result = Affine.compute_w_affine(2, mat, img_size, sp_size)
+        # For identity transform with same sizes, result should be identity
+        assert_allclose(result, np.eye(3), atol=1e-6)
+
+    def test_identity_3d(self):
+        """Identity matrix in 3D with same input/output size."""
+        mat = np.eye(4)
+        img_size = (6, 6, 6)
+        sp_size = (6, 6, 6)
+        result = Affine.compute_w_affine(3, mat, img_size, sp_size)
+        assert_allclose(result, np.eye(4), atol=1e-6)
+
+    def test_different_sizes(self):
+        """When img_size != sp_size, result should include net translation."""
+        mat = np.eye(3)
+        img_size = (4, 4)
+        sp_size = (8, 8)
+        result = Affine.compute_w_affine(2, mat, img_size, sp_size)
+        # Translation should account for the shift: (4-1)/2 - (8-1)/2 = 1.5 - 3.5 = -2.0
+        expected_translation = np.array([(d1 - 1) / 2 - (d2 - 1) / 2 for d1, d2 in zip(img_size, sp_size)])
+        assert_allclose(result[:2, 2], expected_translation, atol=1e-6)
+
+    def test_output_shape(self):
+        """Output should be (r+1) x (r+1) matrix."""
+        for r in [2, 3]:
+            mat = np.eye(r + 1)
+            result = Affine.compute_w_affine(r, mat, (4,) * r, (4,) * r)
+            self.assertEqual(result.shape, (r + 1, r + 1))
+
+    def test_torch_input(self):
+        """Method should accept torch tensor input."""
+        mat = torch.eye(3)
+        result = Affine.compute_w_affine(2, mat, (4, 4), (4, 4))
+        assert_allclose(result, np.eye(3), atol=1e-6)
+
+
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")
 class TestAffineConsistency(unittest.TestCase):
     @parameterized.expand([[7], [8], [9]])
