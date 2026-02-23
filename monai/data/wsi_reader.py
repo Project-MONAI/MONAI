@@ -210,7 +210,9 @@ class BaseWSIReader(ImageReader):
                 # Set the default value if no resolution parameter is provided.
                 level = 0
             if level >= n_levels:
-                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+                raise ValueError(
+                    f"The maximum level of this image is {n_levels - 1} while level={level} is requested)!"
+                )
 
         return level
 

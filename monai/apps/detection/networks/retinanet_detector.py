@@ -787,7 +787,7 @@ class RetinaNetDetector(nn.Module):
                 )
 
             if self.debug:
-                print(f"Max box overlap between anchors and gt boxes: {torch.max(match_quality_matrix,dim=1)[0]}.")
+                print(f"Max box overlap between anchors and gt boxes: {torch.max(match_quality_matrix, dim=1)[0]}.")
 
             if torch.max(matched_idxs_per_image) < 0:
                 warnings.warn(

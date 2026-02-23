@@ -37,7 +37,7 @@ Please note that, as per PyTorch, MONAI uses American English spelling. This mea
 
 ### Preparing pull requests
 
-To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
+To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
 static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
@@ -51,7 +51,7 @@ To collaborate efficiently, please read through this section and follow them.
 
 #### Checking the coding style
 
-Coding style is checked and enforced by flake8, black, isort, and ruff, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked and enforced by black, isort, and ruff.
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
