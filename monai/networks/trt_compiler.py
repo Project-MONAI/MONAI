@@ -100,8 +100,6 @@ class ShapeError(Exception):
     Exception class to report errors from setting TRT plan input shapes
     """
 
-    pass
-
 
 class TRTEngine:
     """
