@@ -337,7 +337,7 @@ class WorkflowProfiler:
 
         class _Iterable:
 
-            def __iter__(_self):  # noqa: B902, N805 pylint: disable=E0213
+            def __iter__(_self):  # noqa: N805 pylint: disable=E0213
                 do_iter = True
                 orig_iter = iter(iterable)
                 caller = getframeinfo(stack()[1][0])
