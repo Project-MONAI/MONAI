@@ -261,8 +261,16 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
     def _set_transform_groups(self):
         """
         Automatically set group IDs on child transforms for inversion tracking.
-        This allows Invertd to identify which transforms belong to this Compose instance.
-        Recursively sets groups on wrapped transforms (e.g., array transforms inside dictionary transforms).
+
+        This allows Invertd to identify which transforms belong to this
+        ``Compose`` instance, including wrapped transforms (for example,
+        array transforms inside dictionary transforms).
+
+        Args:
+            None.
+
+        Returns:
+            None.
         """
         from monai.transforms.inverse import TraceableTransform
 
@@ -270,7 +278,16 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         visited = set()  # Track visited objects to avoid infinite recursion
 
         def set_group_recursive(obj, gid):
-            """Recursively set group on transform and its wrapped transforms."""
+            """
+            Recursively set a group ID on a transform and its wrapped transforms.
+
+            Args:
+                obj: Transform instance to process.
+                gid: Group identifier to assign.
+
+            Returns:
+                None.
+            """
             # Avoid infinite recursion
             obj_id = id(obj)
             if obj_id in visited:
