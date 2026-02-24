@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable, Sequence
-from functools import lru_cache, partial
+from functools import cache, partial
 from types import ModuleType
 from typing import Any
 
@@ -465,7 +465,7 @@ def prepare_spacing(
 ENCODING_KERNEL = {2: [[8, 4], [2, 1]], 3: [[[128, 64], [32, 16]], [[8, 4], [2, 1]]]}
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_neighbour_code_to_normals_table(device=None):
     """
     returns a lookup table. For every binary neighbour code (2x2x2 neighbourhood = 8 neighbours = 8 bits = 256 codes)

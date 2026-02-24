@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 import unittest
@@ -20,7 +21,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import PersistentDataset, json_hashing
+from monai.data import MetaTensor, PersistentDataset, json_hashing
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
@@ -43,9 +44,16 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [None, (128, 128, 128)]
 
+TEST_CASE_4 = [True, False, False, MetaTensor]
+
+TEST_CASE_5 = [True, True, True, None]
+
+TEST_CASE_6 = [False, False, False, torch.Tensor]
+
+TEST_CASE_7 = [False, True, False, torch.Tensor]
+
 
 class _InplaceXform(Transform):
-
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -55,7 +63,6 @@ class _InplaceXform(Transform):
 
 
 class TestDataset(unittest.TestCase):
-
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]
@@ -167,6 +174,31 @@ class TestDataset(unittest.TestCase):
             im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
             self.assertGreater(l2, 1)
+
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    def test_track_meta_and_weights_only(self, track_meta, weights_only, expected_error, expected_type):
+        """
+        Ensure expected behavior for all combinations of `track_meta` and `weights_only`.
+        """
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
+        with tempfile.TemporaryDirectory() as tempdir:
+            nib.save(test_image, os.path.join(tempdir, "test_image.nii.gz"))
+            test_data = [{"image": os.path.join(tempdir, "test_image.nii.gz")}]
+            transform = Compose([LoadImaged(keys=["image"])])
+            cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
+
+            cm = self.assertRaises(ValueError) if expected_error else contextlib.nullcontext()
+            with cm:
+                test_dataset = PersistentDataset(
+                    data=test_data,
+                    transform=transform,
+                    cache_dir=cache_dir,
+                    track_meta=track_meta,
+                    weights_only=weights_only,
+                )
+
+                im = test_dataset[0]["image"]
+                self.assertIsInstance(im, expected_type)
 
 
 if __name__ == "__main__":

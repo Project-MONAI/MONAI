@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, command]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
@@ -22,7 +22,7 @@ jobs:
       id: pip-cache
       run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache
       with:
         path: |
@@ -74,7 +74,7 @@ jobs:
       run: ./runtests.sh --build --net
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
@@ -89,7 +89,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, command1]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
@@ -98,7 +98,7 @@ jobs:
       id: pip-cache
       run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache
       with:
         path: |
@@ -154,7 +154,7 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}

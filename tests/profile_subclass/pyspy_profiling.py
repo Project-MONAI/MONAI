@@ -17,9 +17,6 @@ from __future__ import annotations
 import argparse
 
 import torch
-from min_classes import SubTensor, SubWithTorchFunc  # noqa: F401
-
-from monai.data import MetaTensor  # noqa: F401
 
 Tensor = torch.Tensor
 

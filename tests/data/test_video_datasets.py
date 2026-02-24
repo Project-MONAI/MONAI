@@ -99,7 +99,7 @@ class TestVideoFileDataset(Base.TestVideoDataset):
 
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         codecs = VideoFileDataset.get_available_codecs()
         if ".mp4" in codecs.values():
             fname = "endo.mp4"

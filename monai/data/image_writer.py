@@ -405,7 +405,7 @@ class ITKWriter(ImageWriter):
                 ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
+                currently support ``spatial_ndim`` and ``contiguous``, defaulting to ``3`` and ``False`` respectively.
         """
         n_chns = data_array.shape[channel_dim] if channel_dim is not None else 0
         self.data_obj = self.convert_to_channel_last(
@@ -424,7 +424,7 @@ class ITKWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -575,7 +575,7 @@ class NibabelWriter(ImageWriter):
                 ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim``, defauting to ``3``.
+                currently support ``spatial_ndim``, defaulting to ``3``.
         """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
@@ -586,7 +586,7 @@ class NibabelWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -726,7 +726,7 @@ class PILWriter(ImageWriter):
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             contiguous: if ``True``, the data array will be converted to a contiguous array. Default is ``False``.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim``, defauting to ``2``.
+                currently support ``spatial_ndim``, defaulting to ``2``.
         """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
@@ -738,7 +738,7 @@ class PILWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
