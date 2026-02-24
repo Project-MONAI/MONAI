@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -156,12 +156,12 @@ class SPADEEncoder(nn.Module):
         self.z_dim = z_dim
         self.channels = channels
         if len(input_shape) != spatial_dims:
-            raise ValueError("Length of parameter input shape must match spatial_dims; got %s" % (input_shape))
+            raise ValueError(f"Length of parameter input shape must match spatial_dims; got {input_shape}")
         for s_ind, s_ in enumerate(input_shape):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(
                     "Each dimension of your input must be divisible by 2 ** (autoencoder depth)."
-                    "The shape in position %d, %d is not divisible by %d. " % (s_ind, s_, len(channels))
+                    f"The shape in position {s_ind}, {s_} is not divisible by {len(channels)}. "
                 )
         self.input_shape = input_shape
         self.latent_spatial_shape = [s_ // (2 ** len(self.channels)) for s_ in self.input_shape]
@@ -255,12 +255,12 @@ class SPADEDecoder(nn.Module):
         self.label_nc = label_nc
         self.num_channels = channels
         if len(input_shape) != spatial_dims:
-            raise ValueError("Length of parameter input shape must match spatial_dims; got %s" % (input_shape))
+            raise ValueError(f"Length of parameter input shape must match spatial_dims; got {input_shape}")
         for s_ind, s_ in enumerate(input_shape):
             if s_ / (2 ** len(channels)) != s_ // (2 ** len(channels)):
                 raise ValueError(
                     "Each dimension of your input must be divisible by 2 ** (autoencoder depth)."
-                    "The shape in position %d, %d is not divisible by %d. " % (s_ind, s_, len(channels))
+                    f"The shape in position {s_ind}, {s_} is not divisible by {len(channels)}. "
                 )
         self.latent_spatial_shape = [s_ // (2 ** len(self.num_channels)) for s_ in input_shape]
 

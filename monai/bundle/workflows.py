@@ -78,7 +78,7 @@ class BundleWorkflow(ABC):
             if isinstance(meta_file, str) and not os.path.isfile(meta_file):
                 logger.error(
                     f"Cannot find the metadata config file: {meta_file}. "
-                    "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+                    "Please see: https://monai.readthedocs.io/en/stable/mb_specification.html"
                 )
                 meta_file = None
             if isinstance(meta_file, list):
@@ -86,7 +86,7 @@ class BundleWorkflow(ABC):
                     if not os.path.isfile(f):
                         logger.error(
                             f"Cannot find the metadata config file: {f}. "
-                            "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+                            "Please see: https://monai.readthedocs.io/en/stable/mb_specification.html"
                         )
                         meta_file = None
 
@@ -363,7 +363,7 @@ class ConfigWorkflow(BundleWorkflow):
     Specification for the config-based bundle workflow.
     Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or inference.
     Before `run`, we add bundle root directory to Python search directories automatically.
-    For more information: https://docs.monai.io/en/latest/mb_specification.html.
+    For more information: https://monai.readthedocs.io/en/latest/mb_specification.html.
 
     Args:
         config_file: filepath of the config file, if this is a list of file paths, their contents will be merged in order.

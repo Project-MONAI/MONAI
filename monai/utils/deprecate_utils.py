@@ -19,9 +19,8 @@ from functools import wraps
 from types import FunctionType
 from typing import Any, TypeVar
 
+from monai import __version__
 from monai.utils.module import version_leq
-
-from .. import __version__
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
 T = TypeVar("T", type, Callable)
@@ -201,7 +200,7 @@ def deprecated_arg(
                 # if name is specified and new_name is not specified
                 kwargs[new_name] = kwargs[name]
                 try:
-                    sig.bind(*args, **kwargs).arguments
+                    _ = sig.bind(*args, **kwargs).arguments
                 except TypeError:
                     # multiple values for new_name using both args and kwargs
                     kwargs.pop(new_name, None)
