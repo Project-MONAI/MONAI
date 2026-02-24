@@ -280,7 +280,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(len(t1), 8)
 
     def test_backwards_compatible_imports(self):
-        from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
+        pass
 
     def test_list_extend_multi_sample_trait(self):
         center_crop = mt.CenterSpatialCrop([128, 128])

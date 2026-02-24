@@ -285,7 +285,7 @@ class ImageStats(Analyzer):
         d[self.stats_name] = report
 
         torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get image stats spent {time.time()-start}")
+        logger.debug(f"Get image stats spent {time.time() - start}")
         return d
 
 
@@ -366,7 +366,7 @@ class FgImageStats(Analyzer):
         d[self.stats_name] = report
 
         torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get foreground image stats spent {time.time()-start}")
+        logger.debug(f"Get foreground image stats spent {time.time() - start}")
         return d
 
 
@@ -535,7 +535,7 @@ class LabelStats(Analyzer):
         d[self.stats_name] = report  # type: ignore[assignment]
 
         torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get label stats spent {time.time()-start}")
+        logger.debug(f"Get label stats spent {time.time() - start}")
         return d  # type: ignore[return-value]
 
 
@@ -913,9 +913,11 @@ class ImageHistogram(Analyzer):
         for i, hist_params in enumerate(zip(self.hist_bins, self.hist_range)):
             _hist_bins, _hist_range = hist_params
             if not isinstance(_hist_bins, int) or _hist_bins < 0:
-                raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
+                raise ValueError(f"Expected {i + 1}. hist_bins value to be positive integer but got {_hist_bins}")
             if not isinstance(_hist_range, list) or len(_hist_range) != 2:
-                raise ValueError(f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}")
+                raise ValueError(
+                    f"Expected {i + 1}. hist_range values to be list of length 2 but received {_hist_range}"
+                )
 
     def __call__(self, data: dict) -> dict:
         """

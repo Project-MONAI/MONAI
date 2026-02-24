@@ -21,7 +21,7 @@ import warnings
 from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Union
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -1217,7 +1217,7 @@ class TorchIO(Transform):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
@@ -1249,7 +1249,7 @@ class RandTorchIO(Transform, RandomizableTrait):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,

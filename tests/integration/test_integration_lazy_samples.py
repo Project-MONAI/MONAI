@@ -136,13 +136,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 np.testing.assert_array_equal(in_seg.pending_operations, [])
                 ops = [0]
                 if len(item.applied_operations) > 1:
-                    found = False
-                    for idx, n in enumerate(item.applied_operations):  # noqa
+                    for idx, n in enumerate(item.applied_operations):
                         if n["class"] == "RandCropByPosNegLabel":
-                            found = True
+                            ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                             break
-                    if found:
-                        ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                 img_name = os.path.basename(item.meta["filename_or_obj"])
                 coords = f"{img_name} - {ops}"
                 print(coords)
