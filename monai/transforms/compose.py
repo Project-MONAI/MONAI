@@ -277,39 +277,67 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         group_id = str(id(self))
         visited = set()  # Track visited objects to avoid infinite recursion
 
-        def set_group_recursive(obj, gid):
+        def set_group_recursive(obj, gid, allow_compose: bool = False):
             """
             Recursively set a group ID on a transform and its wrapped transforms.
 
             Args:
                 obj: Transform instance to process.
                 gid: Group identifier to assign.
+                allow_compose: Whether to set group on ``Compose`` instances.
+                    ``Compose`` internals are not traversed to preserve nested
+                    pipeline boundaries.
 
             Returns:
                 None.
             """
+            if obj is None or isinstance(obj, (bool, int, float, str, bytes)):
+                return
+
             # Avoid infinite recursion
             obj_id = id(obj)
             if obj_id in visited:
                 return
             visited.add(obj_id)
 
+            if isinstance(obj, Compose):
+                if allow_compose:
+                    obj._group = gid
+                return
+
             if isinstance(obj, TraceableTransform):
                 obj._group = gid
 
-            # Handle wrapped transforms in dictionary transforms
-            # Check common attribute patterns for wrapped transforms
-            for attr_name in dir(obj):
-                # Skip magic methods and common non-transform attributes
-                if attr_name.startswith("__") or attr_name in ("transforms", "transform"):
-                    continue
-                attr = getattr(obj, attr_name, None)
-                if attr is not None and isinstance(attr, TraceableTransform) and not isinstance(attr, Compose):
-                    # Recursively set group on nested transforms
+            if isinstance(obj, Mapping):
+                for attr in obj.values():
                     set_group_recursive(attr, gid)
+                return
+
+            if isinstance(obj, (list, tuple, set)):
+                for attr in obj:
+                    set_group_recursive(attr, gid)
+                return
+
+            attrs: list[Any] = []
+            if hasattr(obj, "__dict__"):
+                attrs.extend(vars(obj).values())
+
+            slots = getattr(type(obj), "__slots__", ())
+            if isinstance(slots, str):
+                slots = (slots,)
+            for slot in slots:
+                if slot.startswith("__"):
+                    continue
+                try:
+                    attrs.append(getattr(obj, slot))
+                except AttributeError:
+                    continue
+
+            for attr in attrs:
+                set_group_recursive(attr, gid)
 
         for transform in self.transforms:
-            set_group_recursive(transform, group_id)
+            set_group_recursive(transform, group_id, allow_compose=True)
 
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool):

@@ -268,6 +268,43 @@ class TestCompose(unittest.TestCase):
             self.assertAlmostEqual(out_1.cpu().item(), 0.28602141572)
         set_determinism(None)
 
+    def test_set_transform_groups_on_wrapped_transform_attributes(self):
+        class _IdentityInvertible(mt.InvertibleTransform):
+            def __call__(self, data):
+                return data
+
+            def inverse(self, data):
+                return data
+
+        class _WrapperWithTransform:
+            def __init__(self):
+                self.transform = _IdentityInvertible()
+
+            def __call__(self, data):
+                return self.transform(data)
+
+        class _WrapperWithTransforms:
+            def __init__(self):
+                self.transforms = [_IdentityInvertible(), {"inner": _IdentityInvertible()}]
+
+            def __call__(self, data):
+                for transform in self.transforms:
+                    if isinstance(transform, dict):
+                        for nested_transform in transform.values():
+                            data = nested_transform(data)
+                    else:
+                        data = transform(data)
+                return data
+
+        wrapped_transform = _WrapperWithTransform()
+        wrapped_transforms = _WrapperWithTransforms()
+        composed = mt.Compose([wrapped_transform, wrapped_transforms])
+        expected_group = str(id(composed))
+
+        self.assertEqual(getattr(wrapped_transform.transform, "_group", None), expected_group)
+        self.assertEqual(getattr(wrapped_transforms.transforms[0], "_group", None), expected_group)
+        self.assertEqual(getattr(wrapped_transforms.transforms[1]["inner"], "_group", None), expected_group)
+
     def test_flatten_and_len(self):
         x = mt.EnsureChannelFirst(channel_dim="no_channel")
         t1 = mt.Compose([x, x, x, x, mt.Compose([mt.Compose([x, x]), x, x])])
