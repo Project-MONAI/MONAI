@@ -36,8 +36,10 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
 )
+from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.transform import MapTransform
 from monai.transforms.utility.dictionary import Lambdad
-from monai.utils import set_determinism
+from monai.utils import TraceKeys, set_determinism
 from tests.test_utils import assert_allclose, make_nifti_image
 
 KEYS = ["image", "label"]
@@ -165,15 +167,11 @@ class TestInvertd(unittest.TestCase):
         item = {key: img}
         pre = preprocessing(item)
 
-        # This should NOT raise an error (was failing before the fix)
-        try:
-            post = postprocessing(pre)
-            # If we get here, the bug is fixed
-            self.assertIsNotNone(post)
-            self.assertIn(key, post)
-        except RuntimeError as e:
-            if "getting the most recently applied invertible transform" in str(e):
-                self.fail(f"Invertd still has the postprocessing transform bug: {e}")
+        # This should NOT raise an error (was failing before the fix).
+        # Any exception here means the bug is not fixed.
+        post = postprocessing(pre)
+        self.assertIsNotNone(post)
+        self.assertIn(key, post)
 
     def test_invertd_multiple_pipelines(self):
         """Test that Invertd correctly handles multiple independent preprocessing pipelines."""
@@ -270,6 +268,37 @@ class TestInvertd(unittest.TestCase):
         inverted = inverter(pre2)
         self.assertIsNotNone(inverted)
         self.assertTupleEqual(inverted[key].shape, (1, 60, 60))
+
+    def test_invertd_filters_trace_key_transforms_by_group(self):
+        """Test group filtering when Invertd reads transforms from ``trace_key``."""
+
+        class _IdentityMapInvertible(MapTransform, InvertibleTransform):
+            def __init__(self, keys):
+                super().__init__(keys)
+
+            def __call__(self, data):
+                return dict(data)
+
+            def inverse(self, data):
+                return dict(data)
+
+        key = "image"
+        target_transform = _IdentityMapInvertible(key)
+        target_group = str(id(target_transform))
+        item = {
+            key: torch.zeros((1, 8, 8), dtype=torch.float32),
+            InvertibleTransform.trace_key(key): [
+                {TraceKeys.GROUP: target_group},
+                {TraceKeys.GROUP: "other-group"},
+            ],
+        }
+
+        inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
+        inverted = inverter(item)
+
+        trace_key = InvertibleTransform.trace_key(key)
+        self.assertEqual(len(inverted[trace_key]), 1)
+        self.assertEqual(inverted[trace_key][0].get(TraceKeys.GROUP), target_group)
 
     def test_compose_inverse_with_groups(self):
         """Test that Compose.inverse() works correctly with automatic group tracking."""

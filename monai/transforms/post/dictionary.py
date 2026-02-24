@@ -860,9 +860,16 @@ class Invertd(MapTransform):
         self._totensor = ToTensor()
 
     def _filter_transforms_by_group(self, all_transforms: list[dict]) -> list[dict]:
-        """
-        Filter applied_operations to only include transforms from the target Compose instance.
-        Uses automatic group tracking where Compose assigns its ID to child transforms.
+        """Filter applied operations to only include transforms from the target pipeline.
+
+        Uses automatic group tracking where ``Compose`` assigns its ID to child transforms.
+
+        Args:
+            all_transforms: Full list of applied transform metadata dictionaries.
+
+        Returns:
+            Subset whose ``TraceKeys.GROUP`` matches ``str(id(self.transform))``, or the original
+            list when no match is found for backward compatibility.
         """
         # Get the group ID of the transform (Compose instance)
         target_group = str(id(self.transform))
@@ -914,7 +921,7 @@ class Invertd(MapTransform):
                 # Automatically filter by Compose instance group ID
                 transform_info = self._filter_transforms_by_group(all_transforms)
             else:
-                transform_info = d[InvertibleTransform.trace_key(orig_key)]
+                transform_info = self._filter_transforms_by_group(d[InvertibleTransform.trace_key(orig_key)])
                 meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
