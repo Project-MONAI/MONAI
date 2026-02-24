@@ -48,7 +48,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
+from monai.utils import PostFix, TraceKeys, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -864,23 +864,14 @@ class Invertd(MapTransform):
         Filter applied_operations to only include transforms from the target Compose instance.
         Uses automatic group tracking where Compose assigns its ID to child transforms.
         """
-        from monai.utils import TraceKeys
-
         # Get the group ID of the transform (Compose instance)
         target_group = str(id(self.transform))
 
         # Filter transforms that match the target group
-        filtered = []
-        for xform in all_transforms:
-            xform_group = xform.get(TraceKeys.GROUP)
-            if xform_group == target_group:
-                filtered.append(xform)
+        filtered = [xform for xform in all_transforms if xform.get(TraceKeys.GROUP) == target_group]
 
         # If no transforms match (backward compatibility), return all transforms
-        if not filtered:
-            return all_transforms
-
-        return filtered
+        return filtered if filtered else all_transforms
 
     def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
         d = dict(data)

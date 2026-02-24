@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.data import DataLoader, Dataset, create_test_image_3d, decollate_batch
+from monai.data import DataLoader, Dataset, MetaTensor, create_test_image_2d, create_test_image_3d, decollate_batch
 from monai.transforms import (
     CastToTyped,
     Compose,
@@ -36,6 +36,7 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
 )
+from monai.transforms.utility.dictionary import Lambdad
 from monai.utils import set_determinism
 from tests.test_utils import assert_allclose, make_nifti_image
 
@@ -144,9 +145,6 @@ class TestInvertd(unittest.TestCase):
         postprocessing contains invertible transforms before Invertd is called.
         The fix uses automatic group tracking where Compose assigns its ID to child transforms.
         """
-        from monai.data import MetaTensor, create_test_image_2d
-        from monai.transforms.utility.dictionary import Lambdad
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -173,18 +171,12 @@ class TestInvertd(unittest.TestCase):
             # If we get here, the bug is fixed
             self.assertIsNotNone(post)
             self.assertIn(key, post)
-            print("SUCCESS! Automatic group tracking fixed the bug.")
-            print(f"  Preprocessing group ID: {id(preprocessing)}")
-            print(f"  Postprocessing group ID: {id(postprocessing)}")
         except RuntimeError as e:
             if "getting the most recently applied invertible transform" in str(e):
                 self.fail(f"Invertd still has the postprocessing transform bug: {e}")
 
     def test_invertd_multiple_pipelines(self):
         """Test that Invertd correctly handles multiple independent preprocessing pipelines."""
-        from monai.data import MetaTensor, create_test_image_2d
-        from monai.transforms.utility.dictionary import Lambdad
-
         img1, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img1 = MetaTensor(img1, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         img2, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
@@ -216,9 +208,6 @@ class TestInvertd(unittest.TestCase):
 
     def test_invertd_multiple_postprocessing_transforms(self):
         """Test Invertd with multiple invertible transforms in postprocessing before Invertd."""
-        from monai.data import MetaTensor, create_test_image_2d
-        from monai.transforms.utility.dictionary import Lambdad
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -244,8 +233,6 @@ class TestInvertd(unittest.TestCase):
 
     def test_invertd_group_isolation(self):
         """Test that groups correctly isolate transforms from different Compose instances."""
-        from monai.data import MetaTensor, create_test_image_2d
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -267,21 +254,25 @@ class TestInvertd(unittest.TestCase):
 
         # Apply second preprocessing
         pre2 = preprocessing2(pre1)
+        self.assertTupleEqual(pre2[key].shape, (1, 40, 40))
 
         # Should have operations from both pipelines with different groups
         groups = [op.get("group") for op in pre2[key].applied_operations]
-        self.assertIn(str(id(preprocessing1)), groups)
-        self.assertIn(str(id(preprocessing2)), groups)
+        preprocessing1_group = str(id(preprocessing1))
+        preprocessing2_group = str(id(preprocessing2))
+        self.assertIn(preprocessing1_group, groups)
+        self.assertIn(preprocessing2_group, groups)
+        self.assertEqual(groups.count(preprocessing1_group), 1)
+        self.assertEqual(groups.count(preprocessing2_group), 1)
 
         # Inverting preprocessing1 should only invert its transforms
         inverter = Invertd(key, transform=preprocessing1, orig_keys=key)
         inverted = inverter(pre2)
         self.assertIsNotNone(inverted)
+        self.assertTupleEqual(inverted[key].shape, (1, 60, 60))
 
     def test_compose_inverse_with_groups(self):
         """Test that Compose.inverse() works correctly with automatic group tracking."""
-        from monai.data import MetaTensor, create_test_image_2d
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -304,9 +295,6 @@ class TestInvertd(unittest.TestCase):
 
     def test_compose_inverse_with_postprocessing_groups(self):
         """Test Compose.inverse() when data has been through multiple pipelines with different groups."""
-        from monai.data import MetaTensor, create_test_image_2d
-        from monai.transforms.utility.dictionary import Lambdad
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -331,8 +319,6 @@ class TestInvertd(unittest.TestCase):
 
     def test_mixed_invertd_and_compose_inverse(self):
         """Test mixing Invertd (with group filtering) and Compose.inverse() (without filtering)."""
-        from monai.data import MetaTensor, create_test_image_2d
-
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
