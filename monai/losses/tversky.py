@@ -51,6 +51,7 @@ class TverskyLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         soft_label: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
@@ -77,6 +78,7 @@ class TverskyLoss(_Loss):
                 before any `reduction`.
             soft_label: whether the target contains non-binary values (soft labels) or not.
                 If True a soft label formulation of the loss will be used.
+            ignore_index: index of the class to ignore during calculation.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -101,6 +103,7 @@ class TverskyLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.soft_label = soft_label
+        self.ignore_index = ignore_index
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -129,7 +132,20 @@ class TverskyLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
+                original_target = target
                 target = one_hot(target, num_classes=n_pred_ch)
+
+        if self.ignore_index is not None:
+            mask_src = original_target if self.to_onehot_y and n_pred_ch > 1 else target
+
+            if mask_src.shape[1] == 1:
+                mask = (mask_src != self.ignore_index).to(input.dtype)
+            else:
+                # Fallback for cases where target is already one-hot
+                mask = (1.0 - mask_src[:, self.ignore_index : self.ignore_index + 1]).to(input.dtype)
+
+            input = input * mask
+            target = target * mask
 
         if not self.include_background:
             if n_pred_ch == 1:

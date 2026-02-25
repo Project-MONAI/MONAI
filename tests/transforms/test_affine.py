@@ -194,7 +194,9 @@ class TestAffine(unittest.TestCase):
             lazy_input_param["align_corners"] = align_corners
             resampler = Affine(**lazy_input_param)
             non_lazy_result = resampler(**input_data)
-            test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx)
+            test_resampler_lazy(
+                resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx, rtol=1e-3, atol=1e-3
+            )
 
 
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")

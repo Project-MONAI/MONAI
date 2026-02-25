@@ -57,6 +57,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             If set to ``True``, the function `aggregate` will return both the aggregated NSD and the `not_nans` count.
             If set to ``False``, `aggregate` will only return the aggregated NSD.
         use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+        ignore_index: class index to ignore from the metric computation.
     """
 
     def __init__(
@@ -67,6 +68,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         use_subvoxels: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.class_thresholds = class_thresholds
@@ -75,6 +77,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.use_subvoxels = use_subvoxels
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         r"""
@@ -94,6 +97,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
                 else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
                 for all images in batch. Defaults to ``None``.
                 use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+                ignore_index: class index to ignore from the metric computation.
 
 
         Returns:
@@ -108,6 +112,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
             spacing=kwargs.get("spacing"),
             use_subvoxels=self.use_subvoxels,
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -142,6 +147,7 @@ def compute_surface_dice(
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
     use_subvoxels: bool = False,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     r"""
     This function computes the (Normalized) Surface Dice (NSD) between the two tensors `y_pred` (referred to as
@@ -199,6 +205,7 @@ def compute_surface_dice(
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
         use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+        ignore_index: class index to ignore from the metric computation.
 
     Raises:
         ValueError: If `y_pred` and/or `y` are not PyTorch tensors.
@@ -213,6 +220,11 @@ def compute_surface_dice(
         Pytorch Tensor of shape [B,C], containing the NSD values :math:`\operatorname {NSD}_{b,c}` for each batch index
         :math:`b` and class :math:`c`.
     """
+    if ignore_index is not None:
+        mask = (y != ignore_index).all(dim=1, keepdim=True).float()
+
+        y_pred = y_pred * mask
+        y = y * mask
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
@@ -255,6 +267,7 @@ def compute_surface_dice(
             use_subvoxels=use_subvoxels,
             symmetric=True,
             class_index=c,
+            mask=mask[b, 0] if ignore_index is not None else None,
         )
         boundary_correct: int | torch.Tensor | float
         boundary_complete: int | torch.Tensor | float

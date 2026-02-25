@@ -76,7 +76,7 @@ class FullyConnectedNet(nn.Sequential):
 
         prev_channels = self.in_channels
         for i, c in enumerate(hidden_channels):
-            self.add_module("hidden_%i" % i, self._get_layer(prev_channels, c, bias))
+            self.add_module(f"hidden_{i}", self._get_layer(prev_channels, c, bias))
             prev_channels = c
 
         self.add_module("output", nn.Linear(prev_channels, out_channels, bias))
@@ -136,7 +136,7 @@ class VarFullyConnectedNet(nn.Module):
 
         prev_channels = self.in_channels
         for i, c in enumerate(encode_channels):
-            self.encode.add_module("encode_%i" % i, self._get_layer(prev_channels, c, bias))
+            self.encode.add_module(f"encode_{i}", self._get_layer(prev_channels, c, bias))
             prev_channels = c
 
         self.mu = nn.Linear(prev_channels, self.latent_size)
@@ -144,7 +144,7 @@ class VarFullyConnectedNet(nn.Module):
         self.decodeL = nn.Linear(self.latent_size, prev_channels)
 
         for i, c in enumerate(decode_channels):
-            self.decode.add_module("decode%i" % i, self._get_layer(prev_channels, c, bias))
+            self.decode.add_module(f"decode{i}", self._get_layer(prev_channels, c, bias))
             prev_channels = c
 
         self.decode.add_module("final", nn.Linear(prev_channels, out_channels, bias))

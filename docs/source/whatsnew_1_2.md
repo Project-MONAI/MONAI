@@ -73,5 +73,5 @@ cropping transforms into a single operation. This allows MONAI to reduce the num
 Lazy Resampling pipelines can use a mixture of MONAI and non-MONAI transforms, so
 should work with almost all existing pipelines simply by setting `lazy=True`
 on MONAI `Compose` instances.  See the
-[Lazy Resampling topic](https://docs.monai.io/en/stable/lazy_resampling.html)
+[Lazy Resampling topic](https://monai.readthedocs.io/en/stable/lazy_resampling.html)
 in the documentation for more details.

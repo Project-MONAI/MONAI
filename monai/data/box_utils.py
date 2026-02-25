@@ -591,7 +591,7 @@ def convert_box_mode(
 
     # check validity of corners
     spatial_dims = get_spatial_dims(boxes=boxes_t)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         if (corners[spatial_dims + axis] < corners[axis]).sum() > 0:
             warnings.warn("Given boxes has invalid values. The box size must be non-negative.")
 
@@ -731,7 +731,7 @@ def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
         whether ``boxes`` is valid
     """
     spatial_dims = get_spatial_dims(boxes=boxes)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         if (boxes[:, spatial_dims + axis] < boxes[:, axis]).sum() > 0:
             return False
     return True
@@ -826,7 +826,10 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        IoU, with size of (N,M) and same data type as ``boxes1``
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, M)``:
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     """
 
@@ -842,8 +845,10 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 
     inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=COMPUTE_DTYPE)
 
-    # compute IoU and convert back to original box_dtype
+    # compute IoU and convert back to original box_dtype or torch.float32
     iou_t = inter / (union + torch.finfo(COMPUTE_DTYPE).eps)  # (N,M)
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     iou_t = iou_t.to(dtype=box_dtype)
 
     # check if NaN or Inf
@@ -851,7 +856,7 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
         raise ValueError("Box IoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    iou, *_ = convert_to_dst_type(src=iou_t, dst=boxes1)
+    iou, *_ = convert_to_dst_type(src=iou_t, dst=boxes1, dtype=box_dtype)
     return iou
 
 
@@ -867,7 +872,10 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
         boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        GIoU, with size of (N,M) and same data type as ``boxes1``
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, M)``:
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     Reference:
         https://giou.stanford.edu/GIoU.pdf
@@ -904,12 +912,15 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 
     # GIoU
     giou_t = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     giou_t = giou_t.to(dtype=box_dtype)
+
     if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
         raise ValueError("Box GIoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype=box_dtype)
     return giou
 
 
@@ -925,7 +936,10 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
         boxes2: bounding boxes, same shape with boxes1. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        paired GIoU, with size of (N,) and same data type as ``boxes1``
+        An array/tensor matching the container type of ``boxes1`` (NumPy ndarray or Torch tensor), always
+        floating-point with size ``(N, )``:
+        - if ``boxes1`` has a floating-point dtype, the same dtype is used.
+        - if ``boxes1`` has an integer dtype, the result is returned as ``torch.float32``.
 
     Reference:
         https://giou.stanford.edu/GIoU.pdf
@@ -982,12 +996,15 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
     enclosure = torch.prod(wh, dim=-1, keepdim=False)  # (N,)
 
     giou_t: torch.Tensor = iou - (enclosure - union) / (enclosure + torch.finfo(COMPUTE_DTYPE).eps)  # type: ignore
+    if not box_dtype.is_floating_point:
+        box_dtype = COMPUTE_DTYPE
     giou_t = giou_t.to(dtype=box_dtype)  # (N,spatial_dims)
+
     if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
         raise ValueError("Box GIoU is NaN or Inf.")
 
     # convert tensor back to numpy if needed
-    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1, dtype=box_dtype)
     return giou
 
 
@@ -1024,7 +1041,7 @@ def spatial_crop_boxes(
 
     # makes sure the bounding boxes are within the patch
     spatial_dims = get_spatial_dims(boxes=boxes, spatial_size=roi_end)
-    for axis in range(0, spatial_dims):
+    for axis in range(spatial_dims):
         boxes_t[:, axis] = boxes_t[:, axis].clamp(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
         boxes_t[:, axis + spatial_dims] = boxes_t[:, axis + spatial_dims].clamp(
             min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE
@@ -1111,12 +1128,13 @@ def non_max_suppression(
     scores_t, *_ = convert_to_dst_type(scores, boxes_t)
 
     # sort boxes in descending order according to the scores
-    sort_idxs = torch.argsort(scores_t, dim=0, descending=True)
+    # use stable=True to ensure deterministic ordering when scores are equal
+    sort_idxs = torch.argsort(scores_t, dim=0, descending=True, stable=True)
     boxes_sort = deepcopy(boxes_t)[sort_idxs, :]
 
     # initialize the list of picked indexes
     pick = []
-    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
+    idxs = torch.Tensor(list(range(boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
 
     # keep looping while some indexes still remain in the indexes list
     while len(idxs) > 0:

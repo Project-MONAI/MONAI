@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -91,7 +89,7 @@ class TransformerBlock(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, context: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, context: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         if self.with_cross_attention:

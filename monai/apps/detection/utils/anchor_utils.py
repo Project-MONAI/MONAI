@@ -39,7 +39,7 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 
 from __future__ import annotations
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import torch
 from torch import Tensor, nn
@@ -106,7 +106,7 @@ class AnchorGenerator(nn.Module):
             anchor_generator = AnchorGenerator(sizes, aspect_ratios)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,
@@ -124,10 +124,8 @@ class AnchorGenerator(nn.Module):
             aspect_ratios = (aspect_ratios,) * len(self.sizes)
 
         if len(self.sizes) != len(aspect_ratios):
-            raise ValueError(
-                "len(sizes) and len(aspect_ratios) should be equal. \
-                It represents the number of feature maps."
-            )
+            raise ValueError("len(sizes) and len(aspect_ratios) should be equal. \
+                It represents the number of feature maps.")
 
         spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
         spatial_dims = look_up_option(spatial_dims, [2, 3])
@@ -172,16 +170,12 @@ class AnchorGenerator(nn.Module):
         scales_t = torch.as_tensor(scales, dtype=dtype, device=device)  # sized (N,)
         aspect_ratios_t = torch.as_tensor(aspect_ratios, dtype=dtype, device=device)  # sized (M,) or (M,2)
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
-            raise ValueError(
-                f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
-                {len(aspect_ratios_t.shape)-1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
-            )
+            raise ValueError(f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
+                {len(aspect_ratios_t.shape) - 1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}.")
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
-            raise ValueError(
-                f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
-                shape (_,{self.spatial_dims-1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
-            )
+            raise ValueError(f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
+                shape (_,{self.spatial_dims - 1}). But got aspect_ratios with shape {aspect_ratios_t.shape}.")
 
         # if 2d, w:h = 1:aspect_ratios
         if self.spatial_dims == 2:
@@ -364,7 +358,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
             anchor_generator = AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,

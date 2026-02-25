@@ -54,12 +54,14 @@ class MeanIoU(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -78,7 +80,11 @@ class MeanIoU(CumulativeIterationMetric):
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute IoU (BxC) for each channel for each batch
         return compute_iou(
-            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            ignore_empty=self.ignore_empty,
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -103,7 +109,11 @@ class MeanIoU(CumulativeIterationMetric):
 
 
 def compute_iou(
-    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    ignore_empty: bool = True,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """Computes Intersection over Union (IoU) score metric from a batch of predictions.
 
@@ -132,6 +142,13 @@ def compute_iou(
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+
+    if ignore_index is not None:
+        mask = (y != ignore_index).float()
+        if mask.shape != y_pred.shape:
+            mask = mask.expand_as(y_pred)
+        y_pred = y_pred * mask
+        y = torch.where(y == ignore_index, torch.tensor(0, device=y.device), y)
 
     # reducing only spatial dimensions (not batch nor channels)
     n_len = len(y_pred.shape)

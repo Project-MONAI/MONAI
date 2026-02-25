@@ -69,6 +69,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         compute_sample: bool = False,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -76,6 +77,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         self.compute_sample = compute_sample
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -96,7 +98,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
 
-        return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
+        return get_confusion_matrix(
+            y_pred=y_pred, y=y, include_background=self.include_background, ignore_index=self.ignore_index
+        )
 
     def aggregate(
         self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
@@ -131,7 +135,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
+def get_confusion_matrix(
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_index: int | None = None
+) -> torch.Tensor:
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -145,6 +151,9 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
             The values should be binarized.
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
+        ignore_index: index of the class to ignore during calculation.
+            If ignore_index < number of classes, that class channel is excluded
+            else ignored regions are inferred from spatial locations where all label channels are zero.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
@@ -158,17 +167,42 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
 
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
+
+    # Create spatial mask if ignore_index is provided
+    mask = None
+    if ignore_index is not None:
+        if ignore_index >= n_class:
+            # If ignore_index is outside channel range (e.g. 255), we assume it's a spatial mask
+            mask = y.sum(dim=1, keepdim=True) > 0
+        else:
+            # If ignore_index is a valid channel, exclude that specific channel
+            mask = 1.0 - y[:, ignore_index : ignore_index + 1]
+
     # convert to [BNS], where S is the number of pixels for one sample.
-    # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
+
+    if mask is not None:
+        mask = mask.reshape(batch_size, 1, -1)
+        y_pred = y_pred * mask
+        y = y * mask
+
     tp = (y_pred + y) == 2
     tn = (y_pred + y) == 0
+
+    if mask is not None:
+        # When masking, TN must only count locations where the mask is 1
+        tn = tn * mask.bool()
 
     tp = tp.sum(dim=[2]).float()
     tn = tn.sum(dim=[2]).float()
     p = y.sum(dim=[2]).float()
-    n = y.shape[-1] - p
+
+    if mask is not None:
+        # n is total valid pixels (per sample) minus the positives for that class
+        n = mask.reshape(batch_size, -1).sum(dim=1, keepdim=True) - p
+    else:
+        n = y.shape[-1] - p
 
     fn = p - tp
     fp = n - tn

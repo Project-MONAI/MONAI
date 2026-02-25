@@ -106,6 +106,7 @@ class DiceMetric(CumulativeIterationMetric):
         ignore_empty: bool = True,
         num_classes: int | None = None,
         return_with_label: bool | list[str] = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -114,6 +115,7 @@ class DiceMetric(CumulativeIterationMetric):
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
         self.return_with_label = return_with_label
+        self.ignore_index = ignore_index
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
@@ -121,6 +123,7 @@ class DiceMetric(CumulativeIterationMetric):
             apply_argmax=False,
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
+            ignore_index=self.ignore_index,
         )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
@@ -160,7 +163,7 @@ class DiceMetric(CumulativeIterationMetric):
             _f = {}
             if isinstance(self.return_with_label, bool):
                 for i, v in enumerate(f):
-                    _label_key = f"label_{i+1}" if not self.include_background else f"label_{i}"
+                    _label_key = f"label_{i + 1}" if not self.include_background else f"label_{i}"
                     _f[_label_key] = round(v.item(), 4)
             else:
                 for key, v in zip(self.return_with_label, f):
@@ -175,6 +178,7 @@ def compute_dice(
     include_background: bool = True,
     ignore_empty: bool = True,
     num_classes: int | None = None,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """
     Computes Dice score metric for a batch of predictions. This performs the same computation as
@@ -192,6 +196,7 @@ def compute_dice(
         num_classes: number of input channels (always including the background). When this is ``None``,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
+        ignore_index: index of the class to ignore during calculation.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -204,6 +209,7 @@ def compute_dice(
         apply_argmax=False,
         ignore_empty=ignore_empty,
         num_classes=num_classes,
+        ignore_index=ignore_index,
     )(y_pred=y_pred, y=y)
 
 
@@ -262,6 +268,7 @@ class DiceHelper:
         num_classes: int | None = None,
         sigmoid: bool | None = None,
         softmax: bool | None = None,
+        ignore_index: int | None = None,
     ) -> None:
         # handling deprecated arguments
         if sigmoid is not None:
@@ -277,8 +284,9 @@ class DiceHelper:
         self.activate = activate
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
+        self.ignore_index = ignore_index
 
-    def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Compute the dice metric for binary inputs which have only spatial dimensions. This method is called separately
         for each batch item and for each channel of those items.
@@ -286,7 +294,12 @@ class DiceHelper:
         Args:
             y_pred: input predictions with shape HW[D].
             y: ground truth with shape HW[D].
+            mask: binary mask where 0 indicates voxels to ignore.
         """
+        if mask is not None:
+            y_pred = y_pred * mask
+            y = y * mask
+
         y_o = torch.sum(y)
         if y_o > 0:
             return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / (y_o + torch.sum(y_pred))
@@ -322,6 +335,11 @@ class DiceHelper:
                 y_pred = torch.sigmoid(y_pred)
             y_pred = y_pred > 0.5
 
+        # Create global mask for ignored voxels if ignore_index is set
+        mask = None
+        if self.ignore_index is not None:
+            mask = y != self.ignore_index
+
         first_ch = 0 if self.include_background else 1
         data = []
         for b in range(y_pred.shape[0]):
@@ -329,7 +347,11 @@ class DiceHelper:
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
-                c_list.append(self.compute_channel(x_pred, x))
+
+                # Extract the spatial mask for the current batch item
+                b_mask = mask[b, 0] if mask is not None else None
+
+                c_list.append(self.compute_channel(x_pred, x, mask=b_mask))
             data.append(torch.stack(c_list))
         data = torch.stack(data, dim=0).contiguous()  # type: ignore
 

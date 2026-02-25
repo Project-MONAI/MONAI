@@ -128,7 +128,7 @@ class MaisiConvolution(nn.Module):
         print_info: Whether to print information.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
         Additional arguments for the convolution operation.
-        https://docs.monai.io/en/stable/networks.html#convolution
+        https://monai.readthedocs.io/en/stable/networks.html#convolution
     """
 
     def __init__(
@@ -214,6 +214,8 @@ class MaisiConvolution(nn.Module):
         if max(outputs[0].size()) < 500:
             x = torch.cat(outputs, dim=self.dim_split + 2)
         else:
+            target_device = outputs[0].device
+
             x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = torch.Tensor(0)
             _empty_cuda_cache(self.save_mem)
@@ -225,7 +227,9 @@ class MaisiConvolution(nn.Module):
                 if self.print_info:
                     logger.info(f"MaisiConvolution concat progress: {k + 1}/{len(outputs) - 1}.")
 
-            x = x.to("cuda", non_blocking=True)
+            if target_device.type != "cpu":
+                x = x.to(target_device, non_blocking=True)
+
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

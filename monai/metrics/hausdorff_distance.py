@@ -51,6 +51,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
+        ignore_index: index of the class to ignore during calculation. Defaults to ``None``.
 
     """
 
@@ -62,6 +63,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         directed: bool = False,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -70,6 +72,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.directed = directed
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
@@ -97,6 +100,12 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
 
+        mask = None
+        if self.ignore_index is not None:
+            mask = (y != self.ignore_index).all(dim=1, keepdim=True).float()
+            y_pred = y_pred * mask
+            y = y * mask
+
         # compute (BxC) for each channel for each batch
         return compute_hausdorff_distance(
             y_pred=y_pred,
@@ -106,6 +115,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             percentile=self.percentile,
             directed=self.directed,
             spacing=kwargs.get("spacing"),
+            ignore_index=self.ignore_index,
+            mask=mask,
         )
 
     def aggregate(
@@ -137,6 +148,8 @@ def compute_hausdorff_distance(
     percentile: float | None = None,
     directed: bool = False,
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
+    mask: torch.Tensor | None = None,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
@@ -162,6 +175,7 @@ def compute_hausdorff_distance(
             If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
+        ignore_index: index of the class to ignore during calculation. Defaults to ``None``.
     """
 
     if not include_background:
@@ -179,17 +193,35 @@ def compute_hausdorff_distance(
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
+        yp = y_pred[b, c]
+        yt = y[b, c]
+
+        if ignore_index is not None:
+            valid_mask = y[b].sum(dim=0) > 0
+            yp = yp * valid_mask
+            yt = yt * valid_mask
+
+            # if everything is ignored, define distance as 0
+            if not valid_mask.any():
+                hd[b, c] = torch.tensor(0.0, device=y_pred.device)
+                continue
+
         _, distances, _ = get_edge_surface_distance(
-            y_pred[b, c],
-            y[b, c],
+            yp,
+            yt,
             distance_metric=distance_metric,
             spacing=spacing_list[b],
             symmetric=not directed,
-            class_index=c,
+            mask=mask[b, 0] if mask is not None else None,
         )
+
+        if len(distances) == 0:
+            hd[b, c] = torch.tensor(0.0, device=y_pred.device)
+            continue
+
         percentile_distances = [_compute_percentile_hausdorff_distance(d, percentile) for d in distances]
-        max_distance = torch.max(torch.stack(percentile_distances))
-        hd[b, c] = max_distance
+
+        hd[b, c] = torch.max(torch.stack(percentile_distances))
     return hd
 
 

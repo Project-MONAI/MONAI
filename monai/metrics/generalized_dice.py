@@ -41,6 +41,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             Old versions computed `mean` when `mean_batch` was provided due to bug in reduction.
         weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground truth volume into a weight factor. Defaults to ``"square"``.
+        ignore_index: class index to ignore from the metric computation.
 
     Raises:
         ValueError: When the `reduction` is not one of MetricReduction enum.
@@ -51,11 +52,13 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         include_background: bool = True,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         weight_type: Weight | str = Weight.SQUARE,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = look_up_option(reduction, MetricReduction)
         self.weight_type = look_up_option(weight_type, Weight)
+        self.ignore_index = ignore_index
         self.sum_over_classes = self.reduction in {
             MetricReduction.SUM,
             MetricReduction.MEAN,
@@ -71,6 +74,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred (torch.Tensor): Binarized segmentation model output. It must be in one-hot format and in the NCHW[D] format,
                 where N is the batch dimension, C is the channel dimension, and the remaining are the spatial dimensions.
             y (torch.Tensor): Binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
+            ignore_index: class index to ignore from the metric computation.
 
         Returns:
             torch.Tensor: Generalized Dice Score averaged across batch and class
@@ -84,6 +88,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             include_background=self.include_background,
             weight_type=self.weight_type,
             sum_over_classes=self.sum_over_classes,
+            ignore_index=self.ignore_index,
         )
 
     @deprecated_arg(
@@ -118,6 +123,7 @@ def compute_generalized_dice(
     include_background: bool = True,
     weight_type: Weight | str = Weight.SQUARE,
     sum_over_classes: bool = False,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """
     Computes the Generalized Dice Score and returns a tensor with its per image values.
@@ -132,6 +138,7 @@ def compute_generalized_dice(
         weight_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to
             transform ground truth volume into a weight factor. Defaults to ``"square"``.
         sum_over_labels (bool): Whether to sum the numerator and denominator across all labels before the final computation.
+        ignore_index: class index to ignore from the metric computation.
 
     Returns:
         torch.Tensor: Per batch and per class Generalized Dice Score, i.e., with the shape [batch_size, num_classes].
@@ -147,6 +154,12 @@ def compute_generalized_dice(
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred - {y_pred.shape} - and y - {y.shape} - should have the same shapes.")
 
+    if ignore_index is not None:
+        mask = (y != ignore_index).all(dim=1, keepdim=True).float()
+
+        y_pred = y_pred * mask
+        y = y * mask
+
     # Ignore background, if needed
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
@@ -160,12 +173,13 @@ def compute_generalized_dice(
 
     # Set the class weights
     weight_type = look_up_option(weight_type, Weight)
+    y_o_float = y_o.float()
     if weight_type == Weight.SIMPLE:
-        w = torch.reciprocal(y_o.float())
+        w = torch.reciprocal(y_o_float + 1e-6)  # Add epsilon
     elif weight_type == Weight.SQUARE:
-        w = torch.reciprocal(y_o.float() * y_o.float())
+        w = torch.reciprocal((y_o_float * y_o_float) + 1e-6)
     else:
-        w = torch.ones_like(y_o.float())
+        w = torch.ones_like(y_o_float)
 
     # Replace infinite values for non-appearing classes by the maximum weight
     for b in w:
@@ -186,13 +200,14 @@ def compute_generalized_dice(
     # Compute the score
     generalized_dice_score = numer / denom
 
-    # Handle zero division. Where denom == 0 and the prediction volume is 0, score is 1.
-    # Where denom == 0 but the prediction volume is not 0, score is 0
+    # Handle zero division
     denom_zeros = denom == 0
-    generalized_dice_score[denom_zeros] = torch.where(
-        (y_pred_o == 0)[denom_zeros],
-        torch.tensor(1.0, device=generalized_dice_score.device),
-        torch.tensor(0.0, device=generalized_dice_score.device),
-    )
+    if denom_zeros.any():
+        # Using y_pred_o which was already masked
+        generalized_dice_score[denom_zeros] = torch.where(
+            (y_pred_o == 0)[denom_zeros] if not sum_over_classes else (y_pred_o == 0),
+            torch.ones_like(generalized_dice_score[denom_zeros]),
+            torch.zeros_like(generalized_dice_score[denom_zeros]),
+        )
 
     return generalized_dice_score
