@@ -287,10 +287,7 @@ class TestInvertd(unittest.TestCase):
         target_group = str(id(target_transform))
         item = {
             key: torch.zeros((1, 8, 8), dtype=torch.float32),
-            InvertibleTransform.trace_key(key): [
-                {TraceKeys.GROUP: target_group},
-                {TraceKeys.GROUP: "other-group"},
-            ],
+            InvertibleTransform.trace_key(key): [{TraceKeys.GROUP: target_group}, {TraceKeys.GROUP: "other-group"}],
         }
 
         inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
