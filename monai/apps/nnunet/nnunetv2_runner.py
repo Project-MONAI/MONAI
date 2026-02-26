@@ -18,7 +18,7 @@ import subprocess
 from typing import Any
 
 import monai
-from monai.apps.nnunet.utils import NNUNETMode as M  # noqa: N814
+from monai.apps.nnunet.utils import NNUNETMode as M
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import

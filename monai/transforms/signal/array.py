@@ -414,7 +414,7 @@ class SignalRemoveFrequency(Transform):
         b_notch, a_notch = convert_to_tensor(
             iirnotch(self.frequency, self.quality_factor, self.sampling_freq), dtype=torch.float
         )
-        y_notched = filtfilt(convert_to_tensor(signal), a_notch, b_notch)
+        y_notched = filtfilt(convert_to_tensor(signal, dtype=torch.float), a_notch, b_notch)
 
         return y_notched
 
