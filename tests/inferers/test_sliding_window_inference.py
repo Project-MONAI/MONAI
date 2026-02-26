@@ -372,6 +372,26 @@ class TestSlidingWindowInference(unittest.TestCase):
         for rr, _ in zip(result_dict, expected_dict):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
+    def test_strict_shape_validation(self):
+        """Test strict shape validation to ensure inputs match roi_size dimensions."""
+        device = "cpu"
+        roi_size = (16, 16, 16)
+        sw_batch_size = 4
+
+        def predictor(data):
+            return data
+
+        # Case 1: Input has fewer dimensions than expected (e.g., missing Batch or Channel)
+        # 3D roi_size requires 5D input (B, C, D, H, W), giving 4D here.
+        inputs_4d = torch.randn((1, 16, 16, 16), device=device)
+        with self.assertRaisesRegex(ValueError, "Inputs must have 5 dimensions"):
+            sliding_window_inference(inputs_4d, roi_size, sw_batch_size, predictor)
+
+        # Case 2: Input is 3D (missing Batch AND Channel)
+        inputs_3d = torch.randn((16, 16, 16), device=device)
+        with self.assertRaisesRegex(ValueError, "Inputs must have 5 dimensions"):
+            sliding_window_inference(inputs_3d, roi_size, sw_batch_size, predictor)
+
 
 class TestSlidingWindowInferenceCond(unittest.TestCase):
     @parameterized.expand(TEST_CASES)

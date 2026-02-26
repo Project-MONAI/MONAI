@@ -61,7 +61,7 @@ class TestSmartCacheDataset(unittest.TestCase):
                 num_replace_workers=num_replace_workers,
             )
             if transform is None:
-                # Check without providing transfrom
+                # Check without providing transform
                 dataset2 = SmartCacheDataset(
                     data=test_data,
                     replace_rate=replace_rate,
