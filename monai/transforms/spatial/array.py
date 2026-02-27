@@ -2436,6 +2436,13 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
 
+        Note:
+            The affine transformations in MONAI use a 'backward mapping' (image-to-grid) logic.
+            This can be counter-intuitive:
+            - Translation: A positive value shifts the image in the negative direction.
+            - Scaling: Positive scale_range values decrease the image size; values in [-1, 0) increase it.
+            - Rotation: The direction (CW/CCW) may vary depending on the axis.
+
         """
         RandomizableTransform.__init__(self, prob)
         LazyTransform.__init__(self, lazy=lazy)
