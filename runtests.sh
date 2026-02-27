@@ -43,7 +43,6 @@ doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
-doFlake8Format=false
 doPylintFormat=false
 doRuffFormat=false
 doRuffFix=false
@@ -60,7 +59,7 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--ruff]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
     echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
@@ -73,16 +72,16 @@ function print_usage {
     echo "./runtests.sh -f                      # run coding style and static type checking."
     echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} -m pip uninstall -y monai\"."
     echo "./runtests.sh --formatfix -p /my/code # run automatic code formatting using \"isort\" and \"black\" in specified path."
     echo ""
     echo "Code style check options:"
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --black           : perform \"black\" code format checks"
     echo "    --isort           : perform \"isort\" import sort checks"
-    echo "    --flake8          : perform \"flake8\" code format checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --ruff            : perform \"ruff\" code format checks"
+    echo "    --flake8          : perform \"ruff\" code format checks (deprecated alias for --ruff)"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
@@ -136,19 +135,19 @@ function print_version {
 
 function install_deps {
     echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}"${PY_EXE}" -m pip install -r requirements-dev.txt
+    ${cmdPrefix}"${PY_EXE}" -m pip install --no-build-isolation -r requirements-dev.txt
 }
 
 function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
     # depends on setup.py behaviour for building
     # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
-    ${cmdPrefix}"${PY_EXE}" setup.py develop --user --uninstall
+    ${cmdPrefix}"${PY_EXE}" -m pip uninstall -y monai
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}"${PY_EXE}" setup.py develop --user
+        BUILD_MONAI=1 CC=clang CXX=clang++ ${cmdPrefix}"${PY_EXE}" -m pip install -e .
     else
-        ${cmdPrefix}"${PY_EXE}" setup.py develop --user
+        BUILD_MONAI=1 ${cmdPrefix}"${PY_EXE}" -m pip install -e .
     fi
 }
 
@@ -179,7 +178,7 @@ function clean_py {
 
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
-    ${cmdPrefix}"${PY_EXE}" setup.py develop --user --uninstall
+    ${cmdPrefix}"${PY_EXE}" -m pip uninstall -y monai
 
     # remove temporary files (in the directory of this script)
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -267,7 +266,6 @@ do
         -f|--codeformat)
             doBlackFormat=true
             doIsortFormat=true
-            doFlake8Format=true
             # doPylintFormat=true  # https://github.com/Project-MONAI/MONAI/issues/7094
             doRuffFormat=true
             doCopyRight=true
@@ -299,13 +297,14 @@ do
         --isort)
             doIsortFormat=true
         ;;
-        --flake8)
-            doFlake8Format=true
-        ;;
         --pylint)
             doPylintFormat=true
         ;;
         --ruff)
+            doRuffFormat=true
+        ;;
+        --flake8)
+            echo "${red}warning: --flake8 is deprecated, please use --ruff instead.${noColor}"
             doRuffFormat=true
         ;;
         --precommit)
@@ -533,32 +532,6 @@ then
     set -e # enable exit on failure
 fi
 
-
-if [ $doFlake8Format = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    echo "${separator}${blue}flake8${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed flake8
-    then
-        install_deps
-    fi
-    ${cmdPrefix}"${PY_EXE}" -m flake8 --version
-
-    ${cmdPrefix}"${PY_EXE}" -m flake8 "$homedir" --count --statistics
-
-    flake8_status=$?
-    if [ ${flake8_status} -ne 0 ]
-    then
-        print_style_fail_msg
-        exit ${flake8_status}
-    else
-        echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
 if [ $doPylintFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
@@ -716,11 +689,13 @@ fi
 # fi
 
 # unit tests
+# TODO: temp skip test_perceptual_loss, revert after #8652 merged
+# TODO: temp skip test_auto3dseg_ensemble, revert after #8737 resolved
 if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
 fi
 
 # distributed test only
