@@ -548,10 +548,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         elif self.reduction == LossReduction.SUM.value:
             wass_dice_loss = torch.sum(wass_dice_loss)  # sum over the batch and channel dims
         elif self.reduction == LossReduction.NONE.value:
-            # If we are not computing voxelwise loss components at least
-            # make sure a none reduction maintains a broadcastable shape
-            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
-            wass_dice_loss = wass_dice_loss.view(broadcast_shape)
+            # GWDL aggregates over classes internally, so wass_dice_loss has shape (B,)
+            pass
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
@@ -609,8 +607,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = alpha_extended.expand((flat_target.size(0), self.num_classes, flat_target.size(1)))
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
+        alpha_extended = torch.squeeze(alpha_extended, dim=1)
 
-        return torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2])
+        return torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=1)
 
     def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
@@ -626,8 +625,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = alpha_extended.expand((flat_target.size(0), self.num_classes, flat_target.size(1)))
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
+        alpha_extended = torch.squeeze(alpha_extended, dim=1)
 
-        return torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=[1, 2])
+        return torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=1)
 
     def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
