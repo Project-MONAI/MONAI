@@ -161,8 +161,8 @@ class SoftDiceclDiceLoss(_Loss):
         """
         Args:
             iter_: Number of iterations for skeletonization. Defaults to 3.
-            smooth: Smoothing parameter. Defaults to 1.0.
             alpha: Weighing factor for cldice. Defaults to 0.5.
+            smooth: Smoothing parameter. Defaults to 1.0.
         """
         super().__init__()
         self.iter = iter_
