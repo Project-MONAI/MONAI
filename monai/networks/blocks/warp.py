@@ -52,6 +52,13 @@ class Warp(nn.Module):
             Define reference grid on non-integer values
             Reference: B. Likar and F. Pernus. A heirarchical approach to elastic registration
             based on mutual information. Image and Vision Computing, 19:33-44, 2001.
+
+        Note that using ``mode="nearest"`` makes the warping operation effectively non-differentiable:
+        gradients are zero almost everywhere, which can block gradient flow during training.
+        For learning-based registration, use ``"bilinear"`` (2D) or ``"trilinear"`` (3D) interpolation instead.
+
+        See https://github.com/Project-MONAI/tutorials/blob/main/3d_registration/learn2reg_oasis_unpaired_brain_mr.ipynb
+        for examples of semi-supervised registration using segmentations.
         """
         super().__init__()
         # resolves _interp_mode for different methods
