@@ -1108,6 +1108,13 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
 
+        Note:
+            The affine transformations in MONAI use a 'backward mapping' (image-to-grid) logic.
+            This can be counter-intuitive:
+            - Translation: A positive value shifts the image in the negative direction.
+            - Scaling: Positive scale_range values decrease the image size; values in [-1, 0) increase it.
+            - Rotation: The direction (CW/CCW) may vary depending on the axis.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
