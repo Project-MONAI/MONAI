@@ -43,7 +43,7 @@ class BertPreTrainedModel(nn.Module):
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)  # type: ignore[union-attr,arg-type]
         elif isinstance(module, torch.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -68,7 +68,8 @@ class BertPreTrainedModel(nn.Module):
         weights_path = cached_file(path_or_repo_id, filename, cache_dir=cache_dir)
         model = cls(num_language_layers, num_vision_layers, num_mixed_layers, bert_config, *inputs, **kwargs)
         if state_dict is None and not from_tf:
-            state_dict = torch.load(weights_path, map_location="cpu" if not torch.cuda.is_available() else None)
+            map_location = "cpu" if not torch.cuda.is_available() else None
+            state_dict = torch.load(weights_path, map_location=map_location, weights_only=True)
         if from_tf:
             return load_tf_weights_in_bert(model, weights_path)
         old_keys = []
@@ -225,12 +226,23 @@ class MultiModal(BertPreTrainedModel):
         self.mixed_encoder = nn.ModuleList([BertMixedLayer(self.config) for _ in range(num_mixed_layers)])
         self.apply(self.init_bert_weights)
 
+    @staticmethod
+    def _get_hidden_states(layer_output):
+        """Extract hidden states from BertLayer output.
+
+        Compatible with both older transformers (returns a tuple) and
+        newer transformers >=5.0 (may return a tensor directly).
+        """
+        if isinstance(layer_output, torch.Tensor):
+            return layer_output
+        return layer_output[0]
+
     def forward(self, input_ids, token_type_ids=None, vision_feats=None, attention_mask=None):
         language_features = self.embeddings(input_ids, token_type_ids)
         for layer in self.vision_encoder:
-            vision_feats = layer(vision_feats, None)[0]
+            vision_feats = self._get_hidden_states(layer(vision_feats, None))
         for layer in self.language_encoder:
-            language_features = layer(language_features, attention_mask)[0]
+            language_features = self._get_hidden_states(layer(language_features, attention_mask))
         for layer in self.mixed_encoder:
             language_features, vision_feats = layer(language_features, vision_feats)
         return language_features, vision_feats
@@ -332,6 +344,7 @@ class Transchex(torch.nn.Module):
             "chunk_size_feed_forward": chunk_size_feed_forward,
             "is_decoder": is_decoder,
             "add_cross_attention": add_cross_attention,
+            "_attn_implementation": "eager",
         }
         if not (0 <= drop_out <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")

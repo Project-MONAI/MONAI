@@ -37,7 +37,7 @@ Features
 Getting started
 ---------------
 
-`MedNIST demo <https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe>`_ and `MONAI for PyTorch Users <https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T>`_ are available on Colab.
+`MedNIST demo <https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/2d_classification/mednist_tutorial.ipynb>`_ and `MONAI for PyTorch Users <https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/modules/developer_guide.ipynb>`_ are available on Colab.
 
 Examples and notebook tutorials are located at `Project-MONAI/tutorials <https://github.com/Project-MONAI/tutorials>`_.
 
@@ -85,15 +85,15 @@ Model Zoo
 ---------
 
 `The MONAI Model Zoo <https://github.com/Project-MONAI/model-zoo>`_ is a place for researchers and data scientists to share the latest and great models from the community.
-Utilizing `the MONAI Bundle format <https://docs.monai.io/en/latest/bundle_intro.html>`_ makes it easy to `get started <https://github.com/Project-MONAI/tutorials/tree/main/model_zoo>`_ building workflows with MONAI.
+Utilizing `the MONAI Bundle format <https://monai.readthedocs.io/en/latest/bundle_intro.html>`_ makes it easy to `get started <https://github.com/Project-MONAI/tutorials/tree/main/model_zoo>`_ building workflows with MONAI.
 
 
 Links
 -----
 
-- Website: https://monai.io/
-- API documentation (milestone): https://docs.monai.io/
-- API documentation (latest dev): https://docs.monai.io/en/latest/
+- Website: https://project-monai.github.io/
+- API documentation (milestone): https://monai.readthedocs.io/
+- API documentation (latest dev): https://monai.readthedocs.io/en/latest/
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues

@@ -28,7 +28,7 @@ from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
-shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
+shift, has_shift = optional_import("scipy.ndimage", name="shift")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", UserWarning)  # project-monai/monai#5204
@@ -414,7 +414,7 @@ class SignalRemoveFrequency(Transform):
         b_notch, a_notch = convert_to_tensor(
             iirnotch(self.frequency, self.quality_factor, self.sampling_freq), dtype=torch.float
         )
-        y_notched = filtfilt(convert_to_tensor(signal), a_notch, b_notch)
+        y_notched = filtfilt(convert_to_tensor(signal, dtype=torch.float), a_notch, b_notch)
 
         return y_notched
 

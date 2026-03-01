@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -42,7 +42,7 @@ class SkipConnectionWithIdx(SkipConnection):
     Inherits from SkipConnection but provides the indizes with each forward pass.
     """
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         return super().forward(input), indices
 
 
@@ -57,7 +57,7 @@ class SequentialWithIdx(nn.Sequential):
     def __init__(self, *args):
         super().__init__(*args)
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         for module in self:
             input, indices = module(input, indices)
         return input, indices
@@ -123,8 +123,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def __init__(
         self,
         in_channels: int,
-        se_layer: Optional[nn.Module] = None,
-        dropout_layer: Optional[nn.Dropout2d] = None,
+        se_layer: nn.Module | None = None,
+        dropout_layer: nn.Dropout2d | None = None,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
@@ -165,9 +165,11 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         )
         return nn.Sequential(conv.get_submodule("adn"), conv.get_submodule("conv"))
 
-    def forward(self, input, _):
+    def forward(self, input, _):  # type: ignore[override]
         i = 0
         result = input
+        result1 = input  # this will not stay this value, needed here for pylint/mypy
+
         for l in self.children():
             # ignoring the max (un-)pool and droupout already added in the initial initialization step
             if isinstance(l, (nn.MaxPool2d, nn.MaxUnpool2d, nn.Dropout2d)):
@@ -213,7 +215,7 @@ class Encoder(ConvConcatDenseBlock):
         super().__init__(in_channels, se_layer, dropout, kernel_size, num_filters)
         self.max_pool = max_pool
 
-    def forward(self, input, indices=None):
+    def forward(self, input, indices=None):  # type: ignore[override]
         input, indices = self.max_pool(input)
 
         out_block, _ = super().forward(input, None)
@@ -241,7 +243,7 @@ class Decoder(ConvConcatDenseBlock):
         super().__init__(in_channels, se_layer, dropout, kernel_size, num_filters)
         self.un_pool = un_pool
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         out_block, _ = super().forward(input, None)
         out_block = self.un_pool(out_block, indices)
         return out_block, None
@@ -268,7 +270,7 @@ class Bottleneck(ConvConcatDenseBlock):
         self.max_pool = max_pool
         self.un_pool = un_pool
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         out_block, indices = self.max_pool(input)
         out_block, _ = super().forward(out_block, None)
         out_block = self.un_pool(out_block, indices)
@@ -358,8 +360,8 @@ class Quicknat(nn.Module):
         # Valid options : NONE, CSE, SSE, CSSE
         se_block: str = "None",
         drop_out: float = 0,
-        act: Union[Tuple, str] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        act: tuple | str = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
         adn_ordering: str = "NA",
     ) -> None:
         self.act = act

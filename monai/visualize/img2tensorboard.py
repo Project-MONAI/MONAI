@@ -65,11 +65,11 @@ def _image3_animated_gif(
     img_str = b""
     for b_data in PIL.GifImagePlugin.getheader(ims[0])[0]:
         img_str += b_data
-    img_str += b"\x21\xFF\x0B\x4E\x45\x54\x53\x43\x41\x50" b"\x45\x32\x2E\x30\x03\x01\x00\x00\x00"
+    img_str += b"\x21\xff\x0b\x4e\x45\x54\x53\x43\x41\x50" b"\x45\x32\x2e\x30\x03\x01\x00\x00\x00"
     for i in ims:
         for b_data in PIL.GifImagePlugin.getdata(i):
             img_str += b_data
-    img_str += b"\x3B"
+    img_str += b"\x3b"
 
     summary = SummaryX if has_tensorboardx and isinstance(writer, SummaryWriterX) else Summary
     summary_image_str = summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
@@ -176,7 +176,9 @@ def plot_2d_or_3d_image(
     # as the `d` data has no batch dim, reduce the spatial dim index if positive
     frame_dim = frame_dim - 1 if frame_dim > 0 else frame_dim
 
-    d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
+    d: np.ndarray = (
+        data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else np.asarray(data_index)
+    )
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)  # type: ignore
@@ -198,13 +200,14 @@ def plot_2d_or_3d_image(
     if d.ndim >= 4:
         spatial = d.shape[-3:]
         d = d.reshape([-1] + list(spatial))
-        if d.shape[0] == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
+        d_chans = d.shape[0]  # type: ignore
+        if d_chans == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
             # move the expected frame dim to the end as `T` dim for video
             d = np.moveaxis(d, frame_dim, -1)
             writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
             return
         # scale data to 0 - 255 for visualization
-        max_channels = min(max_channels, d.shape[0])
+        max_channels = min(max_channels, d_chans)
         d = np.stack([rescale_array(i, 0, 255) for i in d[:max_channels]], axis=0)
         # will plot every channel as a separate GIF image
         add_animated_gif(writer, f"{tag}_HWD", d, max_out=max_channels, frame_dim=frame_dim, global_step=step)

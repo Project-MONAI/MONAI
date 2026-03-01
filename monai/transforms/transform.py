@@ -25,7 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ReduceTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -101,12 +101,12 @@ def _apply_transform(
 def apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
-    map_items: bool = True,
+    map_items: bool | int = True,
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = None,
     overrides: dict | None = None,
-) -> list[ReturnType] | ReturnType:
+) -> list[Any] | ReturnType:
     """
     Transform `data` with `transform`.
 
@@ -117,8 +117,13 @@ def apply_transform(
     Args:
         transform: a callable to be used to transform `data`.
         data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
@@ -136,8 +141,12 @@ def apply_transform(
         Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
+        if isinstance(data, (list, tuple)) and map_items_ > 0 and not isinstance(transform, ReduceTrait):
+            return [
+                apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
+                for item in data
+            ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
@@ -203,8 +212,8 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
 
         """
         if seed is not None:
-            _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
-            _seed = _seed % MAX_SEED
+            _seed = np.int64(id(seed) if not isinstance(seed, (int, np.integer)) else seed)
+            _seed = _seed % MAX_SEED  # need to account for Numpy2.0 which doesn't silently convert to int64
             self.R = np.random.RandomState(_seed)
             return self
 
@@ -473,8 +482,7 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(
-                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
-                    " and allow_missing_keys==False."
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data and allow_missing_keys==False."
                 )
 
     def first_key(self, data: dict[Hashable, Any]):

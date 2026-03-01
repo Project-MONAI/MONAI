@@ -238,8 +238,18 @@ from .intensity.dictionary import (
 )
 from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
-from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
-from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .io.array import SUPPORTED_READERS, LoadImage, SaveImage, WriteFileMapping
+from .io.dictionary import (
+    LoadImaged,
+    LoadImageD,
+    LoadImageDict,
+    SaveImaged,
+    SaveImageD,
+    SaveImageDict,
+    WriteFileMappingd,
+    WriteFileMappingD,
+    WriteFileMappingDict,
+)
 from .lazy.array import ApplyPending
 from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
 from .lazy.functional import apply_pending
@@ -283,6 +293,7 @@ from .post.array import (
     AsDiscrete,
     DistanceTransformEDT,
     FillHoles,
+    GenerateHeatmap,
     Invert,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -309,6 +320,9 @@ from .post.dictionary import (
     FillHolesD,
     FillHolesd,
     FillHolesDict,
+    GenerateHeatmapd,
+    GenerateHeatmapD,
+    GenerateHeatmapDict,
     InvertD,
     Invertd,
     InvertDict,
@@ -386,6 +400,8 @@ from .smooth_field.dictionary import (
 from .spatial.array import (
     Affine,
     AffineGrid,
+    ConvertBoxToPoints,
+    ConvertPointsToBoxes,
     Flip,
     GridDistortion,
     GridPatch,
@@ -417,6 +433,12 @@ from .spatial.dictionary import (
     Affined,
     AffineD,
     AffineDict,
+    ConvertBoxToPointsd,
+    ConvertBoxToPointsD,
+    ConvertBoxToPointsDict,
+    ConvertPointsToBoxesd,
+    ConvertPointsToBoxesD,
+    ConvertPointsToBoxesDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -488,11 +510,12 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .spatial.functional import spatial_resample
-from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
+from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ReduceTrait, ThreadUnsafe
 from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -502,6 +525,7 @@ from .utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -512,6 +536,8 @@ from .utility.array import (
     RandIdentity,
     RandImageFilter,
     RandLambda,
+    RandTorchIO,
+    RandTorchVision,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
@@ -521,6 +547,7 @@ from .utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    TorchIO,
     TorchVision,
     ToTensor,
     Transpose,
@@ -532,6 +559,9 @@ from .utility.dictionary import (
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
+    ApplyTransformToPointsd,
+    ApplyTransformToPointsD,
+    ApplyTransformToPointsDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,
@@ -568,6 +598,9 @@ from .utility.dictionary import (
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
+    FlattenSequenced,
+    FlattenSequenceD,
+    FlattenSequenceDict,
     FlattenSubKeysd,
     FlattenSubKeysD,
     FlattenSubKeysDict,
@@ -598,6 +631,9 @@ from .utility.dictionary import (
     RandLambdad,
     RandLambdaD,
     RandLambdaDict,
+    RandTorchIOd,
+    RandTorchIOD,
+    RandTorchIODict,
     RandTorchVisiond,
     RandTorchVisionD,
     RandTorchVisionDict,
@@ -631,6 +667,9 @@ from .utility.dictionary import (
     ToPILd,
     ToPILD,
     ToPILDict,
+    TorchIOd,
+    TorchIOD,
+    TorchIODict,
     TorchVisiond,
     TorchVisionD,
     TorchVisionDict,
@@ -688,6 +727,7 @@ from .utils import (
     weighted_patch_samples,
     zero_margins,
 )
+from .utils_morphological_ops import dilate, erode
 from .utils_pytorch_numpy_unification import (
     allclose,
     any_np_pt,

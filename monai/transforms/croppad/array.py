@@ -51,12 +51,10 @@ from monai.utils import (
     TransformBackends,
     convert_data_type,
     convert_to_tensor,
-    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
     look_up_option,
-    pytorch_after,
 )
 
 __all__ = [
@@ -292,7 +290,7 @@ class BorderPad(Pad):
         else:
             raise ValueError(
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
-                f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
+                f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2 * len(spatial_shape)}]."
             )
         return tuple([(0, 0)] + data_pad_width)  # type: ignore
 
@@ -362,10 +360,10 @@ class Crop(InvertibleTransform, LazyTransform):
 
     @staticmethod
     def compute_slices(
-        roi_center: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_size: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_start: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_end: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_center: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_size: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_start: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_end: Sequence[int] | int | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
     ) -> tuple[slice]:
         """
@@ -392,11 +390,7 @@ class Crop(InvertibleTransform, LazyTransform):
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
                 roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
                 _zeros = torch.zeros_like(roi_center_t)
-                half = (
-                    torch.divide(roi_size_t, 2, rounding_mode="floor")
-                    if pytorch_after(1, 8)
-                    else torch.floor_divide(roi_size_t, 2)
-                )
+                half = torch.divide(roi_size_t, 2, rounding_mode="floor")
                 roi_start_t = torch.maximum(roi_center_t - half, _zeros)
                 roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
             else:
@@ -459,10 +453,10 @@ class SpatialCrop(Crop):
 
     def __init__(
         self,
-        roi_center: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_size: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_start: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_end: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_center: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_size: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_start: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_end: Sequence[int] | int | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
         lazy: bool = False,
     ) -> None:
@@ -814,13 +808,12 @@ class CropForeground(Crop):
 
     """
 
-    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
     def __init__(
         self,
         select_fn: Callable = is_positive,
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
-        allow_smaller: bool = True,
+        allow_smaller: bool = False,
         return_coords: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
@@ -835,7 +828,8 @@ class CropForeground(Crop):
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
                 final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
-                the image edges will be used as the box edges. Default to `True`.
+                the image edges will be used as the box edges. Default to `False`.
+                The default value is changed from `True` to `False` in v1.5.0.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.

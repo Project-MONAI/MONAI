@@ -22,7 +22,7 @@ import torch.nn.functional as F
 
 from monai.config import NdarrayTensor
 from monai.transforms import ScaleIntensity
-from monai.utils import ensure_tuple, pytorch_after
+from monai.utils import ensure_tuple
 from monai.visualize.visualizer import default_upsampler
 
 __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"]
@@ -83,13 +83,10 @@ class ModelWithHooks:
                 continue
             _registered.append(name)
             if self.register_backward:
-                if pytorch_after(1, 8):
-                    if "inplace" in mod.__dict__ and mod.__dict__["inplace"]:
-                        # inplace=True causes errors for register_full_backward_hook
-                        mod.__dict__["inplace"] = False
-                    mod.register_full_backward_hook(self.backward_hook(name))
-                else:
-                    mod.register_backward_hook(self.backward_hook(name))
+                if "inplace" in mod.__dict__ and mod.__dict__["inplace"]:
+                    # inplace=True causes errors for register_full_backward_hook
+                    mod.__dict__["inplace"] = False
+                mod.register_full_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
         if self.target_layers and (len(_registered) != len(self.target_layers)):
@@ -290,7 +287,7 @@ class CAM(CAMBase):
         )
         self.fc_layers = fc_layers
 
-    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):  # type: ignore[override]
         logits, acti, _ = self.nn_module(x, **kwargs)
         acti = acti[layer_idx]
         if class_idx is None:
@@ -302,7 +299,7 @@ class CAM(CAMBase):
         output = torch.stack([output[i, b : b + 1] for i, b in enumerate(class_idx)], dim=0)
         return output.reshape(b, 1, *spatial)  # resume the spatial dims on the selected class
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):
+    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):  # type: ignore[override]
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -361,7 +358,7 @@ class GradCAM(CAMBase):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):  # type: ignore[override]
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
@@ -369,7 +366,7 @@ class GradCAM(CAMBase):
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):
+    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):  # type: ignore[override]
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -401,7 +398,7 @@ class GradCAMpp(GradCAM):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):  # type: ignore[override]
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape

@@ -88,8 +88,8 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
 
     n = len(y)
     indices = y_pred.argsort()
-    y = y[indices].cpu().numpy()
-    y_pred = y_pred[indices].cpu().numpy()
+    y = y[indices].cpu().numpy()  # type: ignore[assignment]
+    y_pred = y_pred[indices].cpu().numpy()  # type: ignore[assignment]
     nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):

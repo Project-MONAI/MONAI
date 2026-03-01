@@ -24,7 +24,6 @@ import types
 import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
-from distutils.util import strtobool
 from math import log10
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
@@ -78,11 +77,34 @@ __all__ = [
     "run_cmd",
 ]
 
+
+def _strtobool(val: str) -> bool:
+    """
+    Replaces deprecated (pre python 3.12)
+    distutils strtobool function.
+
+    True values are y, yes, t, true, on and 1;
+    False values are n, no, f, false, off and 0.
+    Raises ValueError if val is anything else.
+    """
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val}")
+
+
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
 _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
 NP_MAX = np.iinfo(np.uint32).max
 MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
+
+# Environment variable must be set to enable determinism for algorithms (alternative value is ":16:8").
+# This needs to be here to ensure it's set before deterministic algorithms are used/initialised.
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -100,6 +122,7 @@ def star_zip_with(op, *vals):
 
 
 T = TypeVar("T")
+NT = TypeVar("NT", np.ndarray, torch.Tensor)
 
 
 @overload
@@ -355,23 +378,16 @@ def set_determinism(
         for func in additional_settings:
             func(seed)
 
-    if torch.backends.flags_frozen():
-        warnings.warn("PyTorch global flag support of backends is disabled, enable it to set global `cudnn` flags.")
-        torch.backends.__allow_nonbracketed_mutation_flag = True
+    with torch.backends.__allow_nonbracketed_mutation():  # FIXME: better method without accessing private member
+        if seed is not None:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:  # restore the original flags
+            torch.backends.cudnn.deterministic = _flag_deterministic
+            torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
-    if seed is not None:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-    else:  # restore the original flags
-        torch.backends.cudnn.deterministic = _flag_deterministic
-        torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
     if use_deterministic_algorithms is not None:
-        if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
-            torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
-            torch.set_deterministic(use_deterministic_algorithms)
-        else:
-            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
+        torch.use_deterministic_algorithms(use_deterministic_algorithms)
 
 
 def list_to_dict(items):
@@ -400,7 +416,7 @@ def list_to_dict(items):
                 d[key] = literal_eval(value)
             except ValueError:
                 try:
-                    d[key] = bool(strtobool(str(value)))
+                    d[key] = bool(_strtobool(str(value)))
                 except ValueError:
                     d[key] = value
     return d
@@ -527,7 +543,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def algo_hash() -> str | None:
-        return os.environ.get("MONAI_ALGO_HASH", "e4cf5a1")
+        return os.environ.get("MONAI_ALGO_HASH", "21ed8e5")
 
     @staticmethod
     def trace_transform() -> str | None:
@@ -796,7 +812,7 @@ class ConvertUnits:
                 "Both input and target units should be from the same quantity. "
                 f"Input quantity is {input_base} while target quantity is {target_base}"
             )
-        self._calculate_conversion_factor()
+        self.conversion_factor = self._calculate_conversion_factor()
 
     def _get_valid_unit_and_base(self, unit):
         unit = str(unit).lower()
@@ -823,7 +839,7 @@ class ConvertUnits:
             return 1.0
         input_power = self._get_unit_power(self.input_unit)
         target_power = self._get_unit_power(self.target_unit)
-        self.conversion_factor = 10 ** (input_power - target_power)
+        return 10 ** (input_power - target_power)
 
     def __call__(self, value: int | float) -> Any:
         return float(value) * self.conversion_factor
@@ -863,20 +879,23 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         a CompletedProcess instance after the command completes.
     """
     debug = MONAIEnvVars.debug()
-    kwargs["capture_output"] = kwargs.get("capture_output", debug)
+    # Always capture output when check=True so that error details are available
+    # in the CalledProcessError exception for debugging subprocess failures.
+    if kwargs.get("check", False):
+        kwargs.setdefault("capture_output", True)
+    else:
+        kwargs["capture_output"] = kwargs.get("capture_output", debug)
 
     if kwargs.pop("run_cmd_verbose", False):
         import monai
 
-        monai.apps.utils.get_logger("run_cmd").info(f"{cmd_list}")
+        monai.apps.utils.get_logger("monai.utils.run_cmd").info(f"{cmd_list}")  # type: ignore[attr-defined]
     try:
         return subprocess.run(cmd_list, **kwargs)
     except subprocess.CalledProcessError as e:
-        if not debug:
-            raise
-        output = str(e.stdout.decode(errors="replace"))
-        errors = str(e.stderr.decode(errors="replace"))
-        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+        output = str(e.stdout.decode(errors="replace")) if e.stdout else ""
+        errors = str(e.stderr.decode(errors="replace")) if e.stderr else ""
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
 def is_sqrt(num: Sequence[int] | int) -> bool:
@@ -889,11 +908,24 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     return ensure_tuple(ret) == num
 
 
-def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_right(arr: NT, ndim: int) -> NT:
     """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(...,) + (None,) * (ndim - arr.ndim)]
 
 
-def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_left(arr: NT, ndim: int) -> NT:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(None,) * (ndim - arr.ndim)]
+
+
+def flatten_dict(metrics: dict[str, Any]) -> dict[str, Any]:
+    """
+    Flatten the nested dictionary to a flat dictionary.
+    """
+    result = {}
+    for key, value in metrics.items():
+        if isinstance(value, dict):
+            result.update(flatten_dict(value))
+        else:
+            result[key] = value
+    return result

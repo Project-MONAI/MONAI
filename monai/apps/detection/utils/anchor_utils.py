@@ -39,7 +39,7 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 
 from __future__ import annotations
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import torch
 from torch import Tensor, nn
@@ -106,7 +106,7 @@ class AnchorGenerator(nn.Module):
             anchor_generator = AnchorGenerator(sizes, aspect_ratios)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,
@@ -174,13 +174,13 @@ class AnchorGenerator(nn.Module):
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
             raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
-                {len(aspect_ratios_t.shape)-1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                {len(aspect_ratios_t.shape) - 1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
             raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
-                shape (_,{self.spatial_dims-1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                shape (_,{self.spatial_dims - 1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         # if 2d, w:h = 1:aspect_ratios
@@ -189,7 +189,7 @@ class AnchorGenerator(nn.Module):
             w_ratios = 1 / area_scale
             h_ratios = area_scale
         # if 3d, w:h:d = 1:aspect_ratios[:,0]:aspect_ratios[:,1]
-        elif self.spatial_dims == 3:
+        else:
             area_scale = torch.pow(aspect_ratios_t[:, 0] * aspect_ratios_t[:, 1], 1 / 3.0)
             w_ratios = 1 / area_scale
             h_ratios = aspect_ratios_t[:, 0] / area_scale
@@ -199,7 +199,7 @@ class AnchorGenerator(nn.Module):
         hs = (h_ratios[:, None] * scales_t[None, :]).view(-1)
         if self.spatial_dims == 2:
             base_anchors = torch.stack([-ws, -hs, ws, hs], dim=1) / 2.0
-        elif self.spatial_dims == 3:
+        else:  # elif self.spatial_dims == 3:
             ds = (d_ratios[:, None] * scales_t[None, :]).view(-1)
             base_anchors = torch.stack([-ws, -hs, -ds, ws, hs, ds], dim=1) / 2.0
 
@@ -364,7 +364,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
             anchor_generator = AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,

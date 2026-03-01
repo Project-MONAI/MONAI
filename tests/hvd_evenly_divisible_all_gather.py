@@ -15,13 +15,12 @@ import torch
 
 from monai.utils import evenly_divisible_all_gather
 from monai.utils.module import optional_import
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 hvd, has_hvd = optional_import("horovod", name="torch")
 
 
 class HvdEvenlyDivisibleAllGather:
-
     def test_data(self):
         # initialize Horovod
         hvd.init()
@@ -30,10 +29,10 @@ class HvdEvenlyDivisibleAllGather:
         self._run()
 
     def _run(self):
-        if hvd.rank() == 0:
-            data1 = torch.tensor([[1, 2], [3, 4]])
-            data2 = torch.tensor([[1.0, 2.0]])
-            data3 = torch.tensor(7)
+        # if hvd.rank() == 0:
+        data1 = torch.tensor([[1, 2], [3, 4]])
+        data2 = torch.tensor([[1.0, 2.0]])
+        data3 = torch.tensor(7)
 
         if hvd.rank() == 1:
             data1 = torch.tensor([[5, 6]])

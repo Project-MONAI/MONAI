@@ -42,7 +42,7 @@ The following illustrates target body organs that are segmentation in this tutor
 ![BTCV_organs](../images/BTCV_organs.png)
 
 Please visit UNETR repository for more details:
-https://monai.io/research/unetr-btcv-multi-organ-segmentation
+https://project-monai.github.io/research/unetr-btcv-multi-organ-segmentation
 
 ## Pythonic APIs to load the pretrained models from Clara Train MMARs
 [The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
@@ -93,4 +93,4 @@ MONAI Label enables application developers to build labeling apps in a serverles
 where custom labeling apps are exposed as a service through the MONAI Label Server.
 
 Please visit MONAILabel documentation website for details:
-https://docs.monai.io/projects/label/en/latest/
+https://monai.readthedocs.io/projects/label/en/latest/

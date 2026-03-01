@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 try:
@@ -234,7 +234,7 @@ def plot_engine_status(
 
 
 def _get_loss_from_output(
-    output: list[torch.Tensor | dict[str, torch.Tensor]] | dict[str, torch.Tensor] | torch.Tensor
+    output: list[torch.Tensor | dict[str, torch.Tensor]] | dict[str, torch.Tensor] | torch.Tensor,
 ) -> torch.Tensor:
     """Returns a single value from the network output, which is a dict or tensor."""
 

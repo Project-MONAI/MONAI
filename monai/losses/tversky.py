@@ -17,6 +17,7 @@ from collections.abc import Callable
 import torch
 from torch.nn.modules.loss import _Loss
 
+from monai.losses.utils import compute_tp_fp_fn
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -27,6 +28,9 @@ class TverskyLoss(_Loss):
 
         Sadegh et al. (2017) Tversky loss function for image segmentation
         using 3D fully convolutional deep networks. (https://arxiv.org/abs/1706.05721)
+
+        Wang, Z. et. al. (2023) Dice Semimetric Losses: Optimizing the Dice Score with
+        Soft Labels. MICCAI 2023.
 
     Adapted from:
         https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L631
@@ -46,6 +50,7 @@ class TverskyLoss(_Loss):
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -70,6 +75,8 @@ class TverskyLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the loss will be used.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -93,6 +100,7 @@ class TverskyLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.soft_label = soft_label
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -134,20 +142,15 @@ class TverskyLoss(_Loss):
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
-        p0 = input
-        p1 = 1 - p0
-        g0 = target
-        g1 = 1 - g0
-
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
 
-        tp = torch.sum(p0 * g0, reduce_axis)
-        fp = self.alpha * torch.sum(p0 * g1, reduce_axis)
-        fn = self.beta * torch.sum(p1 * g0, reduce_axis)
+        tp, fp, fn = compute_tp_fp_fn(input, target, reduce_axis, 1, self.soft_label, False)
+        fp *= self.alpha
+        fn *= self.beta
         numerator = tp + self.smooth_nr
         denominator = tp + fp + fn + self.smooth_dr
 

@@ -43,7 +43,7 @@ from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
-from monai.utils.module import export, look_up_option
+from monai.utils.module import look_up_option
 
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
@@ -153,7 +153,7 @@ class _DecoderBlock(nn.Sequential):
                 padding=padding,
             )
             _in_channels += out_channels
-            self.add_module("denselayerdecoder%d" % (i + 1), layer)
+            self.add_module(f"denselayerdecoder{i + 1}", layer)
 
         trans = _Transition(_in_channels, act=act, norm=norm)
         self.add_module("bna_block", trans)
@@ -409,7 +409,6 @@ class _DecoderBranch(nn.ModuleList):
         return x
 
 
-@export("monai.networks.nets")
 class HoVerNet(nn.Module):
     """HoVerNet model
 
@@ -634,9 +633,9 @@ def _remap_preact_resnet_model(model_url: str):
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))[
-        "desc"
-    ]
+    map_location = None if torch.cuda.is_available() else torch.device("cpu")
+    state_dict = torch.load(weights_dir, map_location=map_location, weights_only=True)["desc"]
+
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv0.match(key):
@@ -669,7 +668,8 @@ def _remap_standard_resnet_model(model_url: str, state_dict_key: str | None = No
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))
+    map_location = None if torch.cuda.is_available() else torch.device("cpu")
+    state_dict = torch.load(weights_dir, map_location=map_location, weights_only=True)
     if state_dict_key is not None:
         state_dict = state_dict[state_dict_key]
 

@@ -1,4 +1,4 @@
-# What's new in 1.3 🎉🎉
+# What's new in 1.3
 
 - Bundle usability enhancements
 - Integrating MONAI Generative into MONAI core

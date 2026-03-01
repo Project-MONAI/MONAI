@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo
-from monai.utils import is_scalar, min_version, optional_import
+from monai.utils import IgniteInfo, is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -258,7 +257,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                         "ignoring non-scalar output in TensorBoardStatsHandler,"
                         " make sure `output_transform(engine.state.output)` returns"
                         " a scalar or dictionary of key and scalar pairs to avoid this warning."
-                        " {}:{}".format(name, type(value))
+                        f" {name}:{type(value)}"
                     )
                     continue  # not plot multi dimensional output
                 self._write_scalar(
@@ -281,7 +280,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 "ignoring non-scalar output in TensorBoardStatsHandler,"
                 " make sure `output_transform(engine.state.output)` returns"
                 " a scalar or a dictionary of key and scalar pairs to avoid this warning."
-                " {}".format(type(loss))
+                f" {type(loss)}"
             )
         writer.flush()
 

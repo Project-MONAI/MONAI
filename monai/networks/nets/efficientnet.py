@@ -416,8 +416,10 @@ class EfficientNet(nn.Module):
 
         """
         self._swish = Act["memswish"]() if memory_efficient else Act["swish"](alpha=1.0)
-        for sub_stack in self._blocks:
-            for block in sub_stack:
+        sub_stack: nn.Sequential
+        block: MBConvBlock
+        for sub_stack in self._blocks:  # type: ignore[assignment]
+            for block in sub_stack:  # type: ignore[assignment]
                 block.set_swish(memory_efficient)
 
     def forward(self, inputs: torch.Tensor):

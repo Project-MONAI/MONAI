@@ -821,6 +821,7 @@ class NormalizeIntensity(Transform):
     mean and std on each channel separately.
     When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
     be the number of image channels if they are not None.
+    If the input is not of floating point type, it will be converted to float32
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -899,24 +900,28 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t: torch.Tensor = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore[assignment]
         dtype = self.dtype or img.dtype
+        img_len = len(img_t)
         if self.channel_wise:
-            if self.subtrahend is not None and len(self.subtrahend) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
-            if self.divisor is not None and len(self.divisor) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+            if self.subtrahend is not None and len(self.subtrahend) != img_len:
+                raise ValueError(f"img has {img_len} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != img_len:
+                raise ValueError(f"img has {img_len} channels, but divisor has {len(self.divisor)} components.")
 
-            for i, d in enumerate(img):
-                img[i] = self._normalize(  # type: ignore
+            if not img_t.dtype.is_floating_point:
+                img_t, *_ = convert_data_type(img_t, dtype=torch.float32)
+
+            for i, d in enumerate(img_t):
+                img_t[i] = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
                 )
         else:
-            img = self._normalize(img, self.subtrahend, self.divisor)
+            img_t = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
 
-        out = convert_to_dst_type(img, img, dtype=dtype)[0]
+        out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
         return out
 
 
@@ -1411,7 +1416,7 @@ class ScaleIntensityRangePercentiles(Transform):
         else:
             img_t = self._normalize(img=img_t)
 
-        return convert_to_dst_type(img_t, dst=img)[0]
+        return convert_to_dst_type(img_t, dst=img, dtype=self.dtype)[0]
 
 
 class MaskIntensity(Transform):
@@ -1852,7 +1857,7 @@ class RandHistogramShift(RandomizableTransform):
         indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
         indices = ns.clip(indices, 0, len(m) - 1)
 
-        f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
+        f: NdarrayOrTensor = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
         f[x < xp[0]] = fp[0]
         f[x > xp[-1]] = fp[-1]
         return f
@@ -2760,7 +2765,7 @@ class ComputeHoVerMaps(Transform):
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor):
-        instance_mask = convert_data_type(mask, np.ndarray)[0]
+        instance_mask: np.ndarray = convert_data_type(mask, np.ndarray)[0]  # type: ignore[assignment]
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)
@@ -2789,6 +2794,9 @@ class UltrasoundConfidenceMapTransform(Transform):
     It generates a confidence map by setting source and sink points in the image and computing the probability
     for random walks to reach the source for each pixel.
 
+    The official code is available at:
+    https://campar.in.tum.de/Main/AthanasiosKaramalisCode
+
     Args:
         alpha (float, optional): Alpha parameter. Defaults to 2.0.
         beta (float, optional): Beta parameter. Defaults to 90.0.
@@ -2796,14 +2804,32 @@ class UltrasoundConfidenceMapTransform(Transform):
         mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
         sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
             calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+        use_cg (bool, optional): Use Conjugate Gradient method for solving the linear system. Defaults to False.
+        cg_tol (float, optional): Tolerance for the Conjugate Gradient method. Defaults to 1e-6.
+            Will be used only if `use_cg` is True.
+        cg_maxiter (int, optional): Maximum number of iterations for the Conjugate Gradient method. Defaults to 200.
+            Will be used only if `use_cg` is True.
     """
 
-    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all") -> None:
+    def __init__(
+        self,
+        alpha: float = 2.0,
+        beta: float = 90.0,
+        gamma: float = 0.05,
+        mode="B",
+        sink_mode="all",
+        use_cg=False,
+        cg_tol: float = 1.0e-6,
+        cg_maxiter: int = 200,
+    ):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.mode = mode
         self.sink_mode = sink_mode
+        self.use_cg = use_cg
+        self.cg_tol = cg_tol
+        self.cg_maxiter = cg_maxiter
 
         if self.mode not in ["B", "RF"]:
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
@@ -2813,7 +2839,9 @@ class UltrasoundConfidenceMapTransform(Transform):
                 f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
             )
 
-        self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
+        self._compute_conf_map = UltrasoundConfidenceMap(
+            self.alpha, self.beta, self.gamma, self.mode, self.sink_mode, self.use_cg, self.cg_tol, self.cg_maxiter
+        )
 
     def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
         """Compute confidence map from an ultrasound image.

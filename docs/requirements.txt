@@ -1,12 +1,12 @@
--f https://download.pytorch.org/whl/cpu/torch-1.12.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
-torch>=1.9
+-f https://download.pytorch.org/whl/cpu/torch-2.4.1%2Bcpu-cp39-cp39-linux_x86_64.whl
+torch>=2.4.1
 pytorch-ignite==0.4.11
 numpy>=1.20
 itk>=5.2
 nibabel
 parameterized
 scikit-image>=0.19.0
-scipy>=1.7.1
+scipy>=1.12.0; python_version >= '3.9'
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
@@ -21,7 +21,7 @@ sphinxcontrib-serializinghtml
 sphinx-autodoc-typehints==1.11.1
 pandas
 einops
-transformers>=4.36.0, <4.41.0; python_version <= '3.10'
+transformers>=4.53.0
 mlflow>=2.12.2
 clearml>=1.10.0rc0
 tensorboardX
@@ -40,3 +40,6 @@ onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
 zarr
 huggingface_hub
+pyamg>=5.0.0, <5.3.0
+packaging
+polygraphy

@@ -15,8 +15,10 @@ import ast
 import json
 import os
 import re
+import urllib
 import warnings
 from collections.abc import Mapping, Sequence
+from functools import partial
 from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
@@ -26,13 +28,12 @@ from typing import Any, Callable
 import torch
 from torch.cuda import is_available
 
-from monai.apps.mmars.mmars import _get_all_ngc_models
-from monai.apps.utils import _basename, download_url, extractall, get_logger
-from monai.bundle.config_item import ConfigComponent
+from monai._version import get_versions
+from monai.apps.utils import _basename, _extract_zip, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
-from monai.config import IgniteInfo, PathLike
+from monai.config import PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import (
     convert_to_onnx,
@@ -43,8 +44,8 @@ from monai.networks import (
     save_state,
 )
 from monai.utils import (
+    IgniteInfo,
     check_parent_dir,
-    deprecated_arg,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -55,7 +56,7 @@ from monai.utils import (
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
-requests_get, has_requests = optional_import("requests", name="get")
+requests, has_requests = optional_import("requests")
 onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
@@ -65,6 +66,9 @@ logger = get_logger(module_name=__name__)
 # set BUNDLE_DOWNLOAD_SRC="github" to use github source in default for bundle download
 DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
+
+MONAI_HOSTING_BASE_URL = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+NGC_BASE_URL = "https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit"
 
 
 def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
@@ -100,7 +104,7 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
             args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
-            args_[k] = v
+            merge_kv(args_, k, v)
     return args_
 
 
@@ -168,12 +172,19 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
 
 
 def _get_ngc_bundle_url(model_name: str, version: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
+    return f"{NGC_BASE_URL}/{model_name.lower()}/versions/{version}/files"
+
+
+def _get_ngc_private_base_url(repo: str) -> str:
+    return f"https://api.ngc.nvidia.com/v2/{repo}/models"
+
+
+def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str:
+    return f"{_get_ngc_private_base_url(repo)}/{model_name.lower()}/versions/{version}/zip"
 
 
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
-    monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    return f"{monaihosting_root_path}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
+    return f"{MONAI_HOSTING_BASE_URL}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
@@ -193,6 +204,16 @@ def _download_from_monaihosting(download_path: Path, filename: str, version: str
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
+def _download_from_bundle_info(download_path: Path, filename: str, version: str, progress: bool) -> None:
+    bundle_info = get_bundle_info(bundle_name=filename, version=version)
+    if not bundle_info:
+        raise ValueError(f"Bundle info not found for {filename} v{version}.")
+    url = bundle_info["browser_download_url"]
+    filepath = download_path / f"{filename}_v{version}.zip"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
 def _add_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     if name.startswith(prefix):
         return name
@@ -205,43 +226,196 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     return name
 
 
+def _get_all_download_files(request_url: str, headers: dict | None = None) -> list[str]:
+    if not has_requests:
+        raise ValueError("requests package is required, please install it.")
+    headers = {} if headers is None else headers
+    response = requests.get(request_url, headers=headers)
+    response.raise_for_status()
+    model_info = json.loads(response.text)
+
+    if not isinstance(model_info, dict) or "modelFiles" not in model_info:
+        raise ValueError("The data is not a dictionary or it does not have the key 'modelFiles'.")
+
+    model_files = model_info["modelFiles"]
+    return [f["path"] for f in model_files]
+
+
 def _download_from_ngc(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool
+    download_path: Path,
+    filename: str,
+    version: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    progress: bool = True,
 ) -> None:
     # ensure prefix is contained
-    filename = _add_ngc_prefix(filename)
+    filename = _add_ngc_prefix(filename, prefix=prefix)
     url = _get_ngc_bundle_url(model_name=filename, version=version)
-    filepath = download_path / f"{filename}_v{version}.zip"
+    if remove_prefix:
+        filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
+    filepath = download_path / filename
+    filepath.mkdir(parents=True, exist_ok=True)
+    for file in _get_all_download_files(url):
+        download_url(url=f"{url}/{file}", filepath=f"{filepath}/{file}", hash_val=None, progress=progress)
+
+
+def _download_from_ngc_private(
+    download_path: Path,
+    filename: str,
+    version: str,
+    repo: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    headers: dict | None = None,
+) -> None:
+    # ensure prefix is contained
+    filename = _add_ngc_prefix(filename, prefix=prefix)
+    request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
+    if has_requests:
+        headers = {} if headers is None else headers
+        response = requests.get(request_url, headers=headers)
+        response.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package. Please install it.")
+
+    os.makedirs(download_path, exist_ok=True)
+    zip_path = download_path / f"{filename}_v{version}.zip"
+    with open(zip_path, "wb") as f:
+        f.write(response.content)
+    logger.info(f"Downloading: {zip_path}.")
     if remove_prefix:
         filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
     extract_path = download_path / f"{filename}"
-    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-    extractall(filepath=filepath, output_dir=extract_path, has_base=True)
+    _extract_zip(zip_path, extract_path)
+    logger.info(f"Writing into directory: {extract_path}.")
 
 
-def _get_latest_bundle_version_monaihosting(name):
-    url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    full_url = f"{url}/{name.lower()}"
-    requests_get, has_requests = optional_import("requests", name="get")
+def _get_ngc_token(api_key, retry=0):
+    """Try to connect to NGC."""
+    url = "https://authn.nvidia.com/token?service=ngc"
+    headers = {"Accept": "application/json", "Authorization": "ApiKey " + api_key}
     if has_requests:
-        resp = requests_get(full_url)
-        resp.raise_for_status()
-    else:
-        raise ValueError("NGC API requires requests package.  Please install it.")
+        response = requests.get(url, headers=headers)
+        if not response.ok:
+            # retry 3 times, if failed, raise an error.
+            if retry < 3:
+                logger.info(f"Retrying {retry} time(s) to GET {url}.")
+                return _get_ngc_token(url, retry + 1)
+            raise RuntimeError("NGC API response is not ok. Failed to get token.")
+        else:
+            token = response.json()["token"]
+        return token
+
+
+def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
+    """Examine if the package version is compatible with the MONAI version in the metadata."""
+    version_dict = get_versions()
+    package_version = version_dict.get("version", "0+unknown")
+    if package_version == "0+unknown":
+        return False, "Package version is not available. Skipping version check."
+    if monai_version == "0+unknown":
+        return False, "MONAI version is not specified in the bundle. Skipping version check."
+    # treat rc versions as the same as the release version
+    package_version = re.sub(r"rc\d.*", "", package_version)
+    monai_version = re.sub(r"rc\d.*", "", monai_version)
+    if package_version < monai_version:
+        return (
+            False,
+            f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}.",
+        )
+    return True, ""
+
+
+def _check_monai_version(bundle_dir: PathLike, name: str) -> None:
+    """Get the `monai_version` from the metadata.json and compare if it is smaller than the installed `monai` package version"""
+    metadata_file = Path(bundle_dir) / name / "configs" / "metadata.json"
+    if not metadata_file.exists():
+        logger.warning(f"metadata file not found in {metadata_file}.")
+        return
+    with open(metadata_file) as f:
+        metadata = json.load(f)
+    is_compatible, msg = _examine_monai_version(metadata.get("monai_version", "0+unknown"))
+    if not is_compatible:
+        logger.warning(msg)
+
+
+def _list_latest_versions(data: dict, max_versions: int = 3) -> list[str]:
+    """
+    Extract the latest versions from the data dictionary.
+
+    Args:
+        data: the data dictionary.
+        max_versions: the maximum number of versions to return.
+
+    Returns:
+        versions of the latest models in the reverse order of creation date, e.g. ['1.0.0', '0.9.0', '0.8.0'].
+    """
+    # Check if the data is a dictionary and it has the key 'modelVersions'
+    if not isinstance(data, dict) or "modelVersions" not in data:
+        raise ValueError("The data is not a dictionary or it does not have the key 'modelVersions'.")
+
+    # Extract the list of model versions
+    model_versions = data["modelVersions"]
+
+    if (
+        not isinstance(model_versions, list)
+        or len(model_versions) == 0
+        or "createdDate" not in model_versions[0]
+        or "versionId" not in model_versions[0]
+    ):
+        raise ValueError(
+            "The model versions are not a list or it is empty or it does not have the keys 'createdDate' and 'versionId'."
+        )
+
+    # Sort the versions by the 'createdDate' in descending order
+    sorted_versions = sorted(model_versions, key=lambda x: x["createdDate"], reverse=True)
+    return [v["versionId"] for v in sorted_versions[:max_versions]]
+
+
+def _get_latest_bundle_version_ngc(name: str, repo: str | None = None, headers: dict | None = None) -> str:
+    base_url = _get_ngc_private_base_url(repo) if repo else NGC_BASE_URL
+    version_endpoint = base_url + f"/{name.lower()}/versions/"
+
+    if not has_requests:
+        raise ValueError("requests package is required, please install it.")
+
+    version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd' to fit NGC requirements
+    if headers:
+        version_header.update(headers)
+    resp = requests.get(version_endpoint, headers=version_header)
+    resp.raise_for_status()
     model_info = json.loads(resp.text)
-    return model_info["model"]["latestVersionIdStr"]
+    latest_versions = _list_latest_versions(model_info)
+
+    for version in latest_versions:
+        file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
+        resp = requests.get(file_endpoint, headers=headers)
+        metadata = json.loads(resp.text)
+        resp.raise_for_status()
+        # if the package version is not available or the model is compatible with the package version
+        is_compatible, _ = _examine_monai_version(metadata["monai_version"])
+        if is_compatible:
+            if version != latest_versions[0]:
+                logger.info(f"Latest version is {latest_versions[0]}, but the compatible version is {version}.")
+            return version
+
+    # if no compatible version is found, return the latest version
+    return latest_versions[0]
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
+def _get_latest_bundle_version(
+    source: str, name: str, repo: str, **kwargs: Any
+) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
-        model_dict = _get_all_ngc_models(name)
-        for v in model_dict.values():
-            if v["name"] == name:
-                return v["latest"]
-        return None
+        return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        return _get_latest_bundle_version_monaihosting(name)
+        return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
+    elif source == "ngc_private":
+        headers = kwargs.pop("headers", {})
+        name = _add_ngc_prefix(name)
+        return _get_latest_bundle_version_ngc(name, repo=repo, headers=headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -308,6 +482,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
+        # Execute this module as a CLI entry, and download bundle from ngc_private with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "ngc_private" --bundle_dir "./" --repo "org/org_name"
+
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
         # The content of the JSON / YAML file is a dictionary. For example:
@@ -328,14 +505,19 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
+            it should be "ngc", "monaihosting", "github", "ngc_private", or "huggingface_hub".
+            If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
-            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name". Please note that
+            bundles for "monaihosting" source are also hosted on Hugging Face Hub, but the "repo_id" is always in the form
+            of "MONAI/bundle_name", therefore, this argument is not required for "monaihosting" source.
+            If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
+            or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
-        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+        remove_prefix: This argument is used when `source` is "ngc" or "ngc_private". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these two sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
@@ -363,11 +545,18 @@ def download(
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if repo_ is None:
-        repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
-        raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
+        org_ = os.getenv("NGC_ORG", None)
+        team_ = os.getenv("NGC_TEAM", None)
+        if org_ is not None and source_ == "ngc_private":
+            repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
+        else:
+            repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
+    if len(repo_.split("/")) not in (2, 4) and source_ == "ngc_private":
+        raise ValueError(f"repo should be in the form of `org/org_name/team/team_name` or `org/org_name`, got {repo_}.")
+    if len(repo_.split("/")) != 3 and source_ == "github":
+        raise ValueError(f"repo should be in the form of `repo_owner/repo_name/release_tag`, got {repo_}.")
     elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
-        raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
+        raise ValueError(f"Hugging Face Hub repo should be in the form of `repo_owner/repo_name`, got {repo_}.")
     if url_ is not None:
         if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
@@ -376,16 +565,37 @@ def download(
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     else:
+        headers = {}
         if name_ is None:
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
+        if source == "ngc_private":
+            api_key = os.getenv("NGC_API_KEY", None)
+            if api_key is None:
+                raise ValueError("API key is required for ngc_private source.")
+            else:
+                token = _get_ngc_token(api_key)
+                headers = {"Authorization": f"Bearer {token}"}
+
         if version_ is None:
-            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_)
+            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_, headers=headers)
         if source_ == "github":
-            if version_ is not None:
-                name_ = "_v".join([name_, version_])
-            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+            name_ver = "_v".join([name_, version_]) if version_ is not None else name_
+            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
-            _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
+            try:
+                extract_path = os.path.join(bundle_dir_, name_)
+                huggingface_hub.snapshot_download(repo_id=f"MONAI/{name_}", revision=version_, local_dir=extract_path)
+            except (huggingface_hub.errors.RevisionNotFoundError, huggingface_hub.errors.RepositoryNotFoundError):
+                # if bundle or version not found from huggingface, download from ngc monaihosting
+                _download_from_monaihosting(
+                    download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
+                )
+            except urllib.error.HTTPError:
+                # if also cannot download from ngc monaihosting, download according to bundle_info
+                _download_from_bundle_info(
+                    download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
+                )
+
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
@@ -393,6 +603,15 @@ def download(
                 version=version_,
                 remove_prefix=remove_prefix_,
                 progress=progress_,
+            )
+        elif source_ == "ngc_private":
+            _download_from_ngc_private(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                remove_prefix=remove_prefix_,
+                repo=repo_,
+                headers=headers,
             )
         elif source_ == "huggingface_hub":
             extract_path = os.path.join(bundle_dir_, name_)
@@ -403,10 +622,9 @@ def download(
                 f"got source: {source_}."
             )
 
+    _check_monai_version(bundle_dir_, name_)
 
-@deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("return_state_dict", since="1.2", removed="1.5")
+
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -425,10 +643,7 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
-    return_state_dict: bool = True,
     net_override: dict | None = None,
-    net_name: str | None = None,
-    **net_kwargs: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -474,12 +689,7 @@ def load(
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
-        return_state_dict: whether to return state dict, if True, return state_dict, else a corresponding network
-            from `_workflow.network_def` will be instantiated and load the achieved weights.
         net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
@@ -490,13 +700,8 @@ def load(
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
-        4. If `return_state_dict` is True, return model weights, only used for compatibility
-            when `model` and `net_name` are all `None`.
 
     """
-    if return_state_dict and (model is not None or net_name is not None):
-        warnings.warn("Incompatible values: model and net_name are all specified, return state dict instead.")
-
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
@@ -526,17 +731,14 @@ def load(
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
-    model_dict = torch.load(full_path, map_location=torch.device(device))
+    model_dict = torch.load(full_path, map_location=torch.device(device), weights_only=True)
 
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if return_state_dict:
-        return model_dict
-
     _workflow = None
-    if model is None and net_name is None:
+    if model is None:
         bundle_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if bundle_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
@@ -556,10 +758,6 @@ def load(
                 return model_dict
             else:
                 model = _workflow.network_def
-    elif net_name is not None:
-        net_kwargs["_target_"] = net_name
-        configer = ConfigComponent(config=net_kwargs)
-        model = configer.instantiate()  # type: ignore
 
     model.to(device)  # type: ignore
 
@@ -581,9 +779,9 @@ def _get_all_bundles_info(
 
         if auth_token is not None:
             headers = {"Authorization": f"Bearer {auth_token}"}
-            resp = requests_get(request_url, headers=headers)
+            resp = requests.get(request_url, headers=headers)
         else:
-            resp = requests_get(request_url)
+            resp = requests.get(request_url)
         resp.raise_for_status()
     else:
         raise ValueError("requests package is required, please install it.")
@@ -1045,9 +1243,8 @@ def verify_net_in_out(
         if input_dtype == torch.float16:
             # fp16 can only be executed in gpu mode
             net.to("cuda")
-            from torch.cuda.amp import autocast
 
-            with autocast():
+            with torch.autocast("cuda"):
                 output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
@@ -1061,6 +1258,7 @@ def verify_net_in_out(
 
 def _export(
     converter: Callable,
+    saver: Callable,
     parser: ConfigParser,
     net_id: str,
     filepath: str,
@@ -1075,6 +1273,8 @@ def _export(
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
+        saver: a callable object that accepts the converted model to save, a filepath to save to, meta values
+            (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
         parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
@@ -1093,7 +1293,7 @@ def _export(
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
         Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
     else:
-        ckpt = torch.load(ckpt_file)
+        ckpt = torch.load(ckpt_file, weights_only=True)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
     # Use the given converter to convert a model and save with metadata, config content
@@ -1114,14 +1314,9 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
-    )
+    meta_values = parser.get().pop("_meta_", None)
+    saver(net, filepath, meta_values=meta_values, more_extra_files=extra_files)
+
     logger.info(f"exported to file: {filepath}.")
 
 
@@ -1220,17 +1415,23 @@ def onnx_export(
         input_shape_ = _get_fake_input_shape(parser=parser)
 
     inputs_ = [torch.rand(input_shape_)]
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
-    onnx.save(onnx_model, filepath_)
+
+    def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx.save(onnx_obj, filename_prefix_or_stream)
+
+    _export(
+        convert_to_onnx,
+        save_onnx,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
+    )
 
 
 def ckpt_export(
@@ -1351,8 +1552,12 @@ def ckpt_export(
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
     # Use the given converter to convert a model and save with metadata, config content
+
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
+
     _export(
         convert_to_torchscript,
+        save_ts,
         parser,
         net_id=net_id_,
         filepath=filepath_,
@@ -1385,6 +1590,8 @@ def trt_export(
     """
     Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
     Currently, this API only supports converting models whose inputs are all tensors.
+    Note: NVIDIA Volta support (GPUs with compute capability 7.0) has been removed starting with TensorRT 10.5.
+    Review the TensorRT Support Matrix for which GPUs are supported.
 
     There are two ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
@@ -1522,8 +1729,11 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
+
     _export(
         convert_to_trt,
+        save_ts,
         parser,
         net_id=net_id_,
         filepath=filepath_,
@@ -1738,7 +1948,6 @@ def create_workflow(
 
     """
     _args = update_kwargs(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
-    _log_input_summary(tag="run", args=_args)
     (workflow_name, config_file) = _pop_args(
         _args, workflow_name=ConfigWorkflow, config_file=None
     )  # the default workflow name is "ConfigWorkflow"
@@ -1762,7 +1971,7 @@ def create_workflow(
         workflow_ = workflow_class(**_args)
 
     workflow_.initialize()
-
+    _log_input_summary(tag="run", args=_args)
     return workflow_
 
 

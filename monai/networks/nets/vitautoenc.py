@@ -20,7 +20,7 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.networks.layers import Conv
-from monai.utils import deprecated_arg, ensure_tuple_rep, is_sqrt
+from monai.utils import ensure_tuple_rep, is_sqrt
 
 __all__ = ["ViTAutoEnc"]
 
@@ -33,9 +33,6 @@ class ViTAutoEnc(nn.Module):
     Modified to also give same dimension outputs as the input size of the image
     """
 
-    @deprecated_arg(
-        name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
-    )
     def __init__(
         self,
         in_channels: int,
@@ -47,7 +44,6 @@ class ViTAutoEnc(nn.Module):
         mlp_dim: int = 3072,
         num_layers: int = 12,
         num_heads: int = 12,
-        pos_embed: str = "conv",
         proj_type: str = "conv",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
@@ -70,9 +66,6 @@ class ViTAutoEnc(nn.Module):
             spatial_dims: number of spatial dimensions. Defaults to 3.
             qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
-
-        .. deprecated:: 1.4
-            ``pos_embed`` is deprecated in favor of ``proj_type``.
 
         Examples::
 

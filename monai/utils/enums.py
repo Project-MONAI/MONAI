@@ -15,8 +15,6 @@ import random
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
-from monai.utils import deprecated
 from monai.utils.module import min_version, optional_import
 
 __all__ = [
@@ -26,6 +24,7 @@ __all__ = [
     "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
+    "DownsampleMode",
     "BlendMode",
     "PytorchPadMode",
     "NdimageMode",
@@ -56,13 +55,13 @@ __all__ = [
     "DataStatsKeys",
     "ImageStatsKeys",
     "LabelStatsKeys",
-    "AlgoEnsembleKeys",
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
     "BundleProperty",
     "BundlePropertyConfig",
     "AlgoKeys",
+    "IgniteInfo",
 ]
 
 
@@ -89,14 +88,6 @@ class StrEnum(str, Enum):
 
     def __repr__(self):
         return self.value
-
-
-if TYPE_CHECKING:
-    from ignite.engine import EventEnum
-else:
-    EventEnum, _ = optional_import(
-        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
-    )
 
 
 class NumpyPadMode(StrEnum):
@@ -191,6 +182,18 @@ class UpsampleMode(StrEnum):
     PIXELSHUFFLE = "pixelshuffle"
 
 
+class DownsampleMode(StrEnum):
+    """
+    See also: :py:class:`monai.networks.blocks.UpSample`
+    """
+
+    CONV = "conv"  # e.g. using strided convolution
+    CONVGROUP = "convgroup"  # e.g. using grouped strided convolution
+    PIXELUNSHUFFLE = "pixelunshuffle"
+    MAXPOOL = "maxpool"
+    AVGPOOL = "avgpool"
+
+
 class BlendMode(StrEnum):
     """
     See also: :py:class:`monai.data.utils.compute_importance_map`
@@ -223,7 +226,8 @@ class GridSamplePadMode(StrEnum):
 
 class Average(StrEnum):
     """
-    See also: :py:class:`monai.metrics.rocauc.compute_roc_auc`
+    See also: :py:class:`monai.metrics.rocauc.compute_roc_auc` or
+    :py:class:`monai.metrics.average_precision.compute_average_precision`
     """
 
     MACRO = "macro"
@@ -345,7 +349,7 @@ class CommonKeys(StrEnum):
     `LABEL` is the training or evaluation label of segmentation or classification task.
     `PRED` is the prediction data of model output.
     `LOSS` is the loss value of current iteration.
-    `INFO` is some useful information during training or evaluation, like loss value, etc.
+    `METADATA` is some useful information during training or evaluation, like loss value, etc.
 
     """
 
@@ -538,11 +542,14 @@ class MetaKeys(StrEnum):
     Typical keys for MetaObj.meta
     """
 
+    PIXDIM = "pixdim"  # MetaTensor.pixdim
+    ORIGINAL_PIXDIM = "original_pixdim"  # the pixdim after image loading before any data processing
     AFFINE = "affine"  # MetaTensor.affine
     ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
+    SAVED_TO = "saved_to"
 
 
 class ColorOrder(StrEnum):
@@ -612,17 +619,6 @@ class LabelStatsKeys(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
-
-
-@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
-class AlgoEnsembleKeys(StrEnum):
-    """
-    Default keys for Mixed Ensemble
-    """
-
-    ID = "identifier"
-    ALGO = "infer_algo"
-    SCORE = "best_metric"
 
 
 class HoVerNetMode(StrEnum):
@@ -729,6 +725,35 @@ class AdversarialKeys(StrEnum):
     DISCRIMINATOR_LOSS = "discriminator_loss"
 
 
+class OrderingType(StrEnum):
+    RASTER_SCAN = "raster_scan"
+    S_CURVE = "s_curve"
+    RANDOM = "random"
+
+
+class OrderingTransformations(StrEnum):
+    ROTATE_90 = "rotate_90"
+    TRANSPOSE = "transpose"
+    REFLECT = "reflect"
+
+
+class IgniteInfo(StrEnum):
+    """
+    Config information of the PyTorch ignite package.
+
+    """
+
+    OPT_IMPORT_VERSION = "0.4.11"
+
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
+    )
+
+
 class AdversarialIterationEvents(EventEnum):
     """
     Keys used to define events as used in the AdversarialTrainer.
@@ -745,15 +770,3 @@ class AdversarialIterationEvents(EventEnum):
     DISCRIMINATOR_LOSS_COMPLETED = "discriminator_loss_completed"
     DISCRIMINATOR_BACKWARD_COMPLETED = "discriminator_backward_completed"
     DISCRIMINATOR_MODEL_COMPLETED = "discriminator_model_completed"
-
-
-class OrderingType(StrEnum):
-    RASTER_SCAN = "raster_scan"
-    S_CURVE = "s_curve"
-    RANDOM = "random"
-
-
-class OrderingTransformations(StrEnum):
-    ROTATE_90 = "rotate_90"
-    TRANSPOSE = "transpose"
-    REFLECT = "reflect"

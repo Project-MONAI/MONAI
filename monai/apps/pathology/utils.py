@@ -33,10 +33,10 @@ def compute_multi_instance_mask(mask: np.ndarray, threshold: float) -> Any:
     """
 
     neg = 255 - mask * 255
-    distance = ndimage.morphology.distance_transform_edt(neg)
+    distance = ndimage.distance_transform_edt(neg)
     binary = distance < threshold
 
-    filled_image = ndimage.morphology.binary_fill_holes(binary)
+    filled_image = ndimage.binary_fill_holes(binary)
     multi_instance_mask = measure.label(filled_image, connectivity=2)
 
     return multi_instance_mask

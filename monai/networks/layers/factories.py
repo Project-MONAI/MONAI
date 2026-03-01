@@ -70,7 +70,7 @@ import torch.nn as nn
 from monai.networks.utils import has_nvfuser_instance_norm
 from monai.utils import ComponentStore, look_up_option, optional_import
 
-__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
+__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "RelPosEmbedding", "split_args"]
 
 
 class LayerFactory(ComponentStore):
@@ -95,7 +95,7 @@ class LayerFactory(ComponentStore):
         self.add(name.upper(), description, func)
         # append name to the docstring
         assert self.__doc__ is not None
-        self.__doc__ += f"{', ' if len(self.names)>1 else ' '}``{name}``"
+        self.__doc__ += f"{', ' if len(self.names) > 1 else ' '}``{name}``"
 
     def add_factory_class(self, name: str, cls: type, desc: str | None = None) -> None:
         """
@@ -201,6 +201,10 @@ Act = LayerFactory(name="Activation layers", description="Factory for creating a
 Conv = LayerFactory(name="Convolution layers", description="Factory for creating convolution layers.")
 Pool = LayerFactory(name="Pooling layers", description="Factory for creating pooling layers.")
 Pad = LayerFactory(name="Padding layers", description="Factory for creating padding layers.")
+RelPosEmbedding = LayerFactory(
+    name="Relative positional embedding layers",
+    description="Factory for creating relative positional embedding factory",
+)
 
 
 @Dropout.factory_function("dropout")
@@ -468,3 +472,10 @@ def constant_pad_factory(dim: int) -> type[nn.ConstantPad1d | nn.ConstantPad2d |
     """
     types = (nn.ConstantPad1d, nn.ConstantPad2d, nn.ConstantPad3d)
     return types[dim - 1]
+
+
+@RelPosEmbedding.factory_function("decomposed")
+def decomposed_rel_pos_embedding() -> type[nn.Module]:
+    from monai.networks.blocks.rel_pos_embedding import DecomposedRelativePosEmbedding
+
+    return DecomposedRelativePosEmbedding

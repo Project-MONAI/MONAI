@@ -17,9 +17,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from monai.config import IgniteInfo
 from monai.networks.utils import copy_model_state
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
@@ -123,7 +122,7 @@ class CheckpointLoader:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        checkpoint = torch.load(self.load_path, map_location=self.map_location)
+        checkpoint = torch.load(self.load_path, map_location=self.map_location, weights_only=True)
 
         k, _ = list(self.load_dict.items())[0]
         # single object and checkpoint is directly a state_dict

@@ -50,6 +50,7 @@ class UpSample(nn.Sequential):
         size: tuple[int] | int | None = None,
         mode: UpsampleMode | str = UpsampleMode.DECONV,
         pre_conv: nn.Module | str | None = "default",
+        post_conv: nn.Module | None = None,
         interp_mode: str = InterpolateMode.LINEAR,
         align_corners: bool | None = True,
         bias: bool = True,
@@ -71,6 +72,7 @@ class UpSample(nn.Sequential):
             pre_conv: a conv block applied before upsampling. Defaults to "default".
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized when
                 Only used in the "nontrainable" or "pixelshuffle" mode.
+            post_conv: a conv block applied after upsampling. Defaults to None. Only used in the "nontrainable"  mode.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
                 If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
@@ -154,15 +156,17 @@ class UpSample(nn.Sequential):
             linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
             if interp_mode in linear_mode:  # choose mode based on dimensions
                 interp_mode = linear_mode[spatial_dims - 1]
-            self.add_module(
-                "upsample_non_trainable",
-                nn.Upsample(
-                    size=size,
-                    scale_factor=None if size else scale_factor_,
-                    mode=interp_mode.value,
-                    align_corners=align_corners,
-                ),
+
+            upsample = nn.Upsample(
+                size=size,
+                scale_factor=None if size else scale_factor_,
+                mode=interp_mode.value,
+                align_corners=align_corners,
             )
+
+            self.add_module("upsample_non_trainable", upsample)
+            if post_conv:
+                self.add_module("postconv", post_conv)
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
             self.add_module(
                 "pixelshuffle",
@@ -191,7 +195,7 @@ class SubpixelUpsample(nn.Module):
     default single layer.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 

@@ -18,9 +18,9 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Hashable, Mapping
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Sequence, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -30,11 +30,12 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
+from monai.transforms.traits import MultiSampleTrait, RandomizableTrait, ReduceTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -44,6 +45,7 @@ from monai.transforms.utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -59,6 +61,7 @@ from monai.transforms.utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    TorchIO,
     TorchVision,
     ToTensor,
     Transpose,
@@ -135,6 +138,9 @@ __all__ = [
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
+    "RandTorchIOd",
+    "RandTorchIOD",
+    "RandTorchIODict",
     "RandTorchVisionD",
     "RandTorchVisionDict",
     "RandTorchVisiond",
@@ -171,6 +177,9 @@ __all__ = [
     "ToTensorD",
     "ToTensorDict",
     "ToTensord",
+    "TorchIOD",
+    "TorchIODict",
+    "TorchIOd",
     "TorchVisionD",
     "TorchVisionDict",
     "TorchVisiond",
@@ -180,6 +189,12 @@ __all__ = [
     "ClassesToIndicesd",
     "ClassesToIndicesD",
     "ClassesToIndicesDict",
+    "ApplyTransformToPointsd",
+    "ApplyTransformToPointsD",
+    "ApplyTransformToPointsDict",
+    "FlattenSequenced",
+    "FlattenSequenceD",
+    "FlattenSequenceDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -789,6 +804,7 @@ class DataStatsd(MapTransform):
         data_shape: Sequence[bool] | bool = True,
         value_range: Sequence[bool] | bool = True,
         data_value: Sequence[bool] | bool = False,
+        meta_info: Sequence[bool] | bool = False,
         additional_info: Sequence[Callable] | Callable | None = None,
         name: str = "DataStats",
         allow_missing_keys: bool = False,
@@ -808,6 +824,8 @@ class DataStatsd(MapTransform):
             data_value: whether to show the raw value of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            meta_info: whether to show the data of MetaTensor.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
@@ -821,15 +839,34 @@ class DataStatsd(MapTransform):
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
+        self.meta_info = ensure_tuple_rep(meta_info, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
         self.printer = DataStats(name=name)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
-            d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
+        for (
+            key,
+            prefix,
+            data_type,
+            data_shape,
+            value_range,
+            data_value,
+            meta_info,
+            additional_info,
+        ) in self.key_iterator(
+            d,
+            self.prefix,
+            self.data_type,
+            self.data_shape,
+            self.value_range,
+            self.data_value,
+            self.meta_info,
+            self.additional_info,
         ):
-            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, additional_info)
+            d[key] = self.printer(
+                d[key], prefix, data_type, data_shape, value_range, data_value, meta_info, additional_info
+            )
         return d
 
 
@@ -1419,6 +1456,64 @@ class RandTorchVisiond(MapTransform, RandomizableTrait):
         return d
 
 
+class TorchIOd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchIO` for non-randomized transforms.
+    For randomized transforms of TorchIO use :py:class:`monai.transforms.RandTorchIOd`.
+    """
+
+    backend = TorchIO.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchIO package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.name = name
+        kwargs["include"] = self.keys
+
+        self.trans = TorchIO(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        return dict(self.trans(data))
+
+
+class RandTorchIOd(MapTransform, RandomizableTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchIO` for randomized transforms.
+    For non-randomized transforms of TorchIO use :py:class:`monai.transforms.TorchIOd`.
+    """
+
+    backend = TorchIO.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchIO package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.name = name
+        kwargs["include"] = self.keys
+
+        self.trans = TorchIO(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        return dict(self.trans(data))
+
+
 class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
@@ -1714,6 +1809,10 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
             Probability the transform is applied to the data
         allow_missing_keys:
             Don't raise exception if key is missing.
+
+    Note:
+        - This transform does not scale output image values automatically to match the range of the input.
+          The output should be scaled by later transforms to match the input if this is desired.
     """
 
     backend = ImageFilter.backend
@@ -1737,6 +1836,99 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         if self._do_transform:
             for key in self.key_iterator(d):
                 d[key] = self.filter(d[key])
+        return d
+
+
+class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ApplyTransformToPoints`.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+    where C represents the number of channels and N denotes the number of points.
+    The output has the same shape as the input.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_keys: The key of the reference item used for transformation.
+            It can directly refer to an affine or an image from which the affine can be derived. It can also be a
+            sequence of keys, in which case each refers to the affine applied to the matching points in `keys`.
+        dtype: The desired data type for the output.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
+            from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
+            Z dimension. While a 4x4 matrix is required for 3D transformations, it's important to note that when
+            applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
+            The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the refer data.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from the image, while the points are in world coordinates.
+            If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
+            matrix are in the same coordinate system.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        refer_keys: KeysCollection | None = None,
+        dtype: DtypeLike | torch.dtype = torch.float64,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.refer_keys = ensure_tuple_rep(refer_keys, len(self.keys))
+        self.converter = ApplyTransformToPoints(
+            dtype=dtype, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+        )
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]):
+        d = dict(data)
+        for key, refer_key in self.key_iterator(d, self.refer_keys):
+            coords = d[key]
+            affine = None  # represents using affine given in constructor
+            if refer_key is not None:
+                if refer_key in d:
+                    refer_data = d[refer_key]
+                else:
+                    raise KeyError(f"The refer_key '{refer_key}' is not found in the data.")
+
+                # use the "affine" member of refer_data, or refer_data itself, as the affine matrix
+                affine = getattr(refer_data, "affine", refer_data)
+            d[key] = self.converter(coords, affine)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter.inverse(d[key])
+        return d
+
+
+class FlattenSequenced(MapTransform, ReduceTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FlattenSequence`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, **kwargs) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.flatten_sequence = FlattenSequence(**kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.flatten_sequence(d[key])  # type: ignore[assignment]
         return d
 
 
@@ -1770,8 +1962,10 @@ ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsCla
     ConvertToMultiChannelBasedOnBratsClassesd
 )
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
+TorchIOD = TorchIODict = TorchIOd
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
+RandTorchIOD = RandTorchIODict = RandTorchIOd
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
@@ -1780,3 +1974,5 @@ CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
+ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd
+FlattenSequenceD = FlattenSequenceDict = FlattenSequenced

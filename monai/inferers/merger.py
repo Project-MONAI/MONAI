@@ -15,12 +15,20 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from contextlib import nullcontext
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple_size, optional_import, require_pkg
+from monai.utils import (
+    deprecated_arg,
+    ensure_tuple_size,
+    get_package_version,
+    optional_import,
+    require_pkg,
+    version_geq,
+)
 
 if TYPE_CHECKING:
     import zarr
@@ -52,8 +60,11 @@ class Merger(ABC):
         cropped_shape: Sequence[int] | None = None,
         device: torch.device | str | None = None,
     ) -> None:
-        self.merged_shape = merged_shape
-        self.cropped_shape = self.merged_shape if cropped_shape is None else cropped_shape
+        if merged_shape is None:
+            raise ValueError("Argument `merged_shape` must be provided")
+
+        self.merged_shape: tuple[int, ...] = tuple(merged_shape)
+        self.cropped_shape: tuple[int, ...] = tuple(self.merged_shape if cropped_shape is None else cropped_shape)
         self.device = device
         self.is_finalized = False
 
@@ -214,15 +225,41 @@ class ZarrAvgMerger(Merger):
         store: the zarr store to save the final results. Default is "merged.zarr".
         value_store: the zarr store to save the value aggregating tensor. Default is a temporary store.
         count_store: the zarr store to save the sample counting tensor. Default is a temporary store.
-        compressor: the compressor for final merged zarr array. Default is "default".
+        compressor: the compressor for final merged zarr array. Default is None.
+            Deprecated since 1.5.0 and will be removed in 1.7.0. Use codecs instead.
         value_compressor: the compressor for value aggregating zarr array. Default is None.
+            Deprecated since 1.5.0 and will be removed in 1.7.0. Use value_codecs instead.
         count_compressor: the compressor for sample counting zarr array. Default is None.
+            Deprecated since 1.5.0 and will be removed in 1.7.0. Use count_codecs instead.
+        codecs: the codecs for final merged zarr array. Default is None.
+            For zarr v3, this is a list of codec configurations. See zarr documentation for details.
+        value_codecs: the codecs for value aggregating zarr array. Default is None.
+            For zarr v3, this is a list of codec configurations. See zarr documentation for details.
+        count_codecs: the codecs for sample counting zarr array. Default is None.
+            For zarr v3, this is a list of codec configurations. See zarr documentation for details.
         chunks : int or tuple of ints that defines the chunk shape, or boolean. Default is True.
             If True, chunk shape will be guessed from `shape` and `dtype`.
             If False, it will be set to `shape`, i.e., single chunk for the whole array.
             If an int, the chunk size in each dimension will be given by the value of `chunks`.
     """
 
+    @deprecated_arg(
+        name="compressor", since="1.5.0", removed="1.7.0", new_name="codecs", msg_suffix="Please use 'codecs' instead."
+    )
+    @deprecated_arg(
+        name="value_compressor",
+        since="1.5.0",
+        removed="1.7.0",
+        new_name="value_codecs",
+        msg_suffix="Please use 'value_codecs' instead.",
+    )
+    @deprecated_arg(
+        name="count_compressor",
+        since="1.5.0",
+        removed="1.7.0",
+        new_name="count_codecs",
+        msg_suffix="Please use 'count_codecs' instead.",
+    )
     def __init__(
         self,
         merged_shape: Sequence[int],
@@ -230,12 +267,15 @@ class ZarrAvgMerger(Merger):
         dtype: np.dtype | str = "float32",
         value_dtype: np.dtype | str = "float32",
         count_dtype: np.dtype | str = "uint8",
-        store: zarr.storage.Store | str = "merged.zarr",
-        value_store: zarr.storage.Store | str | None = None,
-        count_store: zarr.storage.Store | str | None = None,
-        compressor: str = "default",
+        store: zarr.storage.Store | str = "merged.zarr",  # type: ignore
+        value_store: zarr.storage.Store | str | None = None,  # type: ignore
+        count_store: zarr.storage.Store | str | None = None,  # type: ignore
+        compressor: str | None = None,
         value_compressor: str | None = None,
         count_compressor: str | None = None,
+        codecs: list | None = None,
+        value_codecs: list | None = None,
+        count_codecs: list | None = None,
         chunks: Sequence[int] | bool = True,
         thread_locking: bool = True,
     ) -> None:
@@ -246,36 +286,139 @@ class ZarrAvgMerger(Merger):
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
-        self.value_store = zarr.storage.TempStore() if value_store is None else value_store
-        self.count_store = zarr.storage.TempStore() if count_store is None else count_store
+        self.tmpdir: TemporaryDirectory | None
+
+        # Handle zarr v3 vs older versions
+        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
+
+        if is_zarr_v3:
+            if value_store is None:
+                self.tmpdir = TemporaryDirectory()
+                self.value_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
+            else:
+                self.value_store = value_store  # type: ignore
+            if count_store is None:
+                self.tmpdir = TemporaryDirectory()
+                self.count_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
+            else:
+                self.count_store = count_store  # type: ignore
+        else:
+            self.tmpdir = None
+            self.value_store = zarr.storage.TempStore() if value_store is None else value_store  # type: ignore
+            self.count_store = zarr.storage.TempStore() if count_store is None else count_store  # type: ignore
+
         self.chunks = chunks
-        self.compressor = compressor
-        self.value_compressor = value_compressor
-        self.count_compressor = count_compressor
-        self.output = zarr.empty(
-            shape=self.merged_shape,
-            chunks=self.chunks,
-            dtype=self.output_dtype,
-            compressor=self.compressor,
-            store=self.store,
-            overwrite=True,
-        )
-        self.values = zarr.zeros(
-            shape=self.merged_shape,
-            chunks=self.chunks,
-            dtype=self.value_dtype,
-            compressor=self.value_compressor,
-            store=self.value_store,
-            overwrite=True,
-        )
-        self.counts = zarr.zeros(
-            shape=self.merged_shape,
-            chunks=self.chunks,
-            dtype=self.count_dtype,
-            compressor=self.count_compressor,
-            store=self.count_store,
-            overwrite=True,
-        )
+
+        # Handle compressor/codecs based on zarr version
+        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
+
+        # Initialize codecs/compressor attributes with proper types
+        self.codecs: list | None = None
+        self.value_codecs: list | None = None
+        self.count_codecs: list | None = None
+
+        if is_zarr_v3:
+            # For zarr v3, use codecs or convert compressor to codecs
+            if codecs is not None:
+                self.codecs = codecs
+            elif compressor is not None:
+                # Convert compressor to codec format
+                if isinstance(compressor, (list, tuple)):
+                    self.codecs = compressor
+                else:
+                    self.codecs = [compressor]
+            else:
+                self.codecs = None
+
+            if value_codecs is not None:
+                self.value_codecs = value_codecs
+            elif value_compressor is not None:
+                if isinstance(value_compressor, (list, tuple)):
+                    self.value_codecs = value_compressor
+                else:
+                    self.value_codecs = [value_compressor]
+            else:
+                self.value_codecs = None
+
+            if count_codecs is not None:
+                self.count_codecs = count_codecs
+            elif count_compressor is not None:
+                if isinstance(count_compressor, (list, tuple)):
+                    self.count_codecs = count_compressor
+                else:
+                    self.count_codecs = [count_compressor]
+            else:
+                self.count_codecs = None
+        else:
+            # For zarr v2, use compressors
+            if codecs is not None:
+                # If codecs are specified in v2, use the first codec as compressor
+                self.codecs = codecs[0] if isinstance(codecs, (list, tuple)) else codecs
+            else:
+                self.codecs = compressor  # type: ignore[assignment]
+
+            if value_codecs is not None:
+                self.value_codecs = value_codecs[0] if isinstance(value_codecs, (list, tuple)) else value_codecs
+            else:
+                self.value_codecs = value_compressor  # type: ignore[assignment]
+
+            if count_codecs is not None:
+                self.count_codecs = count_codecs[0] if isinstance(count_codecs, (list, tuple)) else count_codecs
+            else:
+                self.count_codecs = count_compressor  # type: ignore[assignment]
+
+        # Create zarr arrays with appropriate parameters based on version
+        if is_zarr_v3:
+            self.output = zarr.empty(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.output_dtype,
+                codecs=self.codecs,
+                store=self.store,
+                overwrite=True,
+            )
+            self.values = zarr.zeros(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.value_dtype,
+                codecs=self.value_codecs,
+                store=self.value_store,
+                overwrite=True,
+            )
+            self.counts = zarr.zeros(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.count_dtype,
+                codecs=self.count_codecs,
+                store=self.count_store,
+                overwrite=True,
+            )
+        else:
+            self.output = zarr.empty(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.output_dtype,
+                compressor=self.codecs,
+                store=self.store,
+                overwrite=True,
+            )
+            self.values = zarr.zeros(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.value_dtype,
+                compressor=self.value_codecs,
+                store=self.value_store,
+                overwrite=True,
+            )
+            self.counts = zarr.zeros(
+                shape=self.merged_shape,
+                chunks=self.chunks,
+                dtype=self.count_dtype,
+                compressor=self.count_codecs,
+                store=self.count_store,
+                overwrite=True,
+            )
+
         self.lock: threading.Lock | nullcontext
         if thread_locking:
             # use lock to protect the in-place addition during aggregation
@@ -299,7 +442,7 @@ class ZarrAvgMerger(Merger):
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
         with self.lock:
             self.values[map_slice] += values.numpy()
-            self.counts[map_slice] += 1
+            self.counts[map_slice] += 1  # type: ignore[operator]
 
     def finalize(self) -> zarr.Array:
         """
@@ -317,7 +460,7 @@ class ZarrAvgMerger(Merger):
         if not self.is_finalized:
             # use chunks for division to fit into memory
             for chunk in iterate_over_chunks(self.values.chunks, self.values.cdata_shape):
-                self.output[chunk] = self.values[chunk] / self.counts[chunk]
+                self.output[chunk] = self.values[chunk] / self.counts[chunk]  # type: ignore[operator]
             # finalize the shape
             self.output.resize(self.cropped_shape)
             # set finalize flag to protect performing in-place division again

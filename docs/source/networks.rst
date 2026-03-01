@@ -109,6 +109,16 @@ Blocks
 .. autoclass:: SABlock
     :members:
 
+`CABlock Block`
+~~~~~~~~~~~~~~~
+.. autoclass:: CABlock
+    :members:
+
+`FeedForward Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FeedForward
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -172,6 +182,16 @@ Blocks
     :members:
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
+
+`Downsampling`
+~~~~~~~~~~~~~~
+.. autoclass:: DownSample
+    :members:
+.. autoclass:: Downsample
+.. autoclass:: SubpixelDownsample
+    :members:
+.. autoclass:: Subpixeldownsample
+.. autoclass:: SubpixelDownSample
 
 `Registration Residual Conv Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -481,6 +501,11 @@ Nets
 .. autoclass:: SegResNetDS
   :members:
 
+`SegResNetDS2`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS2
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -556,6 +581,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`VISTA3D`
+~~~~~~~~~
+.. autoclass:: VISTA3D
+    :members:
+
 `SwinUNETR`
 ~~~~~~~~~~~
 .. autoclass:: SwinUNETR
@@ -615,9 +645,19 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`Restormer`
+~~~~~~~~~~~
+.. autoclass:: restormer
+  :members:
+
 `ViTAutoEnc`
 ~~~~~~~~~~~~
 .. autoclass:: ViTAutoEnc
+  :members:
+
+`MaskedAutoEncoderViT`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MaskedAutoEncoderViT
   :members:
 
 `FullyConnectedNet`
@@ -725,13 +765,8 @@ Nets
 .. autoclass:: VoxelMorphUNet
    :members:
 
-.. autoclass:: voxelmorphunet
-   :members:
-
 .. autoclass:: VoxelMorph
    :members:
-
-.. autoclass:: voxelmorph
 
 Utilities
 ---------
@@ -739,4 +774,39 @@ Utilities
   :members:
 
 .. automodule:: monai.apps.reconstruction.networks.nets.utils
+  :members:
+
+Noise Schedulers
+----------------
+.. automodule:: monai.networks.schedulers
+.. currentmodule:: monai.networks.schedulers
+
+`Scheduler`
+~~~~~~~~~~~
+.. autoclass:: Scheduler
+  :members:
+
+`NoiseSchedules`
+~~~~~~~~~~~~~~~~
+.. autoclass:: NoiseSchedules
+  :members:
+
+`DDPMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDPMScheduler
+  :members:
+
+`DDIMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDIMScheduler
+  :members:
+
+`PNDMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: PNDMScheduler
+  :members:
+
+`RFlowScheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RFlowScheduler
   :members:

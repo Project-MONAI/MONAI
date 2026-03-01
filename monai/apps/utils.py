@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tarfile
@@ -30,7 +31,9 @@ from urllib.request import urlopen, urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
+requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
+BeautifulSoup, has_bs4 = optional_import("bs4", name="BeautifulSoup")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -119,6 +122,38 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
         raise e
 
 
+def safe_extract_member(member, extract_to):
+    """Securely verify compressed package member paths to prevent path traversal attacks"""
+    # Get member path (handle different compression formats)
+    if hasattr(member, "filename"):
+        member_path = member.filename  # zipfile
+    elif hasattr(member, "name"):
+        member_path = member.name  # tarfile
+    else:
+        member_path = str(member)
+
+    if hasattr(member, "issym") and member.issym():
+        raise ValueError(f"Symbolic link detected in archive: {member_path}")
+    if hasattr(member, "islnk") and member.islnk():
+        raise ValueError(f"Hard link detected in archive: {member_path}")
+
+    member_path = os.path.normpath(member_path)
+
+    if os.path.isabs(member_path) or ".." in member_path.split(os.sep):
+        raise ValueError(f"Unsafe path detected in archive: {member_path}")
+
+    full_path = os.path.join(extract_to, member_path)
+    full_path = os.path.normpath(full_path)
+
+    extract_root = os.path.realpath(extract_to)
+    target_real = os.path.realpath(full_path)
+    # Ensure the resolved path stays within the extraction root
+    if os.path.commonpath([extract_root, target_real]) != extract_root:
+        raise ValueError(f"Unsafe path: path traversal {member_path}")
+
+    return full_path
+
+
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
@@ -136,10 +171,7 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
 
-    if sys.version_info >= (3, 9):
-        actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
-    else:
-        actual_hash = actual_hash_func()
+    actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
 
     try:
         with open(filepath, "rb") as f:
@@ -242,6 +274,32 @@ def download_url(
         )
 
 
+def _extract_zip(filepath, output_dir):
+    with zipfile.ZipFile(filepath, "r") as zip_file:
+        for member in zip_file.infolist():
+            safe_path = safe_extract_member(member, output_dir)
+            if member.is_dir():
+                continue
+            os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+            with zip_file.open(member) as source:
+                with open(safe_path, "wb") as target:
+                    shutil.copyfileobj(source, target)
+
+
+def _extract_tar(filepath, output_dir):
+    with tarfile.open(filepath, "r") as tar_file:
+        for member in tar_file.getmembers():
+            safe_path = safe_extract_member(member, output_dir)
+            if not member.isfile():
+                continue
+            os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+            source = tar_file.extractfile(member)
+            if source is not None:
+                with source:
+                    with open(safe_path, "wb") as target:
+                        shutil.copyfileobj(source, target)
+
+
 def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
@@ -287,18 +345,37 @@ def extractall(
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
-        zip_file = zipfile.ZipFile(filepath)
-        zip_file.extractall(output_dir)
-        zip_file.close()
+        _extract_zip(filepath, output_dir)
         return
     if filepath.name.endswith("tar") or filepath.name.endswith("tar.gz") or "tar" in _file_type:
-        tar_file = tarfile.open(filepath)
-        tar_file.extractall(output_dir)
-        tar_file.close()
+        _extract_tar(filepath, output_dir)
         return
     raise NotImplementedError(
         f'Unsupported file type, available options are: ["zip", "tar.gz", "tar"]. name={filepath} type={file_type}.'
     )
+
+
+def get_filename_from_url(data_url: str) -> str:
+    """
+    Get the filename from the URL link.
+    """
+    try:
+        response = requests.head(data_url, allow_redirects=True)
+        content_disposition = response.headers.get("Content-Disposition")
+        if content_disposition:
+            filename = re.findall('filename="?([^";]+)"?', content_disposition)
+            if filename:
+                return str(filename[0])
+        if "drive.google.com" in data_url:
+            response = requests.get(data_url)
+            if "text/html" in response.headers.get("Content-Type", ""):
+                soup = BeautifulSoup(response.text, "html.parser")
+                filename_div = soup.find("span", {"class": "uc-name-size"})
+                if filename_div:
+                    return str(filename_div.find("a").text)
+        return _basename(data_url)
+    except Exception as e:
+        raise Exception(f"Error processing URL: {e}") from e
 
 
 def download_and_extract(
@@ -330,7 +407,18 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
+    url_filename_ext = "".join(Path(get_filename_from_url(url)).suffixes)
+    filepath_ext = "".join(Path(_basename(filepath)).suffixes)
+    if filepath not in ["", "."]:
+        if filepath_ext == "":
+            new_filepath = Path(filepath).with_suffix(url_filename_ext)
+            logger.warning(
+                f"filepath={filepath}, which missing file extension. Auto-appending extension to: {new_filepath}"
+            )
+            filepath = new_filepath
+    if filepath_ext and filepath_ext != url_filename_ext:
+        raise ValueError(f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or Path(tmp_dir, _basename(url)).resolve()
+        filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)

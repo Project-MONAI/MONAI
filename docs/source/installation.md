@@ -19,7 +19,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.8) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.9) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
@@ -58,10 +58,10 @@ pip install monai-weekly
 ```
 
 The weekly build is released to PyPI every Sunday with a pre-release build number `dev[%y%U]`.
-To report any issues on the weekly preview, please include the version and commit information:
+To report any issues on the weekly preview, please include the version information:
 
 ```bash
-python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+python -c "import monai; print(monai.__version__)"
 ```
 
 Coexistence of package `monai` and `monai-weekly` in a system may cause namespace conflicts
@@ -101,20 +101,20 @@ for the latest features:
 ### Option 1 (as a part of your system-wide module):
 
 ```bash
-pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
+pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 or, to build with MONAI C++/CUDA extensions:
 
 ```bash
-BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
+BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 To build the extensions, if the system environment already has a version of Pytorch installed,
 `--no-build-isolation` might be preferred:
 
 ```bash
-BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI#egg=monai
+BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
 ```
 
 this command will download and install the current `dev` branch of [MONAI from
@@ -135,23 +135,23 @@ You can install it by running:
 
 ```bash
 cd MONAI/
-python setup.py develop
+pip install -e .
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
 
 ```bash
 cd MONAI/
-BUILD_MONAI=1 python setup.py develop
+BUILD_MONAI=1 pip install -e .
 # for MacOS
-BUILD_MONAI=1 CC=clang CXX=clang++ python setup.py develop
+BUILD_MONAI=1 CC=clang CXX=clang++ pip install -e .
 ```
 
 To uninstall the package please run:
 
 ```bash
 cd MONAI/
-python setup.py develop --uninstall
+pip uninstall -y monai
 
 # to further clean up the MONAI/ folder (Bash script)
 ./runtests.sh --clean
@@ -258,6 +258,6 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 ```
 
 which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, and `huggingface_hub` respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub` and `pyamg` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

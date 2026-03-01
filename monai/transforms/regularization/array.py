@@ -17,9 +17,8 @@ from math import ceil, sqrt
 import torch
 
 from monai.data.meta_obj import get_track_meta
+from monai.transforms.transform import RandomizableTransform
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
-
-from ..transform import RandomizableTransform
 
 __all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 
@@ -41,7 +40,7 @@ class Mixer(RandomizableTransform):
         """
         super().__init__()
         if alpha <= 0:
-            raise ValueError(f"Expected positive number, but got {alpha = }")
+            raise ValueError(f"Expected positive number, but got {alpha=}")
         self.alpha = alpha
         self.batch_size = batch_size
 
@@ -87,12 +86,14 @@ class MixUp(Mixer):
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
         data_t = convert_to_tensor(data, track_meta=get_track_meta())
+        labels_t = data_t  # will not stay this value, needed to satisfy pylint/mypy
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
         if randomize:
             self.randomize()
         if labels is None:
             return convert_to_dst_type(self.apply(data_t), dst=data)[0]
+
         return (
             convert_to_dst_type(self.apply(data_t), dst=data)[0],
             convert_to_dst_type(self.apply(labels_t), dst=labels)[0],
@@ -109,6 +110,11 @@ class CutMix(Mixer):
         documentation for details on the constructor parameters. Here, alpha not only determines
         the mixing weight but also the size of the random rectangles used during for mixing.
         Please refer to the paper for details.
+
+        Please note that there is a change in behavior starting from version 1.4.0. In the previous
+        implementation, the transform would generate a different label each time it was called.
+        To ensure determinism, the new implementation will now generate the same label for
+        the same input image when using the same operation.
 
         The most common use case is something close to:
 
@@ -149,11 +155,13 @@ class CutMix(Mixer):
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
         data_t = convert_to_tensor(data, track_meta=get_track_meta())
+        augmented_label = None
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
         if randomize:
             self.randomize(data)
         augmented = convert_to_dst_type(self.apply(data_t), dst=data)[0]
+
         if labels is not None:
             augmented_label = convert_to_dst_type(self.apply(labels_t), dst=labels)[0]
         return (augmented, augmented_label) if labels is not None else augmented

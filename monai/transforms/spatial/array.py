@@ -15,16 +15,17 @@ A collection of "vanilla" transforms for spatial operations.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from itertools import zip_longest
-from typing import Any, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
@@ -34,6 +35,8 @@ from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCro
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
+    convert_box_to_points,
+    convert_points_to_box,
     flip,
     orientation,
     resize,
@@ -61,6 +64,7 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    SpaceKeys,
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
@@ -72,6 +76,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
@@ -113,7 +118,7 @@ __all__ = [
     "RandSimulateLowResolution",
 ]
 
-RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
+RandRange = Optional[Union[Sequence[Union[tuple[float, float], float]], float]]
 
 
 class SpatialResample(InvertibleTransform, LazyTransform):
@@ -553,11 +558,20 @@ class Orientation(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
+    @deprecated_arg_default(
+        name="labels",
+        old_default=(("L", "R"), ("P", "A"), ("I", "S")),
+        new_default=None,
+        msg_suffix=(
+            "Default value changed to None meaning that the transform now uses the 'space' of a "
+            "meta-tensor, if applicable, to determine appropriate axis labels."
+        ),
+    )
     def __init__(
         self,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        labels: Sequence[tuple[str, str]] | None = None,
         lazy: bool = False,
     ) -> None:
         """
@@ -570,7 +584,14 @@ class Orientation(InvertibleTransform, LazyTransform):
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+                If ``None``, an appropriate value is chosen depending on the
+                value of the ``"space"`` metadata item of a metatensor: if
+                ``"space"`` is ``"LPS"``, the value used is ``(('R', 'L'),
+                ('A', 'P'), ('I', 'S'))``, if ``"space"`` is ``"RPS"`` or the
+                input is not a meta-tensor or has no ``"space"`` item, the
+                value ``(('L', 'R'), ('P', 'A'), ('I', 'S'))`` is used. If not
+                ``None``, the provided value is always used and the ``"space"``
+                metadata item (if any) of the input is ignored.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
@@ -616,9 +637,19 @@ class Orientation(InvertibleTransform, LazyTransform):
             raise ValueError(f"data_array must have at least one spatial dimension, got {spatial_shape}.")
         affine_: np.ndarray
         affine_np: np.ndarray
+        labels = self.labels
         if isinstance(data_array, MetaTensor):
             affine_np, *_ = convert_data_type(data_array.peek_pending_affine(), np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
+
+            # Set up "labels" such that LPS tensors are handled correctly by default
+            if (
+                self.labels is None
+                and "space" in data_array.meta
+                and SpaceKeys(data_array.meta["space"]) == SpaceKeys.LPS
+            ):
+                labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
         else:
             warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -637,7 +668,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"{self.__class__.__name__}: spatial shape = {spatial_shape}, channels = {data_array.shape[0]},"
                     "please make sure the input is in the channel-first format."
                 )
-            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
+            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=labels)
             if len(dst) < sr:
                 raise ValueError(
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
@@ -650,8 +681,19 @@ class Orientation(InvertibleTransform, LazyTransform):
         transform = self.pop_transform(data)
         # Create inverse transform
         orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
-        orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
-        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
+        labels = self.labels
+
+        # Set up "labels" such that LPS tensors are handled correctly by default
+        if (
+            isinstance(data, MetaTensor)
+            and self.labels is None
+            and "space" in data.meta
+            and SpaceKeys(data.meta["space"]) == SpaceKeys.LPS
+        ):
+            labels = (("R", "L"), ("A", "P"), ("I", "S"))  # value for LPS
+
+        orig_axcodes = nib.orientations.aff2axcodes(orig_affine, labels=labels)
+        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=labels)
         # Apply inverse
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data)
@@ -1105,6 +1147,7 @@ class Zoom(InvertibleTransform, LazyTransform):
             _dtype,
             lazy=lazy_,
             transform_info=self.get_transform_info(),
+            **self.kwargs,
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1736,6 +1779,8 @@ class AffineGrid(LazyTransform):
 
         """
         lazy_ = self.lazy if lazy is None else lazy
+        _device: torch.device | None
+
         if not lazy_:
             if grid is None:  # create grid from spatial_size
                 if spatial_size is None:
@@ -1745,23 +1790,23 @@ class AffineGrid(LazyTransform):
                 grid_ = grid
             _dtype = self.dtype or grid_.dtype
             grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
-            _device = grid_.device  # type: ignore
+            _device = torch.device(grid_.device)  # type: ignore
             spatial_dims = len(grid_.shape) - 1
         else:
-            _device = self.device
+            _device = self.device  # type: ignore[assignment]
             spatial_dims = len(spatial_size)  # type: ignore
         _b = TransformBackends.TORCH
         affine: torch.Tensor
         if self.affine is None:
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
-                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
+                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.shear_params:
-                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
+                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.translate_params:
-                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
+                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.scale_params:
-                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
+                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)  # type: ignore[assignment]
         else:
             affine = self.affine  # type: ignore
         affine = to_affine_nd(spatial_dims, affine)
@@ -1777,7 +1822,7 @@ class AffineGrid(LazyTransform):
             grid_ = ((affine @ sc) @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:
             grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
-        return grid_, affine
+        return grid_, affine  # type: ignore[return-value]
 
 
 class RandAffineGrid(Randomizable, LazyTransform):
@@ -1978,7 +2023,7 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -1986,7 +2031,7 @@ class Resample(Transform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2030,7 +2075,7 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2038,7 +2083,7 @@ class Resample(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                See also: https://monai.readthedocs.io/en/stable/networks.html#grid-pull (experimental).
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
@@ -2390,6 +2435,13 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        Note:
+            The affine transformations in MONAI use a 'backward mapping' (image-to-grid) logic.
+            This can be counter-intuitive:
+            - Translation: A positive value shifts the image in the negative direction.
+            - Scaling: Positive scale_range values decrease the image size; values in [-1, 0) increase it.
+            - Rotation: The direction (CW/CCW) may vary depending on the axis.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -3254,7 +3306,7 @@ class GridPatch(Transform, MultiSampleTrait):
             tuple[NdarrayOrTensor, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
-        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)  # type: ignore[operator]
         idx_np = convert_data_type(idx, np.ndarray)[0]
         return image_np[idx], locations[idx_np]
 
@@ -3305,6 +3357,7 @@ class GridPatch(Transform, MultiSampleTrait):
             **self.pad_kwargs,
         )
         patches = list(zip(*patch_iterator))
+        patched_image: NdarrayOrTensor
         patched_image = np.stack(patches[0]) if isinstance(array, np.ndarray) else torch.stack(patches[0])
         locations = np.stack(patches[1])[:, 1:, 0]  # only keep the starting location
 
@@ -3441,7 +3494,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             idx = self.R.permutation(image_np.shape[0])
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]
+            image_np = image_np[idx]  # type: ignore[index]
             locations = locations[idx_np]
             return image_np, locations
         elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):
@@ -3512,7 +3565,7 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         if self._do_transform:
             input_shape = img.shape[1:]
-            target_shape = np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_)
+            target_shape = tuple(np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_).tolist())
 
             resize_tfm_downsample = Resize(
                 spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False
@@ -3544,3 +3597,44 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
+
+
+class ConvertBoxToPoints(Transform):
+    """
+    Converts an axis-aligned bounding box to points. It can automatically convert the boxes to the points based on the box mode.
+    Bounding boxes of the shape (N, C) for N boxes. C is [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2] for 3D for each box.
+    Return shape will be (N, 4, 2) for 2D or (N, 8, 3) for 3D.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = None) -> None:
+        """
+        Args:
+            mode: the mode of the box, can be a string, a BoxMode instance or a BoxMode class. Defaults to StandardMode.
+        """
+        super().__init__()
+        self.mode = StandardMode if mode is None else mode
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        points = convert_box_to_points(data, mode=self.mode)
+        return convert_to_dst_type(points, data)[0]
+
+
+class ConvertPointsToBoxes(Transform):
+    """
+    Converts points to an axis-aligned bounding box.
+    Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of a 3D cuboid or
+    (N, 4, 2) for the 4 corners of a 2D rectangle.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        box = convert_points_to_box(data)
+        return convert_to_dst_type(box, data)[0]

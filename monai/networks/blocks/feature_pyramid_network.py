@@ -54,7 +54,9 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Callable
+from typing import cast
 
+import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
@@ -83,7 +85,6 @@ class ExtraFPNBlock(nn.Module):
             - the extended set of results of the FPN
             - the extended set of names for the results
         """
-        pass
 
 
 class LastLevelMaxPool(ExtraFPNBlock):
@@ -194,8 +195,8 @@ class FeaturePyramidNetwork(nn.Module):
         conv_type_: type[nn.Module] = Conv[Conv.CONV, spatial_dims]
         for m in self.modules():
             if isinstance(m, conv_type_):
-                nn.init.kaiming_uniform_(m.weight, a=1)
-                nn.init.constant_(m.bias, 0.0)
+                nn.init.kaiming_uniform_(cast(torch.Tensor, m.weight), a=1)
+                nn.init.constant_(cast(torch.Tensor, m.bias), 0.0)
 
         if extra_blocks is not None:
             if not isinstance(extra_blocks, ExtraFPNBlock):

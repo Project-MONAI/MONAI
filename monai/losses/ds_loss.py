@@ -11,13 +11,9 @@
 
 from __future__ import annotations
 
-from typing import Union
-
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
-
-from monai.utils import pytorch_after
 
 
 class DeepSupervisionLoss(_Loss):
@@ -42,7 +38,7 @@ class DeepSupervisionLoss(_Loss):
         self.loss = loss
         self.weight_mode = weight_mode
         self.weights = weights
-        self.interp_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
+        self.interp_mode = "nearest-exact"
 
     def get_weights(self, levels: int = 1) -> list[float]:
         """
@@ -72,7 +68,7 @@ class DeepSupervisionLoss(_Loss):
             target = F.interpolate(target, size=input.shape[2:], mode=self.interp_mode)
         return self.loss(input, target)  # type: ignore[no-any-return]
 
-    def forward(self, input: Union[None, torch.Tensor, list[torch.Tensor]], target: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: None | torch.Tensor | list[torch.Tensor], target: torch.Tensor) -> torch.Tensor:
         if isinstance(input, (list, tuple)):
             weights = self.get_weights(levels=len(input))
             loss = torch.tensor(0, dtype=torch.float, device=target.device)

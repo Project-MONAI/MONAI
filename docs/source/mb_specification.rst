@@ -63,12 +63,12 @@ This file contains the metadata information relating to the model, including wha
 * **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
 * **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
 * **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
-* **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be installed with this stated minimum version.
+* **required_packages_version**: dictionary relating required package names to their versions. These are packages in addition to the base requirements of MONAI which this bundle absolutely needs. For example, if the bundle must load Nifti files the Nibabel package will be required.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
 * **authors**: state author(s) of the model.
 * **copyright**: state model copyright.
-* **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below).
+* **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the (primary) model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below). There is also an optional "post_processed_outputs" key stating the format of "outputs" after postprocessing transforms are applied, this is used to describe the final output from the bundle if it varies from the raw network output. These keys can also relate to primitive values (number, string, boolean), instead of the tensor format specified below.
 
 Tensor format specifiers are used to define input and output tensors and their meanings, and must be a dictionary containing at least these keys:
 
@@ -89,6 +89,8 @@ Optional keys:
 * **data_source**: description of where training/validation can be sourced.
 * **data_type**: type of source data used for training/validation.
 * **references**: list of published referenced relating to the model.
+* **supported_apps**: list of supported applications which use bundles, eg. 'monai-label' would be present if the bundle is compatible with MONAI Label applications.
+* **\*_data_format**: defines the format, shape, and meaning of inputs and outputs to additional models which are secondary to the main model. This contains the same sort of information as **network_data_format** which describes networks providing secondary functionality, eg. a localisation network used to identify ROI in an image for cropping before data is sent to the primary network of this bundle.
 
 The format for tensors used as inputs and outputs can be used to specify semantic meaning of these values, and later is used by software handling bundles to determine how to process and interpret this data. There are various types of image data that MONAI is uses, and other data types such as point clouds, dictionary sequences, time signals, and others. The following list is provided as a set of supported definitions of what a tensor "format" is but is not exhaustive and users can provide their own which would be left up to the model users to interpret:
 
@@ -124,7 +126,7 @@ An example JSON metadata file:
       "monai_version": "0.9.0",
       "pytorch_version": "1.10.0",
       "numpy_version": "1.21.2",
-      "optional_packages_version": {"nibabel": "3.2.1"},
+      "required_packages_version": {"nibabel": "3.2.1"},
       "task": "Decathlon spleen segmentation",
       "description": "A pre-trained model for volumetric (3D) segmentation of the spleen from CT image",
       "authors": "MONAI team",

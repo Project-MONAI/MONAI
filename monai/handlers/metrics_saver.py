@@ -14,9 +14,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
 from monai.data import decollate_batch
 from monai.handlers.utils import write_metrics_reports
+from monai.utils import IgniteInfo
 from monai.utils import ImageMetaKey as Key
 from monai.utils import ensure_tuple, min_version, optional_import, string_list_all_gather
 

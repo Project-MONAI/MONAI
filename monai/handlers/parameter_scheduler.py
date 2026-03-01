@@ -16,8 +16,7 @@ from bisect import bisect_right
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events

@@ -240,7 +240,7 @@ class ResNet(nn.Module):
             elif block == "bottleneck":
                 block = ResNetBottleneck
             else:
-                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
+                raise ValueError(f"Unknown block '{block}', use basic or bottleneck")
 
         conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
@@ -493,7 +493,7 @@ def _resnet(
         if isinstance(pretrained, str):
             if Path(pretrained).exists():
                 logger.info(f"Loading weights from {pretrained}...")
-                model_state_dict = torch.load(pretrained, map_location=device)
+                model_state_dict = torch.load(pretrained, map_location=device, weights_only=True)
             else:
                 # Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
@@ -510,7 +510,7 @@ def _resnet(
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
                     if shortcut_type == kwargs.get("shortcut_type", "B") and (
-                        bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True
+                        bias_downsample == kwargs.get("bias_downsample", True)
                     ):
                         # Download the MedicalNet pretrained model
                         model_state_dict = get_pretrained_resnet_medicalnet(
@@ -518,8 +518,7 @@ def _resnet(
                         )
                     else:
                         raise NotImplementedError(
-                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to"
-                            f"{bool(bias_downsample) if bias_downsample!=-1 else 'True or False'}"
+                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bias_downsample} "
                             f"when using pretrained MedicalNet resnet{resnet_depth}"
                         )
                 else:
@@ -666,7 +665,7 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", dat
                 raise EntryNotFoundError(
                     f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
                 ) from None
-        checkpoint = torch.load(pretrained_path, map_location=torch.device(device))
+        checkpoint = torch.load(pretrained_path, map_location=torch.device(device), weights_only=True)
     else:
         raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")
     logger.info(f"{filename} downloaded")
@@ -681,7 +680,7 @@ def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
     # After testing
     # False: 10, 50, 101, 152, 200
     # Any: 18, 34
-    bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
+    bias_downsample = resnet_depth in (18, 34)
     shortcut_type = "A" if resnet_depth in [18, 34] else "B"
     return bias_downsample, shortcut_type
 

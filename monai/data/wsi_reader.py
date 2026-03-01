@@ -210,7 +210,9 @@ class BaseWSIReader(ImageReader):
                 # Set the default value if no resolution parameter is provided.
                 level = 0
             if level >= n_levels:
-                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+                raise ValueError(
+                    f"The maximum level of this image is {n_levels - 1} while level={level} is requested)!"
+                )
 
         return level
 
@@ -1097,8 +1099,8 @@ class TiffFileWSIReader(BaseWSIReader):
         ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
             if unit is not None:
-                unit = str(unit.value)[8:]
-            else:
+                unit = str(unit.value.name)
+            if unit is None or len(unit) == 0:
                 warnings.warn("The resolution unit is missing. `micrometer` will be used as default.")
                 unit = "micrometer"
 

@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Sequence
 
 import torch
 import torch.nn.functional as F
@@ -31,7 +31,6 @@ from monai.utils import (
     issequenceiterable,
     look_up_option,
     optional_import,
-    pytorch_after,
 )
 
 _C, _ = optional_import("monai._C")
@@ -293,14 +292,7 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
     if "padding" not in kwargs:
-        if pytorch_after(1, 10):
-            kwargs["padding"] = "same"
-        else:
-            # even-sized kernels are not supported
-            kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
-    elif kwargs["padding"] == "same" and not pytorch_after(1, 10):
-        # even-sized kernels are not supported
-        kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+        kwargs["padding"] = "same"
 
     if "stride" not in kwargs:
         kwargs["stride"] = 1
@@ -372,11 +364,7 @@ class SavitzkyGolayFilter(nn.Module):
         a = idx ** torch.arange(order + 1, dtype=torch.float, device="cpu").reshape(-1, 1)
         y = torch.zeros(order + 1, dtype=torch.float, device="cpu")
         y[0] = 1.0
-        return (
-            torch.lstsq(y, a).solution.squeeze()  # type: ignore
-            if not pytorch_after(1, 11)
-            else torch.linalg.lstsq(a, y).solution.squeeze()
-        )
+        return torch.linalg.lstsq(a, y).solution.squeeze()
 
 
 class HilbertTransform(nn.Module):
@@ -452,7 +440,7 @@ def get_binary_kernel(window_size: Sequence[int], dtype=torch.float, device=None
 
 def median_filter(
     in_tensor: torch.Tensor,
-    kernel_size: Sequence[int] = (3, 3, 3),
+    kernel_size: Sequence[int] | int = (3, 3, 3),
     spatial_dims: int = 3,
     kernel: torch.Tensor | None = None,
     **kwargs,

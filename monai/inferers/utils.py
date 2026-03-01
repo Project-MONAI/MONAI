@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Iterable
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -31,11 +31,10 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
     optional_import,
-    pytorch_after,
 )
 
 tqdm, _ = optional_import("tqdm", name="tqdm")
-_nearest_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
+_nearest_mode = "nearest-exact"
 
 __all__ = ["sliding_window_inference"]
 
@@ -77,7 +76,8 @@ def sliding_window_inference(
 
     Args:
         inputs: input image to be processed (assuming NCHW[D])
-        roi_size: the spatial window size for inferences.
+        roi_size: the spatial window size for inferences, this must be a single value or a tuple with values
+            for each spatial dimension (eg. 2 for 2D, 3 for 3D).
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
@@ -132,11 +132,30 @@ def sliding_window_inference(
         kwargs: optional keyword args to be passed to ``predictor``.
 
     Note:
-        - input must be channel-first and have a batch dim, supports N-D sliding window.
+        - Inputs must be channel-first and have a batch dim (NCHW / NCDHW).
+        - If your data is NHWC/NDHWC, please apply `EnsureChannelFirst` / `EnsureChannelFirstd` upstream.
+
+    Raises:
+        ValueError: When the input dimensions do not match the expected dimensions based on ``roi_size``.
 
     """
-    buffered = buffer_steps is not None and buffer_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
+
+    # Only perform strict shape validation if roi_size is a sequence (explicit dimensions).
+    # If roi_size is an integer, it is broadcast to all dimensions, so we cannot
+    # infer the expected dimensionality to enforce a strict check here.
+    if isinstance(roi_size, Sequence):
+        roi_dims = len(roi_size)
+        if num_spatial_dims != roi_dims:
+            raise ValueError(
+                f"Inputs must have {roi_dims + 2} dimensions for {roi_dims}D roi_size "
+                f"(Batch, Channel, {', '.join(['Spatial'] * roi_dims)}), "
+                f"but got inputs shape {inputs.shape}.\n"
+                "If you have channel-last data (e.g. B, D, H, W, C), please use "
+                "monai.transforms.EnsureChannelFirst or EnsureChannelFirstd upstream."
+            )
+    # -----------------------------------------------------------------
+    buffered = buffer_steps is not None and buffer_steps > 0
     if buffered:
         if buffer_dim < -num_spatial_dims or buffer_dim > num_spatial_dims:
             raise ValueError(f"buffer_dim must be in [{-num_spatial_dims}, {num_spatial_dims}], got {buffer_dim}.")
@@ -154,6 +173,8 @@ def sliding_window_inference(
     device = device or inputs.device
     sw_device = sw_device or inputs.device
 
+    condition = kwargs.pop("condition", None)
+
     temp_meta = None
     if isinstance(inputs, MetaTensor):
         temp_meta = MetaTensor([]).copy_meta_from(inputs, copy_attr=False)
@@ -169,6 +190,8 @@ def sliding_window_inference(
         pad_size.extend([half, diff - half])
     if any(pad_size):
         inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+        if condition is not None:
+            condition = F.pad(condition, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     # Store all slices
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
@@ -221,13 +244,19 @@ def sliding_window_inference(
         ]
         if sw_batch_size > 1:
             win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+            if condition is not None:
+                win_condition = torch.cat([condition[win_slice] for win_slice in unravel_slice]).to(sw_device)
+                kwargs["condition"] = win_condition
         else:
             win_data = inputs[unravel_slice[0]].to(sw_device)
-        if with_coord:
-            seg_prob_out = predictor(win_data, unravel_slice, *args, **kwargs)  # batched patch
-        else:
-            seg_prob_out = predictor(win_data, *args, **kwargs)  # batched patch
+            if condition is not None:
+                win_condition = condition[unravel_slice[0]].to(sw_device)
+                kwargs["condition"] = win_condition
 
+        if with_coord:
+            seg_prob_out = predictor(win_data, unravel_slice, *args, **kwargs)
+        else:
+            seg_prob_out = predictor(win_data, *args, **kwargs)
         # convert seg_prob_out to tuple seg_tuple, this does not allocate new memory.
         dict_keys, seg_tuple = _flatten_struct(seg_prob_out)
         if process_fn:
@@ -300,6 +329,7 @@ def sliding_window_inference(
 
     # remove padding if image_size smaller than roi_size
     if any(pad_size):
+        kwargs.update({"pad_size": pad_size})
         for ss, output_i in enumerate(output_image_list):
             zoom_scale = [_shape_d / _roi_size_d for _shape_d, _roi_size_d in zip(output_i.shape[2:], roi_size)]
             final_slicing: list[slice] = []

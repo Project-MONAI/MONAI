@@ -11,7 +11,7 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.03-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:25.12-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
@@ -41,6 +41,7 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
 COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py setup.cfg runtests.sh MANIFEST.in ./
 COPY tests ./tests
 COPY monai ./monai
+
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 
@@ -56,4 +57,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
+ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
+
+
 WORKDIR /opt/monai

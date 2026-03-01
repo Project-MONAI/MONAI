@@ -17,12 +17,6 @@ Module utils
   :members:
 
 
-Aliases
--------
-.. automodule:: monai.utils.aliases
-  :members:
-
-
 Misc
 ----
 .. automodule:: monai.utils.misc
@@ -80,4 +74,9 @@ State Cacher
 Component store
 ---------------
 .. autoclass:: monai.utils.component_store.ComponentStore
+  :members:
+
+Ordering
+--------
+.. automodule:: monai.utils.ordering
   :members:

@@ -17,7 +17,7 @@ import re
 import sys
 import warnings
 
-import pkg_resources
+from packaging import version
 from setuptools import find_packages, setup
 
 import versioneer
@@ -40,7 +40,7 @@ try:
 
     BUILD_CUDA = FORCE_CUDA or (torch.cuda.is_available() and (CUDA_HOME is not None))
 
-    _pt_version = pkg_resources.parse_version(torch.__version__).release
+    _pt_version = version.parse(torch.__version__).release
     if _pt_version is None or len(_pt_version) < 3:
         raise AssertionError("unknown torch version")
     TORCH_VERSION = int(_pt_version[0]) * 10000 + int(_pt_version[1]) * 100 + int(_pt_version[2])
@@ -146,6 +146,6 @@ setup(
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests")),
     zip_safe=False,
-    package_data={"monai": ["py.typed", *jit_extension_source]},
+    package_data={"monai": ["py.typed", *jit_extension_source]},  # type: ignore[arg-type]
     ext_modules=get_extensions(),
 )
