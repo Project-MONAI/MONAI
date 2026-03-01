@@ -116,7 +116,6 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        # map common extensions to their required package
         install_hints: dict = {
             "nii": "nibabel",
             "nii.gz": "nibabel",
