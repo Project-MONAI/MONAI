@@ -116,7 +116,23 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        # map common extensions to their required package
+        install_hints: dict = {
+            "nii": "nibabel",
+            "nii.gz": "nibabel",
+            "mha": "itk",
+            "mhd": "itk",
+            "nrrd": "itk",
+            "png": "pillow",
+            "jpg": "pillow",
+            "jpeg": "pillow",
+            "tif": "pillow",
+            "tiff": "pillow",
+            "bmp": "pillow",
+        }
+        hint = install_hints.get(fmt)
+        extra = f" Try installing the required package: pip install {hint}" if hint else ""
+        raise OptionalImportError(f"No ImageWriter backend found for '{fmt}'.{extra}")
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
