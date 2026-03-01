@@ -26,7 +26,7 @@ import monai.transforms as mt
 from monai.data import create_test_image_3d, decollate_batch
 from monai.transforms.utils import has_status_keys
 from monai.utils import TraceStatusKeys, set_determinism
-from tests.test_utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.test_utils import HAS_CUPY, DistTestCase, skip_if_quick
 
 
 def _no_op(x):
@@ -136,13 +136,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 np.testing.assert_array_equal(in_seg.pending_operations, [])
                 ops = [0]
                 if len(item.applied_operations) > 1:
-                    found = False
-                    for idx, n in enumerate(item.applied_operations):  # noqa
+                    for idx, n in enumerate(item.applied_operations):
                         if n["class"] == "RandCropByPosNegLabel":
-                            found = True
+                            ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                             break
-                    if found:
-                        ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                 img_name = os.path.basename(item.meta["filename_or_obj"])
                 coords = f"{img_name} - {ops}"
                 print(coords)
@@ -158,7 +155,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 11))
 class IntegrationLazyResampling(DistTestCase):
     def setUp(self):
         monai.config.print_config()

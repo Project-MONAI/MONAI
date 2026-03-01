@@ -153,7 +153,7 @@ class _DecoderBlock(nn.Sequential):
                 padding=padding,
             )
             _in_channels += out_channels
-            self.add_module("denselayerdecoder%d" % (i + 1), layer)
+            self.add_module(f"denselayerdecoder{i + 1}", layer)
 
         trans = _Transition(_in_channels, act=act, norm=norm)
         self.add_module("bna_block", trans)

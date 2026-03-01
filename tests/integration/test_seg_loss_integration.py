@@ -21,6 +21,7 @@ from parameterized import parameterized
 
 from monai.losses import DiceLoss, FocalLoss, GeneralizedDiceLoss, TverskyLoss
 from monai.networks import one_hot
+from monai.utils import set_determinism
 
 TEST_CASES = [
     [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4}, {}],
@@ -49,14 +50,11 @@ TEST_CASES = [
 class TestSegLossIntegration(unittest.TestCase):
 
     def setUp(self):
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.manual_seed(0)
+        set_determinism(0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        torch.backends.cudnn.deterministic = False
-        torch.backends.cudnn.benchmark = True
+        set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
     def test_convergence(self, loss_type, loss_args, forward_args):

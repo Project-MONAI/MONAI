@@ -58,7 +58,6 @@ from monai.utils import (
     SplineMode,
     TraceKeys,
     TraceStatusKeys,
-    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -509,7 +508,7 @@ def map_classes_to_indices(
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
         check_non_lazy_pending_ops(image, name="map_classes_to_indices")
-        img_flat = ravel((image > image_threshold).any(0))
+        img_flat = ravel((image > image_threshold).any(0))  # type: ignore
 
     # assuming the first dimension is channel
     channels = len(label)
@@ -1067,13 +1066,12 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
-@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
-    allow_smaller: bool = True,
+    allow_smaller: bool = False,
 ) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -1093,8 +1091,9 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
-                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
-                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+            final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+            the bounding boxes edges are aligned with the final box edges. Default to `False`.
+            The default value is changed from `True` to `False` in v1.5.0.
 
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
@@ -2499,7 +2498,7 @@ def distance_transform_edt(
         if return_indices:
             dtype = torch.int32
             if indices is None:
-                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+                indices = torch.zeros((img.shape[0],) + (img.dim() - 1,) + img.shape[1:], dtype=dtype)  # type: ignore
             else:
                 if not isinstance(indices, torch.Tensor) and indices.device != img.device:
                     raise TypeError("indices must be a torch.Tensor on the same device as img")
@@ -2533,7 +2532,7 @@ def distance_transform_edt(
                     raise TypeError("distances must be a numpy.ndarray of dtype float64")
         if return_indices:
             if indices is None:
-                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+                indices = np.zeros((img_.shape[0],) + (img_.ndim - 1,) + img_.shape[1:], dtype=np.int32)
             else:
                 if not isinstance(indices, np.ndarray):
                     raise TypeError("indices must be a numpy.ndarray")

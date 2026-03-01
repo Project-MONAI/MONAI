@@ -57,7 +57,7 @@ class TestCacheDataset(unittest.TestCase):
             self.assertEqual(len(data3), 1)
 
             if transform is None:
-                # Check without providing transfrom
+                # Check without providing transform
                 dataset2 = CacheDataset(data=test_data, cache_rate=0.5, as_contiguous=True)
                 for k in ["image", "label", "extra"]:
                     self.assertEqual(dataset[0][k], dataset2[0][k])

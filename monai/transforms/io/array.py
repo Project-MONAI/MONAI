@@ -43,9 +43,9 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import is_no_channel
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import GridSamplePadMode
-from monai.utils import ImageMetaKey as Key
 from monai.utils import (
+    GridSamplePadMode,
+    ImageMetaKey,
     MetaKeys,
     OptionalImportError,
     convert_to_dst_type,
@@ -282,7 +282,7 @@ class LoadImage(Transform):
             raise RuntimeError(
                 f"{self.__class__.__name__} cannot find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
-                "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+                "    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n{msg}"
             )
         img_array: NdarrayOrTensor
@@ -293,7 +293,8 @@ class LoadImage(Transform):
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
-        meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
+        # Path obj should be strings for data loader
+        meta_data[ImageMetaKey.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"
         img = MetaTensor.ensure_torch_and_prune_meta(
             img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
         )
@@ -518,7 +519,7 @@ class SaveImage(Transform):
         raise RuntimeError(
             f"{self.__class__.__name__} cannot find a suitable writer for {filename}.\n"
             "    Please install the writer libraries, see also the installation instructions:\n"
-            "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+            "    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
 
@@ -548,7 +549,7 @@ class WriteFileMapping(Transform):
                 "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True."
             )
 
-        input_path = meta_data[Key.FILENAME_OR_OBJ]
+        input_path = meta_data[ImageMetaKey.FILENAME_OR_OBJ]
         output_path = meta_data[MetaKeys.SAVED_TO]
         log_data = {"input": input_path, "output": output_path}
 

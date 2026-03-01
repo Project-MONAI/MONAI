@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable, Sequence
-from functools import lru_cache, partial
+from functools import cache, partial
 from types import ModuleType
 from typing import Any
 
@@ -30,7 +30,6 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     deprecated_arg,
-    deprecated_arg_default,
     ensure_tuple_rep,
     look_up_option,
     optional_import,
@@ -131,9 +130,6 @@ def do_metric_reduction(
     return f, not_nans
 
 
-@deprecated_arg_default(
-    name="always_return_as_numpy", since="1.3.0", replaced="1.5.0", old_default=True, new_default=False
-)
 @deprecated_arg(
     name="always_return_as_numpy",
     since="1.5.0",
@@ -146,7 +142,7 @@ def get_mask_edges(
     label_idx: int = 1,
     crop: bool = True,
     spacing: Sequence | None = None,
-    always_return_as_numpy: bool = True,
+    always_return_as_numpy: bool = False,
 ) -> tuple[NdarrayTensor, NdarrayTensor]:
     """
     Compute edges from binary segmentation masks. This
@@ -175,6 +171,7 @@ def get_mask_edges(
             otherwise `scipy`'s binary erosion is used to calculate the edges.
         always_return_as_numpy: whether to a numpy array regardless of the input type.
             If False, return the same type as inputs.
+            The default value is changed from `True` to `False` in v1.5.0.
     """
     # move in the funciton to avoid using all the GPUs
     cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
@@ -468,7 +465,7 @@ def prepare_spacing(
 ENCODING_KERNEL = {2: [[8, 4], [2, 1]], 3: [[[128, 64], [32, 16]], [[8, 4], [2, 1]]]}
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_neighbour_code_to_normals_table(device=None):
     """
     returns a lookup table. For every binary neighbour code (2x2x2 neighbourhood = 8 neighbours = 8 bits = 256 codes)

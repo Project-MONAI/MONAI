@@ -1836,7 +1836,7 @@ class HistogramNormalized(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         num_bins: number of the bins to use in histogram, default to `256`. for more details:
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
-        min: the min value to normalize input image, default to `255`.
+        min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
         mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
             only points at which `mask==True` are used for the equalization.

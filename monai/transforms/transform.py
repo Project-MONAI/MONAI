@@ -25,7 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ReduceTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -142,7 +142,7 @@ def apply_transform(
     """
     try:
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
-        if isinstance(data, (list, tuple)) and map_items_ > 0:
+        if isinstance(data, (list, tuple)) and map_items_ > 0 and not isinstance(transform, ReduceTrait):
             return [
                 apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
                 for item in data
@@ -482,8 +482,7 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(
-                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
-                    " and allow_missing_keys==False."
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data and allow_missing_keys==False."
                 )
 
     def first_key(self, data: dict[Hashable, Any]):

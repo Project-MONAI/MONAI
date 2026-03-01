@@ -11,7 +11,8 @@
 
 # isort: dont-add-import: from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -32,7 +33,7 @@ class DynUNetSkipLayer(nn.Module):
     forward passes of the network.
     """
 
-    heads: Optional[List[torch.Tensor]]
+    heads: Optional[list[torch.Tensor]]
 
     def __init__(self, index, downsample, upsample, next_layer, heads=None, super_head=None):
         super().__init__()
@@ -136,9 +137,9 @@ class DynUNet(nn.Module):
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
         filters: Optional[Sequence[int]] = None,
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: Optional[Union[tuple, str, float]] = None,
+        norm_name: Union[tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: Union[tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
@@ -169,7 +170,7 @@ class DynUNet(nn.Module):
         self.deep_supervision = deep_supervision
         self.deep_supr_num = deep_supr_num
         # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
-        self.heads: List[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
+        self.heads: list[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
         if self.deep_supervision:
             self.deep_supervision_heads = self.get_deep_supervision_heads()
             self.check_deep_supr_num()
@@ -323,8 +324,8 @@ class DynUNet(nn.Module):
 
     def get_module_list(
         self,
-        in_channels: List[int],
-        out_channels: List[int],
+        in_channels: list[int],
+        out_channels: list[int],
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         conv_block: nn.Module,

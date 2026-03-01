@@ -200,13 +200,14 @@ def plot_2d_or_3d_image(
     if d.ndim >= 4:
         spatial = d.shape[-3:]
         d = d.reshape([-1] + list(spatial))
-        if d.shape[0] == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
+        d_chans = d.shape[0]  # type: ignore
+        if d_chans == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
             # move the expected frame dim to the end as `T` dim for video
             d = np.moveaxis(d, frame_dim, -1)
             writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
             return
         # scale data to 0 - 255 for visualization
-        max_channels = min(max_channels, d.shape[0])
+        max_channels = min(max_channels, d_chans)
         d = np.stack([rescale_array(i, 0, 255) for i in d[:max_channels]], axis=0)
         # will plot every channel as a separate GIF image
         add_animated_gif(writer, f"{tag}_HWD", d, max_out=max_channels, frame_dim=frame_dim, global_step=step)
