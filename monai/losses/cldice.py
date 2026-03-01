@@ -126,8 +126,8 @@ class SoftclDiceLoss(_Loss):
     def __init__(self, iter_: int = 3, smooth: float = 1.0) -> None:
         """
         Args:
-            iter_: Number of iterations for skeletonization
-            smooth: Smoothing parameter
+            iter_: Number of iterations for skeletonization. Defaults to 3.
+            smooth: Smoothing parameter. Defaults to 1.0.
         """
         super().__init__()
         self.iter = iter_
@@ -160,9 +160,9 @@ class SoftDiceclDiceLoss(_Loss):
     def __init__(self, iter_: int = 3, alpha: float = 0.5, smooth: float = 1.0) -> None:
         """
         Args:
-            iter_: Number of iterations for skeletonization
-            smooth: Smoothing parameter
-            alpha: Weighing factor for cldice
+            iter_: Number of iterations for skeletonization. Defaults to 3.
+            alpha: Weighing factor for cldice. Defaults to 0.5.
+            smooth: Smoothing parameter. Defaults to 1.0.
         """
         super().__init__()
         self.iter = iter_

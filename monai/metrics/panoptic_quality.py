@@ -21,7 +21,7 @@ from monai.utils import MetricReduction, ensure_tuple, optional_import
 
 linear_sum_assignment, _ = optional_import("scipy.optimize", name="linear_sum_assignment")
 
-__all__ = ["PanopticQualityMetric", "compute_panoptic_quality"]
+__all__ = ["PanopticQualityMetric", "compute_panoptic_quality", "compute_mean_iou"]
 
 
 class PanopticQualityMetric(CumulativeIterationMetric):
@@ -55,6 +55,8 @@ class PanopticQualityMetric(CumulativeIterationMetric):
             If set `match_iou_threshold` < 0.5, this function uses Munkres assignment to find the
             maximal amount of unique pairing.
         smooth_numerator: a small constant added to the numerator to avoid zero.
+        return_confusion_matrix: if True, returns raw confusion matrix values (tp, fp, fn, iou_sum)
+            instead of computed metrics. Default is False.
 
     """
 
@@ -65,6 +67,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         match_iou_threshold: float = 0.5,
         smooth_numerator: float = 1e-6,
+        return_confusion_matrix: bool = False,
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -72,12 +75,14 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         self.match_iou_threshold = match_iou_threshold
         self.smooth_numerator = smooth_numerator
         self.metric_name = ensure_tuple(metric_name)
+        self.return_confusion_matrix = return_confusion_matrix
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
-            y_pred: Predictions. It must be in the form of B2HW and have integer type. The first channel and the
-                second channel represent the instance predictions and classification predictions respectively.
+            y_pred: Predictions. It must be in the form of B2HW (2D) or B2HWD (3D) and have integer type.
+                The first channel and the second channel represent the instance predictions and classification
+                predictions respectively.
             y: ground truth. It must have the same shape as `y_pred` and have integer type. The first channel and the
                 second channel represent the instance labels and classification labels respectively.
                 Values in the second channel of `y_pred` and `y` should be in the range of 0 to `self.num_classes`,
@@ -86,7 +91,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         Raises:
             ValueError: when `y_pred` and `y` have different shapes.
             ValueError: when `y_pred` and `y` have != 2 channels.
-            ValueError: when `y_pred` and `y` have != 4 dimensions.
+            ValueError: when `y_pred` and `y` have != 4 or 5 dimensions.
 
         """
         if y_pred.shape != y.shape:
@@ -98,8 +103,10 @@ class PanopticQualityMetric(CumulativeIterationMetric):
             )
 
         dims = y_pred.ndimension()
-        if dims != 4:
-            raise ValueError(f"y_pred should have 4 dimensions (batch, 2, h, w), got {dims}.")
+        if dims not in (4, 5):
+            raise ValueError(
+                f"y_pred should have 4 dimensions (batch, 2, h, w) or 5 dimensions (batch, 2, h, w, d), got {dims}."
+            )
 
         batch_size = y_pred.shape[0]
 
@@ -131,6 +138,10 @@ class PanopticQualityMetric(CumulativeIterationMetric):
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
                 ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
+        Returns:
+            If `return_confusion_matrix` is True, returns the raw confusion matrix [tp, fp, fn, iou_sum].
+            Otherwise, returns the computed metric(s) based on `metric_name`.
+
         """
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
@@ -138,6 +149,11 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         # do metric reduction
         f, _ = do_metric_reduction(data, reduction or self.reduction)
+
+        if self.return_confusion_matrix:
+            # Return raw confusion matrix values
+            return f
+
         tp, fp, fn, iou_sum = f[..., 0], f[..., 1], f[..., 2], f[..., 3]
         results = []
         for metric_name in self.metric_name:
@@ -169,7 +185,7 @@ def compute_panoptic_quality(
     calculate PQ, and returning them directly enables further calculation over all images.
 
     Args:
-        pred: input data to compute, it must be in the form of HW and have integer type.
+        pred: input data to compute, it must be in the form of HW (2D) or HWD (3D) and have integer type.
         gt: ground truth. It must have the same shape as `pred` and have integer type.
         metric_name: output metric. The value can be "pq", "sq" or "rq".
         remap: whether to remap `pred` and `gt` to ensure contiguous ordering of instance id.
@@ -294,3 +310,24 @@ def _check_panoptic_metric_name(metric_name: str) -> str:
     if metric_name in ["recognition_quality", "rq"]:
         return "rq"
     raise ValueError(f"metric name: {metric_name} is wrong, please use 'pq', 'sq' or 'rq'.")
+
+
+def compute_mean_iou(confusion_matrix: torch.Tensor, smooth_numerator: float = 1e-6) -> torch.Tensor:
+    """Compute mean IoU from confusion matrix values.
+
+    Args:
+        confusion_matrix: tensor with shape (..., 4) where the last dimension contains
+            [tp, fp, fn, iou_sum] as returned by `compute_panoptic_quality` with `output_confusion_matrix=True`.
+        smooth_numerator: a small constant added to the numerator to avoid zero.
+
+    Returns:
+        Mean IoU computed as iou_sum / (tp + smooth_numerator).
+
+    """
+    if confusion_matrix.shape[-1] != 4:
+        raise ValueError(
+            f"confusion_matrix should have shape (..., 4) with [tp, fp, fn, iou_sum], "
+            f"got shape {confusion_matrix.shape}."
+        )
+    tp, iou_sum = confusion_matrix[..., 0], confusion_matrix[..., 3]
+    return iou_sum / (tp + smooth_numerator)
