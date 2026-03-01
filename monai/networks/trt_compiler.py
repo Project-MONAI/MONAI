@@ -261,10 +261,10 @@ def parse_groups(
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
     """
-    groups: tuple[torch.Tensor | list[torch.Tensor], ...] = tuple()
+    groups: tuple[torch.Tensor | list[torch.Tensor], ...] = ()
     cur = 0
-    for l in range(len(output_lists)):
-        gl = output_lists[l]
+    for idx in range(len(output_lists)):
+        gl = output_lists[idx]
         assert len(gl) == 0 or len(gl) == 1
         if len(gl) == 0 or gl[0] == 0:
             groups = (*groups, ret[cur])
@@ -273,9 +273,9 @@ def parse_groups(
             groups = (*groups, ret[cur : cur + gl[0]])
             cur = cur + gl[0]
         elif gl[0] == -1:
-            rev_groups: tuple[torch.Tensor | list[torch.Tensor], ...] = tuple()
+            rev_groups: tuple[torch.Tensor | list[torch.Tensor], ...] = ()
             rcur = len(ret)
-            for rl in range(len(output_lists) - 1, l, -1):
+            for rl in range(len(output_lists) - 1, idx, -1):
                 rgl = output_lists[rl]
                 assert len(rgl) == 0 or len(rgl) == 1
                 if len(rgl) == 0 or rgl[0] == 0:
