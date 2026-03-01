@@ -9,8 +9,6 @@
 
 from __future__ import annotations
 
-from typing import Tuple
-
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -50,7 +48,7 @@ def get_rel_pos(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor
 
 
 def add_decomposed_rel_pos(
-    attn: torch.Tensor, q: torch.Tensor, rel_pos_lst: nn.ParameterList, q_size: Tuple, k_size: Tuple
+    attn: torch.Tensor, q: torch.Tensor, rel_pos_lst: nn.ParameterList, q_size: tuple, k_size: tuple
 ) -> torch.Tensor:
     r"""
     Calculate decomposed Relative Positional Embeddings from mvitv2 implementation:

@@ -57,8 +57,7 @@ class PatchAdversarialLoss(_Loss):
 
         if criterion.lower() not in list(AdversarialCriterions):
             raise ValueError(
-                "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join(AdversarialCriterions)
+                f"Unrecognised criterion entered for Adversarial Loss. Must be one in: {', '.join(AdversarialCriterions)}"
             )
 
         # Depending on the criterion, a different activation layer is used.

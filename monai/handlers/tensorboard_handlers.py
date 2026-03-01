@@ -257,7 +257,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                         "ignoring non-scalar output in TensorBoardStatsHandler,"
                         " make sure `output_transform(engine.state.output)` returns"
                         " a scalar or dictionary of key and scalar pairs to avoid this warning."
-                        " {}:{}".format(name, type(value))
+                        f" {name}:{type(value)}"
                     )
                     continue  # not plot multi dimensional output
                 self._write_scalar(
@@ -280,7 +280,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 "ignoring non-scalar output in TensorBoardStatsHandler,"
                 " make sure `output_transform(engine.state.output)` returns"
                 " a scalar or a dictionary of key and scalar pairs to avoid this warning."
-                " {}".format(type(loss))
+                f" {type(loss)}"
             )
         writer.flush()
 

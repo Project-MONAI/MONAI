@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -691,7 +692,7 @@ class TwoWayTransformer(nn.Module):
 
     def forward(
         self, image_embedding: torch.Tensor, image_pe: torch.Tensor, point_embedding: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             image_embedding: image to attend to. Should be shape
@@ -768,7 +769,7 @@ class TwoWayAttentionBlock(nn.Module):
 
     def forward(
         self, queries: torch.Tensor, keys: torch.Tensor, query_pe: torch.Tensor, key_pe: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # Self attention block
         if self.skip_first_layer_pe:
             queries = self.self_attn(q=queries, k=queries, v=queries)
@@ -872,7 +873,7 @@ class PositionEmbeddingRandom(nn.Module):
         scale: the scale of the positional encoding.
     """
 
-    def __init__(self, num_pos_feats: int = 64, scale: Optional[float] = None) -> None:
+    def __init__(self, num_pos_feats: int = 64, scale: float | None = None) -> None:
         super().__init__()
         if scale is None or scale <= 0.0:
             scale = 1.0
@@ -890,7 +891,7 @@ class PositionEmbeddingRandom(nn.Module):
         # [bs=1, N=2, 128+128=256]
         return torch.cat([torch.sin(coords), torch.cos(coords)], dim=-1)
 
-    def forward(self, size: Tuple[int, int, int]) -> torch.torch.Tensor:
+    def forward(self, size: tuple[int, int, int]) -> torch.torch.Tensor:
         """Generate positional encoding for a grid of the specified size."""
         h, w, d = size
         device: Any = self.positional_encoding_gaussian_matrix.device
@@ -906,7 +907,7 @@ class PositionEmbeddingRandom(nn.Module):
         return pe.permute(3, 0, 1, 2)
 
     def forward_with_coords(
-        self, coords_input: torch.torch.Tensor, image_size: Tuple[int, int, int]
+        self, coords_input: torch.torch.Tensor, image_size: tuple[int, int, int]
     ) -> torch.torch.Tensor:
         """Positionally encode points that are not normalized to [0,1]."""
         coords = coords_input.clone()
