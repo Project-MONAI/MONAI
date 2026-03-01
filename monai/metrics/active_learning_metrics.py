@@ -129,7 +129,7 @@ def compute_variance(
     y_pred = y_pred.float()
 
     if not include_background:
-        y_pred, _ = ignore_background(y_pred=y_pred, y=None)
+        y_pred, _ = ignore_background(y_pred=y_pred)
 
     # Set any values below 0 to threshold
     y_pred[y_pred <= 0] = threshold
