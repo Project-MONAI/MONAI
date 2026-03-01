@@ -168,7 +168,7 @@ class GEGLU(nn.Module):
     r"""Applies the element-wise function:
 
     .. math::
-        \text{GEGLU}(x) = x_1 * \text{Sigmoid}(x_2)
+        \text{GEGLU}(x) = x_1 * \text{GELU}(x_2)
 
     where :math:`x_1` and :math:`x_2` are split from the input tensor along the last dimension.
 
@@ -177,6 +177,14 @@ class GEGLU(nn.Module):
     Shape:
         - Input: :math:`(N, *, 2 * D)`
         - Output: :math:`(N, *, D)`, where `*` means, any number of additional dimensions
+
+    Examples::
+
+        >>> import torch
+        >>> from monai.networks.layers.factories import Act
+        >>> m = Act['geglu']()
+        >>> input = torch.randn(2, 8)  # last dim must be even
+        >>> output = m(input)
     """
 
     def forward(self, input: torch.Tensor):
