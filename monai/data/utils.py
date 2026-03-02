@@ -432,6 +432,7 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     collated.meta = default_collate(meta_dicts)
     collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
     collated.is_batch = True
+    collated.spatial_ndim = getattr(batch[0], "spatial_ndim", 3)  # assumes uniform spatial_ndim
     return collated
 
 

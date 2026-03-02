@@ -84,6 +84,7 @@ class MetaObj:
         self._applied_operations: list = MetaObj.get_default_applied_operations()
         self._pending_operations: list = MetaObj.get_default_applied_operations()  # the same default as applied_ops
         self._is_batch: bool = False
+        self._spatial_ndim: int = 3  # default: 3 spatial dimensions
 
     @staticmethod
     def flatten_meta_objs(*args: Iterable):

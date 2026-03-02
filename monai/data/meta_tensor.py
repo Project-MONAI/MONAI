@@ -21,14 +21,25 @@ import numpy as np
 import torch
 
 import monai
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
-__all__ = ["MetaTensor"]
+__all__ = ["MetaTensor", "get_spatial_ndim"]
+
+
+def get_spatial_ndim(img: NdarrayOrTensor) -> int:
+    """Return the number of spatial dimensions assuming channel-first layout.
+
+    Uses ``MetaTensor.spatial_ndim`` when available, otherwise falls back to
+    ``img.ndim - 1``.
+    """
+    if isinstance(img, MetaTensor):
+        return img.spatial_ndim
+    return img.ndim - 1
 
 
 @functools.lru_cache(None)
@@ -111,6 +122,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         meta: dict | None = None,
         applied_operations: list | None = None,
         *args,
+        spatial_ndim: int | None = None,
         **kwargs,
     ) -> MetaTensor:
         _kwargs = {"device": kwargs.pop("device", None), "dtype": kwargs.pop("dtype", None)} if kwargs else {}
@@ -123,6 +135,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         meta: dict | None = None,
         applied_operations: list | None = None,
         *_args,
+        spatial_ndim: int | None = None,
         **_kwargs,
     ) -> None:
         """
@@ -134,6 +147,8 @@ class MetaTensor(MetaObj, torch.Tensor):
                 the list is typically maintained by `monai.transforms.TraceableTransform`.
                 See also: :py:class:`monai.transforms.TraceableTransform`
             _args: additional args (currently not in use in this constructor).
+            spatial_ndim: optional number of spatial dimensions. If ``None``, derived
+                from the affine matrix clamped by the tensor shape.
             _kwargs: additional kwargs (currently not in use in this constructor).
 
         Note:
@@ -158,6 +173,12 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.affine = self.meta[MetaKeys.AFFINE]
         else:
             self.affine = self.get_default_affine()
+        # derive spatial_ndim from affine, clamped by tensor shape
+        if spatial_ndim is not None:
+            self.spatial_ndim = spatial_ndim
+        elif self.affine.ndim == 2:
+            self.spatial_ndim = min(self.affine.shape[-1] - 1, max(self.ndim - 1, 1))
+
         # applied_operations
         if applied_operations is not None:
             self.applied_operations = applied_operations
@@ -468,14 +489,29 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
+        a = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
+        self.meta[MetaKeys.AFFINE] = a
+        if a.ndim == 2:  # non-batched: sync spatial_ndim
+            self.spatial_ndim = a.shape[-1] - 1
+
+    @property
+    def spatial_ndim(self) -> int:
+        """Get the number of spatial dimensions."""
+        return getattr(self, "_spatial_ndim", 3)
+
+    @spatial_ndim.setter
+    def spatial_ndim(self, val: int) -> None:
+        """Set the number of spatial dimensions."""
+        if val < 1:
+            raise ValueError(f"spatial_ndim must be >= 1, got {val}")
+        self._spatial_ndim = val
 
     @property
     def pixdim(self):
         """Get the spacing"""
         if self.is_batch:
-            return [affine_to_spacing(a) for a in self.affine]
-        return affine_to_spacing(self.affine)
+            return [affine_to_spacing(a, r=self.spatial_ndim) for a in self.affine]
+        return affine_to_spacing(self.affine, r=self.spatial_ndim)
 
     def peek_pending_shape(self):
         """
@@ -490,7 +526,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def peek_pending_affine(self):
         res = self.affine
-        r = len(res) - 1
+        r = res.shape[-1] - 1 if res.ndim >= 2 else self.spatial_ndim
         if r not in (2, 3):
             warnings.warn(f"Only 2d and 3d affine are supported, got {r}d input.")
         for p in self.pending_operations:
@@ -503,8 +539,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         return res
 
     def peek_pending_rank(self):
-        a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
-        return 1 if a is None else int(max(1, len(a) - 1))
+        if self.pending_operations:
+            a = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+            return 1 if a is None else int(max(1, len(a) - 1))
+        return self.spatial_ndim
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):  # type: ignore[override]
         """
