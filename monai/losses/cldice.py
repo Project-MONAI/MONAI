@@ -152,6 +152,8 @@ class SoftclDiceLoss(_Loss):
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            TypeError: When ``iter_`` is not an ``int``.
+            ValueError: When ``iter_`` is a negative integer.
             ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
                 Incompatible values.
 
@@ -296,6 +298,7 @@ class SoftDiceclDiceLoss(_Loss):
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When ``alpha`` is not in ``[0, 1]``.
             ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
                 Incompatible values.
 

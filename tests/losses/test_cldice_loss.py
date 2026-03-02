@@ -106,6 +106,14 @@ class TestSoftclDiceLoss(unittest.TestCase):
         with self.assertRaises(TypeError):
             SoftclDiceLoss(other_act="invalid")
 
+    def test_invalid_iter_type(self):
+        with self.assertRaises(TypeError):
+            SoftclDiceLoss(iter_=3.0)
+
+    def test_invalid_iter_value(self):
+        with self.assertRaises(ValueError):
+            SoftclDiceLoss(iter_=-1)
+
 
 class TestSoftDiceclDiceLoss(unittest.TestCase):
     @parameterized.expand(COMBINED_CASES)
@@ -130,6 +138,14 @@ class TestSoftDiceclDiceLoss(unittest.TestCase):
         loss = SoftDiceclDiceLoss()
         with self.assertRaises(ValueError):
             loss(torch.ones(2, 3, 8, 8), torch.ones(2, 2, 8, 8))
+
+    def test_invalid_alpha(self):
+        with self.assertRaises(ValueError):
+            SoftDiceclDiceLoss(alpha=1.5)
+
+    def test_invalid_alpha_negative(self):
+        with self.assertRaises(ValueError):
+            SoftDiceclDiceLoss(alpha=-0.5)
 
 
 if __name__ == "__main__":
