@@ -707,11 +707,34 @@ class TestSlidingWindowInferenceCond(unittest.TestCase):
 
     @parameterized.expand([(1,), (4,)])
     def test_conditioned_branches_and_buffered_parity(self, sw_batch_size):
+        """Validate conditioned parity between buffered and non-buffered flows.
+
+        Args:
+            sw_batch_size (int): Sliding-window batch size.
+
+        Returns:
+            None.
+
+        Raises:
+            AssertionError: If device, conditioning alignment, or output parity checks fail.
+        """
         inputs = torch.arange(1 * 1 * 10 * 8, dtype=torch.float).reshape(1, 1, 10, 8)
         condition = inputs + 100.0
         roi_shape = (4, 4)
 
         def compute(data, condition):
+            """Compute output for a conditioned patch.
+
+            Args:
+                data (torch.Tensor): Input patch tensor.
+                condition (torch.Tensor): Conditioning patch tensor aligned to ``data``.
+
+            Returns:
+                torch.Tensor: Element-wise ``data + condition``.
+
+            Raises:
+                AssertionError: If device placement or conditioning alignment checks fail.
+            """
             self.assertEqual(data.device.type, "cpu")
             self.assertEqual(condition.device.type, "cpu")
             torch.testing.assert_close(condition - data, torch.full_like(data, 100.0))
@@ -741,7 +764,30 @@ class TestSlidingWindowInferenceCond(unittest.TestCase):
 
 
 class TestSlidingWindowUtils(unittest.TestCase):
+    """Tests for low-level sliding-window utility helpers.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
+
     def test_compute_coords_accepts_list_indices(self):
+        """Ensure ``_compute_coords`` handles list-based index containers.
+
+        Args:
+            None.
+
+        Returns:
+            None.
+
+        Raises:
+            AssertionError: If computed output placement differs from expected placement.
+        """
         out = torch.zeros((1, 1, 12, 12), dtype=torch.float)
         patch = torch.arange(16, dtype=torch.float).reshape(1, 1, 4, 4)
         coords = [[slice(0, 1), slice(None), slice(1, 3), slice(2, 4)]]
