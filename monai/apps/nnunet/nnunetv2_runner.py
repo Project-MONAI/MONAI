@@ -569,8 +569,7 @@ class nnUNetV2Runner:  # noqa: N801
         env_cuda = env.get("CUDA_VISIBLE_DEVICES")
         if env_cuda is not None and device_setting == "0":
             logger.info(f"Using existing environment variable CUDA_VISIBLE_DEVICES='{env_cuda}'")
-            device_setting = None
-        elif device_setting is not None:
+        else:
             env["CUDA_VISIBLE_DEVICES"] = device_setting
 
         cmd = [
@@ -856,7 +855,7 @@ class nnUNetV2Runner:  # noqa: N801
                 If CUDA_VISIBLE_DEVICES is already set and gpu_id is 0, the existing
                 environment variable is preserved.
         """
-        if "CUDA_VISIBLE_DEVICES" in os.environ and (gpu_id == 0 or gpu_id == "0"):
+        if "CUDA_VISIBLE_DEVICES" in os.environ and gpu_id in {0, "0"}:
             logger.info(f"Predict: Using existing CUDA_VISIBLE_DEVICES={os.environ['CUDA_VISIBLE_DEVICES']}")
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
