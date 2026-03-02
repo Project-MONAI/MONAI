@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data.utils import list_data_collate
 from monai.inferers import SlidingWindowInferer, SlidingWindowInfererAdapt, sliding_window_inference
+from monai.inferers.utils import _compute_coords
 from monai.utils import optional_import
 from tests.test_utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda, test_is_quick
 
@@ -703,6 +704,53 @@ class TestSlidingWindowInferenceCond(unittest.TestCase):
         )(inputs, compute_dict, condition=condition)
         for rr, _ in zip(result_dict, expected_dict):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
+
+    @parameterized.expand([(1,), (4,)])
+    def test_conditioned_branches_and_buffered_parity(self, sw_batch_size):
+        inputs = torch.arange(1 * 1 * 10 * 8, dtype=torch.float).reshape(1, 1, 10, 8)
+        condition = inputs + 100.0
+        roi_shape = (4, 4)
+
+        def compute(data, condition):
+            self.assertEqual(data.device.type, "cpu")
+            self.assertEqual(condition.device.type, "cpu")
+            torch.testing.assert_close(condition - data, torch.full_like(data, 100.0))
+            return data + condition
+
+        # Non-buffered flow.
+        result_non_buffered = sliding_window_inference(
+            inputs, roi_shape, sw_batch_size, compute, overlap=0.5, mode="constant", condition=condition
+        )
+        # Buffered flow; should match the non-buffered output.
+        result_buffered = sliding_window_inference(
+            inputs,
+            roi_shape,
+            sw_batch_size,
+            compute,
+            overlap=0.5,
+            mode="constant",
+            condition=condition,
+            buffer_steps=2,
+            buffer_dim=0,
+        )
+
+        expected = inputs + condition
+        torch.testing.assert_close(result_non_buffered, expected)
+        torch.testing.assert_close(result_buffered, expected)
+        torch.testing.assert_close(result_buffered, result_non_buffered)
+
+
+class TestSlidingWindowUtils(unittest.TestCase):
+    def test_compute_coords_accepts_list_indices(self):
+        out = torch.zeros((1, 1, 12, 12), dtype=torch.float)
+        patch = torch.arange(16, dtype=torch.float).reshape(1, 1, 4, 4)
+        coords = [[slice(0, 1), slice(None), slice(1, 3), slice(2, 4)]]
+
+        _compute_coords(coords=coords, z_scale=[2.0, 2.0], out=out, patch=patch)
+
+        expected = torch.zeros_like(out)
+        expected[0, 0, 2:6, 4:8] = patch[0, 0]
+        torch.testing.assert_close(out, expected)
 
 
 if __name__ == "__main__":
