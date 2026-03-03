@@ -56,8 +56,8 @@ class TestSplitDim(unittest.TestCase):
         self.assertEqual(arr.spatial_ndim, 3)
         out = SplitDim(dim=1, keepdim=False)(arr)
         for item in out:
-            if isinstance(item, MetaTensor):
-                self.assertEqual(item.spatial_ndim, 2)
+            self.assertIsInstance(item, MetaTensor)
+            self.assertEqual(item.spatial_ndim, 2)
 
     def test_spatial_ndim_negative_dim(self):
         """spatial_ndim decremented for keepdim=False with negative dim."""
@@ -67,8 +67,8 @@ class TestSplitDim(unittest.TestCase):
         self.assertEqual(arr.spatial_ndim, 3)
         out = SplitDim(dim=-1, keepdim=False)(arr)
         for item in out:
-            if isinstance(item, MetaTensor):
-                self.assertEqual(item.spatial_ndim, 2)
+            self.assertIsInstance(item, MetaTensor)
+            self.assertEqual(item.spatial_ndim, 2)
 
     def test_spatial_ndim_channel_dim_no_decrement(self):
         """spatial_ndim not decremented for keepdim=False on channel dim (dim=0)."""
@@ -78,8 +78,8 @@ class TestSplitDim(unittest.TestCase):
         self.assertEqual(arr.spatial_ndim, 2)
         out = SplitDim(dim=0, keepdim=False)(arr)
         for item in out:
-            if isinstance(item, MetaTensor):
-                self.assertEqual(item.spatial_ndim, 2)
+            self.assertIsInstance(item, MetaTensor)
+            self.assertEqual(item.spatial_ndim, 2)
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ CONSTRUCTION_CASES = [
 PRESERVATION_CASES = [
     ("reshape", lambda t: t.reshape(1, 100), 2),
     ("unsqueeze", lambda t: t.unsqueeze(0), 2),
-    ("squeeze", lambda t: MetaTensor(torch.randn(1, 1, 10, 10), affine=torch.eye(3)).squeeze(1), 2),
+    ("squeeze", lambda t: t.unsqueeze(1).squeeze(1), 2),
     ("clone", lambda t: t.clone(), 2),
     ("deepcopy", lambda t: deepcopy(t), 2),
 ]

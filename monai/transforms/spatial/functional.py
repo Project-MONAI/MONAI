@@ -99,9 +99,10 @@ def spatial_resample(
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta())
     # ensure spatial rank is <= 3
-    spatial_rank = min(get_spatial_ndim(img), 3)
+    max_rank = max(int(img.ndim) - 1, 1)
+    spatial_rank = min(get_spatial_ndim(img), max_rank, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-        spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
+        spatial_rank = min(len(ensure_tuple(spatial_size)), max_rank, 3)  # infer spatial rank based on spatial_size
     src_affine = to_affine_nd(spatial_rank, src_affine).to(torch.float64)
     dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
     dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
