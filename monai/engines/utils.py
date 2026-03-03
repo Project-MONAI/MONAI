@@ -423,8 +423,11 @@ class GradientAccumulation:
         """
         acc = self.accumulation_steps
 
+        result: dict
+
         if acc == 1:
-            return engine._iteration(engine, batchdata)
+            result = engine._iteration(engine, batchdata)
+            return result
 
         # engine.state.iteration is 1-indexed and already incremented before __call__
         epoch_length = engine.state.epoch_length  # None for iterable datasets

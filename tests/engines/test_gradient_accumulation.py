@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock
 
 import torch
@@ -201,7 +202,7 @@ class TestGradientAccumulation(unittest.TestCase):
 
     def test_batch_data_passed_correctly(self) -> None:
         engine = _make_engine(epoch_length=4, iteration=1)
-        test_batch = {CommonKeys.IMAGE: torch.randn(1, 10), CommonKeys.LABEL: torch.randn(1, 1)}
+        test_batch: dict[str, Any] = {CommonKeys.IMAGE: torch.randn(1, 10), CommonKeys.LABEL: torch.randn(1, 1)}
 
         GradientAccumulation(accumulation_steps=2)(engine, test_batch)
 
