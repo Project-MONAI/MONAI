@@ -549,7 +549,7 @@ class nnUNetV2Runner:  # noqa: N801
             ValueError: If gpu_id is an empty tuple or list.
         """
         env = os.environ.copy()
-        device_setting: str | None = None
+        device_setting: str = "0"
         num_gpus = 1
         if isinstance(gpu_id, str):
             device_setting = gpu_id
