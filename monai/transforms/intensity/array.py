@@ -601,8 +601,8 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         factors: Sequence[float] | float = 0,
         fixed_mean: bool = True,
         preserve_range: bool = False,
-        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
+        channel_wise: bool = False,
     ) -> None:
         """
         Args:
@@ -611,10 +611,10 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
             preserve_range: clips the output array/tensor to the range of the input array/tensor
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
+            dtype: output data type, if None, same as input image. defaults to float32.
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
                 on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
                 channel of the image if True.
-            dtype: output data type, if None, same as input image. defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -643,7 +643,7 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         if not self._do_transform:
             return None
         if self.channel_wise:
-            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]  # type: ignore
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1], size=data.shape[:1])  # type: ignore
         else:
             self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
@@ -661,14 +661,14 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         if self.channel_wise:
             out = []
             for i, d in enumerate(img):
-                out_channel = ScaleIntensityFixedMean(
-                    factor=self.factor[i],  # type: ignore
+                scale_trans = ScaleIntensityFixedMean(
+                    factor=float(self.factor[i]),
                     fixed_mean=self.fixed_mean,
                     preserve_range=self.preserve_range,
                     dtype=self.dtype,
-                )(d[None])[0]
-                out.append(out_channel)
-            ret: NdarrayOrTensor = torch.stack(out)
+                )
+                out.append(scale_trans(d[None]))
+            ret: NdarrayOrTensor = torch.cat(out)
             ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img.dtype)[0]
             return ret
 

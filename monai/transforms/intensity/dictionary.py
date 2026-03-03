@@ -669,10 +669,10 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
         factors: Sequence[float] | float,
         fixed_mean: bool = True,
         preserve_range: bool = False,
-        channel_wise: bool = False,
         prob: float = 0.1,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
+        channel_wise: bool = False,
     ) -> None:
         """
         Args:
@@ -683,11 +683,11 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
             preserve_range: clips the output array/tensor to the range of the input array/tensor
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
+            dtype: output data type, if None, same as input image. defaults to float32.
+            allow_missing_keys: don't raise exception if key is missing.
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
                 on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
                 channel of the image if True.
-            dtype: output data type, if None, same as input image. defaults to float32.
-            allow_missing_keys: don't raise exception if key is missing.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)

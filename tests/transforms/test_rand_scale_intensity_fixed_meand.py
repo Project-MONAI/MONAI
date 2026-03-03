@@ -47,7 +47,7 @@ class TestRandScaleIntensityFixedMeand(NumpyImageTestCase2D):
             # simulate the randomize function of transform
             np.random.random()
             channel_num = self.imt.shape[0]
-            factor = [np.random.uniform(low=-0.5, high=0.5) for _ in range(channel_num)]
+            factor = np.random.uniform(low=-0.5, high=0.5, size=(channel_num,))
             expected = np.stack(
                 [
                     np.asarray((self.imt[i] - self.imt[i].mean()) * (1 + factor[i]) + self.imt[i].mean())
