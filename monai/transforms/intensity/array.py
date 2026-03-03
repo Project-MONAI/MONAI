@@ -659,15 +659,15 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
             return convert_data_type(img, dtype=self.dtype)[0]
 
         if self.channel_wise:
-            out = []
+            out: list[torch.Tensor] = []
             for i, d in enumerate(img):
                 scale_trans = ScaleIntensityFixedMean(
-                    factor=float(self.factor[i]),
+                    factor=float(self.factor[i]),  # type: ignore[index]
                     fixed_mean=self.fixed_mean,
                     preserve_range=self.preserve_range,
                     dtype=self.dtype,
                 )
-                out.append(scale_trans(d[None]))
+                out.append(scale_trans(d[None]))  # type: ignore[arg-type]
             ret: NdarrayOrTensor = torch.cat(out)
             ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img.dtype)[0]
             return ret
