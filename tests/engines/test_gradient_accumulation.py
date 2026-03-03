@@ -24,30 +24,16 @@ from monai.utils.enums import CommonKeys
 
 _, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version)
 
-INVALID_ACCUMULATION_STEPS = [
-    (0,), (-1,), (2.5,), ("2",),
-]
+INVALID_ACCUMULATION_STEPS = [(0,), (-1,), (2.5,), ("2",)]
 
 SUPPRESSION_CASES = [
     # (attr_name, acc, epoch_length, num_iters, expected)
-    (
-        "zero_grad", 4, 12, 12,
-        [True, False, False, False, True, False, False, False, True, False, False, False],
-    ),
-    (
-        "step", 4, 12, 12,
-        [False, False, False, True, False, False, False, True, False, False, False, True],
-    ),
+    ("zero_grad", 4, 12, 12, [True, False, False, False, True, False, False, False, True, False, False, False]),
+    ("step", 4, 12, 12, [False, False, False, True, False, False, False, True, False, False, False, True]),
     # epoch_length=11 not divisible by 4 → flush at epoch end
-    (
-        "step", 4, 11, 11,
-        [False, False, False, True, False, False, False, True, False, False, True],
-    ),
+    ("step", 4, 11, 11, [False, False, False, True, False, False, False, True, False, False, True]),
     # epoch_length=None (iterable dataset) → no epoch flush
-    (
-        "step", 4, None, 10,
-        [False, False, False, True, False, False, False, True, False, False],
-    ),
+    ("step", 4, None, 10, [False, False, False, True, False, False, False, True, False, False]),
 ]
 
 
@@ -249,10 +235,7 @@ class TestGradientAccumulation(unittest.TestCase):
 
         torch.manual_seed(42)
         acc_steps, lr = 4, 0.1
-        batches = [
-            {CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)}
-            for _ in range(acc_steps)
-        ]
+        batches = [{CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)} for _ in range(acc_steps)]
 
         ref_model, test_model, ref_opt, test_opt, init_weight = _make_model_pair(lr)
 
@@ -263,8 +246,12 @@ class TestGradientAccumulation(unittest.TestCase):
         ref_opt.step()
 
         trainer = SupervisedTrainer(
-            device=torch.device("cpu"), max_epochs=1, train_data_loader=batches,
-            network=test_model, optimizer=test_opt, loss_function=nn.MSELoss(),
+            device=torch.device("cpu"),
+            max_epochs=1,
+            train_data_loader=batches,
+            network=test_model,
+            optimizer=test_opt,
+            loss_function=nn.MSELoss(),
             iteration_update=GradientAccumulation(accumulation_steps=acc_steps),
         )
         trainer.run()
@@ -279,10 +266,7 @@ class TestGradientAccumulation(unittest.TestCase):
 
         torch.manual_seed(123)
         acc_steps, lr = 3, 0.1
-        batches = [
-            {CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)}
-            for _ in range(5)
-        ]
+        batches = [{CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)} for _ in range(5)]
 
         ref_model, test_model, ref_opt, test_opt, init_weight = _make_model_pair(lr)
 
@@ -294,8 +278,12 @@ class TestGradientAccumulation(unittest.TestCase):
             ref_opt.step()
 
         trainer = SupervisedTrainer(
-            device=torch.device("cpu"), max_epochs=1, train_data_loader=batches,
-            network=test_model, optimizer=test_opt, loss_function=nn.MSELoss(),
+            device=torch.device("cpu"),
+            max_epochs=1,
+            train_data_loader=batches,
+            network=test_model,
+            optimizer=test_opt,
+            loss_function=nn.MSELoss(),
             iteration_update=GradientAccumulation(accumulation_steps=acc_steps),
         )
         trainer.run()
@@ -310,10 +298,7 @@ class TestGradientAccumulation(unittest.TestCase):
 
         torch.manual_seed(42)
         acc_steps, lr, num_epochs = 2, 0.1, 3
-        batches = [
-            {CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)}
-            for _ in range(4)
-        ]
+        batches = [{CommonKeys.IMAGE: torch.randn(1, 4), CommonKeys.LABEL: torch.randn(1, 1)} for _ in range(4)]
 
         ref_model, test_model, ref_opt, test_opt, init_weight = _make_model_pair(lr)
 
@@ -326,8 +311,12 @@ class TestGradientAccumulation(unittest.TestCase):
                 ref_opt.step()
 
         trainer = SupervisedTrainer(
-            device=torch.device("cpu"), max_epochs=num_epochs, train_data_loader=batches,
-            network=test_model, optimizer=test_opt, loss_function=nn.MSELoss(),
+            device=torch.device("cpu"),
+            max_epochs=num_epochs,
+            train_data_loader=batches,
+            network=test_model,
+            optimizer=test_opt,
+            loss_function=nn.MSELoss(),
             iteration_update=GradientAccumulation(accumulation_steps=acc_steps),
         )
         trainer.run()

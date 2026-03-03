@@ -404,9 +404,7 @@ class GradientAccumulation:
 
     def __init__(self, accumulation_steps: int = 2) -> None:
         if not isinstance(accumulation_steps, int) or accumulation_steps < 1:
-            raise ValueError(
-                f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}."
-            )
+            raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
         self.accumulation_steps = accumulation_steps
 
     def __repr__(self) -> str:
