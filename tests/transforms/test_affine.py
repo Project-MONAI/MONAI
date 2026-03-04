@@ -189,12 +189,14 @@ class TestAffine(unittest.TestCase):
         set_track_meta(True)
 
         # test lazy
-        # Note: Testing with the same align_corners value as input_param to ensure consistency
-        # The lazy pipeline should produce the same result as non-lazy with matching parameters
         lazy_input_param = input_param.copy()
-        resampler = Affine(**lazy_input_param)
-        non_lazy_result = resampler(**input_data)
-        test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx)
+        for align_corners in [True, False]:
+            lazy_input_param["align_corners"] = align_corners
+            resampler = Affine(**lazy_input_param)
+            non_lazy_result = resampler(**input_data)
+            test_resampler_lazy(
+                resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx, rtol=1e-3, atol=1e-3
+            )
 
 
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")

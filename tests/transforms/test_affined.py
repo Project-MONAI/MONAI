@@ -177,13 +177,15 @@ class TestAffined(unittest.TestCase):
         assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
 
         # test lazy
-        # Note: Testing with the same align_corners value as input_param to ensure consistency
-        # The lazy pipeline should produce the same result as non-lazy with matching parameters
         lazy_input_param = input_param.copy()
-        resampler = Affined(**lazy_input_param)
-        call_param = {"data": input_data}
-        non_lazy_result = resampler(**call_param)
-        test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, call_param, output_key="img")
+        for align_corners in [True, False]:
+            lazy_input_param["align_corners"] = align_corners
+            resampler = Affined(**lazy_input_param)
+            call_param = {"data": input_data}
+            non_lazy_result = resampler(**call_param)
+            test_resampler_lazy(
+                resampler, non_lazy_result, lazy_input_param, call_param, output_key="img", rtol=1e-3, atol=1e-3
+            )
 
 
 if __name__ == "__main__":

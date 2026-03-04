@@ -49,14 +49,19 @@ class PerceptualLoss(nn.Module):
 
     Args:
         spatial_dims: number of spatial dimensions.
-        network_type: {``"alex"``, ``"vgg"``, ``"squeeze"``, ``"radimagenet_resnet50"``,
-        ``"medicalnet_resnet10_23datasets"``, ``"medicalnet_resnet50_23datasets"``, ``"resnet50"``}
-            Specifies the network architecture to use. Defaults to ``"alex"``.
+        network_type: type of network for perceptual loss. One of:
+            - "alex"
+            - "vgg"
+            - "squeeze"
+            - "radimagenet_resnet50"
+            - "medicalnet_resnet10_23datasets"
+            - "medicalnet_resnet50_23datasets"
+            - "resnet50"
         is_fake_3d: if True use 2.5D approach for a 3D perceptual loss.
         fake_3d_ratio: ratio of how many slices per axis are used in the 2.5D approach.
         cache_dir: path to cache directory to save the pretrained network weights.
         pretrained: whether to load pretrained weights. This argument only works when using networks from
-            LIPIS or Torchvision. Defaults to ``"True"``.
+            LIPIS or Torchvision. Defaults to ``True``.
         pretrained_path: if `pretrained` is `True`, users can specify a weights file to be loaded
             via using this argument. This argument only works when ``"network_type"`` is "resnet50".
             Defaults to `None`.
@@ -64,7 +69,7 @@ class PerceptualLoss(nn.Module):
             extract the expected state dict. This argument only works when ``"network_type"`` is "resnet50".
             Defaults to `None`.
         channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
-                Defaults to ``False``.
+            Defaults to ``False``.
     """
 
     def __init__(
