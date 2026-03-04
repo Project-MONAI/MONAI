@@ -23,7 +23,7 @@ import torch
 import monai
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import _DEFAULT_SPATIAL_NDIM, MetaObj, get_track_meta
-from monai.data.utils import affine_to_spacing, decollate_batch, is_no_channel, list_data_collate, remove_extra_metadata
+from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
@@ -31,18 +31,10 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, 
 __all__ = ["MetaTensor", "get_spatial_ndim"]
 
 
-def _normalize_spatial_ndim(spatial_ndim: int, tensor_ndim: int, no_channel: bool = False) -> int:
+def _normalize_spatial_ndim(spatial_ndim: int, tensor_ndim: int) -> int:
     """Clamp spatial dims to a valid range for the current tensor shape."""
-    limit = max(int(tensor_ndim), 1) if no_channel else max(int(tensor_ndim) - 1, 1)
+    limit = max(int(tensor_ndim) - 1, 1)
     return max(1, min(int(spatial_ndim), limit))
-
-
-def _has_explicit_no_channel(meta: Mapping | None) -> bool:
-    return (
-        isinstance(meta, Mapping)
-        and MetaKeys.ORIGINAL_CHANNEL_DIM in meta
-        and is_no_channel(meta[MetaKeys.ORIGINAL_CHANNEL_DIM])
-    )
 
 
 def get_spatial_ndim(img: NdarrayOrTensor) -> int:
@@ -52,8 +44,7 @@ def get_spatial_ndim(img: NdarrayOrTensor) -> int:
     ``img.ndim - 1``.
     """
     if isinstance(img, MetaTensor):
-        no_channel = _has_explicit_no_channel(img.meta)
-        return _normalize_spatial_ndim(img.spatial_ndim, img.ndim, no_channel=no_channel)
+        return _normalize_spatial_ndim(img.spatial_ndim, img.ndim)
     return img.ndim - 1
 
 
@@ -201,11 +192,10 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.affine = self.get_default_affine()
         # Initialize spatial_ndim from affine matrix (source of truth), clamped by tensor shape.
         # This cached value is kept in sync via the affine setter for hot-path performance.
-        no_channel = _has_explicit_no_channel(self.meta)
         if spatial_ndim is not None:
-            self.spatial_ndim = _normalize_spatial_ndim(spatial_ndim, self.ndim, no_channel=no_channel)
+            self.spatial_ndim = _normalize_spatial_ndim(spatial_ndim, self.ndim)
         elif self.affine.ndim == 2:
-            self.spatial_ndim = _normalize_spatial_ndim(self.affine.shape[-1] - 1, self.ndim, no_channel=no_channel)
+            self.spatial_ndim = _normalize_spatial_ndim(self.affine.shape[-1] - 1, self.ndim)
 
         # applied_operations
         if applied_operations is not None:
@@ -309,7 +299,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             if hasattr(ret_meta, "__dict__"):
                 ret.__dict__ = ret_meta.__dict__.copy()
                 if _is_batch_only_index(full_idx):
-                    ret.spatial_ndim = _normalize_spatial_ndim(ret.spatial_ndim, ret.ndim, no_channel=False)
+                    ret.spatial_ndim = _normalize_spatial_ndim(ret.spatial_ndim, ret.ndim)
         # `unbind` is used for `next(iter(batch))`. Also for `decollate_batch`.
         # But we only want to split the batch if the `unbind` is along the 0th dimension.
         elif func == torch.Tensor.unbind:
@@ -528,8 +518,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         a = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
         self.meta[MetaKeys.AFFINE] = a
         if a.ndim == 2:  # non-batched: sync spatial_ndim from affine (source of truth)
-            no_channel = _has_explicit_no_channel(self.meta)
-            self.spatial_ndim = _normalize_spatial_ndim(a.shape[-1] - 1, self.ndim, no_channel=no_channel)
+            self.spatial_ndim = _normalize_spatial_ndim(a.shape[-1] - 1, self.ndim)
 
     @property
     def spatial_ndim(self) -> int:
