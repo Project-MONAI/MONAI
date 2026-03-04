@@ -15,12 +15,13 @@ import unittest
 from copy import deepcopy
 from unittest import skipUnless
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.data.utils import collate_meta_tensor_fn, decollate_batch
-from monai.transforms import Resize, SqueezeDim
+from monai.transforms import Affine, RandAffine, Resize, Rotate, SqueezeDim
 from monai.transforms.utility.array import SplitDim
 from monai.utils import optional_import
 
@@ -133,6 +134,37 @@ class TestSpatialNdim(unittest.TestCase):
         self.assertEqual(x_.spatial_ndim, 3)
         out = Resize(spatial_size=(32, 32, 3), mode="trilinear", align_corners=True)(x_)
         self.assertEqual(out.shape[-3:], (32, 32, 3))
+
+    def test_affine_inverse_2d_metatensor(self):
+        """Affine.inverse on 2D data: 4x4 affine with spatial_ndim=2."""
+        img = MetaTensor(torch.randn(1, 32, 32), affine=torch.eye(4))
+        self.assertEqual(img.spatial_ndim, 2)
+        xform = Affine(rotate_params=(np.pi / 6,), padding_mode="zeros", image_only=True)
+        result = xform(img)
+        inv = xform.inverse(result)
+        self.assertEqual(inv.shape, img.shape)
+        self.assertEqual(len(inv.applied_operations), 0)
+
+    def test_rotate_inverse_2d_metatensor(self):
+        """Rotate.inverse on 2D data: 4x4 affine with spatial_ndim=2."""
+        img = MetaTensor(torch.randn(1, 32, 32), affine=torch.eye(4))
+        self.assertEqual(img.spatial_ndim, 2)
+        xform = Rotate(angle=(np.pi / 4,), padding_mode="zeros")
+        result = xform(img)
+        inv = xform.inverse(result)
+        self.assertEqual(inv.shape, img.shape)
+        self.assertEqual(len(inv.applied_operations), 0)
+
+    def test_rand_affine_inverse_2d_metatensor(self):
+        """RandAffine.inverse on 2D data: 4x4 affine with spatial_ndim=2."""
+        img = MetaTensor(torch.randn(1, 32, 32), affine=torch.eye(4))
+        self.assertEqual(img.spatial_ndim, 2)
+        xform = RandAffine(prob=1.0, rotate_range=(np.pi / 6,), padding_mode="zeros")
+        xform.set_random_state(seed=42)
+        result = xform(img)
+        inv = xform.inverse(result)
+        self.assertEqual(inv.shape, img.shape)
+        self.assertEqual(len(inv.applied_operations), 0)
 
 
 if __name__ == "__main__":

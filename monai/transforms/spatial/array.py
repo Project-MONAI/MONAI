@@ -1036,7 +1036,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
         if isinstance(out, MetaTensor):
             affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
-            mat = to_affine_nd(out.spatial_ndim, transform_t)
+            mat = to_affine_nd(len(affine) - 1, transform_t)
             out.affine @= convert_to_dst_type(mat, affine)[0]
         return out
 
@@ -2353,7 +2353,7 @@ class Affine(InvertibleTransform, LazyTransform):
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
         xform, *_ = convert_to_dst_type(
-            Affine.compute_w_affine(out.spatial_ndim, inv_affine, data.shape[1:], orig_size), affine
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
         out.affine @= xform
         return out
@@ -2622,7 +2622,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
         xform, *_ = convert_to_dst_type(
-            Affine.compute_w_affine(out.spatial_ndim, inv_affine, data.shape[1:], orig_size), affine
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
         out.affine @= xform
         return out
