@@ -19,9 +19,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor
+from monai.data import MetaTensor, get_spatial_ndim
 from monai.data.utils import collate_meta_tensor_fn, decollate_batch
-from monai.transforms import Affine, RandAffine, Resize, Rotate, SqueezeDim
+from monai.transforms import Affine, LabelToContour, RandAffine, RandZoom, Resize, Rotate, SqueezeDim
 from monai.transforms.utility.array import SplitDim
 from monai.utils import optional_import
 
@@ -120,6 +120,30 @@ class TestSpatialNdim(unittest.TestCase):
         result, applied = apply_pending(t, overrides={"mode": "bilinear"})
         self.assertIsInstance(result, MetaTensor)
         self.assertEqual(len(applied), 1)
+
+    def test_batch_slice_clamps_spatial_ndim(self):
+        t = MetaTensor(torch.randn(10, 6, 5, 7), affine=torch.eye(4))
+        self.assertEqual(t.spatial_ndim, 3)
+        sliced = t[0]
+        self.assertEqual(sliced.shape, (6, 5, 7))
+        self.assertEqual(sliced.spatial_ndim, 2)
+        self.assertEqual(get_spatial_ndim(sliced), 2)
+
+    def test_label_to_contour_batch_slice_2d(self):
+        t = MetaTensor(torch.randint(0, 2, (10, 6, 5, 7)).float(), affine=torch.eye(4))
+        sliced = t[0]
+        out = LabelToContour()(sliced)
+        self.assertEqual(out.shape, sliced.shape)
+
+    def test_rand_zoom_batch_slice_2d(self):
+        t = MetaTensor(torch.randn(10, 1, 64, 64), affine=torch.eye(4))
+        sliced = t[0]
+        zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=1.2)
+        zoom.set_random_state(seed=0)
+        zoom.randomize(sliced)
+        self.assertEqual(len(zoom._zoom), 2)
+        out = zoom(sliced)
+        self.assertEqual(out.ndim, sliced.ndim)
 
     @skipUnless(has_einops, "Requires einops")
     def test_einops_rearrange_then_resize(self):

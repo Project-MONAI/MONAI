@@ -31,6 +31,11 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, 
 __all__ = ["MetaTensor", "get_spatial_ndim"]
 
 
+def _normalize_spatial_ndim(spatial_ndim: int, tensor_ndim: int) -> int:
+    """Clamp spatial dims to a valid range for the current tensor shape."""
+    return max(1, min(int(spatial_ndim), max(int(tensor_ndim) - 1, 1)))
+
+
 def get_spatial_ndim(img: NdarrayOrTensor) -> int:
     """Return the number of spatial dimensions assuming channel-first layout.
 
@@ -38,7 +43,13 @@ def get_spatial_ndim(img: NdarrayOrTensor) -> int:
     ``img.ndim - 1``.
     """
     if isinstance(img, MetaTensor):
-        return img.spatial_ndim
+        inferred = _normalize_spatial_ndim(img.spatial_ndim, img.ndim)
+        shape_spatial = max(img.ndim - 1, 1)
+        # For non-batched tensors, preserve explicit higher-rank shape information
+        # (e.g., invalid 4D spatial inputs should still be reported as rank 4).
+        if not img.is_batch and shape_spatial > inferred:
+            return shape_spatial
+        return inferred
     return img.ndim - 1
 
 
@@ -175,9 +186,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.affine = self.get_default_affine()
         # derive spatial_ndim from affine, clamped by tensor shape
         if spatial_ndim is not None:
-            self.spatial_ndim = spatial_ndim
+            self.spatial_ndim = _normalize_spatial_ndim(spatial_ndim, self.ndim)
         elif self.affine.ndim == 2:
-            self.spatial_ndim = min(self.affine.shape[-1] - 1, max(self.ndim - 1, 1))
+            self.spatial_ndim = _normalize_spatial_ndim(self.affine.shape[-1] - 1, self.ndim)
 
         # applied_operations
         if applied_operations is not None:
@@ -243,6 +254,8 @@ class MetaTensor(MetaObj, torch.Tensor):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
                 if is_batch:
                     ret = MetaTensor._handle_batched(ret, idx, metas, func, args, kwargs)
+                if func == torch.Tensor.__getitem__:
+                    ret.spatial_ndim = _normalize_spatial_ndim(ret.spatial_ndim, ret.ndim)
             out.append(ret)
         # if the input was a tuple, then return it as a tuple
         return tuple(out) if isinstance(rets, tuple) else out
@@ -492,7 +505,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         a = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
         self.meta[MetaKeys.AFFINE] = a
         if a.ndim == 2:  # non-batched: sync spatial_ndim
-            self.spatial_ndim = a.shape[-1] - 1
+            self.spatial_ndim = _normalize_spatial_ndim(a.shape[-1] - 1, self.ndim)
 
     @property
     def spatial_ndim(self) -> int:
