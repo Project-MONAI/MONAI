@@ -334,8 +334,6 @@ class SplitDim(Transform, MultiSampleTrait):
                 shift = torch.eye(ndim, device=out.affine.device, dtype=out.affine.dtype)
                 shift[dim - 1, -1] = idx
                 out.affine = out.affine @ shift
-                if not self.keepdim:
-                    out.spatial_ndim = max(1, out.spatial_ndim - 1)
         return outputs
 
 

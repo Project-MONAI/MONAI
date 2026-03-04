@@ -625,6 +625,10 @@ class LabelToContour(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         spatial_dims = get_spatial_ndim(img)
+        # Validate actual tensor shape against tracked spatial_ndim
+        actual_spatial = img_.ndim - 1  # channel-first layout
+        if actual_spatial != spatial_dims:
+            spatial_dims = actual_spatial
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
             kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)

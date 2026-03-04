@@ -123,6 +123,8 @@ class TestSpatialNdim(unittest.TestCase):
 
     def test_batch_slice_clamps_spatial_ndim(self):
         t = MetaTensor(torch.randn(10, 6, 5, 7), affine=torch.eye(4))
+        t.is_batch = True
+        t.meta["affine"] = torch.eye(4)[None].repeat(10, 1, 1)
         self.assertEqual(t.spatial_ndim, 3)
         sliced = t[0]
         self.assertEqual(sliced.shape, (6, 5, 7))
@@ -131,12 +133,16 @@ class TestSpatialNdim(unittest.TestCase):
 
     def test_label_to_contour_batch_slice_2d(self):
         t = MetaTensor(torch.randint(0, 2, (10, 6, 5, 7)).float(), affine=torch.eye(4))
+        t.is_batch = True
+        t.meta["affine"] = torch.eye(4)[None].repeat(10, 1, 1)
         sliced = t[0]
         out = LabelToContour()(sliced)
         self.assertEqual(out.shape, sliced.shape)
 
     def test_rand_zoom_batch_slice_2d(self):
         t = MetaTensor(torch.randn(10, 1, 64, 64), affine=torch.eye(4))
+        t.is_batch = True
+        t.meta["affine"] = torch.eye(4)[None].repeat(10, 1, 1)
         sliced = t[0]
         zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=1.2)
         zoom.set_random_state(seed=0)

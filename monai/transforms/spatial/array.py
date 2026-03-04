@@ -1036,6 +1036,9 @@ class Rotate(InvertibleTransform, LazyTransform):
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
         if isinstance(out, MetaTensor):
             affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
+            # Use affine matrix shape directly (not spatial_ndim) because the affine may be
+            # larger than the spatial dimensions (e.g., 4x4 for 2D data), and we need to match
+            # the actual affine matrix rank being composed
             mat = to_affine_nd(len(affine) - 1, transform_t)
             out.affine @= convert_to_dst_type(mat, affine)[0]
         return out
@@ -2352,6 +2355,8 @@ class Affine(InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        # Use affine matrix shape directly (not spatial_ndim) to ensure matrix composition compatibility
+        # when affine is larger than spatial dimensions (e.g., 4x4 for 2D data)
         xform, *_ = convert_to_dst_type(
             Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
@@ -2621,6 +2626,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        # Use affine matrix shape directly (not spatial_ndim) to ensure matrix composition compatibility
+        # when affine is larger than spatial dimensions (e.g., 4x4 for 2D data)
         xform, *_ = convert_to_dst_type(
             Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
@@ -3035,10 +3042,11 @@ class GridDistortion(Transform):
             raise ValueError("the spatial size of `img` does not match with the length of `distort_steps`")
 
         all_ranges = []
-        num_cells = ensure_tuple_rep(self.num_cells, get_spatial_ndim(img))
+        _sp = get_spatial_ndim(img)
+        num_cells = ensure_tuple_rep(self.num_cells, _sp)
         if isinstance(img, MetaTensor) and img.pending_operations:
             warnings.warn("MetaTensor img has pending operations, transform may return incorrect results.")
-        for dim_idx, dim_size in enumerate(img.shape[1:]):
+        for dim_idx, dim_size in enumerate(img.shape[1 : 1 + _sp]):
             dim_distort_steps = distort_steps[dim_idx]
             ranges = torch.zeros(dim_size, dtype=torch.float32)
             cell_size = dim_size // num_cells[dim_idx]

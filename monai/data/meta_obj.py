@@ -24,6 +24,9 @@ from monai.utils import TraceKeys, first, is_immutable
 
 _TRACK_META = True
 
+# Default number of spatial dimensions for medical imaging (3D volumetric data)
+_DEFAULT_SPATIAL_NDIM = 3
+
 __all__ = ["get_track_meta", "set_track_meta", "MetaObj"]
 
 
