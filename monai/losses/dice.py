@@ -1111,7 +1111,7 @@ class GeneralizedDiceFocalLoss(_Loss):
         focal_loss = self.focal(input, target)
         total_loss: torch.Tensor = self.lambda_gdl * gdl_loss + self.lambda_focal * focal_loss
         return total_loss
-    
+
 class SparseDiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
