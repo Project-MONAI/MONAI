@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# To build with a different base image
-# please run `docker build` using the `--build-arg IMAGE=...` flag.
+# This is a slimmed down version of the MONAI Docker image using a smaller base image and multi-stage building. Not all
+# NVIDIA tools will be present but all libraries and compiled code are included. This image isn't provided through
+# Dockerhub so users must build locally: `docker build -t monai_slim -f Dockerfile.slim .`
+# Containers may require more shared memory, eg.: `docker run -ti --rm --gpus all --shm-size=10gb monai_slim /bin/bash`
+
 ARG IMAGE=debian:12-slim
 
 FROM ${IMAGE} AS build
