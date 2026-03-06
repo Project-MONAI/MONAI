@@ -246,6 +246,26 @@ class TestInvertd(unittest.TestCase):
         self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
         self.assertEqual([op[TraceKeys.CLASS_NAME] for op in inverted[key].applied_operations], ["Lambda", "Lambda"])
 
+    def test_invertd_preserves_same_class_postprocessing_history(self):
+        """Test MetaTensor inversion when trailing history contains the same transform class."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+        postprocessing = Compose([Spacingd(key, pixdim=[1.5, 1.5])])
+
+        item = {key: img}
+        pre = preprocessing(item)
+        post = postprocessing(pre)
+
+        inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+        inverted = inverter(post)
+
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual(len(inverted[key].applied_operations), 1)
+        self.assertEqual(inverted[key].applied_operations[0][TraceKeys.CLASS_NAME], "SpatialResample")
+
     def test_invertd_ignores_unrelated_trace_key_history(self):
         """Test trace-key inversion when unrelated invertible transforms trail the target history."""
 
