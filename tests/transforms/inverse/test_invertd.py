@@ -141,12 +141,7 @@ class TestInvertd(unittest.TestCase):
         set_determinism(seed=None)
 
     def test_invertd_with_postprocessing_transforms(self):
-        """Test that Invertd ignores postprocessing transforms using automatic group tracking.
-
-        This is a regression test for the issue where Invertd would fail when
-        postprocessing contains invertible transforms before Invertd is called.
-        The fix uses automatic group tracking where Compose assigns its ID to child transforms.
-        """
+        """Test that Invertd ignores unrelated trailing transforms while inverting."""
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -172,6 +167,9 @@ class TestInvertd(unittest.TestCase):
         post = postprocessing(pre)
         self.assertIsNotNone(post)
         self.assertIn(key, post)
+        self.assertTupleEqual(tuple(post[key].shape), (1, 60, 60))
+        self.assertEqual(len(post[key].applied_operations), 1)
+        self.assertEqual(post[key].applied_operations[0][TraceKeys.CLASS_NAME], "Lambda")
 
     def test_invertd_multiple_pipelines(self):
         """Test that Invertd correctly handles multiple independent preprocessing pipelines."""
@@ -229,76 +227,58 @@ class TestInvertd(unittest.TestCase):
         self.assertIsNotNone(post)
         self.assertIn(key, post)
 
-    def test_invertd_group_isolation(self):
-        """Test that groups correctly isolate transforms from different Compose instances."""
+    def test_invertd_preserves_unrelated_postprocessing_history(self):
+        """Test that Invertd only removes the transforms it actually inverts."""
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
 
-        # First preprocessing
-        preprocessing1 = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
-
-        # Second preprocessing (different pipeline)
-        preprocessing2 = Compose([Spacingd(key, pixdim=[1.5, 1.5])])
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+        postprocessing = Compose([Lambdad(key, func=lambda x: x), Lambdad(key, func=lambda x: x)])
 
         item = {key: img}
-        pre1 = preprocessing1(item)
+        pre = preprocessing(item)
+        post = postprocessing(pre)
 
-        # Verify group IDs are in applied_operations
-        self.assertTrue(len(pre1[key].applied_operations) > 0)
-        group1 = pre1[key].applied_operations[0].get("group")
-        self.assertIsNotNone(group1)
-        self.assertEqual(group1, str(id(preprocessing1)))
+        inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+        inverted = inverter(post)
 
-        # Apply second preprocessing
-        pre2 = preprocessing2(pre1)
-        self.assertTupleEqual(pre2[key].shape, (1, 40, 40))
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual([op[TraceKeys.CLASS_NAME] for op in inverted[key].applied_operations], ["Lambda", "Lambda"])
 
-        # Should have operations from both pipelines with different groups
-        groups = [op.get("group") for op in pre2[key].applied_operations]
-        preprocessing1_group = str(id(preprocessing1))
-        preprocessing2_group = str(id(preprocessing2))
-        self.assertIn(preprocessing1_group, groups)
-        self.assertIn(preprocessing2_group, groups)
-        self.assertEqual(groups.count(preprocessing1_group), 1)
-        self.assertEqual(groups.count(preprocessing2_group), 1)
-
-        # Inverting preprocessing1 should only invert its transforms
-        inverter = Invertd(key, transform=preprocessing1, orig_keys=key)
-        inverted = inverter(pre2)
-        self.assertIsNotNone(inverted)
-        self.assertTupleEqual(inverted[key].shape, (1, 60, 60))
-
-    def test_invertd_filters_trace_key_transforms_by_group(self):
-        """Test group filtering when Invertd reads transforms from ``trace_key``."""
+    def test_invertd_ignores_unrelated_trace_key_history(self):
+        """Test trace-key inversion when unrelated invertible transforms trail the target history."""
 
         class _IdentityMapInvertible(MapTransform, InvertibleTransform):
             def __init__(self, keys):
                 super().__init__(keys)
 
             def __call__(self, data):
-                return dict(data)
+                d = dict(data)
+                self.push_transform(d, key=self.keys[0])
+                return d
 
             def inverse(self, data):
-                return dict(data)
+                d = dict(data)
+                self.pop_transform(d, key=self.keys[0])
+                return d
 
         key = "image"
         target_transform = _IdentityMapInvertible(key)
-        target_group = str(id(target_transform))
-        item = {
-            key: torch.zeros((1, 8, 8), dtype=torch.float32),
-            InvertibleTransform.trace_key(key): [{TraceKeys.GROUP: target_group}, {TraceKeys.GROUP: "other-group"}],
-        }
+        other_transform = _IdentityMapInvertible(key)
+        item = {key: torch.zeros((1, 8, 8), dtype=torch.float32)}
+        item = target_transform(item)
+        item = other_transform(item)
 
         inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
         inverted = inverter(item)
 
         trace_key = InvertibleTransform.trace_key(key)
         self.assertEqual(len(inverted[trace_key]), 1)
-        self.assertEqual(inverted[trace_key][0].get(TraceKeys.GROUP), target_group)
+        self.assertEqual(inverted[trace_key][0][TraceKeys.ID], id(other_transform))
 
-    def test_compose_inverse_with_groups(self):
-        """Test that Compose.inverse() works correctly with automatic group tracking."""
+    def test_compose_inverse(self):
+        """Test that Compose.inverse() works correctly on its own transform history."""
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -319,8 +299,8 @@ class TestInvertd(unittest.TestCase):
         # Shape should be restored after inversion
         self.assertEqual(inverted[key].shape[1:], img.shape)
 
-    def test_compose_inverse_with_postprocessing_groups(self):
-        """Test Compose.inverse() when data has been through multiple pipelines with different groups."""
+    def test_compose_inverse_with_postprocessing_transforms(self):
+        """Test Compose.inverse() when unrelated postprocessing transforms trail the target history."""
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"
@@ -328,23 +308,23 @@ class TestInvertd(unittest.TestCase):
         # Preprocessing pipeline
         preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
 
-        # Postprocessing pipeline (different group)
-        postprocessing = Compose([Lambdad(key, func=lambda x: x * 2)])
+        # Postprocessing pipeline whose transforms should remain after the preprocessing inverse
+        postprocessing = Compose([Lambdad(key, func=lambda x: x)])
 
         # Apply both pipelines
         item = {key: img}
         pre = preprocessing(item)
         post = postprocessing(pre)
 
-        # Now call inverse() directly on preprocessing
-        # This tests that inverse() can handle data that has transforms from multiple groups
-        # This WILL fail because applied_operations contains postprocessing transforms
-        # and inverse() doesn't do group filtering (only Invertd does)
-        with self.assertRaises(RuntimeError):
-            preprocessing.inverse(post)
+        # Calling inverse() directly should restore the preprocessing changes without consuming the
+        # unrelated postprocessing transform entry.
+        inverted = preprocessing.inverse(post)
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual(len(inverted[key].applied_operations), 1)
+        self.assertEqual(inverted[key].applied_operations[0][TraceKeys.CLASS_NAME], "Lambda")
 
     def test_mixed_invertd_and_compose_inverse(self):
-        """Test mixing Invertd (with group filtering) and Compose.inverse() (without filtering)."""
+        """Test using Invertd and Compose.inverse() on the same pipeline history."""
         img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
         img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
         key = "image"

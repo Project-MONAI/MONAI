@@ -82,10 +82,6 @@ class TraceableTransform(Transform):
         if not hasattr(self._tracing, "value"):
             self._tracing.value = MONAIEnvVars.trace_transform() != "0"
 
-        # Initialize group identifier (set by Compose for automatic group tracking)
-        if not hasattr(self, "_group"):
-            self._group: str | None = None
-
     def __getstate__(self):
         """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
         _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
@@ -123,7 +119,6 @@ class TraceableTransform(Transform):
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
         """
-        # Ensure _group is initialized
         self._init_trace_threadlocal()
 
         vals = (
@@ -132,13 +127,7 @@ class TraceableTransform(Transform):
             self.tracing,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
-        info = dict(zip(self.transform_info_keys(), vals))
-
-        # Add group if set (automatically set by Compose)
-        if self._group is not None:
-            info[TraceKeys.GROUP] = self._group
-
-        return info
+        return dict(zip(self.transform_info_keys(), vals))
 
     def push_transform(self, data, *args, **kwargs):
         """
@@ -314,23 +303,32 @@ class TraceableTransform(Transform):
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
+        if self._transforms_match(transform):
+            return
+
         xform_id = transform.get(TraceKeys.ID, "")
-        if xform_id == id(self):
-            return
-        # TraceKeys.NONE to skip the id check
-        if xform_id == TraceKeys.NONE:
-            return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         warning_msg = transform.get(TraceKeys.EXTRA_INFO, {}).get("warn")
         if warning_msg:
             warnings.warn(warning_msg)
-        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
-            return
         raise RuntimeError(
             f"Error {self.__class__.__name__} getting the most recently "
             f"applied invertible transform {xform_name} {xform_id} != {id(self)}."
         )
+
+    def _transforms_match(self, transform: Mapping) -> bool:
+        """Return whether a traced transform entry matches this transform instance."""
+        xform_id = transform.get(TraceKeys.ID, "")
+        if xform_id == id(self):
+            return True
+        # TraceKeys.NONE to skip the id check
+        if xform_id == TraceKeys.NONE:
+            return True
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
+        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
+            return True
+        return False
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
@@ -363,10 +361,16 @@ class TraceableTransform(Transform):
         if not all_transforms:
             raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
 
+        match_idx = len(all_transforms) - 1
         if check:
-            self.check_transforms_match(all_transforms[-1])
+            for idx in range(len(all_transforms) - 1, -1, -1):
+                if self._transforms_match(all_transforms[idx]):
+                    match_idx = idx
+                    break
+            else:
+                self.check_transforms_match(all_transforms[-1])
 
-        return all_transforms.pop(-1) if pop else all_transforms[-1]
+        return all_transforms.pop(match_idx) if pop else all_transforms[match_idx]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """
