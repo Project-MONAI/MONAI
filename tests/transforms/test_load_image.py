@@ -516,9 +516,39 @@ class TestLoadImageMissingReader(unittest.TestCase):
 
     def test_unspecified_reader_falls_back_silently(self):
         """When no reader is specified, missing optional readers should be silently skipped (no exception)."""
-        # This should not raise even if some optional readers are unavailable.
-        loader = LoadImage()
-        self.assertIsInstance(loader, LoadImage)
+        # Force the fallback path by simulating missing optional dependencies.
+        # Patch the constructor to raise OptionalImportError for some readers,
+        # then verify LoadImage still instantiates and logs warnings.
+        import logging
+        from monai.utils import OptionalImportError
+        
+        # Patch SUPPORTED_READERS entries to raise OptionalImportError
+        # This simulates optional packages not being installed
+        original_readers = {}
+        from monai.transforms.io.array import SUPPORTED_READERS
+        
+        # Patch a few readers to fail (e.g., ITKReader)
+        try:
+            original_itk = SUPPORTED_READERS.get("itk")
+            
+            def failing_reader(*args, **kwargs):
+                raise OptionalImportError("itk not installed")
+            
+            # Temporarily replace ITKReader with a failing version
+            SUPPORTED_READERS["itk"] = failing_reader
+            
+            # Capture log output to verify warn-and-skip was invoked
+            with self.assertLogs("LoadImage", level="DEBUG") as cm:
+                loader = LoadImage()
+                self.assertIsInstance(loader, LoadImage)
+            
+            # Verify we got the expected debug log about skipping the missing reader
+            self.assertTrue(any("not installed" in msg for msg in cm.output),
+                          f"Expected 'not installed' in debug logs, got: {cm.output}")
+        finally:
+            # Restore original reader
+            if original_itk is not None:
+                SUPPORTED_READERS["itk"] = original_itk
 
     def test_explicit_reader_available_succeeds(self):
         """When the user explicitly names a reader whose package IS installed, no exception is raised."""
