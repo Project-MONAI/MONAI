@@ -536,13 +536,13 @@ class TestLoadImageMissingReader(unittest.TestCase):
 
         # Patch a few readers to fail (e.g., ITKReader)
         try:
-            original_itk = SUPPORTED_READERS.get("itk")
+            original_itk = SUPPORTED_READERS.get("itkreader")
 
             def failing_reader(*args, **kwargs):
                 raise OptionalImportError("itk not installed")
 
             # Temporarily replace ITKReader with a failing version
-            SUPPORTED_READERS["itk"] = failing_reader
+            SUPPORTED_READERS["itkreader"] = failing_reader
 
             # Capture log output to verify warn-and-skip was invoked
             with self.assertLogs("LoadImage", level="DEBUG") as cm:
@@ -555,7 +555,7 @@ class TestLoadImageMissingReader(unittest.TestCase):
         finally:
             # Restore original reader
             if original_itk is not None:
-                SUPPORTED_READERS["itk"] = original_itk
+                SUPPORTED_READERS["itkreader"] = original_itk
 
     def test_explicit_reader_available_succeeds(self):
         """When the user explicitly names a reader whose package IS installed, no exception is raised."""

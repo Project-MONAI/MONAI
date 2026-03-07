@@ -216,7 +216,7 @@ class LoadImage(Transform):
                         f"If you want to use an alternative reader, do not specify the `reader` argument."
                     ) from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
-                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
+                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.", stacklevel=2)
                     self.register(the_reader())
             elif inspect.isclass(_r):
                 try:
@@ -229,7 +229,7 @@ class LoadImage(Transform):
                         f"If you want to use an alternative reader, do not specify the `reader` argument."
                     ) from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
-                    warnings.warn(f"{_r.__name__} is not supported with the given parameters {args} {kwargs}.")
+                    warnings.warn(f"{_r.__name__} is not supported with the given parameters {args} {kwargs}.", stacklevel=2)
                     self.register(_r())
             else:
                 self.register(_r)  # reader instance, ignoring the constructor args/kwargs
@@ -244,7 +244,7 @@ class LoadImage(Transform):
 
         """
         if not isinstance(reader, ImageReader):
-            warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
+            warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.", stacklevel=2)
         self.readers.append(reader)
 
     def __call__(self, filename: Sequence[PathLike] | PathLike, reader: ImageReader | None = None):
