@@ -498,5 +498,36 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertFalse(hasattr(r, "affine"))
 
 
+
+
+class TestLoadImageMissingReader(unittest.TestCase):
+    """Test that LoadImage raises RuntimeError when a user-specified reader is not installed."""
+
+    def test_explicit_reader_not_installed_raises_runtime_error(self):
+        """When the user explicitly names a reader whose package is missing, a RuntimeError must be raised."""
+        from unittest.mock import patch
+        from monai.utils import OptionalImportError
+
+        # Patch the reader class so that instantiation raises OptionalImportError,
+        # simulating a missing optional dependency (e.g. itk not installed).
+        with patch("monai.data.ITKReader.__init__", side_effect=OptionalImportError("itk")):
+            with self.assertRaises(RuntimeError) as ctx:
+                LoadImage(reader="ITKReader")
+        self.assertIn("ITKReader", str(ctx.exception))
+        self.assertIn("not installed", str(ctx.exception))
+
+    def test_unspecified_reader_falls_back_silently(self):
+        """When no reader is specified, missing optional readers should be silently skipped (no exception)."""
+        # This should not raise even if some optional readers are unavailable.
+        loader = LoadImage()
+        self.assertIsInstance(loader, LoadImage)
+
+    def test_explicit_reader_available_succeeds(self):
+        """When the user explicitly names a reader whose package IS installed, no exception is raised."""
+        # NibabelReader is always available (nibabel is a core dep)
+        loader = LoadImage(reader="NibabelReader")
+        self.assertIsInstance(loader, LoadImage)
+
+
 if __name__ == "__main__":
     unittest.main()

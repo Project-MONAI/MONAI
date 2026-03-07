@@ -209,10 +209,12 @@ class LoadImage(Transform):
                     the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
-                except OptionalImportError:
-                    warnings.warn(
-                        f"required package for reader {_r} is not installed, or the version doesn't match requirement."
-                    )
+                except OptionalImportError as e:
+                    raise RuntimeError(
+                        f"The required package for reader '{_r}' is not installed, or the version doesn't match "
+                        f"the requirement. If you want to use '{_r}', please install the required package. "
+                        f"If you want to use an alternative reader, do not specify the `reader` argument."
+                    ) from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
