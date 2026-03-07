@@ -16,6 +16,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import nibabel as nib
 import numpy as np
@@ -28,7 +29,7 @@ from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
-from monai.utils import optional_import
+from monai.utils import OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -505,9 +506,6 @@ class TestLoadImageMissingReader(unittest.TestCase):
 
     def test_explicit_reader_not_installed_raises_runtime_error(self):
         """When the user explicitly names a reader whose package is missing, a RuntimeError must be raised."""
-        from unittest.mock import patch
-        from monai.utils import OptionalImportError
-
         # Patch the reader class so that instantiation raises OptionalImportError,
         # simulating a missing optional dependency (e.g. itk not installed).
         with patch("monai.data.ITKReader.__init__", side_effect=OptionalImportError("itk")):
