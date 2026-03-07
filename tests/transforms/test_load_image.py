@@ -532,7 +532,6 @@ class TestLoadImageMissingReader(unittest.TestCase):
 
         # Patch SUPPORTED_READERS entries to raise OptionalImportError
         # This simulates optional packages not being installed
-        original_readers = {}
         from monai.transforms.io.array import SUPPORTED_READERS
 
         # Patch a few readers to fail (e.g., ITKReader)
