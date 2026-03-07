@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -240,8 +241,9 @@ class TestInvertd(unittest.TestCase):
         pre = preprocessing(item)
         post = postprocessing(pre)
 
-        inverter = Invertd(key, transform=preprocessing, orig_keys=key)
-        inverted = inverter(post)
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+            inverted = inverter(post)
 
         self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
         self.assertEqual([op[TraceKeys.CLASS_NAME] for op in inverted[key].applied_operations], ["Lambda", "Lambda"])
@@ -259,8 +261,9 @@ class TestInvertd(unittest.TestCase):
         pre = preprocessing(item)
         post = postprocessing(pre)
 
-        inverter = Invertd(key, transform=preprocessing, orig_keys=key)
-        inverted = inverter(post)
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+            inverted = inverter(post)
 
         self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
         self.assertEqual(len(inverted[key].applied_operations), 1)
@@ -290,8 +293,9 @@ class TestInvertd(unittest.TestCase):
         item = target_transform(item)
         item = other_transform(item)
 
-        inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
-        inverted = inverter(item)
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
+            inverted = inverter(item)
 
         trace_key = InvertibleTransform.trace_key(key)
         self.assertEqual(len(inverted[trace_key]), 1)

@@ -326,7 +326,7 @@ class TraceableTransform(Transform):
             return True
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
+        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn" and xform_name == self.__class__.__name__:
             return True
         return False
 
