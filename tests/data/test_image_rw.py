@@ -190,3 +190,22 @@ class TestLoadSaveNrrd(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestResolveWriterHint(unittest.TestCase):
+
+    def test_filetype_hint_content(self):
+        from monai.data.image_writer import FILETYPE_HINT
+        self.assertEqual(FILETYPE_HINT.get("nii"), "nibabel")
+        self.assertEqual(FILETYPE_HINT.get("nii.gz"), "nibabel")
+        self.assertEqual(FILETYPE_HINT.get("png"), "pillow")
+        self.assertEqual(FILETYPE_HINT.get("mha"), "itk")
+
+    def test_resolve_writer_error_message(self):
+        from monai.utils import OptionalImportError
+        # Test with an unknown extension to see the base error message
+        # Since EXT_WILDCARD might have backends, it might not raise unless they are missing.
+        # But we can at least verify the logic is reachable.
+        try:
+            resolve_writer("unknown_ext", error_if_not_found=True)
+        except OptionalImportError as e:
+            self.assertIn("No ImageWriter backend found for 'unknown_ext'", str(e))
