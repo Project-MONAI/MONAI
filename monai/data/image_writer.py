@@ -63,6 +63,21 @@ __all__ = [
 
 SUPPORTED_WRITERS: dict = {}
 
+# Maps common file extensions to the package needed by ImageWriter backends.
+FILETYPE_HINT: dict[str, str] = {
+    "nii": "nibabel",
+    "nii.gz": "nibabel",
+    "mha": "itk",
+    "mhd": "itk",
+    "nrrd": "itk",
+    "png": "pillow",
+    "jpg": "pillow",
+    "jpeg": "pillow",
+    "tif": "pillow",
+    "tiff": "pillow",
+    "bmp": "pillow",
+}
+
 
 def register_writer(ext_name, *im_writers):
     """
@@ -116,21 +131,8 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        install_hints: dict = {
-            "nii": "nibabel",
-            "nii.gz": "nibabel",
-            "mha": "itk",
-            "mhd": "itk",
-            "nrrd": "itk",
-            "png": "pillow",
-            "jpg": "pillow",
-            "jpeg": "pillow",
-            "tif": "pillow",
-            "tiff": "pillow",
-            "bmp": "pillow",
-        }
-        hint = install_hints.get(fmt)
-        extra = f" Try installing the required package: pip install {hint}" if hint else ""
+        hint = FILETYPE_HINT.get(fmt)
+        extra = f" Try: pip install {hint}" if hint else ""
         raise OptionalImportError(f"No ImageWriter backend found for '{fmt}'.{extra}")
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
