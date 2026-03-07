@@ -22,7 +22,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
-from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
+from monai.data.image_writer import FILETYPE_HINT, ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import MetaKeys, OptionalImportError, optional_import
@@ -188,20 +188,14 @@ class TestLoadSaveNrrd(unittest.TestCase):
         self.nrrd_rw(test_data, reader, writer, np.float32)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 class TestResolveWriterHint(unittest.TestCase):
-
     def test_filetype_hint_content(self):
-        from monai.data.image_writer import FILETYPE_HINT
         self.assertEqual(FILETYPE_HINT.get("nii"), "nibabel")
         self.assertEqual(FILETYPE_HINT.get("nii.gz"), "nibabel")
         self.assertEqual(FILETYPE_HINT.get("png"), "pillow")
         self.assertEqual(FILETYPE_HINT.get("mha"), "itk")
 
     def test_resolve_writer_error_message(self):
-        from monai.utils import OptionalImportError
         # Test with an unknown extension to see the base error message
         # Since EXT_WILDCARD might have backends, it might not raise unless they are missing.
         # But we can at least verify the logic is reachable.
@@ -209,3 +203,7 @@ class TestResolveWriterHint(unittest.TestCase):
             resolve_writer("unknown_ext", error_if_not_found=True)
         except OptionalImportError as e:
             self.assertIn("No ImageWriter backend found for 'unknown_ext'", str(e))
+
+
+if __name__ == "__main__":
+    unittest.main()
