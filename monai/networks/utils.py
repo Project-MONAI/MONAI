@@ -713,7 +713,7 @@ def convert_to_onnx(
         torch_versioned_kwargs = {}
         if use_trace:
             # let torch.onnx.export to trace the model.
-            mode_to_export = model
+            model_to_export = model
             torch_versioned_kwargs = kwargs
             if "dynamo" in kwargs and kwargs["dynamo"] and verify:
                 torch_versioned_kwargs["verify"] = verify
@@ -726,9 +726,9 @@ def convert_to_onnx(
             #   pass the raw nn.Module directly—the exporter handles it via torch.export.
             _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
             if _pt_major_minor >= (2, 9):
-                mode_to_export = model
+                model_to_export = model
             else:
-                mode_to_export = torch.jit.script(model, **kwargs)
+                model_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
@@ -741,7 +741,7 @@ def convert_to_onnx(
         else:
             f = filename
         torch.onnx.export(
-            mode_to_export,
+            model_to_export,
             onnx_inputs,
             f=f,
             input_names=input_names,
