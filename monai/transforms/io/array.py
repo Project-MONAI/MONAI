@@ -219,7 +219,18 @@ class LoadImage(Transform):
                     warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
             elif inspect.isclass(_r):
-                self.register(_r(*args, **kwargs))
+                try:
+                    self.register(_r(*args, **kwargs))
+                except OptionalImportError as e:
+                    reader_name = getattr(_r, "__name__", str(_r))
+                    raise RuntimeError(
+                        f"The required package for reader '{reader_name}' is not installed, or the version doesn't match "
+                        f"the requirement. If you want to use '{reader_name}', please install the required package. "
+                        f"If you want to use an alternative reader, do not specify the `reader` argument."
+                    ) from e
+                except TypeError:  # the reader doesn't have the corresponding args/kwargs
+                    warnings.warn(f"{_r.__name__} is not supported with the given parameters {args} {kwargs}.")
+                    self.register(_r())
             else:
                 self.register(_r)  # reader instance, ignoring the constructor args/kwargs
         return

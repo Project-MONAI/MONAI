@@ -514,6 +514,15 @@ class TestLoadImageMissingReader(unittest.TestCase):
         self.assertIn("ITKReader", str(ctx.exception))
         self.assertIn("not installed", str(ctx.exception))
 
+    def test_explicit_class_reader_not_installed_raises_runtime_error(self):
+        """When user passes a class reader whose package is missing, RuntimeError is raised (not OptionalImportError)."""
+        # This tests the class path (not string path) to ensure consistent behavior
+        with patch("monai.data.ITKReader.__init__", side_effect=OptionalImportError("itk")):
+            with self.assertRaises(RuntimeError) as ctx:
+                LoadImage(reader=ITKReader)
+            self.assertIn("ITKReader", str(ctx.exception))
+            self.assertIn("not installed", str(ctx.exception))
+
     def test_unspecified_reader_falls_back_silently(self):
         """When no reader is specified, missing optional readers should be silently skipped (no exception)."""
         # Force the fallback path by simulating missing optional dependencies.
