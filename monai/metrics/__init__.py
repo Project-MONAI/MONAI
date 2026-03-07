@@ -19,6 +19,7 @@ from .cumulative_average import CumulativeAverage
 from .embedding_collapse import EmbeddingCollapseMetric, compute_embedding_collapse
 from .f_beta_score import FBetaScore
 from .fid import FIDMetric, compute_frechet_distance
+from .frd import FrechetRadiomicsDistance, get_frd_score
 from .froc import compute_fp_tp_probs, compute_fp_tp_probs_nd, compute_froc_curve_data, compute_froc_score
 from .generalized_dice import GeneralizedDiceScore, compute_generalized_dice
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance
