@@ -248,7 +248,7 @@ class LoadImage(Transform):
         """
         if not isinstance(reader, ImageReader):
             warn_msg = f"Preferably the reader should inherit ImageReader, but got {type(reader)}."
-            warnings.warn(warn_msg, stacklevel=2)
+            warnings.warn(warn_msg, stacklevel=3)
         self.readers.append(reader)
 
     def __call__(self, filename: Sequence[PathLike] | PathLike, reader: ImageReader | None = None):
