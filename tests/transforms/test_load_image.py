@@ -549,9 +549,12 @@ class TestLoadImageMissingReader(unittest.TestCase):
                 f"Expected 'not installed' in debug logs, got: {cm.output}",
             )
         finally:
-            # Restore original reader
+            # Restore or remove the reader depending on whether it existed originally
             if original_itk is not None:
                 SUPPORTED_READERS["itkreader"] = original_itk
+            else:
+                # Remove the entry if it didn't exist originally
+                SUPPORTED_READERS.pop("itkreader", None)
 
     def test_explicit_reader_available_succeeds(self):
         """When the user explicitly names a reader whose package IS installed, no exception is raised."""
