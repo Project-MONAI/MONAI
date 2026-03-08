@@ -499,8 +499,6 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertFalse(hasattr(r, "affine"))
 
 
-
-
 class TestLoadImageMissingReader(unittest.TestCase):
     """Test that LoadImage raises RuntimeError when a user-specified reader is not installed."""
 
@@ -546,8 +544,10 @@ class TestLoadImageMissingReader(unittest.TestCase):
                 self.assertIsInstance(loader, LoadImage)
 
             # Verify we got the expected debug log about skipping the missing reader
-            self.assertTrue(any("not installed" in msg for msg in cm.output),
-                          f"Expected 'not installed' in debug logs, got: {cm.output}")
+            self.assertTrue(
+                any("not installed" in msg for msg in cm.output),
+                f"Expected 'not installed' in debug logs, got: {cm.output}",
+            )
         finally:
             # Restore original reader
             if original_itk is not None:
