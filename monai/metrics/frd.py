@@ -61,5 +61,9 @@ def get_frd_score(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
     Returns:
         Scalar tensor containing the Fréchet Radiomics Distance.
+
+    Raises:
+        ValueError: When either tensor has more than 2 dimensions. Inputs must have
+            shape (number of samples, number of features).
     """
     return get_fid_score(y_pred, y)

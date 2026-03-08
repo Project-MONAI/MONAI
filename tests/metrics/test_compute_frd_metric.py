@@ -38,9 +38,11 @@ class TestFrechetRadiomicsDistance(unittest.TestCase):
         fid_score = FIDMetric()(y_pred, y)
         np.testing.assert_allclose(frd_score.cpu().numpy(), fid_score.cpu().numpy(), atol=1e-6)
 
-    def test_input_dimensions(self):
+    def test_rejects_high_dimensional_input(self):
+        """FrechetRadiomicsDistance raises ValueError when inputs have ndimension() > 2."""
+        high_dim = torch.ones([3, 3, 144, 144])
         with self.assertRaises(ValueError):
-            FrechetRadiomicsDistance()(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))
+            FrechetRadiomicsDistance()(high_dim, high_dim)
 
 
 if __name__ == "__main__":
