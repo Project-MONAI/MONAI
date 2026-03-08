@@ -528,10 +528,6 @@ class TestLoadImageMissingReader(unittest.TestCase):
         # Force the fallback path by simulating missing optional dependencies.
         # Patch the constructor to raise OptionalImportError for some readers,
         # then verify LoadImage still instantiates and logs warnings.
-        from monai.utils import OptionalImportError
-
-        # Patch SUPPORTED_READERS entries to raise OptionalImportError
-        # This simulates optional packages not being installed
         from monai.transforms.io.array import SUPPORTED_READERS
 
         # Patch a few readers to fail (e.g., ITKReader)
