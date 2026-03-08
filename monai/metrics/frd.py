@@ -66,4 +66,6 @@ def get_frd_score(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         ValueError: When either tensor has more than 2 dimensions. Inputs must have
             shape (number of samples, number of features).
     """
+    if y_pred.ndimension() > 2 or y.ndimension() > 2:
+        raise ValueError("Inputs should have (number images, number of features) shape.")
     return get_fid_score(y_pred, y)
