@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
+from monai.transforms.spatial.functional import _compiled_unsupported
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta, set_track_meta
@@ -2062,14 +2063,15 @@ class Resample(Transform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
+        _use_compiled = USE_COMPILED and not _compiled_unsupported(img_t.device)
         backend, _interp_mode, _padding_mode, _ = resolves_modes(
             self.mode if mode is None else mode,
             self.padding_mode if padding_mode is None else padding_mode,
             backend=None,
-            use_compiled=USE_COMPILED,
+            use_compiled=_use_compiled,
         )
 
-        if USE_COMPILED or backend == TransformBackends.NUMPY:
+        if _use_compiled or backend == TransformBackends.NUMPY:
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
             if isinstance(grid, torch.Tensor) and grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
@@ -2080,7 +2082,7 @@ class Resample(Transform):
                     grid_t[i] = ((_dim - 1) / _dim) * grid_t[i] + t if _align_corners else grid_t[i] + t
                 elif _align_corners:
                     grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
-            if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+            if _use_compiled and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
                 out = grid_pull(
                     img_t.unsqueeze(0),
