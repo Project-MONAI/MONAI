@@ -100,9 +100,7 @@ class DiceMetric(CumulativeIterationMetric):
         # compute dice (BxC) for each channel for each batch
         return self.dice_helper(y_pred=y_pred, y=y)  # type: ignore
 
-    def aggregate(
-        self, reduction: MetricReduction | str | None = None
-    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction and aggregation logic for the output of `compute_dice`.
 
@@ -122,7 +120,7 @@ class DiceMetric(CumulativeIterationMetric):
             _f = {}
             if isinstance(self.return_with_label, bool):
                 for i, v in enumerate(f):
-                    _label_key = f"label_{i+1}" if not self.include_background else f"label_{i}"
+                    _label_key = f"label_{i + 1}" if not self.include_background else f"label_{i}"
                     _f[_label_key] = round(v.item(), 4)
             else:
                 for key, v in zip(self.return_with_label, f):

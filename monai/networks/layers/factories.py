@@ -95,7 +95,7 @@ class LayerFactory(ComponentStore):
         self.add(name.upper(), description, func)
         # append name to the docstring
         assert self.__doc__ is not None
-        self.__doc__ += f"{', ' if len(self.names)>1 else ' '}``{name}``"
+        self.__doc__ += f"{', ' if len(self.names) > 1 else ' '}``{name}``"
 
     def add_factory_class(self, name: str, cls: type, desc: str | None = None) -> None:
         """
@@ -276,9 +276,7 @@ def instance_nvfuser_factory(dim):
         return types[dim - 1]
 
     if not has_nvfuser_instance_norm():
-        warnings.warn(
-            "`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead."
-        )
+        warnings.warn("`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead.")
         return nn.InstanceNorm3d
     return optional_import("apex.normalization", name="InstanceNorm3dNVFuser")[0]
 

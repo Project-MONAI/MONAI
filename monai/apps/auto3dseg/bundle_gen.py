@@ -264,21 +264,16 @@ class BundleAlgo(Algo):
                 look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
             except ValueError as err:
                 raise NotImplementedError(
-                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
-                    "Try modify BundleAlgo._run_cmd for your cluster."
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet.Try modify BundleAlgo._run_cmd for your cluster."
                 ) from err
 
             return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
         elif int(self.device_setting["n_devices"]) > 1:
-            return _run_cmd_torchrun(
-                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
-            )
+            return _run_cmd_torchrun(cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True)
         else:
             return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
 
-    def train(
-        self, train_params: None | dict = None, device_setting: None | dict = None
-    ) -> subprocess.CompletedProcess:
+    def train(self, train_params: None | dict = None, device_setting: None | dict = None) -> subprocess.CompletedProcess:
         """
         Load the run function in the training script of each model. Training parameter is predefined by the
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
@@ -369,9 +364,7 @@ class BundleAlgo(Algo):
 
 
 # path to download the algo_templates
-default_algo_zip = (
-    f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
-)
+default_algo_zip = f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
 
 # default algorithms
 default_algos = {
@@ -396,7 +389,7 @@ def _download_algos_url(url: str, at_path: str) -> dict[str, dict[str, str]]:
         try:
             download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
         except Exception as e:
-            msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
+            msg = f"Download and extract of {url} failed, attempt {i + 1}/{download_attempts}."
             if i < download_attempts - 1:
                 warnings.warn(msg)
                 time.sleep(i)
@@ -660,6 +653,7 @@ class BundleGen(AlgoGen):
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
 
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
-                self.history.append(
-                    {AlgoKeys.ID: name, AlgoKeys.ALGO: gen_algo}
-                )  # track the previous, may create a persistent history
+                self.history.append({
+                    AlgoKeys.ID: name,
+                    AlgoKeys.ALGO: gen_algo,
+                })  # track the previous, may create a persistent history

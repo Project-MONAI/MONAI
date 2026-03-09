@@ -144,9 +144,7 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _find_closest_level(
-        self, name: str, value: tuple, value_at_levels: Sequence[tuple], atol: float, rtol: float
-    ) -> int:
+    def _find_closest_level(self, name: str, value: tuple, value_at_levels: Sequence[tuple], atol: float, rtol: float) -> int:
         """Find the level corresponding to the value of the quantity in the list of values at each level.
         Args:
             name: the name of the requested quantity
@@ -170,9 +168,7 @@ class BaseWSIReader(ImageReader):
                 )
         return value_at_levels.index(closest_value)
 
-    def get_valid_level(
-        self, wsi, level: int | None, mpp: float | tuple[float, float] | None, power: int | None
-    ) -> int:
+    def get_valid_level(self, wsi, level: int | None, mpp: float | tuple[float, float] | None, power: int | None) -> int:
         """
         Returns the level associated to the resolution parameters in the whole slide image.
 
@@ -210,7 +206,7 @@ class BaseWSIReader(ImageReader):
                 # Set the default value if no resolution parameter is provided.
                 level = 0
             if level >= n_levels:
-                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+                raise ValueError(f"The maximum level of this image is {n_levels - 1} while level={level} is requested)!")
 
         return level
 
@@ -285,9 +281,7 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _get_metadata(
-        self, wsi, patch: NdarrayOrTensor, location: tuple[int, int], size: tuple[int, int], level: int
-    ) -> dict:
+    def _get_metadata(self, wsi, patch: NdarrayOrTensor, location: tuple[int, int], size: tuple[int, int], level: int) -> dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
@@ -301,9 +295,7 @@ class BaseWSIReader(ImageReader):
 
         """
         if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
-            raise ValueError(
-                f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}"
-            )
+            raise ValueError(f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}")
         channel_dim: int = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
         metadata: dict = {
             "backend": self.backend,
@@ -385,13 +377,9 @@ class BaseWSIReader(ImageReader):
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype_np, mode=mode)
 
             # Convert the patch to torch.Tensor if dtype is torch
-            if isinstance(self.dtype, torch.dtype) or (
-                self.device is not None and torch.device(self.device).type == "cuda"
-            ):
+            if isinstance(self.dtype, torch.dtype) or (self.device is not None and torch.device(self.device).type == "cuda"):
                 # Ensure dtype is torch.dtype if the device is not "cpu"
-                dtype_torch = (
-                    dtype_numpy_to_torch(self.dtype) if not isinstance(self.dtype, torch.dtype) else self.dtype
-                )
+                dtype_torch = dtype_numpy_to_torch(self.dtype) if not isinstance(self.dtype, torch.dtype) else self.dtype
                 # Copy the numpy array if it is not writable
                 if patch.flags["WRITEABLE"]:
                     patch = torch.as_tensor(patch, dtype=dtype_torch, device=self.device)
@@ -414,8 +402,7 @@ class BaseWSIReader(ImageReader):
             # Check if there are three color channels for RGB
             elif mode in "RGB" and patch.shape[self.channel_dim] != 3:
                 raise ValueError(
-                    f"The image is expected to have three color channels in '{mode}' mode but has "
-                    f"{patch.shape[self.channel_dim]}. "
+                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[self.channel_dim]}. "
                 )
             # Get patch-related metadata
             metadata: dict = self._get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
@@ -538,9 +525,7 @@ class WSIReader(BaseWSIReader):
                 **kwargs,
             )
         else:
-            raise ValueError(
-                f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given."
-            )
+            raise ValueError(f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given.")
         self.supported_suffixes = self.reader.supported_suffixes
         self.level = self.reader.level
         self.mpp_rtol = self.reader.mpp_rtol
@@ -807,9 +792,7 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         # Extract a patch or the entire image
         # (reverse the order of location and size to become WxH for cuCIM)
-        patch: np.ndarray = wsi.read_region(
-            location=location[::-1], size=size[::-1], level=level, num_workers=self.num_workers
-        )
+        patch: np.ndarray = wsi.read_region(location=location[::-1], size=size[::-1], level=level, num_workers=self.num_workers)
 
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)

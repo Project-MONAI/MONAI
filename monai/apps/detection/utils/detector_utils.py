@@ -80,9 +80,7 @@ def check_training_targets(
     for i in range(len(targets)):
         target = targets[i]
         if (target_label_key not in target.keys()) or (target_box_key not in target.keys()):
-            raise ValueError(
-                f"{target_label_key} and {target_box_key} are expected keys in targets. Got {target.keys()}."
-            )
+            raise ValueError(f"{target_label_key} and {target_box_key} are expected keys in targets. Got {target.keys()}.")
 
         boxes = target[target_box_key]
         if not isinstance(boxes, torch.Tensor):
@@ -91,12 +89,10 @@ def check_training_targets(
             if boxes.numel() == 0:
                 warnings.warn(
                     f"Warning: Given target boxes has shape of {boxes.shape}. "
-                    f"The detector reshaped it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
+                    f"The detector reshaped it with boxes = torch.reshape(boxes, [0, {2 * spatial_dims}])."
                 )
             else:
-                raise ValueError(
-                    f"Expected target boxes to be a tensor of shape [N, {2* spatial_dims}], got {boxes.shape}.)."
-                )
+                raise ValueError(f"Expected target boxes to be a tensor of shape [N, {2 * spatial_dims}], got {boxes.shape}.).")
         if not torch.is_floating_point(boxes):
             raise ValueError(f"Expected target boxes to be a float tensor, got {boxes.dtype}.")
         targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims)  # type: ignore

@@ -136,9 +136,7 @@ class AnchorGenerator(nn.Module):
         self.indexing = look_up_option(indexing, ["ij", "xy"])
 
         self.aspect_ratios = aspect_ratios
-        self.cell_anchors = [
-            self.generate_anchors(size, aspect_ratio) for size, aspect_ratio in zip(self.sizes, aspect_ratios)
-        ]
+        self.cell_anchors = [self.generate_anchors(size, aspect_ratio) for size, aspect_ratio in zip(self.sizes, aspect_ratios)]
 
     # This comment comes from torchvision.
     # TODO: https://github.com/pytorch/pytorch/issues/26792
@@ -174,13 +172,13 @@ class AnchorGenerator(nn.Module):
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
             raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
-                {len(aspect_ratios_t.shape)-1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                {len(aspect_ratios_t.shape) - 1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
             raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
-                shape (_,{self.spatial_dims-1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                shape (_,{self.spatial_dims - 1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         # if 2d, w:h = 1:aspect_ratios
@@ -253,8 +251,7 @@ class AnchorGenerator(nn.Module):
             # compute anchor centers regarding to the image.
             # shifts_centers is [x_center, y_center] or [x_center, y_center, z_center]
             shifts_centers = [
-                torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis]
-                for axis in range(self.spatial_dims)
+                torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis] for axis in range(self.spatial_dims)
             ]
 
             # to support torchscript, cannot directly use torch.meshgrid(shifts_centers).
@@ -307,10 +304,7 @@ class AnchorGenerator(nn.Module):
         batchsize = images.shape[0]
         dtype, device = feature_maps[0].dtype, feature_maps[0].device
         strides = [
-            [
-                torch.tensor(image_size[axis] // g[axis], dtype=torch.int64, device=device)
-                for axis in range(self.spatial_dims)
-            ]
+            [torch.tensor(image_size[axis] // g[axis], dtype=torch.int64, device=device) for axis in range(self.spatial_dims)]
             for g in grid_sizes
         ]
 
