@@ -244,14 +244,10 @@ class VISTA3D(nn.Module):
         _logits = logits[mapping_index]
         inside = []
         for i in range(_logits.shape[0]):
-            inside.append(
-                np.any(
-                    [
-                        _logits[i, 0, p[0], p[1], p[2]].item() > 0
-                        for p in point_coords[i].cpu().numpy().round().astype(int)
-                    ]
-                )
-            )
+            p_coord = point_coords[i].cpu().numpy().round().astype(int)
+            inside_p = [_logits[i, 0, p[0], p[1], p[2]].item() > 0 for p in p_coord]
+            inside.append(int(np.any(inside_p)))  # convert to int to avoid typing problems with Numpy
+
         inside_tensor = torch.tensor(inside).to(logits.device)
         nan_mask = torch.isnan(_logits)
         # _logits are converted to binary [B1, 1, H, W, D]
