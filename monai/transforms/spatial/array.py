@@ -24,7 +24,6 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
-from monai.transforms.spatial.functional import _compiled_unsupported
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta, set_track_meta
@@ -35,6 +34,7 @@ from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
+    _compiled_unsupported,
     affine_func,
     convert_box_to_points,
     convert_points_to_box,
