@@ -88,8 +88,8 @@ class RetinaNetClassificationHead(nn.Module):
 
         for layer in self.conv.children():
             if isinstance(layer, conv_type):  # type: ignore
-                torch.nn.init.normal_(layer.weight, std=0.01)
-                torch.nn.init.constant_(layer.bias, 0)
+                torch.nn.init.normal_(layer.weight, std=0.01)  # type: ignore[arg-type]
+                torch.nn.init.constant_(layer.bias, 0)  # type: ignore[arg-type]
 
         self.cls_logits = conv_type(in_channels, num_anchors * num_classes, kernel_size=3, stride=1, padding=1)
         torch.nn.init.normal_(self.cls_logits.weight, std=0.01)
@@ -125,11 +125,12 @@ class RetinaNetClassificationHead(nn.Module):
 
             cls_logits_maps.append(cls_logits)
 
-            if torch.isnan(cls_logits).any() or torch.isinf(cls_logits).any():
-                if torch.is_grad_enabled():
-                    raise ValueError("cls_logits is NaN or Inf.")
-                else:
-                    warnings.warn("cls_logits is NaN or Inf.")
+            if not torch.compiler.is_compiling():
+                if torch.isnan(cls_logits).any() or torch.isinf(cls_logits).any():
+                    if torch.is_grad_enabled():
+                        raise ValueError("cls_logits is NaN or Inf.")
+                    else:
+                        warnings.warn("cls_logits is NaN or Inf.")
 
         return cls_logits_maps
 
@@ -167,8 +168,8 @@ class RetinaNetRegressionHead(nn.Module):
 
         for layer in self.conv.children():
             if isinstance(layer, conv_type):  # type: ignore
-                torch.nn.init.normal_(layer.weight, std=0.01)
-                torch.nn.init.zeros_(layer.bias)
+                torch.nn.init.normal_(layer.weight, std=0.01)  # type: ignore[arg-type]
+                torch.nn.init.zeros_(layer.bias)  # type: ignore[arg-type]
 
     def forward(self, x: list[Tensor]) -> list[Tensor]:
         """
@@ -197,11 +198,12 @@ class RetinaNetRegressionHead(nn.Module):
 
             box_regression_maps.append(box_regression)
 
-            if torch.isnan(box_regression).any() or torch.isinf(box_regression).any():
-                if torch.is_grad_enabled():
-                    raise ValueError("box_regression is NaN or Inf.")
-                else:
-                    warnings.warn("box_regression is NaN or Inf.")
+            if not torch.compiler.is_compiling():
+                if torch.isnan(box_regression).any() or torch.isinf(box_regression).any():
+                    if torch.is_grad_enabled():
+                        raise ValueError("box_regression is NaN or Inf.")
+                    else:
+                        warnings.warn("box_regression is NaN or Inf.")
 
         return box_regression_maps
 
@@ -297,7 +299,7 @@ class RetinaNet(nn.Module):
             )
         self.feature_extractor = feature_extractor
 
-        self.feature_map_channels: int = self.feature_extractor.out_channels
+        self.feature_map_channels: int = self.feature_extractor.out_channels  # type: ignore[assignment]
         self.num_anchors = num_anchors
         self.classification_head = RetinaNetClassificationHead(
             self.feature_map_channels, self.num_anchors, self.num_classes, spatial_dims=self.spatial_dims

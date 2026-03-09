@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
+from tests.test_utils import assert_allclose, test_script_save
 
 einops, has_einops = optional_import("einops")
 
@@ -54,7 +54,6 @@ for dropout_rate in np.linspace(0, 1, 4):
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SABLOCK)
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SABlock(**input_param)
         with eval_mode(net):
@@ -68,7 +67,6 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_rel_pos_embedding_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(
@@ -80,7 +78,6 @@ class TestResBlock(unittest.TestCase):
                 rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
             )
 
-    @SkipIfBeforePyTorchVersion((1, 13))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
@@ -98,7 +95,6 @@ class TestResBlock(unittest.TestCase):
             SABlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_causal_flash_attention(self):
         block = SABlock(
             hidden_size=128,
@@ -196,7 +192,6 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand([[True, False], [True, True], [False, True], [False, False]])
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, include_fc, use_combined_linear):
         input_param = {
             "hidden_size": 360,
@@ -213,7 +208,6 @@ class TestResBlock(unittest.TestCase):
         test_script_save(net, test_data)
 
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_flash_attention(self):
         for causal in [True, False]:
             input_param = {"hidden_size": 360, "num_heads": 4, "input_size": (16, 32), "causal": causal}
@@ -226,6 +220,27 @@ class TestResBlock(unittest.TestCase):
         out_1 = block_w_flash_attention(test_data)
         out_2 = block_wo_flash_attention(test_data)
         assert_allclose(out_1, out_2, atol=1e-4)
+
+    @parameterized.expand([[True], [False]])
+    def test_no_extra_weights_if_no_fc(self, include_fc):
+        input_param = {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "dropout_rate": 0.0,
+            "rel_pos_embedding": None,
+            "input_size": (16, 32),
+            "include_fc": include_fc,
+            "use_combined_linear": use_combined_linear,
+        }
+        net = SABlock(**input_param)
+        if not include_fc:
+            self.assertNotIn("out_proj.weight", net.state_dict())
+            self.assertNotIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Identity)
+        else:
+            self.assertIn("out_proj.weight", net.state_dict())
+            self.assertIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Linear)
 
 
 if __name__ == "__main__":

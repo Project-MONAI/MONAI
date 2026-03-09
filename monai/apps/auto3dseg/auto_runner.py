@@ -87,7 +87,7 @@ class AutoRunner:
             tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
         mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
-            transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
+            transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage.
 
 
     Examples:
@@ -194,6 +194,15 @@ class AutoRunner:
             ├── segresnet2d_0       # network scripts/configs/checkpoints and pickle object of the algo
             └── swinunetr_0         # network scripts/configs/checkpoints and pickle object of the algo
 
+
+        The input config requires at least the following keys:
+            - ``modality``: the modality of the data, e.g. "ct", "mri", etc.
+            - ``datalist``: the path to the datalist file in JSON format.
+            - ``dataroot``: the root directory of the data files.
+
+        For the datalist file format, see the description under :py:func:`monai.data.load_decathlon_datalist`.
+        Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise
+        it will do cross-validation, by default with five folds (this is hardcoded).
     """
 
     analyze_params: dict | None
@@ -570,7 +579,7 @@ class AutoRunner:
             self.device_setting["CUDA_VISIBLE_DEVICES"] = ",".join([str(x) for x in cuda_visible_devices])
             self.device_setting["n_devices"] = len(cuda_visible_devices)
         else:
-            logger.warn(f"Wrong format of cuda_visible_devices {cuda_visible_devices}, devices not set")
+            logger.warning(f"Wrong format of cuda_visible_devices {cuda_visible_devices}, devices not set")
 
         if num_nodes is None:
             num_nodes = int(os.environ.get("NUM_NODES", 1))
@@ -612,7 +621,7 @@ class AutoRunner:
 
         Args:
             kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
-                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
+                transform. For more information, check https://monai.readthedocs.io/en/stable/transforms.html#saveimage.
 
         """
 
@@ -622,7 +631,7 @@ class AutoRunner:
         else:
             raise ValueError(
                 f"{extra_args} are not supported in monai.transforms.SaveImage,"
-                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+                "Check https://monai.readthedocs.io/en/stable/transforms.html#saveimage for more information."
             )
 
         return self

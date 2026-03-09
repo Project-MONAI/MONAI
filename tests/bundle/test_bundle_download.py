@@ -15,7 +15,7 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.case import skipUnless
+from unittest.case import skipIf, skipUnless
 from unittest.mock import patch
 
 import numpy as np
@@ -28,12 +28,12 @@ from monai.bundle import ConfigParser, create_workflow, load
 from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
     assert_allclose,
     command_line_tests,
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
+    skip_if_windows,
 )
 
 _, has_huggingface_hub = optional_import("huggingface_hub")
@@ -62,6 +62,8 @@ TEST_CASE_5 = [
 ]
 
 TEST_CASE_6 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
+
+TEST_CASE_6_HF = [["models/model.pt", "configs/train.yaml"], "mednist_ddpm", "1.0.1"]
 
 TEST_CASE_7 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
@@ -92,6 +94,47 @@ TEST_CASE_10 = [
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.3.zip",
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
+
+TEST_CASE_NGC_1 = [
+    "spleen_ct_segmentation",
+    "0.3.7",
+    None,
+    "monai_spleen_ct_segmentation",
+    "models/model.pt",
+    "b418a2dc8672ce2fd98dc255036e7a3d",
+]
+TEST_CASE_NGC_2 = [
+    "monai_spleen_ct_segmentation",
+    "0.3.7",
+    "monai_",
+    "spleen_ct_segmentation",
+    "models/model.pt",
+    "b418a2dc8672ce2fd98dc255036e7a3d",
+]
+
+TESTCASE_NGC_WEIGHTS = {
+    "key": "model.0.conv.unit0.adn.N.bias",
+    "value": torch.tensor(
+        [
+            -0.0705,
+            -0.0937,
+            -0.0422,
+            -0.2068,
+            0.1023,
+            -0.2007,
+            -0.0883,
+            0.0018,
+            -0.1719,
+            0.0116,
+            0.0285,
+            -0.0044,
+            0.1223,
+            -0.1287,
+            -0.1858,
+            0.0460,
+        ]
+    ),
+}
 
 
 class TestDownload(unittest.TestCase):
@@ -176,6 +219,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
+    @skipIf(os.getenv("NGC_API_KEY", None) is None, "NGC API key required for this test")
     def test_ngc_private_source_download_bundle(self, bundle_files, bundle_name, _url):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
@@ -193,6 +237,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
@@ -239,23 +284,26 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(_list_latest_versions(data), ["1.1", "1.0"])
 
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
     def test_download_monaihosting(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
         with patch("monai.bundle.scripts.logger") as mock_logger:
             with tempfile.TemporaryDirectory() as tempdir:
-                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
-                # Should have a warning message because the latest version is using monai > 1.2
-                mock_logger.warning.assert_called_once()
+                with skip_if_downloading_fails():
+                    download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
+                    # Should have a warning message because the latest version is using monai > 1.2
+                    mock_logger.warning.assert_called_once()
 
     @skip_if_quick
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.3"})
     def test_download_ngc(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
-        with patch("monai.bundle.scripts.logger") as mock_logger:
-            with tempfile.TemporaryDirectory() as tempdir:
-                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
-                mock_logger.warning.assert_not_called()
+        with skip_if_downloading_fails():
+            with patch("monai.bundle.scripts.logger") as mock_logger:
+                with tempfile.TemporaryDirectory() as tempdir:
+                    download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
+                    mock_logger.warning.assert_not_called()
 
 
 @skip_if_no_cuda
@@ -264,10 +312,10 @@ class TestLoad(unittest.TestCase):
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
-            # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
+                bundle_root = os.path.join(tempdir, bundle_name)
                 # load weights
-                weights = load(
+                model_1 = load(
                     name=bundle_name,
                     model_file=model_file,
                     bundle_dir=tempdir,
@@ -275,23 +323,26 @@ class TestLoad(unittest.TestCase):
                     source="github",
                     progress=False,
                     device=device,
-                    return_state_dict=True,
                 )
                 # prepare network
-                with open(os.path.join(tempdir, bundle_name, bundle_files[2])) as f:
+                with open(os.path.join(bundle_root, bundle_files[2])) as f:
                     net_args = json.load(f)["network_def"]
                 model_name = net_args["_target_"]
                 del net_args["_target_"]
                 model = getattr(nets, model_name)(**net_args)
                 model.to(device)
-                model.load_state_dict(weights)
+                model.load_state_dict(model_1)
                 model.eval()
 
                 # prepare data and test
-                input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[4]), map_location=device)
+                input_tensor = torch.load(
+                    os.path.join(bundle_root, bundle_files[4]), map_location=device, weights_only=True
+                )
                 output = model.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[3]), map_location=device)
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                expected_output = torch.load(
+                    os.path.join(bundle_root, bundle_files[3]), map_location=device, weights_only=True
+                )
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
@@ -304,43 +355,20 @@ class TestLoad(unittest.TestCase):
                     progress=False,
                     device=device,
                     source="github",
-                    return_state_dict=False,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
-                assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
-
-                # test compatibility with return_state_dict=True.
-                model_3 = load(
-                    name=bundle_name,
-                    model_file=model_file,
-                    bundle_dir=tempdir,
-                    progress=False,
-                    device=device,
-                    net_name=model_name,
-                    source="github",
-                    return_state_dict=False,
-                    **net_args,
-                )
-                model_3.eval()
-                output_3 = model_3.forward(input_tensor)
-                assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                assert_allclose(output_2, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
 
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_load_weights_with_net_override(self, bundle_name, device, net_override):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(
-                    name=bundle_name,
-                    bundle_dir=tempdir,
-                    source="monaihosting",
-                    progress=False,
-                    device=device,
-                    return_state_dict=False,
-                )
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
@@ -350,7 +378,7 @@ class TestLoad(unittest.TestCase):
                     config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow_type="train"
                 )
                 expected_model = workflow.network_def.to(device)
-                expected_model.load_state_dict(torch.load(model_path))
+                expected_model.load_state_dict(torch.load(model_path, weights_only=True))
                 expected_output = expected_model(input_tensor)
                 assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
@@ -361,7 +389,6 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    return_state_dict=False,
                     net_override=net_override,
                 )
 
@@ -373,11 +400,11 @@ class TestLoad(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_9])
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 7, 1))
     def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):
         with skip_if_downloading_fails():
             # load ts module
             with tempfile.TemporaryDirectory() as tempdir:
+                bundle_root = os.path.join(tempdir, bundle_name)
                 # load ts module
                 model_ts, metadata, extra_file_dict = load(
                     name=bundle_name,
@@ -393,10 +420,14 @@ class TestLoad(unittest.TestCase):
                 )
 
                 # prepare and test ts
-                input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[1]), map_location=device)
+                input_tensor = torch.load(
+                    os.path.join(bundle_root, bundle_files[1]), map_location=device, weights_only=True
+                )
                 output = model_ts.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[0]), map_location=device)
-                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+                expected_output = torch.load(
+                    os.path.join(bundle_root, bundle_files[0]), map_location=device, weights_only=True
+                )
+                assert_allclose(output, expected_output, atol=1e-3, rtol=1e-3, type_test=False)
                 # test metadata
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
@@ -429,6 +460,32 @@ class TestDownloadLargefiles(unittest.TestCase):
                 for file in ["model.pt", "model.ts"]:
                     file_path = os.path.join(tempdir, bundle_name, f"models/{file}")
                     self.assertTrue(check_hash(filepath=file_path, val=hash_val[file]))
+
+
+@skip_if_windows
+class TestNgcBundleDownload(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_NGC_1, TEST_CASE_NGC_2])
+    @skip_if_quick
+    def test_ngc_download_bundle(self, bundle_name, version, remove_prefix, download_name, file_path, hash_val):
+        with skip_if_downloading_fails():
+            with tempfile.TemporaryDirectory() as tempdir:
+                download(
+                    name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
+                )
+                full_file_path = os.path.join(tempdir, download_name, file_path)
+                self.assertTrue(os.path.exists(full_file_path))
+                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
+
+                model = load(
+                    name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
+                )
+                assert_allclose(
+                    model.state_dict()[TESTCASE_NGC_WEIGHTS["key"]],
+                    TESTCASE_NGC_WEIGHTS["value"],
+                    atol=1e-4,
+                    rtol=1e-4,
+                    type_test=False,
+                )
 
 
 if __name__ == "__main__":

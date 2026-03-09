@@ -15,12 +15,13 @@ from .acti_norm import ADN
 from .activation import GEGLU, MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
 from .backbone_fpn_utils import BackboneWithFPN
+from .cablock import CABlock, FeedForward
 from .convolutions import Convolution, ResidualUnit
 from .crf import CRF
 from .crossattention import CrossAttentionBlock
 from .denseblock import ConvDenseBlock, DenseBlock
 from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedReduceBlock, P3DActiConvNormBlock
-from .downsample import MaxAvgPool
+from .downsample import DownSample, Downsample, MaxAvgPool, SubpixelDownsample, SubpixelDownSample, Subpixeldownsample
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .encoder import BaseEncoder
 from .fcn import FCN, GCN, MCFCN, Refine

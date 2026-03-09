@@ -39,7 +39,7 @@ from monai.networks.nets import (
     SPADEAutoencoderKL,
     SPADEDiffusionModelUNet,
 )
-from monai.networks.schedulers import Scheduler
+from monai.networks.schedulers import RFlowScheduler, Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, Ordering, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -322,8 +322,36 @@ class PatchInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
 
         """
+        # check if there is a conditioning signal
+        condition = kwargs.pop("condition", None)
+        # shape check for condition
+        if condition is not None:
+            if isinstance(inputs, torch.Tensor) and isinstance(condition, torch.Tensor):
+                if condition.shape != inputs.shape:
+                    raise ValueError(
+                        f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}"
+                    )
+            elif isinstance(inputs, list) and isinstance(condition, list):
+                if len(inputs) != len(condition):
+                    raise ValueError(
+                        f"Length of `condition` must match `inputs`. Got {len(inputs)} and {len(condition)}."
+                    )
+                for (in_patch, _), (cond_patch, _) in zip(inputs, condition):
+                    if cond_patch.shape != in_patch.shape:
+                        raise ValueError(
+                            "Each `condition` patch must match the shape of the corresponding input patch. "
+                            f"Got {cond_patch.shape} and {in_patch.shape}."
+                        )
+            else:
+                raise ValueError(
+                    "`condition` and `inputs` must be of the same type (both Tensor or both list of patches)."
+                )
+
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
             # handle situations where the splitter is not provided
@@ -344,20 +372,39 @@ class PatchInferer(Inferer):
                         f"The provided inputs type is {type(inputs)}."
                     )
             patches_locations = inputs
+            if condition is not None:
+                condition_locations = condition
         else:
             # apply splitter
             patches_locations = self.splitter(inputs)
+            if condition is not None:
+                # apply splitter to condition
+                condition_locations = self.splitter(condition)
 
         ratios: list[float] = []
         mergers: list[Merger] = []
-        for patches, locations, batch_size in self._batch_sampler(patches_locations):
-            # run inference
-            outputs = self._run_inference(network, patches, *args, **kwargs)
-            # initialize the mergers
-            if not mergers:
-                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
-            # aggregate outputs
-            self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        if condition is not None:
+            for (patches, locations, batch_size), (condition_patches, _, _) in zip(
+                self._batch_sampler(patches_locations), self._batch_sampler(condition_locations)
+            ):
+                # add patched condition to kwargs
+                kwargs["condition"] = condition_patches
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        else:
+            for patches, locations, batch_size in self._batch_sampler(patches_locations):
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
         merged_outputs = [merger.finalize() for merger in mergers]
@@ -519,8 +566,14 @@ class SlidingWindowInferer(Inferer):
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments.
         """
+        # shape check for condition
+        condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
 
         device = kwargs.pop("device", self.device)
         buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
@@ -728,7 +781,9 @@ class SliceInferer(SlidingWindowInferer):
             network: 2D model to execute inference on slices in the 3D input
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
-        """
+            condition (torch.Tensor, optional): If provided via `**kwargs`,
+                this tensor must match the shape of `inputs` and will be sliced, patched, or windowed alongside the inputs.
+                The resulting segments will be passed to the model together with the corresponding input segments."""
         if self.spatial_dim > 2:
             raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
 
@@ -742,12 +797,28 @@ class SliceInferer(SlidingWindowInferer):
                 f"Currently, only 2D `roi_size` ({self.orig_roi_size}) with 3D `inputs` tensor (shape={inputs.shape}) is supported."
             )
 
-        return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
+        # shape check for condition
+        condition = kwargs.get("condition", None)
+        if condition is not None and condition.shape != inputs.shape:
+            raise ValueError(f"`condition` must match shape of `inputs` ({inputs.shape}), but got {condition.shape}")
+
+        # check if there is a conditioning signal
+        if condition is not None:
+            return super().__call__(
+                inputs=inputs,
+                network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs),
+                condition=condition,
+            )
+        else:
+            return super().__call__(
+                inputs=inputs, network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs)
+            )
 
     def network_wrapper(
         self,
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
+        condition: torch.Tensor | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -756,7 +827,12 @@ class SliceInferer(SlidingWindowInferer):
         """
         #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
         x = x.squeeze(dim=self.spatial_dim + 2)
-        out = network(x, *args, **kwargs)
+
+        if condition is not None:
+            condition = condition.squeeze(dim=self.spatial_dim + 2)
+            out = network(x, condition, *args, **kwargs)
+        else:
+            out = network(x, *args, **kwargs)
 
         #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
         # the default SlidingWindowInferer class
@@ -839,6 +915,8 @@ class DiffusionInferer(Inferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -851,6 +929,8 @@ class DiffusionInferer(Inferer):
             mode: Conditioning mode for the network.
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -859,32 +939,58 @@ class DiffusionInferer(Inferer):
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
+
+        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
         if verbose and has_tqdm:
-            progress_bar = tqdm(scheduler.timesteps)
+            progress_bar = tqdm(
+                zip(scheduler.timesteps, all_next_timesteps),
+                total=min(len(scheduler.timesteps), len(all_next_timesteps)),
+            )
         else:
-            progress_bar = iter(scheduler.timesteps)
+            progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
-        for t in progress_bar:
+
+        for t, next_t in progress_bar:
             # 1. predict noise model_output
             diffusion_model = (
                 partial(diffusion_model, seg=seg)
                 if isinstance(diffusion_model, SPADEDiffusionModelUNet)
                 else diffusion_model
             )
-            if mode == "concat" and conditioning is not None:
-                model_input = torch.cat([image, conditioning], dim=1)
+            if (
+                cfg is not None
+            ):  # if classifier-free guidance is used, a conditioned and unconditioned bit is generated.
+                model_input = torch.cat([image] * 2, dim=0)
+                if conditioning is not None:
+                    uncondition = torch.ones_like(conditioning)
+                    uncondition.fill_(cfg_fill_value)
+                    conditioning_input = torch.cat([uncondition, conditioning], dim=0)
+                else:
+                    conditioning_input = None
+            else:
+                model_input = image
+                conditioning_input = conditioning
+            if mode == "concat" and conditioning_input is not None:
+                model_input = torch.cat([model_input, conditioning_input], dim=1)
                 model_output = diffusion_model(
                     model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=None
                 )
             else:
                 model_output = diffusion_model(
-                    image, timesteps=torch.Tensor((t,)).to(input_noise.device), context=conditioning
+                    model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=conditioning_input
                 )
+            if cfg is not None:
+                model_output_uncond, model_output_cond = model_output.chunk(2)
+                model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
 
             # 2. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            if not isinstance(scheduler, RFlowScheduler):
+                image, _ = scheduler.step(model_output, t, image)  # type: ignore
+            else:
+                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
+
         if save_intermediates:
             return image, intermediates
         else:
@@ -986,8 +1092,8 @@ class DiffusionInferer(Inferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance
@@ -1156,6 +1262,8 @@ class LatentDiffusionInferer(DiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1170,6 +1278,8 @@ class LatentDiffusionInferer(DiffusionInferer):
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
 
         if (
@@ -1193,6 +1303,8 @@ class LatentDiffusionInferer(DiffusionInferer):
             mode=mode,
             verbose=verbose,
             seg=seg,
+            cfg=cfg,
+            cfg_fill_value=cfg_fill_value,
         )
 
         if save_intermediates:
@@ -1371,6 +1483,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1385,6 +1499,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             mode: Conditioning mode for the network.
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -1392,19 +1508,42 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
+
+        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
         if verbose and has_tqdm:
-            progress_bar = tqdm(scheduler.timesteps)
+            progress_bar = tqdm(
+                zip(scheduler.timesteps, all_next_timesteps),
+                total=min(len(scheduler.timesteps), len(all_next_timesteps)),
+            )
         else:
-            progress_bar = iter(scheduler.timesteps)
+            progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
-        for t in progress_bar:
+
+        if cfg is not None:
+            cn_cond = torch.cat([cn_cond] * 2, dim=0)
+
+        for t, next_t in progress_bar:
+            # Controlnet prediction
+            if cfg is not None:
+                model_input = torch.cat([image] * 2, dim=0)
+                if conditioning is not None:
+                    uncondition = torch.ones_like(conditioning)
+                    uncondition.fill_(cfg_fill_value)
+                    conditioning_input = torch.cat([uncondition, conditioning], dim=0)
+                else:
+                    conditioning_input = None
+            else:
+                model_input = image
+                conditioning_input = conditioning
+
+            # Diffusion model prediction
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
                 diffuse = partial(diffusion_model, seg=seg)
 
-            if mode == "concat" and conditioning is not None:
+            if mode == "concat" and conditioning_input is not None:
                 # 1. Conditioning
-                model_input = torch.cat([image, conditioning], dim=1)
+                model_input = torch.cat([model_input, conditioning_input], dim=1)
                 # 2. ControlNet forward
                 down_block_res_samples, mid_block_res_sample = controlnet(
                     x=model_input,
@@ -1421,22 +1560,34 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                     mid_block_additional_residual=mid_block_res_sample,
                 )
             else:
+                # 1. Controlnet forward
                 down_block_res_samples, mid_block_res_sample = controlnet(
-                    x=image,
+                    x=model_input,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
                     controlnet_cond=cn_cond,
-                    context=conditioning,
+                    context=conditioning_input,
                 )
+                # 2. predict noise model_output
                 model_output = diffuse(
-                    image,
+                    model_input,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
-                    context=conditioning,
+                    context=conditioning_input,
                     down_block_additional_residuals=down_block_res_samples,
                     mid_block_additional_residual=mid_block_res_sample,
                 )
 
+            # If classifier-free guidance isn't None, we split and compute the weighting between
+            # conditioned and unconditioned output.
+            if cfg is not None:
+                model_output_uncond, model_output_cond = model_output.chunk(2)
+                model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
+
             # 3. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            if not isinstance(scheduler, RFlowScheduler):
+                image, _ = scheduler.step(model_output, t, image)  # type: ignore
+            else:
+                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
+
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
         if save_intermediates:
@@ -1562,8 +1713,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance
@@ -1694,6 +1845,8 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         mode: str = "crossattn",
         verbose: bool = True,
         seg: torch.Tensor | None = None,
+        cfg: float | None = None,
+        cfg_fill_value: float = -1.0,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Args:
@@ -1710,6 +1863,8 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             verbose: if true, prints the progression bar of the sampling process.
             seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
              is instance of SPADEAutoencoderKL, segmentation must be provided.
+            cfg: classifier-free-guidance scale, which indicates the level of strengthening on the conditioning.
+            cfg_fill_value: the fill value to use for the unconditioned input when using classifier-free guidance.
         """
 
         if (
@@ -1737,6 +1892,8 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             mode=mode,
             verbose=verbose,
             seg=seg,
+            cfg=cfg,
+            cfg_fill_value=cfg_fill_value,
         )
 
         if save_intermediates:

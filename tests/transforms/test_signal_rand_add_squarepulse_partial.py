@@ -22,7 +22,6 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSquarePulsePartial
 from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
-from tests.test_utils import SkipIfBeforePyTorchVersion
 
 _, has_scipy = optional_import("scipy")
 TESTS_PATH = Path(__file__).parents[1]
@@ -31,7 +30,6 @@ VALID_CASES = [([0.0, 1.0], [0.001, 0.2], [0.0, 0.4])]
 
 
 @skipUnless(has_scipy, "scipy required")
-@SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulsePartialNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
@@ -45,7 +43,6 @@ class TestSignalRandAddSquarePulsePartialNumpy(unittest.TestCase):
 
 
 @skipUnless(has_scipy, "scipy required")
-@SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulsePartialTorch(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):

@@ -240,7 +240,7 @@ class ResNet(nn.Module):
             elif block == "bottleneck":
                 block = ResNetBottleneck
             else:
-                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
+                raise ValueError(f"Unknown block '{block}', use basic or bottleneck")
 
         conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
@@ -493,7 +493,7 @@ def _resnet(
         if isinstance(pretrained, str):
             if Path(pretrained).exists():
                 logger.info(f"Loading weights from {pretrained}...")
-                model_state_dict = torch.load(pretrained, map_location=device)
+                model_state_dict = torch.load(pretrained, map_location=device, weights_only=True)
             else:
                 # Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
@@ -665,7 +665,7 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", dat
                 raise EntryNotFoundError(
                     f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
                 ) from None
-        checkpoint = torch.load(pretrained_path, map_location=torch.device(device))
+        checkpoint = torch.load(pretrained_path, map_location=torch.device(device), weights_only=True)
     else:
         raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")
     logger.info(f"{filename} downloaded")

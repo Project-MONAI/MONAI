@@ -97,7 +97,7 @@ class Generator(nn.Module):
         for i, (c, s) in enumerate(zip(channels, strides)):
             is_last = i == len(channels) - 1
             layer = self._get_layer(echannel, c, s, is_last)
-            self.conv.add_module("layer_%i" % i, layer)
+            self.conv.add_module(f"layer_{i}", layer)
             echannel = c
 
     def _get_layer(

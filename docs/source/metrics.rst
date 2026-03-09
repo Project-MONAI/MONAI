@@ -98,7 +98,6 @@ Metrics
 `Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
-.. autofunction:: compute_percent_hausdorff_distance
 
 .. autoclass:: HausdorffDistanceMetric
     :members:
@@ -144,6 +143,11 @@ Metrics
 .. autoclass:: PSNRMetric
     :members:
 
+`Mean absolute percentage error`
+---------------------------------
+.. autoclass:: MAPEMetric
+    :members:
+
 `Structural similarity index measure`
 -------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
@@ -181,6 +185,15 @@ Metrics
 .. autoclass:: MetricsReloadedCategorical
     :members:
 
+`Calibration Error`
+-------------------
+.. autofunction:: calibration_binning
+
+.. autoclass:: CalibrationReduction
+    :members:
+
+.. autoclass:: CalibrationErrorMetric
+    :members:
 
 
 Utilities

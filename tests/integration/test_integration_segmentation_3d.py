@@ -216,7 +216,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     ).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
-    model.load_state_dict(torch.load(model_filename))
+    model.load_state_dict(torch.load(model_filename, weights_only=True))
     with eval_mode(model):
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6

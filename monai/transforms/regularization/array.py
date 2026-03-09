@@ -17,9 +17,8 @@ from math import ceil, sqrt
 import torch
 
 from monai.data.meta_obj import get_track_meta
+from monai.transforms.transform import RandomizableTransform
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
-
-from ..transform import RandomizableTransform
 
 __all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 

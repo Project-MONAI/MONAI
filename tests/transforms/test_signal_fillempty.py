@@ -20,13 +20,11 @@ import torch
 
 from monai.transforms import SignalFillEmpty
 from monai.utils.type_conversion import convert_to_tensor
-from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TESTS_PATH = Path(__file__).parents[1]
 TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 
 
-@SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
@@ -37,7 +35,6 @@ class TestSignalFillEmptyNumpy(unittest.TestCase):
         self.assertTrue(not np.isnan(fillemptysignal).any())
 
 
-@SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)

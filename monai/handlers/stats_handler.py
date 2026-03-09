@@ -260,7 +260,7 @@ class StatsHandler:
                         "ignoring non-scalar output in StatsHandler,"
                         " make sure `output_transform(engine.state.output)` returns"
                         " a scalar or dictionary of key and scalar pairs to avoid this warning."
-                        " {}:{}".format(name, type(value))
+                        f" {name}:{type(value)}"
                     )
                     continue  # not printing multi dimensional output
                 out_str += self.key_var_format.format(name, value.item() if isinstance(value, torch.Tensor) else value)
@@ -273,7 +273,7 @@ class StatsHandler:
                 "ignoring non-scalar output in StatsHandler,"
                 " make sure `output_transform(engine.state.output)` returns"
                 " a scalar or a dictionary of key and scalar pairs to avoid this warning."
-                " {}".format(type(loss))
+                f" {type(loss)}"
             )
 
         if not out_str:

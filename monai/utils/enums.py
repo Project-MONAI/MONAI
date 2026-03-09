@@ -24,6 +24,7 @@ __all__ = [
     "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
+    "DownsampleMode",
     "BlendMode",
     "PytorchPadMode",
     "NdimageMode",
@@ -179,6 +180,18 @@ class UpsampleMode(StrEnum):
     DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
+
+
+class DownsampleMode(StrEnum):
+    """
+    See also: :py:class:`monai.networks.blocks.UpSample`
+    """
+
+    CONV = "conv"  # e.g. using strided convolution
+    CONVGROUP = "convgroup"  # e.g. using grouped strided convolution
+    PIXELUNSHUFFLE = "pixelunshuffle"
+    MAXPOOL = "maxpool"
+    AVGPOOL = "avgpool"
 
 
 class BlendMode(StrEnum):
@@ -529,6 +542,8 @@ class MetaKeys(StrEnum):
     Typical keys for MetaObj.meta
     """
 
+    PIXDIM = "pixdim"  # MetaTensor.pixdim
+    ORIGINAL_PIXDIM = "original_pixdim"  # the pixdim after image loading before any data processing
     AFFINE = "affine"  # MetaTensor.affine
     ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
