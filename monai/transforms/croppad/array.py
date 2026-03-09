@@ -285,7 +285,9 @@ class BorderPad(Pad):
         elif len(spatial_border) == len(spatial_shape):
             data_pad_width = [(int(sp), int(sp)) for sp in spatial_border[: len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
-            data_pad_width = [(int(spatial_border[2 * i]), int(spatial_border[2 * i + 1])) for i in range(len(spatial_shape))]
+            data_pad_width = [
+                (int(spatial_border[2 * i]), int(spatial_border[2 * i + 1])) for i in range(len(spatial_shape))
+            ]
         else:
             raise ValueError(
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
@@ -660,7 +662,9 @@ class RandScaleCrop(RandSpatialCrop):
         random_size: bool = False,
         lazy: bool = False,
     ) -> None:
-        super().__init__(roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size, lazy=lazy)
+        super().__init__(
+            roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size, lazy=lazy
+        )
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
@@ -739,7 +743,9 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandSpatialCropSamples:
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandSpatialCropSamples:
         super().set_random_state(seed, state)
         self.cropper.set_random_state(seed, state)
         return self
@@ -892,7 +898,9 @@ class CropForeground(Crop):
         slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
         cropped = super().__call__(img=img, slices=slices, lazy=lazy)
         pad_to_start = np.maximum(-box_start, 0)
-        pad_to_end = np.maximum(box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0)
+        pad_to_end = np.maximum(
+            box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
+        )
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         pad_width = BorderPad(spatial_border=pad).compute_pad_width(
             cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
@@ -1321,7 +1329,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if indices_ is None:
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold, self.max_samples_per_class)
+            indices_ = map_classes_to_indices(
+                label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+            )
         _shape = None
         if label is not None:
             _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
@@ -1459,7 +1469,9 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 pad_info = ret_.applied_operations.pop()
                 crop_info = ret_.applied_operations.pop()
                 orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
-                self.push_transform(ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}, lazy=lazy_)
+                self.push_transform(
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}, lazy=lazy_
+                )
             else:
                 pad_info = ret_.pending_operations.pop()
                 crop_info = ret_.pending_operations.pop()

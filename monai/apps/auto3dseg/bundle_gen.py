@@ -269,11 +269,15 @@ class BundleAlgo(Algo):
 
             return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
         elif int(self.device_setting["n_devices"]) > 1:
-            return _run_cmd_torchrun(cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True)
+            return _run_cmd_torchrun(
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
+            )
         else:
             return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
 
-    def train(self, train_params: None | dict = None, device_setting: None | dict = None) -> subprocess.CompletedProcess:
+    def train(
+        self, train_params: None | dict = None, device_setting: None | dict = None
+    ) -> subprocess.CompletedProcess:
         """
         Load the run function in the training script of each model. Training parameter is predefined by the
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
@@ -364,7 +368,9 @@ class BundleAlgo(Algo):
 
 
 # path to download the algo_templates
-default_algo_zip = f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
+default_algo_zip = (
+    f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
+)
 
 # default algorithms
 default_algos = {
@@ -653,7 +659,6 @@ class BundleGen(AlgoGen):
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
 
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
-                self.history.append({
-                    AlgoKeys.ID: name,
-                    AlgoKeys.ALGO: gen_algo,
-                })  # track the previous, may create a persistent history
+                self.history.append(
+                    {AlgoKeys.ID: name, AlgoKeys.ALGO: gen_algo}
+                )  # track the previous, may create a persistent history

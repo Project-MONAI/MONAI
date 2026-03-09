@@ -59,7 +59,9 @@ from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep, optional_import
 
-BalancedPositiveNegativeSampler, _ = optional_import("torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler")
+BalancedPositiveNegativeSampler, _ = optional_import(
+    "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
+)
 Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
 
 
@@ -326,7 +328,9 @@ class RetinaNetDetector(nn.Module):
         self.encode_gt = encode_gt
         self.decode_pred = decode_pred
 
-    def set_regular_matcher(self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches: bool = True) -> None:
+    def set_regular_matcher(
+        self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches: bool = True
+    ) -> None:
         """
         Using for training. Set torchvision matcher that matches anchors with ground truth boxes.
 
@@ -340,7 +344,9 @@ class RetinaNetDetector(nn.Module):
             raise ValueError(
                 f"Require fg_iou_thresh >= bg_iou_thresh. Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
             )
-        self.proposal_matcher = Matcher(fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches)
+        self.proposal_matcher = Matcher(
+            fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
+        )
 
     def set_atss_matcher(self, num_candidates: int = 4, center_in_gt: bool = False) -> None:
         """
@@ -489,7 +495,9 @@ class RetinaNetDetector(nn.Module):
         """
         # 1. Check if input arguments are valid
         if self.training:
-            targets = check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
+            targets = check_training_targets(
+                input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key
+            )
             self._check_detector_training_components()
 
         # 2. Pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
@@ -509,8 +517,12 @@ class RetinaNetDetector(nn.Module):
                 ensure_dict_value_to_list_(head_outputs)
         else:
             if self.inferer is None:
-                raise ValueError("`self.inferer` is not defined.Please refer to function self.set_sliding_window_inferer(*).")
-            head_outputs = predict_with_inferer(images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer)
+                raise ValueError(
+                    "`self.inferer` is not defined.Please refer to function self.set_sliding_window_inferer(*)."
+                )
+            head_outputs = predict_with_inferer(
+                images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
+            )
 
         # 4. Generate anchors and store it in self.anchors: List[Tensor]
         self.generate_anchors(images, head_outputs)
@@ -532,10 +544,7 @@ class RetinaNetDetector(nn.Module):
 
         # 6(2). If during inference, return detection results
         detections = self.postprocess_detections(
-            head_outputs,
-            self.anchors,
-            image_sizes,
-            num_anchor_locs_per_level,  # type: ignore
+            head_outputs, self.anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
         return detections
 
@@ -544,7 +553,9 @@ class RetinaNetDetector(nn.Module):
         Check if self.proposal_matcher and self.fg_bg_sampler have been set for training.
         """
         if not hasattr(self, "proposal_matcher"):
-            raise AttributeError("Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*).")
+            raise AttributeError(
+                "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
+            )
         if self.fg_bg_sampler is None and self.debug:
             warnings.warn(
                 "No balanced sampler is used. Negative samples are likely to "
@@ -641,7 +652,9 @@ class RetinaNetDetector(nn.Module):
         """
 
         # recover level sizes, HWA or HWDA for each level
-        num_anchors_per_level = [num_anchor_locs * self.num_anchors_per_loc for num_anchor_locs in num_anchor_locs_per_level]
+        num_anchors_per_level = [
+            num_anchor_locs * self.num_anchors_per_loc for num_anchor_locs in num_anchor_locs_per_level
+        ]
 
         # split outputs per level
         split_head_outputs: dict[str, list[Tensor]] = {}
@@ -658,7 +671,9 @@ class RetinaNetDetector(nn.Module):
         detections: list[dict[str, Tensor]] = []
 
         for index in range(num_images):
-            box_regression_per_image = [br[index] for br in box_regression]  # List[Tensor], each sized (HWA, 2*spatial_dims)
+            box_regression_per_image = [
+                br[index] for br in box_regression
+            ]  # List[Tensor], each sized (HWA, 2*spatial_dims)
             logits_per_image = [cl[index] for cl in class_logits]  # List[Tensor], each sized (HWA, self.num_classes)
             anchors_per_image, img_spatial_size = split_anchors[index], image_sizes[index]
             # decode box regression into boxes
@@ -671,11 +686,13 @@ class RetinaNetDetector(nn.Module):
                 boxes_per_image, logits_per_image, img_spatial_size
             )
 
-            detections.append({
-                self.target_box_key: selected_boxes,  # Tensor, sized (N, 2*spatial_dims)
-                self.pred_score_key: selected_scores,  # Tensor, sized (N, )
-                self.target_label_key: selected_labels,  # Tensor, sized (N, )
-            })
+            detections.append(
+                {
+                    self.target_box_key: selected_boxes,  # Tensor, sized (N, 2*spatial_dims)
+                    self.pred_score_key: selected_scores,  # Tensor, sized (N, )
+                    self.target_label_key: selected_labels,  # Tensor, sized (N, )
+                }
+            )
 
         return detections
 
@@ -704,7 +721,9 @@ class RetinaNetDetector(nn.Module):
         """
         matched_idxs = self.compute_anchor_matched_idxs(anchors, targets, num_anchor_locs_per_level)
         losses_cls = self.compute_cls_loss(head_outputs_reshape[self.cls_key], targets, matched_idxs)
-        losses_box_regression = self.compute_box_loss(head_outputs_reshape[self.box_reg_key], targets, anchors, matched_idxs)
+        losses_box_regression = self.compute_box_loss(
+            head_outputs_reshape[self.box_reg_key], targets, anchors, matched_idxs
+        )
         return {self.cls_key: losses_cls, self.box_reg_key: losses_box_regression}
 
     def compute_anchor_matched_idxs(
@@ -737,7 +756,9 @@ class RetinaNetDetector(nn.Module):
             # anchors_per_image: Tensor, targets_per_image: Dice[str, Tensor]
             if targets_per_image[self.target_box_key].numel() == 0:
                 # if no GT boxes
-                matched_idxs.append(torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=anchors_per_image.device))
+                matched_idxs.append(
+                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=anchors_per_image.device)
+                )
                 continue
 
             # matched_idxs_per_image (Tensor[int64]): Tensor sized (sum(HWA),) or (sum(HWDA),)
@@ -777,7 +798,9 @@ class RetinaNetDetector(nn.Module):
             matched_idxs.append(matched_idxs_per_image)
         return matched_idxs
 
-    def compute_cls_loss(self, cls_logits: Tensor, targets: list[dict[str, Tensor]], matched_idxs: list[Tensor]) -> Tensor:
+    def compute_cls_loss(
+        self, cls_logits: Tensor, targets: list[dict[str, Tensor]], matched_idxs: list[Tensor]
+    ) -> Tensor:
         """
         Compute classification losses.
 
@@ -895,7 +918,9 @@ class RetinaNetDetector(nn.Module):
         gt_classes_target = torch.zeros_like(cls_logits_per_image)  # (sum(HW(D)A), self.num_classes)
         gt_classes_target[
             foreground_idxs_per_image,  # fg anchor idx in
-            targets_per_image[self.target_label_key][matched_idxs_per_image[foreground_idxs_per_image]],  # fg class label
+            targets_per_image[self.target_label_key][
+                matched_idxs_per_image[foreground_idxs_per_image]
+            ],  # fg class label
         ] = 1.0
 
         if self.fg_bg_sampler is None:
@@ -967,9 +992,9 @@ class RetinaNetDetector(nn.Module):
 
         # select only the foreground boxes
         # matched GT boxes for foreground anchors
-        matched_gt_boxes_per_image = targets_per_image[self.target_box_key][matched_idxs_per_image[foreground_idxs_per_image]].to(
-            box_regression_per_image.device
-        )
+        matched_gt_boxes_per_image = targets_per_image[self.target_box_key][
+            matched_idxs_per_image[foreground_idxs_per_image]
+        ].to(box_regression_per_image.device)
         # predicted box regression for foreground anchors
         box_regression_per_image = box_regression_per_image[foreground_idxs_per_image, :]
         # foreground anchors
