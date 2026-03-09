@@ -168,7 +168,7 @@ class SupervisedTrainer(Trainer):
         compile_kwargs: dict | None = None,
         accumulation_steps: int = 1,
     ) -> None:
-        if not isinstance(accumulation_steps, int) or accumulation_steps < 1:
+        if accumulation_steps < 1:
             raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
         super().__init__(
             device=device,

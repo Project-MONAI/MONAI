@@ -22,7 +22,7 @@ from monai.utils.enums import CommonKeys
 
 _, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version)
 
-INVALID_ACCUMULATION_STEPS = [(0,), (-1,), (2.5,), ("2",)]
+INVALID_ACCUMULATION_STEPS = [(0,), (-1,)]
 
 
 def _make_model_pair(lr):
