@@ -15,7 +15,6 @@ from .evaluator import EnsembleEvaluator, Evaluator, SupervisedEvaluator
 from .trainer import AdversarialTrainer, GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
     DiffusionPrepareBatch,
-    GradientAccumulation,
     IterationEvents,
     PrepareBatch,
     PrepareBatchDefault,
