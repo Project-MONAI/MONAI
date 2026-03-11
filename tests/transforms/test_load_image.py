@@ -498,5 +498,47 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertFalse(hasattr(r, "affine"))
 
 
+class TestLoadImageReaderNotInstalled(unittest.TestCase):
+    """Test that specifying a reader whose required package is not installed raises an error.
+
+    Addresses https://github.com/Project-MONAI/MONAI/issues/7437
+    """
+
+    @unittest.skipIf(has_itk, "test requires itk to NOT be installed")
+    def test_specified_reader_not_installed_raises(self):
+        """When a user explicitly specifies a reader that is not installed, LoadImage should raise
+        an OptionalImportError with an install hint instead of silently falling back."""
+        from monai.utils import OptionalImportError
+
+        with self.assertRaises(OptionalImportError) as ctx:
+            LoadImage(reader="ITKReader")
+        self.assertIn("pip install itk", str(ctx.exception))
+
+    def test_specified_reader_not_installed_raises_mocked(self):
+        """Mock test to verify OptionalImportError is raised with original message preserved
+        when a user-specified reader's required package is not installed."""
+        from unittest.mock import patch
+
+        from monai.utils import OptionalImportError
+
+        _original = __import__("monai.transforms.io.array", fromlist=["optional_import"]).optional_import
+
+        def _mock_optional_import(module, name="", *args, **kwargs):
+            if name == "MockMissingReader":
+
+                class _Unavailable:
+                    def __init__(self, *a, **kw):
+                        raise OptionalImportError("mock package is not installed")
+
+                return _Unavailable, True
+            return _original(module, *args, name=name, **kwargs)
+
+        with patch("monai.transforms.io.array.optional_import", side_effect=_mock_optional_import):
+            with self.assertRaises(OptionalImportError) as ctx:
+                LoadImage(reader="MockMissingReader")
+            # Original error message should be preserved in the re-raised exception
+            self.assertIn("mock package is not installed", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
