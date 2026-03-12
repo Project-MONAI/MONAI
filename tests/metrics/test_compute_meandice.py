@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import DiceHelper, DiceMetric, compute_dice
+from monai.metrics.fid import FIDMetric
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -250,6 +251,31 @@ TEST_CASE_15 = [
     {"label_1": 0.4000, "label_2": 0.6667},
 ]
 
+TEST_CASE_16 = [
+    {"per_component": True},
+    {
+        "y": (
+            lambda: (
+                y := torch.zeros((5, 2, 64, 64, 64)),
+                y.__setitem__((0, 1, slice(20, 25), slice(20, 25), slice(20, 25)), 1),
+                y.__setitem__((0, 1, slice(40, 45), slice(40, 45), slice(40, 45)), 1),
+                y.__setitem__((0, 0), 1 - y[0, 1]),
+                y,
+            )[-1]
+        )(),
+        "y_pred": (
+            lambda: (
+                y_hat := torch.zeros((5, 2, 64, 64, 64)),
+                y_hat.__setitem__((0, 1, slice(21, 26), slice(21, 26), slice(21, 26)), 1),
+                y_hat.__setitem__((0, 1, slice(41, 46), slice(39, 44), slice(41, 46)), 1),
+                y_hat.__setitem__((0, 0), 1 - y_hat[0, 1]),
+                y_hat,
+            )[-1]
+        )(),
+    },
+    [[[0.5120]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
 
@@ -300,6 +326,18 @@ class TestComputeMeanDice(unittest.TestCase):
             self.assertEqual(result, expected_value)
         else:
             np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    # CC DiceMetric  tests
+    @parameterized.expand([TEST_CASE_16])
+    def test_cc_dice_value(self, params, input_data, expected_value):
+        dice_metric = DiceMetric(**params)
+        dice_metric(**input_data)
+        result = dice_metric.aggregate(reduction="none")
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    def test_input_dimensions(self):
+        with self.assertRaises(ValueError):
+            DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))
 
 
 if __name__ == "__main__":

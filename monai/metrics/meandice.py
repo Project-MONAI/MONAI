@@ -11,7 +11,11 @@
 
 from __future__ import annotations
 
+import numpy as np
 import torch
+import torch.nn.functional as F
+from scipy.ndimage import distance_transform_edt, generate_binary_structure
+from scipy.ndimage import label as sn_label
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
@@ -106,6 +110,7 @@ class DiceMetric(CumulativeIterationMetric):
         ignore_empty: bool = True,
         num_classes: int | None = None,
         return_with_label: bool | list[str] = False,
+        per_component: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -114,6 +119,7 @@ class DiceMetric(CumulativeIterationMetric):
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
         self.return_with_label = return_with_label
+        self.per_component = per_component
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
@@ -121,6 +127,7 @@ class DiceMetric(CumulativeIterationMetric):
             apply_argmax=False,
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
+            per_component=self.per_component,
         )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
@@ -175,6 +182,7 @@ def compute_dice(
     include_background: bool = True,
     ignore_empty: bool = True,
     num_classes: int | None = None,
+    per_component: bool = False,
 ) -> torch.Tensor:
     """
     Computes Dice score metric for a batch of predictions. This performs the same computation as
@@ -204,6 +212,7 @@ def compute_dice(
         apply_argmax=False,
         ignore_empty=ignore_empty,
         num_classes=num_classes,
+        per_component=per_component,
     )(y_pred=y_pred, y=y)
 
 
@@ -262,6 +271,7 @@ class DiceHelper:
         num_classes: int | None = None,
         sigmoid: bool | None = None,
         softmax: bool | None = None,
+        per_component: bool = False,
     ) -> None:
         # handling deprecated arguments
         if sigmoid is not None:
@@ -277,6 +287,73 @@ class DiceHelper:
         self.activate = activate
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
+        self.per_component = per_component
+
+    def compute_voronoi_regions_fast(self, labels, connectivity=26, sampling=None):
+        """
+        Voronoi assignment to connected components (CPU, single EDT) without cc3d.
+        Returns the ID of the nearest component for each voxel.
+
+        Args:
+            labels: input label map as a numpy array, where values > 0 are considered seeds for connected components.
+            connectivity: 6/18/26 (3D)
+            sampling: voxel spacing for anisotropic distances (scipy.ndimage.distance_transform_edt)
+        """
+
+        x = np.asarray(labels)
+        conn_rank = {6: 1, 18: 2, 26: 3}.get(connectivity, 3)
+        structure = generate_binary_structure(rank=3, connectivity=conn_rank)
+        cc, num = sn_label(x > 0, structure=structure)
+        if num == 0:
+            return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
+        edt_input = np.ones(cc.shape, dtype=np.uint8)
+        edt_input[cc > 0] = 0
+        indices = distance_transform_edt(edt_input, sampling=sampling, return_distances=False, return_indices=True)
+        voronoi = cc[tuple(indices)]
+        return torch.from_numpy(voronoi)
+
+    def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the dice metric for binary inputs which have only spatial dimensions. This method is called separately
+        for each batch item and for each channel of those items.
+
+        Args:
+            y_pred: input predictions with shape HW[D].
+            y: ground truth with shape HW[D].
+        """
+        data = []
+        if y_pred.ndim == y.ndim:
+            y_pred_idx = torch.argmax(y_pred, dim=1)
+            y_idx = torch.argmax(y, dim=1)
+        else:
+            y_pred_idx = y_pred
+            y_idx = y
+        if y_idx[0].sum() == 0:
+            if y_pred_idx.sum() == 0:
+                data.append(torch.tensor(1.0, device=y_idx.device))
+            else:
+                data.append(torch.tensor(0.0, device=y_idx.device))
+        else:
+            cc_assignment = self.compute_voronoi_regions_fast(y_idx[0])
+            uniq, inv = torch.unique(cc_assignment.view(-1), return_inverse=True)
+            nof_components = uniq.numel()
+            code = (y_idx.view(-1) << 1) | y_pred_idx.view(-1)
+            idx = (inv << 2) | code
+            hist = torch.bincount(idx, minlength=nof_components * 4).reshape(-1, 4)
+            _, fp, fn, tp = hist[:, 0], hist[:, 1], hist[:, 2], hist[:, 3]
+            denom = 2 * tp + fp + fn
+            dice_scores = torch.where(
+                denom > 0, (2 * tp).float() / denom.float(), torch.tensor(1.0, device=denom.device)
+            )
+            data.append(dice_scores.unsqueeze(-1))
+            data = [
+                torch.where(torch.isinf(x), torch.tensor(0.0, dtype=torch.float32, device=x.device), x) for x in data
+            ]
+            data = [
+                torch.where(torch.isnan(x), torch.tensor(0.0, dtype=torch.float32, device=x.device), x) for x in data
+            ]
+        data = [x.reshape(-1, 1) for x in data]
+        return torch.stack([x.mean() for x in data])
 
     def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -322,7 +399,13 @@ class DiceHelper:
                 y_pred = torch.sigmoid(y_pred)
             y_pred = y_pred > 0.5
 
-        first_ch = 0 if self.include_background else 1
+        if self.per_component and (len(y_pred.shape) != 5 or y_pred.shape[1] != 2):
+            raise ValueError(
+                f"per_component requires 5D binary segmentation with 2 channels (background + foreground). "
+                f"Got shape {y_pred.shape}, expected shape (B, 2, D, H, W)."
+            )
+
+        first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
         for b in range(y_pred.shape[0]):
             c_list = []
@@ -330,7 +413,10 @@ class DiceHelper:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
                 c_list.append(self.compute_channel(x_pred, x))
+            if self.per_component:
+                c_list = [self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0))]
             data.append(torch.stack(c_list))
+
         data = torch.stack(data, dim=0).contiguous()  # type: ignore
 
         f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
