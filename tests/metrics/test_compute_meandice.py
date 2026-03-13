@@ -272,7 +272,6 @@ TEST_CASE_16 = [
 ]
 
 
-@unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
 class TestComputeMeanDice(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
@@ -325,12 +324,14 @@ class TestComputeMeanDice(unittest.TestCase):
 
     # CC DiceMetric  tests
     @parameterized.expand([TEST_CASE_16])
+    @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
     def test_cc_dice_value(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
         dice_metric(**input_data)
         result = dice_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
+    @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
     def test_input_dimensions(self):
         with self.assertRaises(ValueError):
             DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))

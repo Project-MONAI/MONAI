@@ -418,11 +418,12 @@ class DiceHelper:
                 y_pred = torch.sigmoid(y_pred)
             y_pred = y_pred > 0.5
 
-        if self.per_component and (len(y_pred.shape) != 5 or y_pred.shape[1] != 2):
-            raise ValueError(
-                f"per_component requires 5D binary segmentation with 2 channels (background + foreground). "
-                f"Got shape {y_pred.shape}, expected shape (B, 2, D, H, W)."
-            )
+        if self.per_component:
+            if len(y_pred.shape) != 5 or len(y.shape) != 5 or y_pred.shape[1] != 2 or y.shape[1] != 2:
+                raise ValueError(
+                    "per_component requires both y_pred and y to be 5D binary segmentations "
+                    f"with 2 channels. Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
+                )
 
         first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
