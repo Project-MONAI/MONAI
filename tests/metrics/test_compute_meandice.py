@@ -251,7 +251,7 @@ TEST_CASE_15 = [
 ]
 
 TEST_CASE_16 = [
-    {"per_component": True},
+    {"per_component": True, "ignore_empty": False},
     {
         "y": (
             lambda: (

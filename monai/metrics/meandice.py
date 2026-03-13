@@ -13,13 +13,16 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-from scipy.ndimage import distance_transform_edt, generate_binary_structure
-from scipy.ndimage import label as sn_label
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
+from monai.utils.module import optional_import
 
 from .metric import CumulativeIterationMetric
+
+distance_transform_edt, has_ndimage = optional_import("scipy.ndimage", name="distance_transform_edt")
+generate_binary_structure, _ = optional_import("scipy.ndimage", name="generate_binary_structure")
+sn_label, _ = optional_import("scipy.ndimage", name="label")
 
 __all__ = ["DiceMetric", "compute_dice", "DiceHelper"]
 
@@ -303,11 +306,15 @@ class DiceHelper:
         Returns the ID of the nearest component for each voxel.
 
         Args:
-            labels: input label map as a numpy array, where values > 0 are considered seeds for connected components.
-            connectivity: 6/18/26 (3D)
-            sampling: voxel spacing for anisotropic distances (scipy.ndimage.distance_transform_edt)
-        """
+            labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
+            connectivity (int): 6, 18, or 26 for 3D connectivity. Defaults to 26.
+            sampling (tuple[float, ...] | None): Voxel spacing for anisotropic distances.
 
+        Returns:
+            torch.Tensor: Voronoi region IDs (int32) on CPU.
+        """
+        if not has_ndimage:
+            raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
         x = np.asarray(labels)
         conn_rank = {6: 1, 18: 2, 26: 3}.get(connectivity, 3)
         structure = generate_binary_structure(rank=3, connectivity=conn_rank)
@@ -322,12 +329,14 @@ class DiceHelper:
 
     def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
-        Compute the dice metric for binary inputs which have only spatial dimensions. This method is called separately
-        for each batch item and for each channel of those items.
+        Compute per-component Dice for a single batch item.
 
         Args:
-            y_pred: input predictions with shape HW[D].
-            y: ground truth with shape HW[D].
+            y_pred (torch.Tensor): Predictions with shape (1, 2, D, H, W).
+            y (torch.Tensor): Ground truth with shape (1, 2, D, H, W).
+
+        Returns:
+            torch.Tensor: Mean Dice over connected components.
         """
         data = []
         if y_pred.ndim == y.ndim:
@@ -337,7 +346,9 @@ class DiceHelper:
             y_pred_idx = y_pred
             y_idx = y
         if y_idx[0].sum() == 0:
-            if y_pred_idx.sum() == 0:
+            if self.ignore_empty:
+                data.append(torch.tensor(float("nan"), device=y_idx.device))
+            elif y_pred_idx.sum() == 0:
                 data.append(torch.tensor(1.0, device=y_idx.device))
             else:
                 data.append(torch.tensor(0.0, device=y_idx.device))
