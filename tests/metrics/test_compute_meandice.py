@@ -18,6 +18,9 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import DiceHelper, DiceMetric, compute_dice
+from monai.utils.module import optional_import
+
+_, has_ndimage = optional_import("scipy.ndimage")
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -250,32 +253,26 @@ TEST_CASE_15 = [
     {"label_1": 0.4000, "label_2": 0.6667},
 ]
 
+# Testcase for per_component DiceMetric
+y = torch.zeros((5, 2, 64, 64, 64))
+y_hat = torch.zeros((5, 2, 64, 64, 64))
+
+y[0, 1, 20:25, 20:25, 20:25] = 1
+y[0, 1, 40:45, 40:45, 40:45] = 1
+y[0, 0] = 1 - y[0, 1]
+
+y_hat[0, 1, 21:26, 21:26, 21:26] = 1
+y_hat[0, 1, 41:46, 39:44, 41:46] = 1
+y_hat[0, 0] = 1 - y_hat[0, 1]
+
 TEST_CASE_16 = [
     {"per_component": True, "ignore_empty": False},
-    {
-        "y": (
-            lambda: (
-                y := torch.zeros((5, 2, 64, 64, 64)),
-                y.__setitem__((0, 1, slice(20, 25), slice(20, 25), slice(20, 25)), 1),
-                y.__setitem__((0, 1, slice(40, 45), slice(40, 45), slice(40, 45)), 1),
-                y.__setitem__((0, 0), 1 - y[0, 1]),
-                y,
-            )[-1]
-        )(),
-        "y_pred": (
-            lambda: (
-                y_hat := torch.zeros((5, 2, 64, 64, 64)),
-                y_hat.__setitem__((0, 1, slice(21, 26), slice(21, 26), slice(21, 26)), 1),
-                y_hat.__setitem__((0, 1, slice(41, 46), slice(39, 44), slice(41, 46)), 1),
-                y_hat.__setitem__((0, 0), 1 - y_hat[0, 1]),
-                y_hat,
-            )[-1]
-        )(),
-    },
+    {"y": y, "y_pred": y_hat},
     [[[0.5120]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
 ]
 
 
+@unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
 class TestComputeMeanDice(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
