@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from scipy.ndimage import distance_transform_edt, generate_binary_structure
 from scipy.ndimage import label as sn_label
 

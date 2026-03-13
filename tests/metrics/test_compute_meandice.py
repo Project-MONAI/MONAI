@@ -18,7 +18,6 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import DiceHelper, DiceMetric, compute_dice
-from monai.metrics.fid import FIDMetric
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
