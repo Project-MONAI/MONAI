@@ -99,8 +99,8 @@ class DiceMetric(CumulativeIterationMetric):
             If `True`, use "label_{index}" as the key corresponding to C channels; if ``include_background`` is True,
             the index begins at "0", otherwise at "1". It can also take a list of label names.
             The outcome will then be returned as a dictionary.
-        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be 
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary 
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     """
@@ -203,9 +203,9 @@ def compute_dice(
         num_classes: number of input channels (always including the background). When this is ``None``,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
-        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be 
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary 
-            segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.     
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
+            segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -261,8 +261,8 @@ class DiceHelper:
         num_classes: number of input channels (always including the background). When this is ``None``,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
-        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be 
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary 
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
     """
 
