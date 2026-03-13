@@ -302,7 +302,12 @@ class TraceableTransform(Transform):
         return out_obj
 
     def check_transforms_match(self, transform: Mapping) -> None:
-        """Check transforms are of same instance."""
+        """Check whether a traced transform entry matches this transform.
+
+        When multiprocessing uses ``spawn``, transform instances are recreated,
+        so matching can fall back to the transform class name instead of the
+        original instance ID.
+        """
         if self._transforms_match(transform):
             return
 
@@ -317,7 +322,13 @@ class TraceableTransform(Transform):
         )
 
     def _transforms_match(self, transform: Mapping) -> bool:
-        """Return whether a traced transform entry matches this transform instance."""
+        """Return whether a traced transform entry matches this transform.
+
+        Matching succeeds when the traced ID matches this instance, when the ID
+        check is explicitly disabled with ``TraceKeys.NONE``, or when
+        multiprocessing uses ``spawn`` and the traced class name matches this
+        transform class.
+        """
         xform_id = transform.get(TraceKeys.ID, "")
         if xform_id == id(self):
             return True
