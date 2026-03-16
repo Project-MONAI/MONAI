@@ -21,6 +21,7 @@ from monai.metrics import DiceHelper, DiceMetric, compute_dice
 from monai.utils.module import optional_import
 
 _, has_ndimage = optional_import("scipy.ndimage")
+_, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -254,8 +255,8 @@ TEST_CASE_15 = [
 ]
 
 # Testcase for per_component DiceMetric - 3D input
-y = torch.zeros((5, 2, 64, 64, 64))
-y_hat = torch.zeros((5, 2, 64, 64, 64))
+y = torch.zeros((5, 2, 64, 64, 64), device=_device)
+y_hat = torch.zeros((5, 2, 64, 64, 64), device=_device)
 
 y[0, 1, 20:25, 20:25, 20:25] = 1
 y[0, 1, 40:45, 40:45, 40:45] = 1
@@ -272,8 +273,8 @@ TEST_CASE_16 = [
 ]
 
 # Testcase for per_component DiceMetric - 2D input
-y = torch.zeros((5, 2, 64, 64))
-y_hat = torch.zeros((5, 2, 64, 64))
+y = torch.zeros((5, 2, 64, 64), device=_device)
+y_hat = torch.zeros((5, 2, 64, 64), device=_device)
 
 y[0, 1, 20:25, 20:25] = 1
 y[0, 1, 40:45, 40:45] = 1
@@ -343,11 +344,21 @@ class TestComputeMeanDice(unittest.TestCase):
     # CC DiceMetric  tests
     @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
-    def test_cc_dice_value(self, params, input_data, expected_value):
+    def test_cc_dice_value_nogpu(self, params, input_data, expected_value):
+        dice_metric = DiceMetric(**params)
+        input_data["y"] = input_data["y"].cpu()
+        input_data["y_pred"] = input_data["y_pred"].cpu()
+        dice_metric(**input_data)
+        result = dice_metric.aggregate(reduction="none")
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
+    @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
+    @unittest.skipUnless(has_cupy_ndimage, "Requires cupyx.scipy.ndimage for GPU acceleration.")
+    def test_cc_dice_value_gpu(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
         dice_metric(**input_data)
         result = dice_metric.aggregate(reduction="none")
-        print(result.cpu().numpy())
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")

@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import torch
 
@@ -20,9 +22,10 @@ from monai.utils.module import optional_import
 
 from .metric import CumulativeIterationMetric
 
-distance_transform_edt, has_ndimage = optional_import("scipy.ndimage", name="distance_transform_edt")
-generate_binary_structure, _ = optional_import("scipy.ndimage", name="generate_binary_structure")
-sn_label, _ = optional_import("scipy.ndimage", name="label")
+scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
+cupy, has_cupy = optional_import("cupy")
+cupy_ndimage, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
+
 
 __all__ = ["DiceMetric", "compute_dice", "DiceHelper"]
 
@@ -311,12 +314,36 @@ class DiceHelper:
         Args:
             labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
 
+        Raises:
+            RuntimeError: when `scipy.ndimage` is not available.
+            ValueError: when `labels` has fewer than two dimensions.
+
         Returns:
             torch.Tensor: Voronoi region IDs (int32) on CPU.
         """
-        if not has_ndimage:
-            raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
-        x = np.asarray(labels)
+        if isinstance(labels, torch.Tensor) and labels.is_cuda and has_cupy and has_cupy_ndimage:
+            xp = cupy
+            nd_distance_transform_edt = cupy_ndimage.distance_transform_edt
+            nd_generate_binary_structure = cupy_ndimage.generate_binary_structure
+            nd_label = cupy_ndimage.label
+            x = cupy.asarray(labels.detach())
+        else:
+            xp = np
+            nd_distance_transform_edt = scipy_ndimage.distance_transform_edt
+            nd_generate_binary_structure = scipy_ndimage.generate_binary_structure
+            nd_label = scipy_ndimage.label
+
+            if not has_scipy_ndimage:
+                raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
+
+            if isinstance(labels, torch.Tensor):
+                warnings.warn(
+                    "Voronoi computation is running on CPU. "
+                    "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed."
+                )
+                x = labels.cpu().numpy()
+            else:
+                x = np.asarray(labels)
         rank = x.ndim
         if rank == 3:
             conn_map = {6: 1, 18: 2, 26: 3}
@@ -327,15 +354,18 @@ class DiceHelper:
         else:
             raise ValueError("Only 2D or 3D inputs supported")
         conn_rank = conn_map.get(connectivity, max(conn_map.values()))
-        structure = generate_binary_structure(rank=rank, connectivity=conn_rank)
-        cc, num = sn_label(x > 0, structure=structure)
+        structure = nd_generate_binary_structure(rank=rank, connectivity=conn_rank)
+        cc, num = nd_label(x > 0, structure=structure)
         if num == 0:
             return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
-        edt_input = np.ones(cc.shape, dtype=np.uint8)
+        edt_input = xp.ones(cc.shape, dtype=xp.uint8)
         edt_input[cc > 0] = 0
-        indices = distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
+        indices = nd_distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
         voronoi = cc[tuple(indices)]
-        return torch.from_numpy(voronoi)
+        if xp is cupy:
+            return torch.as_tensor(cupy.asnumpy(voronoi), dtype=torch.int32)
+        else:
+            return torch.as_tensor(voronoi, dtype=torch.int32)
 
     def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -364,6 +394,8 @@ class DiceHelper:
                 data.append(torch.tensor(0.0, device=y_idx.device))
         else:
             cc_assignment = self.compute_voronoi_regions_fast(y_idx[0])
+            if cc_assignment.device != y_idx.device:
+                cc_assignment = cc_assignment.to(y_idx.device)
             uniq, inv = torch.unique(cc_assignment.view(-1), return_inverse=True)
             nof_components = uniq.numel()
             code = (y_idx.view(-1) << 1) | y_pred_idx.view(-1)
@@ -411,6 +443,9 @@ class DiceHelper:
             y_pred: input predictions with shape (batch_size, num_classes or 1, spatial_dims...).
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
+
+        Raises:
+            ValueError: when the shapes of `y_pred` and `y` are not compatible for the per-component computation.
         """
         _apply_argmax, _threshold = self.apply_argmax, self.threshold
         if self.num_classes is None:
@@ -430,10 +465,15 @@ class DiceHelper:
 
         if self.per_component:
             if y_pred.ndim not in (4, 5) or y.ndim not in (4, 5) or y_pred.shape[1] != 2 or y.shape[1] != 2:
-                raise ValueError(
-                    "per_component requires both y_pred and y to be 4D or 5D binary segmentations "
-                    f"with 2 channels. Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
-                )
+                same_rank = y_pred.ndim == y.ndim and y_pred.ndim in (4, 5)
+                binary_channels = y_pred.shape[1] == 2 and y.shape[1] == 2
+                same_shape = y_pred.shape == y.shape
+                if not (same_rank and binary_channels and same_shape):
+                    raise ValueError(
+                        "per_component requires matching 4D/5D binary tensors "
+                        "(B, 2, H, W) or (B, 2, D, H, W). "
+                        f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
+                    )
 
         first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
