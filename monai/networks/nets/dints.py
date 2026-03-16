@@ -36,24 +36,22 @@ dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
 
 
-@torch.jit.interface
 class CellInterface(torch.nn.Module):
-    """interface for torchscriptable Cell"""
+    """Abstract interface for Cell modules used in DiNTS."""
 
     def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
-        pass
+        raise NotImplementedError
 
 
-@torch.jit.interface
 class StemInterface(torch.nn.Module):
-    """interface for torchscriptable Stem"""
+    """Abstract interface for Stem modules used in DiNTS."""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        pass
+        raise NotImplementedError
 
 
 class StemTS(StemInterface):
-    """wrapper for torchscriptable Stem"""
+    """Wrapper Stem that applies a sequential module."""
 
     def __init__(self, *mod):
         super().__init__()
@@ -375,6 +373,11 @@ class DiNTS(nn.Module):
             self.node_a = torch.ones((self.num_blocks + 1, self.num_depths))
         else:
             self.node_a = node_a
+        # Pre-compute node activation flags as Python booleans for torch.export compatibility.
+        # NOTE: node_a must not be mutated after construction.
+        self._node_flags: list[list[bool]] = [
+            [bool(self.node_a[b, d]) for d in range(self.num_depths)] for b in range(self.node_a.shape[0])
+        ]
 
         # define stem operations for every block
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -493,7 +496,7 @@ class DiNTS(nn.Module):
             # allow multi-resolution input
             _mod_w: StemInterface = self.stem_down[str(d)]  # type: ignore[assignment]
             x_out = _mod_w.forward(x)
-            if self.node_a[0][d]:
+            if self._node_flags[0][d]:
                 inputs.append(x_out)
             else:
                 inputs.append(torch.zeros_like(x_out))
@@ -507,7 +510,7 @@ class DiNTS(nn.Module):
             _mod_up: StemInterface = self.stem_up[str(res_idx)]  # type: ignore[assignment]
             if start:
                 _temp = _mod_up.forward(outputs[res_idx] + _temp)
-            elif self.node_a[blk_idx + 1][res_idx]:
+            elif self._node_flags[blk_idx + 1][res_idx]:
                 start = True
                 _temp = _mod_up.forward(outputs[res_idx])
         prediction = self.stem_finals(_temp)
@@ -627,6 +630,7 @@ class TopologyConstruction(nn.Module):
 
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
+        raise NotImplementedError
 
 
 class TopologyInstance(TopologyConstruction):
@@ -665,6 +669,13 @@ class TopologyInstance(TopologyConstruction):
             use_downsample=use_downsample,
             device=device,
         )
+        # Pre-compute activation flags as plain Python booleans so that the
+        # control flow in forward() is static and compatible with torch.export.
+        # NOTE: arch_code_a must not be mutated after construction; this class
+        # is only used at inference/re-training time, not during architecture search.
+        self._active_flags: list[list[bool]] = [
+            [bool(self.arch_code_a[b, r]) for r in range(self.arch_code_a.shape[1])] for b in range(self.num_blocks)
+        ]
 
     def forward(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """
@@ -675,8 +686,8 @@ class TopologyInstance(TopologyConstruction):
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
-            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
-                if activation:
+            for res_idx, active in enumerate(self._active_flags[blk_idx]):
+                if active:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore[assignment]
                     _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
                     outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
