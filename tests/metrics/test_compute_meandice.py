@@ -253,7 +253,7 @@ TEST_CASE_15 = [
     {"label_1": 0.4000, "label_2": 0.6667},
 ]
 
-# Testcase for per_component DiceMetric
+# Testcase for per_component DiceMetric - 3D input
 y = torch.zeros((5, 2, 64, 64, 64))
 y_hat = torch.zeros((5, 2, 64, 64, 64))
 
@@ -269,6 +269,24 @@ TEST_CASE_16 = [
     {"per_component": True, "ignore_empty": False},
     {"y": y, "y_pred": y_hat},
     [[[0.5120]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
+]
+
+# Testcase for per_component DiceMetric - 2D input
+y = torch.zeros((5, 2, 64, 64))
+y_hat = torch.zeros((5, 2, 64, 64))
+
+y[0, 1, 20:25, 20:25] = 1
+y[0, 1, 40:45, 40:45] = 1
+y[0, 0] = 1 - y[0, 1]
+
+y_hat[0, 1, 21:26, 21:26] = 1
+y_hat[0, 1, 41:46, 39:44] = 1
+y_hat[0, 0] = 1 - y_hat[0, 1]
+
+TEST_CASE_17 = [
+    {"per_component": True, "ignore_empty": False},
+    {"y": y, "y_pred": y_hat},
+    [[[0.6400]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
 ]
 
 
@@ -323,12 +341,13 @@ class TestComputeMeanDice(unittest.TestCase):
             np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     # CC DiceMetric  tests
-    @parameterized.expand([TEST_CASE_16])
+    @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
     def test_cc_dice_value(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
         dice_metric(**input_data)
         result = dice_metric.aggregate(reduction="none")
+        print(result.cpu().numpy())
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")

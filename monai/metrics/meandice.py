@@ -47,6 +47,9 @@ class DiceMetric(CumulativeIterationMetric):
     image size they can get overwhelmed by the signal from the background. This assumes the shape of both prediction
     and ground truth is BCHW[D].
 
+    The ``per_component`` parameter can be set to `True` to compute the Dice metric per connected component in the ground truth
+    , and then average. This requires binary segmentations with 2 channels (background + foreground) as input.
+
     The typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Further information can be found in the official
@@ -102,7 +105,7 @@ class DiceMetric(CumulativeIterationMetric):
             the index begins at "0", otherwise at "1". It can also take a list of label names.
             The outcome will then be returned as a dictionary.
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
+            computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     """
@@ -206,7 +209,7 @@ def compute_dice(
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
+            computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     Returns:
@@ -264,7 +267,7 @@ class DiceHelper:
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
-            computed for each connected component in the ground truth, and then averaged. This requires 5D binary
+            computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
     """
 
@@ -300,15 +303,13 @@ class DiceHelper:
         self.num_classes = num_classes
         self.per_component = per_component
 
-    def compute_voronoi_regions_fast(self, labels, connectivity=26, sampling=None):
+    def compute_voronoi_regions_fast(self, labels):
         """
         Voronoi assignment to connected components (CPU, single EDT) without cc3d.
         Returns the ID of the nearest component for each voxel.
 
         Args:
             labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
-            connectivity (int): 6, 18, or 26 for 3D connectivity. Defaults to 26.
-            sampling (tuple[float, ...] | None): Voxel spacing for anisotropic distances.
 
         Returns:
             torch.Tensor: Voronoi region IDs (int32) on CPU.
@@ -316,14 +317,23 @@ class DiceHelper:
         if not has_ndimage:
             raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
         x = np.asarray(labels)
-        conn_rank = {6: 1, 18: 2, 26: 3}.get(connectivity, 3)
-        structure = generate_binary_structure(rank=3, connectivity=conn_rank)
+        rank = x.ndim
+        if rank == 3:
+            conn_map = {6: 1, 18: 2, 26: 3}
+            connectivity = 26
+        elif rank == 2:
+            conn_map = {4: 1, 8: 2}
+            connectivity = 8
+        else:
+            raise ValueError("Only 2D or 3D inputs supported")
+        conn_rank = conn_map.get(connectivity, max(conn_map.values()))
+        structure = generate_binary_structure(rank=rank, connectivity=conn_rank)
         cc, num = sn_label(x > 0, structure=structure)
         if num == 0:
             return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
         edt_input = np.ones(cc.shape, dtype=np.uint8)
         edt_input[cc > 0] = 0
-        indices = distance_transform_edt(edt_input, sampling=sampling, return_distances=False, return_indices=True)
+        indices = distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
         voronoi = cc[tuple(indices)]
         return torch.from_numpy(voronoi)
 
@@ -332,8 +342,8 @@ class DiceHelper:
         Compute per-component Dice for a single batch item.
 
         Args:
-            y_pred (torch.Tensor): Predictions with shape (1, 2, D, H, W).
-            y (torch.Tensor): Ground truth with shape (1, 2, D, H, W).
+            y_pred (torch.Tensor): Predictions with shape (1, 2, D, H, W) or (1, 2, H, W).
+            y (torch.Tensor): Ground truth with shape (1, 2, D, H, W) or (1, 2, H, W).
 
         Returns:
             torch.Tensor: Mean Dice over connected components.
@@ -419,9 +429,9 @@ class DiceHelper:
             y_pred = y_pred > 0.5
 
         if self.per_component:
-            if len(y_pred.shape) != 5 or len(y.shape) != 5 or y_pred.shape[1] != 2 or y.shape[1] != 2:
+            if y_pred.ndim not in (4, 5) or y.ndim not in (4, 5) or y_pred.shape[1] != 2 or y.shape[1] != 2:
                 raise ValueError(
-                    "per_component requires both y_pred and y to be 5D binary segmentations "
+                    "per_component requires both y_pred and y to be 4D or 5D binary segmentations "
                     f"with 2 channels. Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
                 )
 
