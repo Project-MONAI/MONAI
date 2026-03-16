@@ -122,6 +122,11 @@ class FocalLoss(_Loss):
         else:
             self.alpha = torch.as_tensor(alpha)
         weight = torch.as_tensor(weight) if weight is not None else None
+        if weight is not None:
+            if weight.numel() == 0:
+                raise ValueError("`weight` must not be empty.")
+            if weight.min() < 0:
+                raise ValueError("the value/values of the `weight` should be no less than 0.")
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
 
@@ -187,9 +192,7 @@ class FocalLoss(_Loss):
                         "The length of the `weight` sequence should be the same as the number of classes. "
                         "If `include_background=False`, the weight should not include the background category class 0."
                     )
-            if self.class_weight.min() < 0:
-                raise ValueError("the value/values of the `weight` should be no less than 0.")
-            # apply class_weight to loss
+            # apply class_weight to loss (weight values validated in __init__)
             self.class_weight = self.class_weight.to(loss)
             broadcast_dims = [-1] + [1] * len(target.shape[2:])
             self.class_weight = self.class_weight.view(broadcast_dims)
