@@ -47,7 +47,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
-from monai.networks import convert_to_onnx, convert_to_torchscript
+from monai.networks import convert_to_export, convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import compute_capabilities_after, pytorch_after
@@ -775,6 +775,24 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             rtol=rtol,
             atol=atol,
         )
+
+
+def test_export_save(net, *inputs, dynamic_shapes=None, rtol=1e-4, atol=0.0):
+    """
+    Test the ability to export ``net`` with ``torch.export`` and apply inference. The value ``inputs`` is
+    forward-passed through the original network and the exported program and their results compared.
+    The forward pass for both is done without gradient accumulation.
+    """
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
+    net = net.to(device)
+    inputs = tuple(i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs)
+    convert_to_export(
+        model=net, verify=True, inputs=inputs, dynamic_shapes=dynamic_shapes, device=device, rtol=rtol, atol=atol
+    )
+
+
+test_export_save.__test__ = False  # type: ignore[attr-defined]  # prevent pytest from collecting this helper
 
 
 def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):

@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import assert_allclose, test_script_save
+from tests.test_utils import assert_allclose, test_export_save
 
 einops, has_einops = optional_import("einops")
 
@@ -192,7 +192,7 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand([[True, False], [True, True], [False, True], [False, False]])
     @skipUnless(has_einops, "Requires einops")
-    def test_script(self, include_fc, use_combined_linear):
+    def test_export(self, include_fc, use_combined_linear):
         input_param = {
             "hidden_size": 360,
             "num_heads": 4,
@@ -205,7 +205,7 @@ class TestResBlock(unittest.TestCase):
         net = SABlock(**input_param)
         input_shape = (2, 512, 360)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
     @skipUnless(has_einops, "Requires einops")
     def test_flash_attention(self):

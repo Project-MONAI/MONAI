@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121, Densenet169, DenseNet264, densenet201
 from monai.utils import optional_import
-from tests.test_utils import skip_if_downloading_fails, skip_if_quick, test_script_save
+from tests.test_utils import skip_if_downloading_fails, skip_if_quick, test_export_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -55,7 +55,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
     for model in [DenseNet121, Densenet169, densenet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
-TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
+TEST_EXPORT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
     DenseNet121,
@@ -110,11 +110,11 @@ class TestDENSENET(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(TEST_SCRIPT_CASES)
-    def test_script(self, model, input_param, input_shape, expected_shape):
+    @parameterized.expand(TEST_EXPORT_CASES)
+    def test_export(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

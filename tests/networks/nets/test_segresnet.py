@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNet, SegResNetVAE
 from monai.utils import UpsampleMode
-from tests.test_utils import dict_product, test_script_save
+from tests.test_utils import dict_product, test_export_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -77,11 +77,11 @@ class TestResNet(unittest.TestCase):
         with self.assertRaises(ValueError):
             SegResNet(spatial_dims=4)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
         net = SegResNet(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 class TestResNetVAE(unittest.TestCase):
@@ -92,11 +92,11 @@ class TestResNetVAE(unittest.TestCase):
             result, _ = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
         net = SegResNetVAE(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":
