@@ -478,13 +478,16 @@ class DiceHelper:
         first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
         for b in range(y_pred.shape[0]):
+            if self.per_component:
+                data.append(self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0)).reshape(-1))
+                continue
             c_list = []
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
                 c_list.append(self.compute_channel(x_pred, x))
-            if self.per_component:
-                c_list = [self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0))]
+            # if self.per_component:
+            #     c_list = [self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0))]
             data.append(torch.stack(c_list))
 
         data = torch.stack(data, dim=0).contiguous()  # type: ignore

@@ -269,7 +269,7 @@ y_hat[0, 0] = 1 - y_hat[0, 1]
 TEST_CASE_16 = [
     {"per_component": True, "ignore_empty": False},
     {"y": y, "y_pred": y_hat},
-    [[[0.5120]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
+    [[0.5120], [1.0], [1.0], [1.0], [1.0]],
 ]
 
 # Testcase for per_component DiceMetric - 2D input
@@ -287,7 +287,7 @@ y_hat[0, 0] = 1 - y_hat[0, 1]
 TEST_CASE_17 = [
     {"per_component": True, "ignore_empty": False},
     {"y": y, "y_pred": y_hat},
-    [[[0.6400]], [[1.0]], [[1.0]], [[1.0]], [[1.0]]],
+    [[0.6400], [1.0], [1.0], [1.0], [1.0]],
 ]
 
 
@@ -346,15 +346,14 @@ class TestComputeMeanDice(unittest.TestCase):
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
     def test_cc_dice_value_nogpu(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
-        input_data["y"] = input_data["y"].cpu()
-        input_data["y_pred"] = input_data["y_pred"].cpu()
-        dice_metric(**input_data)
+        cpu_inputs = {"y": input_data["y"].cpu(), "y_pred": input_data["y_pred"].cpu()}
+        dice_metric(**cpu_inputs)
         result = dice_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
-    @unittest.skipUnless(has_cupy_ndimage, "Requires cupyx.scipy.ndimage for GPU acceleration.")
+    @unittest.skipUnless(torch.cuda.is_available() and has_cupy_ndimage, "Requires CUDA and cupyx.scipy.ndimage.")
     def test_cc_dice_value_gpu(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
         dice_metric(**input_data)
@@ -362,9 +361,9 @@ class TestComputeMeanDice(unittest.TestCase):
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
-    def test_input_dimensions(self):
+    def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
-            DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))
+            DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
 
 
 if __name__ == "__main__":
