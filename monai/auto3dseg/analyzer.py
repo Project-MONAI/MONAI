@@ -105,7 +105,7 @@ class Analyzer(MapTransform, ABC):
             raise ValueError("Nested_key input format is wrong. Please ensure it is like key1#0#key2")
         root: str
         child_key: str
-        (root, _, child_key) = keys
+        root, _, child_key = keys
         if root not in self.ops:
             self.ops[root] = [{}]
         self.ops[root][0].update({child_key: None})
