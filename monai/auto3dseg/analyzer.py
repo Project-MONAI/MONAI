@@ -105,7 +105,7 @@ class Analyzer(MapTransform, ABC):
             raise ValueError("Nested_key input format is wrong. Please ensure it is like key1#0#key2")
         root: str
         child_key: str
-        (root, _, child_key) = keys
+        root, _, child_key = keys
         if root not in self.ops:
             self.ops[root] = [{}]
         self.ops[root][0].update({child_key: None})
@@ -471,8 +471,7 @@ class LabelStats(Analyzer):
         image_tensor = d[self.image_key]
         label_tensor = d[self.label_key]
         using_cuda = any(
-            isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda"
-            for t in (image_tensor, label_tensor)
+            isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor)
         )
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
