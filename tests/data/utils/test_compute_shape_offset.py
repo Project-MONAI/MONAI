@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import unittest
+
 import numpy as np
+import torch
+
 from monai.data.utils import compute_shape_offset
+
 
 class TestComputeShapeOffsetRegression(unittest.TestCase):
     def test_pytorch_size_input(self):
