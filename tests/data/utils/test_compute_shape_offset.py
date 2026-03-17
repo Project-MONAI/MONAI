@@ -20,7 +20,17 @@ from monai.data.utils import compute_shape_offset
 
 
 class TestComputeShapeOffsetRegression(unittest.TestCase):
+    """Regression tests for `compute_shape_offset` input-shape handling."""
+
     def test_pytorch_size_input(self):
+        """Validate `torch.Size` input produces expected shape and offset.
+
+        Returns:
+            None.
+
+        Raises:
+            AssertionError: If computed shape/offset are not as expected.
+        """
         # 1. Create a PyTorch Size object (which triggered the original bug)
         spatial_shape = torch.Size([10, 10, 10])
         in_affine = np.eye(4)
