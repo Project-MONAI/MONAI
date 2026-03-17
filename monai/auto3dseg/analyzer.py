@@ -476,6 +476,12 @@ class LabelStats(Analyzer):
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
+        if isinstance(image_tensor, (MetaTensor, torch.Tensor)) and isinstance(
+            label_tensor, (MetaTensor, torch.Tensor)
+        ):
+            if label_tensor.device != image_tensor.device:
+                label_tensor = label_tensor.to(image_tensor.device)
+
         ndas: list[MetaTensor] = [image_tensor[i] for i in range(image_tensor.shape[0])]  # type: ignore
         ndas_label: MetaTensor = label_tensor.astype(torch.int16)  # (H,W,D)
 

@@ -183,9 +183,11 @@ class FocalLoss(_Loss):
                 self.class_weight = torch.as_tensor([self.class_weight] * num_of_classes)
             else:
                 if self.class_weight.shape[0] != num_of_classes:
-                    raise ValueError("""the length of the `weight` sequence should be the same as the number of classes.
+                    raise ValueError(
+                        """the length of the `weight` sequence should be the same as the number of classes.
                         If `include_background=False`, the weight should not include
-                        the background category class 0.""")
+                        the background category class 0."""
+                    )
             if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
             # apply class_weight to loss
