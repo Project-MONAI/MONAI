@@ -1062,7 +1062,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
 
     def __init__(self, et_label: int = 4) -> None:
         if et_label in (1, 2):
-            raise ValueError(f"et_label cannot be 1 or 2, these are reserved.Got {et_label}.")
+            raise ValueError(f"et_label cannot be 1 or 2, as these are reserved. Got {et_label}.")
         self.et_label = et_label
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
