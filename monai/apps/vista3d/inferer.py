@@ -86,13 +86,13 @@ def point_based_window_inferer(
             for j in range(len(ly_)):
                 for k in range(len(lz_)):
                     lx, rx, ly, ry, lz, rz = (lx_[i], rx_[i], ly_[j], ry_[j], lz_[k], rz_[k])
-                    unravel_slice = [
+                    unravel_slice = (
                         slice(None),
                         slice(None),
                         slice(int(lx), int(rx)),
                         slice(int(ly), int(ry)),
                         slice(int(lz), int(rz)),
-                    ]
+                    )
                     batch_image = image[unravel_slice]
                     output = predictor(
                         batch_image,

@@ -1,0 +1,93 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This is a slimmed down version of the MONAI Docker image using a smaller base image and multi-stage building. Not all
+# NVIDIA tools will be present but all libraries and compiled code are included. This image isn't provided through
+# Dockerhub so users must build locally: `docker build -t monai_slim -f Dockerfile.slim .`
+# Containers may require more shared memory, eg.: `docker run -ti --rm --gpus all --shm-size=10gb monai_slim /bin/bash`
+
+ARG IMAGE=debian:12-slim
+
+FROM ${IMAGE} AS build
+
+ARG TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 8.9 9.0+PTX"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV APT_INSTALL="apt install -y --no-install-recommends"
+
+RUN apt update && apt upgrade -y && \
+    ${APT_INSTALL} ca-certificates python3-pip python-is-python3 git wget libopenslide0 unzip python3-dev && \
+    wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt update && \
+    ${APT_INSTALL} cuda-toolkit-12 && \
+    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
+    python -m pip install --upgrade --no-cache-dir --no-build-isolation pip
+
+# TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
+RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
+      CFLAGS="-O3" DISABLE_NUMCODECS_SSE2=true DISABLE_NUMCODECS_AVX2=true python -m pip install numcodecs; \
+    fi
+
+# NGC Client
+WORKDIR /opt/tools
+ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
+RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
+    find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
+    rm -rf ngccli_linux.zip ngc-cli.md5
+
+WORKDIR /opt/monai
+
+# copy relevant parts of repo
+COPY requirements.txt requirements-min.txt requirements-dev.txt versioneer.py setup.py setup.cfg pyproject.toml ./
+COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md MANIFEST.in runtests.sh ./
+COPY tests ./tests
+COPY monai ./monai
+
+# install full deps
+RUN python -m pip install --no-cache-dir --no-build-isolation -r requirements-dev.txt
+
+# compile ext
+RUN CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 python setup.py develop
+
+# recreate the image without the installed CUDA packages then copy the installed MONAI and Python directories
+FROM ${IMAGE} AS build2
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV APT_INSTALL="apt install -y --no-install-recommends"
+
+RUN apt update && apt upgrade -y && \
+    ${APT_INSTALL} ca-certificates python3-pip python-is-python3 git libopenslide0 && \
+    apt clean && \
+    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
+    python -m pip install --upgrade --no-cache-dir --no-build-isolation pip
+
+COPY --from=build /opt/monai /opt/monai
+COPY --from=build /opt/tools /opt/tools
+ARG PYTHON_VERSION=3.11
+COPY --from=build /usr/local/lib/python${PYTHON_VERSION}/dist-packages /usr/local/lib/python${PYTHON_VERSION}/dist-packages
+COPY --from=build /usr/local/bin /usr/local/bin
+
+RUN rm -rf /opt/monai/build /opt/monai/monai.egg-info && \
+    find /opt /usr/local/lib -type d -name __pycache__ -exec rm -rf {} +
+
+# flatten all layers down to one
+FROM ${IMAGE}
+LABEL maintainer="monai.contact@gmail.com"
+
+COPY --from=build2 / /
+
+WORKDIR /opt/monai
+
+ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
+ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
+ENV CUDA_HOME=/usr/local/cuda
+ENV BUILD_MONAI=1
