@@ -1052,7 +1052,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
 
     Args:
-        et_label: the label used for the GD-enhancing tumor (ET). 
+        et_label: the label used for the GD-enhancing tumor (ET).
         - Use 4 for BraTS 2018-2022.
         - Use 3 for BraTS 2023.
         Defaults to 4.
