@@ -1049,7 +1049,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
     label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
     label 2 is the peritumoral edema, which is counted only under WT subregion,
-    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+    the specified `et_label` (default 4) is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
 
     Args:
         et_label: the label used for the GD-enhancing tumor (ET).
