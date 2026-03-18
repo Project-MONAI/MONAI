@@ -62,9 +62,10 @@ for p in TEST_NDARRAYS:
                         [[0, 0, 0], [0, 0, 1], [0, 0, 1]],
                     ]
                 ),
-            ],
+            ]
         ]
     )
+
 
 class TestConvertToMultiChannel(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -84,6 +85,7 @@ class TestConvertToMultiChannel(unittest.TestCase):
             ConvertToMultiChannelBasedOnBratsClasses(et_label=1)
         with self.assertRaises(ValueError):
             ConvertToMultiChannelBasedOnBratsClasses(et_label=2)
+
 
 if __name__ == "__main__":
     unittest.main()
