@@ -1070,7 +1070,11 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         if img.ndim == 4 and img.shape[0] == 1:
             img = img.squeeze(0)
 
-        result = [(img == 1) | (img == self.et_label), (img == 1) | (img == self.et_label) | (img == 2), img == self.et_label]
+        result = [
+            (img == 1) | (img == self.et_label),
+            (img == 1) | (img == self.et_label) | (img == 2),
+            img == self.et_label,
+        ]
         # merge labels 1 (tumor non-enh) and self.et_label (tumor enh) and 2 (large edema) to WT
         # self.et_label is ET (4 or 3)
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
