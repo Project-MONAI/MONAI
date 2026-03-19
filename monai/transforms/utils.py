@@ -1878,11 +1878,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
-            if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
-                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
-            else:
-                # if using old PyTorch, will convert to numpy array and return
-                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+            k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
         else:
             k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return ascontiguousarray(k) if as_contiguous else k
@@ -1906,11 +1902,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
-            if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
-                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
-            else:
-                # if using old PyTorch, will convert to numpy array and return
-                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
         else:
             out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
         return ascontiguousarray(out) if as_contiguous else out
@@ -2498,7 +2490,7 @@ def distance_transform_edt(
         if return_indices:
             dtype = torch.int32
             if indices is None:
-                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+                indices = torch.zeros((img.shape[0],) + (img.dim() - 1,) + img.shape[1:], dtype=dtype)  # type: ignore
             else:
                 if not isinstance(indices, torch.Tensor) and indices.device != img.device:
                     raise TypeError("indices must be a torch.Tensor on the same device as img")
@@ -2532,7 +2524,7 @@ def distance_transform_edt(
                     raise TypeError("distances must be a numpy.ndarray of dtype float64")
         if return_indices:
             if indices is None:
-                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+                indices = np.zeros((img_.shape[0],) + (img_.ndim - 1,) + img_.shape[1:], dtype=np.int32)
             else:
                 if not isinstance(indices, np.ndarray):
                     raise TypeError("indices must be a numpy.ndarray")

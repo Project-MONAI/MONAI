@@ -119,7 +119,7 @@ class SENet(nn.Module):
                 block = SEResNeXtBottleneck
             else:
                 raise ValueError(
-                    "Unknown block '%s', use se_bottleneck, se_resnet_bottleneck or se_resnetxt_bottleneck" % block
+                    f"Unknown block '{block}', use se_bottleneck, se_resnet_bottleneck or se_resnetxt_bottleneck"
                 )
 
         relu_type: type[nn.ReLU] = Act[Act.RELU]

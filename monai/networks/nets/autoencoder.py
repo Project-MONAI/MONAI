@@ -148,7 +148,7 @@ class AutoEncoder(nn.Module):
 
         for i, (c, s) in enumerate(zip(channels, strides)):
             layer = self._get_encode_layer(layer_channels, c, s, False)
-            encode.add_module("encode_%i" % i, layer)
+            encode.add_module(f"encode_{i}", layer)
             layer_channels = c
 
         return encode, layer_channels
@@ -199,7 +199,7 @@ class AutoEncoder(nn.Module):
                         padding=self.padding,
                     )
 
-                intermediate.add_module("inter_%i" % i, unit)
+                intermediate.add_module(f"inter_{i}", unit)
                 layer_channels = dc
 
         return intermediate, layer_channels
@@ -215,7 +215,7 @@ class AutoEncoder(nn.Module):
 
         for i, (c, s) in enumerate(zip(channels, strides)):
             layer = self._get_decode_layer(layer_channels, c, s, i == (len(strides) - 1))
-            decode.add_module("decode_%i" % i, layer)
+            decode.add_module(f"decode_{i}", layer)
             layer_channels = c
 
         return decode, layer_channels
