@@ -99,7 +99,7 @@ class TestRegLossIntegration(unittest.TestCase):
             optimizer.step()
         self.assertGreater(init_loss, loss_val, "loss did not decrease")
 
-def test_lncc_gaussian_kernel_gt3_identical_images(self):
+    def test_lncc_gaussian_kernel_gt3_identical_images(self):
         """
         Regression test for make_gaussian_kernel truncated parameter bug.
         LNCC on identical inputs must be close to -1.0 for gaussian kernel_size > 3.
