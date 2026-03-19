@@ -37,6 +37,19 @@ logger = get_logger(__name__)
 __all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf", "execute_compose"]
 
 
+def _inverse_one(
+    t: InvertibleTransform,
+    data: Any,
+    map_items: bool | int,
+    unpack_items: bool,
+    log_stats: bool | str,
+) -> Any:
+    """Invert a single transform, delegating directly to nested ``Compose`` objects."""
+    if isinstance(t, Compose):
+        return t.inverse(data)
+    return apply_transform(t.inverse, data, map_items, unpack_items, lazy=False, log_stats=log_stats)
+
+
 def execute_compose(
     data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     transforms: Sequence[Any],
@@ -315,7 +328,12 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         return None
 
     def flatten(self):
-        """Return a Composition with a simple list of transforms, as opposed to any nested Compositions.
+        """Return a Composition with a flattened list of transforms.
+
+        Nested ``Compose`` objects that share the same ``map_items`` setting as
+        the parent are inlined.  Nested ``Compose`` objects with a *different*
+        ``map_items`` value are kept as-is so their item-mapping behaviour is
+        preserved at runtime and during inversion.
 
         e.g., `t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])]).flatten()`
         will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
@@ -323,7 +341,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if type(t) is Compose:  # nopep8
+            if type(t) is Compose and t.map_items == self.map_items:
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)
@@ -365,9 +383,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             )
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(
-                t.inverse, data, self.map_items, self.unpack_items, lazy=False, log_stats=self.log_stats
-            )
+            data = _inverse_one(t, data, self.map_items, self.unpack_items, self.log_stats)
         return data
 
     @staticmethod
@@ -622,9 +638,7 @@ class RandomOrder(Compose):
         # loop backwards over transforms
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
-                data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
-                )
+                data = _inverse_one(self.transforms[o], data, self.map_items, self.unpack_items, self.log_stats)
         return data
 
 
@@ -789,8 +803,6 @@ class SomeOf(Compose):
         # loop backwards over transforms
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
-                data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
-                )
+                data = _inverse_one(self.transforms[o], data, self.map_items, self.unpack_items, self.log_stats)
 
         return data

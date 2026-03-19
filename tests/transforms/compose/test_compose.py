@@ -775,6 +775,68 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 self.assertEqual(expected, actual)
 
 
+class TestNestedComposeMapItems(unittest.TestCase):
+    """Tests for nested Compose respecting child map_items (issues #7932, #7565)."""
+
+    def test_child_map_items_false_receives_list(self):
+        """Parent map_items=True, child map_items=False: child receives list as-is."""
+
+        def split(x):
+            return [x + 1, x + 2]
+
+        def sum_list(items):
+            return sum(items)
+
+        # The child Compose(map_items=False) should receive the list from split()
+        # and pass it as-is to sum_list, rather than the parent expanding the list.
+        pipeline = mt.Compose([
+            split,
+            mt.Compose([sum_list], map_items=False),
+        ])
+        result = pipeline(10)
+        self.assertEqual(result, 23)  # (10+1) + (10+2) = 23
+
+    def test_inverse_respects_child_map_items(self):
+        """Inverse path should delegate to child Compose.inverse directly."""
+        pipeline = mt.Compose([
+            mt.Flip(0),
+            mt.Compose([mt.Flip(1)], map_items=False),
+        ])
+        data = torch.randn(1, 4, 4)
+        result = pipeline(data)
+        restored = pipeline.inverse(result)
+        torch.testing.assert_close(data, restored)
+
+    def test_parent_no_map_child_map(self):
+        """Parent map_items=False, child map_items=True: child maps over items."""
+
+        def double(x):
+            return x * 2
+
+        # Parent treats the list as a single value; child maps double() over each item.
+        pipeline = mt.Compose([
+            mt.Compose([double], map_items=True),
+        ], map_items=False)
+        result = pipeline([1, 2, 3])
+        self.assertEqual(result, [2, 4, 6])
+
+    def test_flatten_preserves_different_map_items(self):
+        """flatten() should not merge a child Compose with different map_items."""
+
+        def noop(x):
+            return x
+
+        parent = mt.Compose([
+            noop,
+            mt.Compose([noop, noop], map_items=False),
+            noop,
+        ])
+        flat = parent.flatten()
+        # The inner Compose(map_items=False) should NOT be flattened
+        self.assertEqual(len(flat.transforms), 3)
+        self.assertIsInstance(flat.transforms[1], mt.Compose)
+
+
 class TestComposeCallableInput(unittest.TestCase):
 
     def test_value_error_when_not_sequence(self):
