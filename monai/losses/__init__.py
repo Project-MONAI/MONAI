@@ -35,6 +35,7 @@ from .ds_loss import DeepSupervisionLoss
 from .focal_loss import FocalLoss
 from .giou_loss import BoxGIoULoss, giou
 from .hausdorff_loss import HausdorffDTLoss, LogHausdorffDTLoss
+from .mcc_loss import MCCLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
 from .nacl_loss import NACLLoss
