@@ -117,5 +117,6 @@ class TestRegLossIntegration(unittest.TestCase):
                     f"LNCC of identical images should be -1.0, got {loss.item():.6f} (kernel_size={kernel_size})",
                 )
 
+
 if __name__ == "__main__":
     unittest.main()
