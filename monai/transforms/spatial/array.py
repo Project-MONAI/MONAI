@@ -2142,6 +2142,20 @@ class Resample(Transform):
                     [_map_coord(c, grid_np, order=_interp_mode, mode=_padding_mode) for c in img_np]
                 )
                 out = convert_to_dst_type(out, img_t)[0]
+            else:
+                # Fallback to PyTorch grid_sample when compiled extension is unsupported.
+                # Convert grid coordinates from compiled convention [0, size-1] to PyTorch [-1, 1]
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    _dim = max(2, dim)
+                    grid_t[i] = (grid_t[i] * 2.0 / _dim) - 1.0
+                grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
+                out = torch.nn.functional.grid_sample(
+                    img_t.unsqueeze(0),
+                    grid_t.unsqueeze(0),
+                    mode=_interp_mode,
+                    padding_mode=_padding_mode,
+                    align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
+                )[0]
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
             grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
