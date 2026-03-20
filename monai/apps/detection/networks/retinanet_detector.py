@@ -518,7 +518,7 @@ class RetinaNetDetector(nn.Module):
         else:
             if self.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined.Please refer to function self.set_sliding_window_inferer(*)."
+                    "`self.inferer` is not defined. Please refer to function self.set_sliding_window_inferer(*)."
                 )
             head_outputs = predict_with_inferer(
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
