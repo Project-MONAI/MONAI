@@ -789,23 +789,13 @@ class TestNestedComposeMapItems(unittest.TestCase):
 
         # The child Compose(map_items=False) should receive the list from split()
         # and pass it as-is to sum_list, rather than the parent expanding the list.
-        pipeline = mt.Compose(
-            [
-                split,
-                mt.Compose([sum_list], map_items=False),
-            ]
-        )
+        pipeline = mt.Compose([split, mt.Compose([sum_list], map_items=False)])
         result = pipeline(10)
         self.assertEqual(result, 23)  # (10+1) + (10+2) = 23
 
     def test_inverse_respects_child_map_items(self):
         """Inverse path should delegate to child Compose.inverse directly."""
-        pipeline = mt.Compose(
-            [
-                mt.Flip(0),
-                mt.Compose([mt.Flip(1)], map_items=False),
-            ]
-        )
+        pipeline = mt.Compose([mt.Flip(0), mt.Compose([mt.Flip(1)], map_items=False)])
         data = torch.randn(1, 4, 4)
         result = pipeline(data)
         restored = pipeline.inverse(result)
@@ -818,12 +808,7 @@ class TestNestedComposeMapItems(unittest.TestCase):
             return x * 2
 
         # Parent treats the list as a single value; child maps double() over each item.
-        pipeline = mt.Compose(
-            [
-                mt.Compose([double], map_items=True),
-            ],
-            map_items=False,
-        )
+        pipeline = mt.Compose([mt.Compose([double], map_items=True)], map_items=False)
         result = pipeline([1, 2, 3])
         self.assertEqual(result, [2, 4, 6])
 
@@ -833,13 +818,7 @@ class TestNestedComposeMapItems(unittest.TestCase):
         def noop(x):
             return x
 
-        parent = mt.Compose(
-            [
-                noop,
-                mt.Compose([noop, noop], map_items=False),
-                noop,
-            ]
-        )
+        parent = mt.Compose([noop, mt.Compose([noop, noop], map_items=False), noop])
         flat = parent.flatten()
         # The inner Compose(map_items=False) should NOT be flattened
         self.assertEqual(len(flat.transforms), 3)

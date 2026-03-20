@@ -38,11 +38,7 @@ __all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf", "execute_compose"]
 
 
 def _inverse_one(
-    t: InvertibleTransform,
-    data: Any,
-    map_items: bool | int,
-    unpack_items: bool,
-    log_stats: bool | str,
+    t: InvertibleTransform, data: Any, map_items: bool | int, unpack_items: bool, log_stats: bool | str
 ) -> Any:
     """Invert a single transform, delegating directly to nested ``Compose`` objects.
 
