@@ -381,9 +381,7 @@ class TestAutoEncoderKL(unittest.TestCase):
 
         for new_key, expected_val in expected.items():
             torch.testing.assert_close(
-                dst.state_dict()[new_key],
-                expected_val.to(device),
-                msg=f"Weight mismatch for {new_key}",
+                dst.state_dict()[new_key], expected_val.to(device), msg=f"Weight mismatch for {new_key}"
             )
 
     @skipUnless(has_einops, "Requires einops")
@@ -403,16 +401,10 @@ class TestAutoEncoderKL(unittest.TestCase):
         for k in out_proj_weights:
             n = loaded[k].shape[0]
             torch.testing.assert_close(
-                loaded[k],
-                torch.eye(n, dtype=loaded[k].dtype, device=device),
-                msg=f"{k} should be an identity matrix",
+                loaded[k], torch.eye(n, dtype=loaded[k].dtype, device=device), msg=f"{k} should be an identity matrix"
             )
         for k in out_proj_biases:
-            torch.testing.assert_close(
-                loaded[k],
-                torch.zeros_like(loaded[k]),
-                msg=f"{k} should be all-zeros",
-            )
+            torch.testing.assert_close(loaded[k], torch.zeros_like(loaded[k]), msg=f"{k} should be all-zeros")
 
     @skipUnless(has_einops, "Requires einops")
     def test_load_old_state_dict_proj_attn_discarded_when_no_out_proj(self):
@@ -433,8 +425,7 @@ class TestAutoEncoderKL(unittest.TestCase):
 
         loaded = dst.state_dict()
         self.assertFalse(
-            any("out_proj" in k for k in loaded),
-            "out_proj should not exist in a model built with include_fc=False",
+            any("out_proj" in k for k in loaded), "out_proj should not exist in a model built with include_fc=False"
         )
 
 
