@@ -169,6 +169,17 @@ else:
 
 
 class TestAutoEncoderKL(unittest.TestCase):
+    _MIGRATION_PARAMS = {
+        "spatial_dims": 2,
+        "in_channels": 1,
+        "out_channels": 1,
+        "channels": (4, 4, 4),
+        "latent_channels": 4,
+        "attention_levels": (False, False, False),
+        "num_res_blocks": 1,
+        "norm_num_groups": 4,
+    }
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
         net = AutoencoderKL(**input_param).to(device)
@@ -329,6 +340,15 @@ class TestAutoEncoderKL(unittest.TestCase):
 
     @staticmethod
     def _new_to_old_sd(new_sd: dict, include_proj_attn: bool = True) -> dict:
+        """Convert new-style state dict keys to legacy naming conventions.
+
+        Args:
+            new_sd: State dict with current key naming.
+            include_proj_attn: If True, map `.attn.out_proj.` to `.proj_attn.`.
+
+        Returns:
+            State dict with legacy key names.
+        """
         old_sd: dict = {}
         for k, v in new_sd.items():
             if ".attn.to_q." in k:
@@ -354,7 +374,7 @@ class TestAutoEncoderKL(unittest.TestCase):
 
         # record the tensor values that were stored under proj_attn
         expected = {k.replace(".proj_attn.", ".attn.out_proj."): v for k, v in old_sd.items() if ".proj_attn." in k}
-        self.assertGreater(len(expected), 0, "No proj_attn keys in old state dict – check model config")
+        self.assertGreater(len(expected), 0, "No proj_attn keys in old state dict - check model config")
 
         dst = AutoencoderKL(**params).to(device)
         dst.load_old_state_dict(old_sd)
