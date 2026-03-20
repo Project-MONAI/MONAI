@@ -680,6 +680,7 @@ class AutoencoderKL(nn.Module):
 
         Args:
             old_state_dict: state dict from the old AutoencoderKL model.
+            verbose: if True, print diagnostic information about key mismatches.
         """
 
         new_state_dict = self.state_dict()
@@ -725,15 +726,17 @@ class AutoencoderKL(nn.Module):
                     new_state_dict[out_w] = old_state_dict.pop(proj_w)
                     if proj_b in old_state_dict:
                         new_state_dict[out_b] = old_state_dict.pop(proj_b)
-                else:
-                    # weights pre-date proj_attn: initialise to identity / zero
-                    new_state_dict[out_w] = torch.eye(new_state_dict[out_w].shape[0])
-                    new_state_dict[out_b] = torch.zeros(new_state_dict[out_b].shape)
+                    else:
+                        new_state_dict[out_b] = torch.zeros(
+                            new_state_dict[out_b].shape,
+                            dtype=new_state_dict[out_b].dtype,
+                            device=new_state_dict[out_b].device,
+                        )
             elif proj_w in old_state_dict:
-                # new model has no out_proj at all – discard the legacy keys so they
+                # new model has no out_proj at all - discard the legacy keys so they
                 # don't surface as "unexpected keys" during load_state_dict
                 old_state_dict.pop(proj_w)
-                old_state_dict.pop(proj_b)
+                old_state_dict.pop(proj_b, None)
 
         # fix the upsample conv blocks which were renamed postconv
         for k in new_state_dict:
