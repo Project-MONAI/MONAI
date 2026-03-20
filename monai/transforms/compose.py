@@ -44,7 +44,23 @@ def _inverse_one(
     unpack_items: bool,
     log_stats: bool | str,
 ) -> Any:
-    """Invert a single transform, delegating directly to nested ``Compose`` objects."""
+    """Invert a single transform, delegating directly to nested ``Compose`` objects.
+
+    When ``t`` is a ``Compose`` instance its own ``inverse()`` is called so that
+    the child's ``map_items`` setting is respected.  For all other invertible
+    transforms, ``apply_transform`` is used with ``lazy=False``.
+
+    Args:
+        t: The invertible transform to invert.
+        data: Data to be inverted.
+        map_items: Whether to map over list/tuple items (forwarded to
+            ``apply_transform`` for non-``Compose`` transforms).
+        unpack_items: Whether to unpack data as parameters.
+        log_stats: Logger name or boolean for logging.
+
+    Returns:
+        The inverted data.
+    """
     if isinstance(t, Compose):
         return t.inverse(data)
     return apply_transform(t.inverse, data, map_items, unpack_items, lazy=False, log_stats=log_stats)
