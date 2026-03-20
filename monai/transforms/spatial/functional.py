@@ -59,16 +59,24 @@ def _compiled_unsupported(device: torch.device) -> bool:
     Return True if ``monai._C`` (the compiled C extension providing ``grid_pull``) is not
     compiled with support for the given CUDA device's compute capability.
 
-    ``monai._C`` is built at install time against a fixed set of CUDA architectures.
-    NVIDIA Blackwell GPUs (sm_120, compute capability 12.x) and newer were not included in
-    the default ``TORCH_CUDA_ARCH_LIST`` when the MONAI slim image was originally built,
-    so executing ``grid_pull`` on those devices produces incorrect results.  Falling back to
-    the PyTorch-native ``affine_grid`` + ``grid_sample`` path (``USE_COMPILED=False``) gives
-    correct output on all architectures.
+    Args:
+        device: The torch device to check for compiled extension support.
 
-    The threshold (``major >= 12``) matches the first architecture family (Blackwell, sm_120)
-    that shipped after the highest sm supported in the current default build list (sm_90,
-    Hopper).  Adjust this constant when ``monai._C`` is rebuilt with sm_120+ support.
+    Returns:
+        True if the device is CUDA with compute capability major >= 12 (Blackwell+),
+        False otherwise. Always returns False for CPU devices.
+
+    Note:
+        ``monai._C`` is built at install time against a fixed set of CUDA architectures.
+        NVIDIA Blackwell GPUs (sm_120, compute capability 12.x) and newer were not included in
+        the default ``TORCH_CUDA_ARCH_LIST`` when the MONAI slim image was originally built,
+        so executing ``grid_pull`` on those devices produces incorrect results.  Falling back to
+        the PyTorch-native ``affine_grid`` + ``grid_sample`` path (``USE_COMPILED=False``) gives
+        correct output on all architectures.
+
+        The threshold (``major >= 12``) matches the first architecture family (Blackwell, sm_120)
+        that shipped after the highest sm supported in the current default build list (sm_90,
+        Hopper).  Adjust this constant when ``monai._C`` is rebuilt with sm_120+ support.
     """
     if device.type != "cuda":
         return False
