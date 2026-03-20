@@ -398,7 +398,7 @@ class TestAutoEncoderKL(unittest.TestCase):
 
         out_proj_weights = [k for k in loaded if "attn.out_proj.weight" in k]
         out_proj_biases = [k for k in loaded if "attn.out_proj.bias" in k]
-        self.assertGreater(len(out_proj_weights), 0, "No out_proj keys found – check model config")
+        self.assertGreater(len(out_proj_weights), 0, "No out_proj keys found - check model config")
 
         for k in out_proj_weights:
             n = loaded[k].shape[0]
@@ -422,7 +422,7 @@ class TestAutoEncoderKL(unittest.TestCase):
 
         # inject synthetic proj_attn keys (mimic an old checkpoint)
         attn_blocks = [k.replace(".to_q.weight", "") for k in old_sd if k.endswith(".to_q.weight")]
-        self.assertGreater(len(attn_blocks), 0, "No attention blocks found – check model config")
+        self.assertGreater(len(attn_blocks), 0, "No attention blocks found - check model config")
         for block in attn_blocks:
             ch = old_sd[f"{block}.to_q.weight"].shape[0]
             old_sd[f"{block}.proj_attn.weight"] = torch.randn(ch, ch)

@@ -732,6 +732,18 @@ class AutoencoderKL(nn.Module):
                             dtype=new_state_dict[out_b].dtype,
                             device=new_state_dict[out_b].device,
                         )
+                else:
+                    # No legacy proj_attn – initialize out_proj to identity/zero
+                    new_state_dict[out_w] = torch.eye(
+                        new_state_dict[out_w].shape[0],
+                        dtype=new_state_dict[out_w].dtype,
+                        device=new_state_dict[out_w].device,
+                    )
+                    new_state_dict[out_b] = torch.zeros(
+                        new_state_dict[out_b].shape,
+                        dtype=new_state_dict[out_b].dtype,
+                        device=new_state_dict[out_b].device,
+                    )
             elif proj_w in old_state_dict:
                 # new model has no out_proj at all - discard the legacy keys so they
                 # don't surface as "unexpected keys" during load_state_dict
