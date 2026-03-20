@@ -733,7 +733,7 @@ class AutoencoderKL(nn.Module):
                             device=new_state_dict[out_b].device,
                         )
                 else:
-                    # No legacy proj_attn – initialize out_proj to identity/zero
+                    # No legacy proj_attn - initialize out_proj to identity/zero
                     new_state_dict[out_w] = torch.eye(
                         new_state_dict[out_w].shape[0],
                         dtype=new_state_dict[out_w].dtype,

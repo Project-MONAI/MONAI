@@ -404,7 +404,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             n = loaded[k].shape[0]
             torch.testing.assert_close(
                 loaded[k],
-                torch.eye(n, device=device),
+                torch.eye(n, dtype=loaded[k].dtype, device=device),
                 msg=f"{k} should be an identity matrix",
             )
         for k in out_proj_biases:
