@@ -20,6 +20,7 @@ from torch.nn import functional as F
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
 from monai.networks.utils import meshgrid_ij
+from monai.transforms.spatial.functional import _compiled_unsupported
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
 _C, _ = optional_import("monai._C")
@@ -138,7 +139,9 @@ class Warp(nn.Module):
         grid = self.get_reference_grid(ddf, jitter=self.jitter) + ddf
         grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
-        if not USE_COMPILED:  # pytorch native grid_sample
+        _use_compiled = USE_COMPILED and not _compiled_unsupported(image.device)
+
+        if not _use_compiled:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
                 grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
             index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
