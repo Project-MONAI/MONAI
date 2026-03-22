@@ -77,13 +77,28 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandGridDistortiond(unittest.TestCase):
+    """Test cases for RandGridDistortiond dictionary transform."""
+
     @parameterized.expand(TESTS)
     def test_rand_grid_distortiond(self, input_param, seed, input_data, expected_val_img, expected_val_mask):
+        """Verify distortion produces expected output for image and mask keys."""
         g = RandGridDistortiond(**input_param)
         g.set_random_state(seed=seed)
         result = g(input_data)
         assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
         assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)
+
+
+    def test_no_transform_with_non_tensor_metadata(self):
+        """When _do_transform is False, non-tensor values in the dict should not cause an error."""
+        img = np.indices([6, 6]).astype(np.float32)
+        data = {"img": img, "extra_info": 42, "label_name": "tumor"}
+        g = RandGridDistortiond(keys=["img"], prob=0.0)  # prob=0 ensures _do_transform is False
+        result = g(data)
+        # non-tensor metadata should pass through unchanged
+        self.assertEqual(result["extra_info"], 42)
+        self.assertEqual(result["label_name"], "tumor")
+        assert_allclose(result["img"], img, type_test=False)
 
 
 if __name__ == "__main__":

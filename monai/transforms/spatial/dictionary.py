@@ -2305,13 +2305,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
             warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])
