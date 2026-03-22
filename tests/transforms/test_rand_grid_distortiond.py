@@ -88,7 +88,6 @@ class TestRandGridDistortiond(unittest.TestCase):
         assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
         assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)
 
-
     def test_no_transform_with_non_tensor_metadata(self):
         """When _do_transform is False, non-tensor values in the dict should not cause an error."""
         img = np.indices([6, 6]).astype(np.float32)
