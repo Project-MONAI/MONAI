@@ -1161,8 +1161,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         # all the keys share the same random Affine factor
@@ -1322,8 +1321,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         device = self.rand_2d_elastic.device
@@ -1473,8 +1471,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
@@ -2134,8 +2131,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 
@@ -2633,8 +2629,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 
