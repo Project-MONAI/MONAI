@@ -39,9 +39,7 @@ if polygraphy_imported:
 
 trt, trt_imported = optional_import("tensorrt")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
-cudart, _cudart_imported = optional_import("cuda.bindings.runtime")
-if not _cudart_imported:
-    cudart, _cudart_imported = optional_import("cuda.cudart")
+cudart, cudart_imported = optional_import("cuda.bindings.runtime")
 
 
 lock_sm = threading.Lock()
@@ -88,8 +86,15 @@ def cuassert(cuda_ret):
      cuda_ret: CUDA return code.
     """
     err = cuda_ret[0]
-    if err != 0:
-        raise RuntimeError(f"CUDA ERROR: {err}")
+    if err.value != 0:
+        err_msg = f"CUDA ERROR: {err.value}"
+        try:
+            _, err_name = cudart.cudaGetErrorName(err)
+            _, err_str = cudart.cudaGetErrorString(err)
+            err_msg = f"CUDA ERROR {err.value}: {err_name} — {err_str}"
+        except Exception:
+            pass
+        raise RuntimeError(err_msg)
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None
