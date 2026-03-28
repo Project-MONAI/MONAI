@@ -85,11 +85,22 @@ def cuassert(cuda_ret):
     """
     Error reporting method for CUDA calls.
     Args:
-     cuda_ret: CUDA return code.
+        cuda_ret: Tuple returned by CUDA runtime calls, where the first element
+            is a cudaError_t enum and subsequent elements are return values.
+
+    Raises:
+        RuntimeError: If the CUDA call returned an error.
     """
     err = cuda_ret[0]
-    if err != 0:
-        raise RuntimeError(f"CUDA ERROR: {err}")
+    if err.value != 0:
+        err_msg = f"CUDA ERROR: {err.value}"
+        try:
+            _, err_name = cudart.cudaGetErrorName(err)
+            _, err_str = cudart.cudaGetErrorString(err)
+            err_msg = f"CUDA ERROR {err.value}: {err_name} — {err_str}"
+        except Exception as e:
+            get_logger("monai.networks.trt_compiler").debug(f"Failed to retrieve CUDA error details: {e}")
+        raise RuntimeError(err_msg)
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None
