@@ -116,7 +116,7 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        _supported = ", ".join(sorted(SUPPORTED_WRITERS.keys()))
+        _supported = ", ".join(sorted(k for k in SUPPORTED_WRITERS.keys() if k != "*"))
         raise OptionalImportError(
             f"No ImageWriter backend found for {fmt}. "
             f"Supported formats: {_supported}. "
