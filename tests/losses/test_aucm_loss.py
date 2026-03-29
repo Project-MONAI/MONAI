@@ -14,31 +14,36 @@ from __future__ import annotations
 import unittest
 
 import torch
+from parameterized import parameterized
 
 from monai.losses import AUCMLoss
 from tests.test_utils import test_script_save
+
+FIXED_INPUT = torch.tensor([[1.0], [2.0]])
+FIXED_TARGET = torch.tensor([[1.0], [0.0]])
+
+EXPECTED_V1 = 1.25
+EXPECTED_V2 = 5.0
 
 
 class TestAUCMLoss(unittest.TestCase):
     """Test cases for AUCMLoss."""
 
-    def test_v1(self):
-        """Test AUCMLoss with version 'v1'."""
-        loss_fn = AUCMLoss(version="v1")
+    @parameterized.expand([("v1",), ("v2",)])
+    def test_versions(self, version):
+        """Test AUCMLoss with different versions."""
+        loss_fn = AUCMLoss(version=version)
         input = torch.randn(32, 1, requires_grad=True)
         target = torch.randint(0, 2, (32, 1)).float()
         loss = loss_fn(input, target)
         self.assertIsInstance(loss, torch.Tensor)
         self.assertEqual(loss.ndim, 0)
 
-    def test_v2(self):
-        """Test AUCMLoss with version 'v2'."""
-        loss_fn = AUCMLoss(version="v2")
-        input = torch.randn(32, 1, requires_grad=True)
-        target = torch.randint(0, 2, (32, 1)).float()
-        loss = loss_fn(input, target)
-        self.assertIsInstance(loss, torch.Tensor)
-        self.assertEqual(loss.ndim, 0)
+    @parameterized.expand([("v1", EXPECTED_V1), ("v2", EXPECTED_V2)])
+    def test_known_values(self, version, expected):
+        """Test AUCMLoss against fixed manually computed values."""
+        loss = AUCMLoss(version=version)(FIXED_INPUT, FIXED_TARGET)
+        self.assertAlmostEqual(loss.item(), expected, places=5)
 
     def test_invalid_version(self):
         """Test that invalid version raises ValueError."""

@@ -119,32 +119,83 @@ class AUCMLoss(_Loss):
         pos_mask = (target == 1).float()
         neg_mask = (target == 0).float()
 
+        mean_pos_sq = (input - self.a) ** 2
+        mean_neg_sq = (input - self.b) ** 2
+
+        # Note:
+        # v1 uses global expectations (normalized by total number of samples),
+        # following the original LibAUC implementation.
+        # v2 uses class-conditional expectations (normalized by number of samples
+        # in each class), implemented via non-zero averaging.
+        # These behaviors differ and should not be unified.
         if self.version == "v1":
             p = float(self.imratio) if self.imratio is not None else float(pos_mask.mean().item())
+            p1 = 1.0 - p
+
+            mean_pos = self._global_mean(mean_pos_sq, pos_mask)
+            mean_neg = self._global_mean(mean_neg_sq, neg_mask)
+
+            interaction = self._global_mean(p * input * neg_mask - p1 * input * pos_mask, pos_mask + neg_mask)
+
             loss = (
-                (1 - p) * self._safe_mean((input - self.a) ** 2, pos_mask)
-                + p * self._safe_mean((input - self.b) ** 2, neg_mask)
-                + 2
-                * self.alpha
-                * (
-                    p * (1 - p) * self.margin
-                    + self._safe_mean(p * input * neg_mask - (1 - p) * input * pos_mask, pos_mask + neg_mask)
-                )
-                - p * (1 - p) * self.alpha**2
+                p1 * mean_pos
+                + p * mean_neg
+                + 2 * self.alpha * (p * p1 * self.margin + interaction)
+                - p * p1 * self.alpha**2
             )
-        else:
+
+        else:  # v2
+            mean_pos = self._class_mean(mean_pos_sq, pos_mask)
+            mean_neg = self._class_mean(mean_neg_sq, neg_mask)
+
+            mean_input_pos = self._class_mean(input, pos_mask)
+            mean_input_neg = self._class_mean(input, neg_mask)
+
             loss = (
-                self._safe_mean((input - self.a) ** 2, pos_mask)
-                + self._safe_mean((input - self.b) ** 2, neg_mask)
-                + 2 * self.alpha * (self.margin + self._safe_mean(input, neg_mask) - self._safe_mean(input, pos_mask))
-                - self.alpha**2
+                mean_pos + mean_neg + 2 * self.alpha * (self.margin + mean_input_neg - mean_input_pos) - self.alpha**2
             )
 
         return loss
 
-    def _safe_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Compute mean safely over masked elements."""
+    def _global_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the global mean of a masked tensor.
+
+        This computes the mean over all elements, where values outside the mask
+        are zeroed out. The result is normalized by the total number of elements,
+        not by the number of masked elements.
+
+        This corresponds to a global expectation:
+            E[mask * tensor]
+
+        Args:
+            tensor: Input tensor.
+            mask: Binary mask tensor of the same shape as ``tensor``.
+
+        Returns:
+            Scalar tensor representing the global mean.
+        """
+        return (tensor * mask).mean()
+
+    def _class_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the class-conditional mean of a masked tensor.
+
+        This computes the mean over only the masked (non-zero) elements, i.e.,
+        the result is normalized by the number of masked elements.
+
+        This corresponds to a class-conditional expectation:
+            E[tensor | mask]
+
+        Args:
+            tensor: Input tensor.
+            mask: Binary mask tensor of the same shape as ``tensor``.
+
+        Returns:
+            Scalar tensor representing the class-conditional mean.
+            Returns 0 if no elements are selected by the mask.
+        """
         denom = mask.sum()
-        if denom == 0:
-            return torch.tensor(0.0, device=tensor.device, dtype=tensor.dtype)
+        if denom.item() == 0:
+            return torch.zeros((), dtype=tensor.dtype, device=tensor.device)
         return (tensor * mask).sum() / denom
