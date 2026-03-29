@@ -191,9 +191,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
     def test_pipeline_world_to_image_crop(self):
         """Integration test: TransformPointsWorldToImaged -> SpatialCropd with string keys."""
         # Create image with a 2x scaling affine: world coords = 2 * voxel coords
-        affine = torch.tensor(
-            [[2.0, 0, 0, 0], [0, 2.0, 0, 0], [0, 0, 2.0, 0], [0, 0, 0, 1.0]], dtype=torch.float64
-        )
+        affine = torch.tensor([[2.0, 0, 0, 0], [0, 2.0, 0, 0], [0, 0, 2.0, 0], [0, 0, 0, 1.0]], dtype=torch.float64)
         img = MetaTensor(torch.rand(1, 32, 32, 32), affine=affine)
 
         # World-space ROI: [4, 6, 8] to [20, 24, 28] -> voxel-space: [2, 3, 4] to [10, 12, 14]

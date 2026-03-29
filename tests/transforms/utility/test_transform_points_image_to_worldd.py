@@ -53,12 +53,8 @@ class TestTransformPointsImageToWorldd(unittest.TestCase):
         """Verify that TransformPointsImageToWorldd produces the same result as
         ApplyTransformToPointsd with invert_affine=False."""
         data = {"image": image, "point": points}
-        convenience = TransformPointsImageToWorldd(
-            keys="point", refer_keys="image", dtype=torch.int64
-        )
-        base = ApplyTransformToPointsd(
-            keys="point", refer_keys="image", dtype=torch.int64, invert_affine=False
-        )
+        convenience = TransformPointsImageToWorldd(keys="point", refer_keys="image", dtype=torch.int64)
+        base = ApplyTransformToPointsd(keys="point", refer_keys="image", dtype=torch.int64, invert_affine=False)
         out_convenience = convenience(dict(data))
         out_base = base(dict(data))
         self.assertTrue(torch.allclose(out_convenience["point"], out_base["point"]))
@@ -66,9 +62,7 @@ class TestTransformPointsImageToWorldd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_inverse(self, image, points, _expected_output):
         data = {"image": image, "point": points}
-        transform = TransformPointsImageToWorldd(
-            keys="point", refer_keys="image", dtype=torch.int64
-        )
+        transform = TransformPointsImageToWorldd(keys="point", refer_keys="image", dtype=torch.int64)
         output = transform(data)
         inverted = transform.inverse(output)
         self.assertTrue(torch.allclose(inverted["point"], points))

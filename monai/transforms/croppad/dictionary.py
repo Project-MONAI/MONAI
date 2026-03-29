@@ -549,9 +549,12 @@ class SpatialCropd(Cropd):
 
         lazy_ = self.lazy if lazy is None else lazy
         self.cropper = SpatialCrop(
-            roi_center=roi_center, roi_size=roi_size,
-            roi_start=roi_start, roi_end=roi_end,
-            roi_slices=self._roi_slices, lazy=lazy_,
+            roi_center=roi_center,
+            roi_size=roi_size,
+            roi_start=roi_start,
+            roi_end=roi_end,
+            roi_slices=self._roi_slices,
+            lazy=lazy_,
         )
         for key in self.key_iterator(d):
             d[key] = self.cropper(d[key], lazy=lazy_)
