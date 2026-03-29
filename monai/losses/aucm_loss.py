@@ -113,6 +113,9 @@ class AUCMLoss(_Loss):
         input = input.flatten()
         target = target.flatten()
 
+        if input.numel() == 0:
+            raise ValueError("Input and target must contain at least one element.")
+
         if not torch.all((target == 0) | (target == 1)):
             raise ValueError("Target must contain only binary values (0 or 1)")
 
@@ -175,7 +178,10 @@ class AUCMLoss(_Loss):
         Returns:
             Scalar tensor representing the global mean.
         """
-        return (tensor * mask).mean()
+        masked = tensor * mask
+        if masked.numel() == 0:
+            return torch.zeros((), dtype=tensor.dtype, device=tensor.device)
+        return masked.mean()
 
     def _class_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
