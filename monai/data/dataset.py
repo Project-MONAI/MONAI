@@ -139,7 +139,7 @@ class DatasetFunc(Dataset):
     """
 
     def __init__(self, data: Any, func: Callable, **kwargs) -> None:
-        super().__init__(data=None, transform=None)  # type:ignore
+        super().__init__(data=None, transform=None)  # type: ignore
         self.src = data
         self.func = func
         self.kwargs = kwargs
@@ -1635,7 +1635,7 @@ class GDSDataset(PersistentDataset):
                         return (_data, _meta)
                     return _data
                 else:
-                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type:ignore
+                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type: ignore
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
                             meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
