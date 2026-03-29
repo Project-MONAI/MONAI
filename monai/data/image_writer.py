@@ -116,7 +116,7 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        raise OptionalImportError(f"No ImageWriter backend found for {fmt}. Please install a suitable package: 'nibabel' (for .nii/.nii.gz), 'itk' (for .nrrd/.mha), or 'Pillow' (for .png/.jpg).")
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
