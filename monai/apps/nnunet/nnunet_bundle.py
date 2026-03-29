@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -36,9 +36,9 @@ __all__ = [
 
 
 def get_nnunet_trainer(
-    dataset_name_or_id: Union[str, int],
+    dataset_name_or_id: str | int,
     configuration: str,
-    fold: Union[int, str],
+    fold: int | str,
     trainer_class_name: str = "nnUNetTrainer",
     plans_identifier: str = "nnUNetPlans",
     use_compressed_data: bool = False,
@@ -46,7 +46,7 @@ def get_nnunet_trainer(
     only_run_validation: bool = False,
     disable_checkpointing: bool = False,
     device: str = "cuda",
-    pretrained_model: Optional[str] = None,
+    pretrained_model: str | None = None,
 ) -> Any:  # type: ignore
     """
     Get the nnUNet trainer instance based on the provided configuration.
@@ -166,7 +166,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
     restoring network architecture, and setting up the predictor for inference.
     """
 
-    def __init__(self, predictor: object, model_folder: Union[str, Path], model_name: str = "model.pt"):  # type: ignore
+    def __init__(self, predictor: object, model_folder: str | Path, model_name: str = "model.pt"):  # type: ignore
         super().__init__()
         self.predictor = predictor
 
@@ -294,7 +294,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         return MetaTensor(out_tensor, meta=x.meta)
 
 
-def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str = "model.pt") -> ModelnnUNetWrapper:
+def get_nnunet_monai_predictor(model_folder: str | Path, model_name: str = "model.pt") -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
     The model folder should contain the following files, created during training:
@@ -426,9 +426,9 @@ def get_network_from_nnunet_plans(
     plans_file: str,
     dataset_file: str,
     configuration: str,
-    model_ckpt: Optional[str] = None,
+    model_ckpt: str | None = None,
     model_key_in_ckpt: str = "model",
-) -> Union[torch.nn.Module, Any]:
+) -> torch.nn.Module | Any:
     """
     Load and initialize a nnUNet network based on nnUNet plans and configuration.
 
@@ -518,7 +518,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
     from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
     def subfiles(
-        folder: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
+        folder: str | Path, prefix: str | None = None, suffix: str | None = None, sort: bool = True
     ) -> list[str]:
         res = [
             i.name

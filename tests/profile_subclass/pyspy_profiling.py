@@ -12,14 +12,12 @@
 To be used with py-spy, comparing torch.Tensor, SubTensor, SubWithTorchFunc, MetaTensor
 Adapted from https://github.com/pytorch/pytorch/tree/v1.11.0/benchmarks/overrides_benchmark
 """
+
 from __future__ import annotations
 
 import argparse
 
 import torch
-from min_classes import SubTensor, SubWithTorchFunc  # noqa: F401
-
-from monai.data import MetaTensor  # noqa: F401
 
 Tensor = torch.Tensor
 

@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional
 
 import numpy as np
 import torch
@@ -54,7 +53,7 @@ class PatchEmbeddingBlock(nn.Module):
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
-        pos_embed_kwargs: Optional[dict] = None,
+        pos_embed_kwargs: dict | None = None,
     ) -> None:
         """
         Args:
@@ -102,7 +101,7 @@ class PatchEmbeddingBlock(nn.Module):
             chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
             from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
             to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
-            axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
+            axes_len = {f"p{i + 1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
                 Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
             )
