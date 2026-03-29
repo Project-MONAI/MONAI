@@ -1948,7 +1948,7 @@ def create_workflow(
 
     """
     _args = update_kwargs(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
-    (workflow_name, config_file) = _pop_args(
+    workflow_name, config_file = _pop_args(
         _args, workflow_name=ConfigWorkflow, config_file=None
     )  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
