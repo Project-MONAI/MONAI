@@ -672,6 +672,7 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
+        channel_wise: bool = False,
     ) -> None:
         """
         Args:
@@ -682,11 +683,11 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
             preserve_range: clips the output array/tensor to the range of the input array/tensor
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
-            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -694,7 +695,12 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
         self.fixed_mean = fixed_mean
         self.preserve_range = preserve_range
         self.scaler = RandScaleIntensityFixedMean(
-            factors=factors, fixed_mean=self.fixed_mean, preserve_range=preserve_range, dtype=dtype, prob=1.0
+            factors=factors,
+            fixed_mean=self.fixed_mean,
+            preserve_range=preserve_range,
+            channel_wise=channel_wise,
+            dtype=dtype,
+            prob=1.0,
         )
 
     def set_random_state(
@@ -712,8 +718,15 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
+        # expect all the specified keys have same spatial shape and share same random factors
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
         # all the keys share the same random scale factor
-        self.scaler.randomize(None)
+        self.scaler.randomize(d[first_key])
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key], randomize=False)
         return d
