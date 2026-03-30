@@ -486,12 +486,12 @@ class SpatialCropd(Cropd):
         self._has_str_roi = any(isinstance(v, str) for v in [roi_center, roi_size, roi_start, roi_end])
 
         if not self._has_str_roi:
-            _Roi = Optional[Union[Sequence[int], int]]
+            _roi_t = Optional[Union[Sequence[int], int]]
             cropper = SpatialCrop(
-                cast(_Roi, roi_center),
-                cast(_Roi, roi_size),
-                cast(_Roi, roi_start),
-                cast(_Roi, roi_end),
+                cast(_roi_t, roi_center),
+                cast(_roi_t, roi_size),
+                cast(_roi_t, roi_start),
+                cast(_roi_t, roi_end),
                 roi_slices,
                 lazy=lazy,
             )
