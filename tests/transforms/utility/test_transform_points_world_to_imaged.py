@@ -47,10 +47,7 @@ class TestTransformPointsWorldToImaged(unittest.TestCase):
     def test_transform(self, image, points, affine_lps_to_ras, expected_output):
         data = {"image": image, "point": points}
         transform = TransformPointsWorldToImaged(
-            keys="point",
-            refer_keys="image",
-            dtype=torch.int64,
-            affine_lps_to_ras=affine_lps_to_ras,
+            keys="point", refer_keys="image", dtype=torch.int64, affine_lps_to_ras=affine_lps_to_ras
         )
         output = transform(data)
         self.assertTrue(torch.allclose(output["point"], expected_output))

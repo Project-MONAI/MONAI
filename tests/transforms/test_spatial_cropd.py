@@ -79,11 +79,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
     def test_string_roi_start_end(self):
         """String keys for roi_start and roi_end should resolve from data dict."""
         img = MetaTensor(torch.rand(3, 10, 10, 10))
-        data = {
-            "img": img,
-            "roi_start_key": [0, 0, 0],
-            "roi_end_key": [5, 5, 5],
-        }
+        data = {"img": img, "roi_start_key": [0, 0, 0], "roi_end_key": [5, 5, 5]}
         cropper = SpatialCropd(keys="img", roi_start="roi_start_key", roi_end="roi_end_key")
         result = cropper(data)
         self.assertEqual(result["img"].shape, (3, 5, 5, 5))
@@ -91,11 +87,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
     def test_string_roi_center_size(self):
         """String keys for roi_center and roi_size should resolve from data dict."""
         img = MetaTensor(torch.rand(1, 20, 20, 20))
-        data = {
-            "img": img,
-            "center_key": [10, 10, 10],
-            "size_key": [6, 6, 6],
-        }
+        data = {"img": img, "center_key": [10, 10, 10], "size_key": [6, 6, 6]}
         cropper = SpatialCropd(keys="img", roi_center="center_key", roi_size="size_key")
         result = cropper(data)
         self.assertEqual(result["img"].shape, (1, 6, 6, 6))
@@ -103,10 +95,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
     def test_mixed_string_and_direct(self):
         """Mix of string key and direct value for ROI params."""
         img = MetaTensor(torch.rand(1, 20, 20, 20))
-        data = {
-            "img": img,
-            "center_key": [10, 10, 10],
-        }
+        data = {"img": img, "center_key": [10, 10, 10]}
         cropper = SpatialCropd(keys="img", roi_center="center_key", roi_size=[4, 4, 4])
         result = cropper(data)
         self.assertEqual(result["img"].shape, (1, 4, 4, 4))
@@ -175,11 +164,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
     def test_inverse_with_string_keys(self):
         """Inverse should work correctly when string keys are used."""
         img = MetaTensor(torch.rand(1, 10, 10, 10))
-        data = {
-            "img": img,
-            "start": [2, 2, 2],
-            "end": [6, 6, 6],
-        }
+        data = {"img": img, "start": [2, 2, 2], "end": [6, 6, 6]}
         cropper = SpatialCropd(keys="img", roi_start="start", roi_end="end")
         result = cropper(data)
         self.assertEqual(result["img"].shape, (1, 4, 4, 4))

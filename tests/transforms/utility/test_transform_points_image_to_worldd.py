@@ -40,11 +40,7 @@ class TestTransformPointsImageToWorldd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_transform(self, image, points, expected_output):
         data = {"image": image, "point": points}
-        transform = TransformPointsImageToWorldd(
-            keys="point",
-            refer_keys="image",
-            dtype=torch.int64,
-        )
+        transform = TransformPointsImageToWorldd(keys="point", refer_keys="image", dtype=torch.int64)
         output = transform(data)
         self.assertTrue(torch.allclose(output["point"], expected_output))
 
