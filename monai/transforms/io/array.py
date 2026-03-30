@@ -165,6 +165,10 @@ class LoadImage(Transform):
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
+        Raises:
+            OptionalImportError: if a user-specified reader requires a package
+                that is not installed or has an incompatible version.
+                
         Note:
 
             - The transform returns a MetaTensor, unless `set_track_meta(False)` has been used, in which case, a

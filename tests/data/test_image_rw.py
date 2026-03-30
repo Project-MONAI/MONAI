@@ -187,6 +187,13 @@ class TestLoadSaveNrrd(unittest.TestCase):
         test_data = np.random.randn(8, 8, 8).astype(np.float32)
         self.nrrd_rw(test_data, reader, writer, np.float32)
 
+class TestLoadImageReaderError(unittest.TestCase):
+    def test_missing_reader_package_raises_error(self):
+        class FakeReader:
+            def __init__(self):
+                raise OptionalImportError("fake_package is not installed")
 
+        with self.assertRaises(OptionalImportError):
+            LoadImage(reader=FakeReader)
 if __name__ == "__main__":
     unittest.main()
