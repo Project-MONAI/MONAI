@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 import torch
 
@@ -28,23 +29,16 @@ class TestCompiledUnsupported(unittest.TestCase):
         device = torch.device("cpu")
         self.assertFalse(_compiled_unsupported(device))
 
-    def test_non_cuda_device_always_supported(self):
-        """Non-CUDA devices should always be supported."""
-        device = torch.device("cpu")
-        self.assertFalse(_compiled_unsupported(device))
-
     @unittest.skipIf(not torch.cuda.is_available(), reason="CUDA not available")
     def test_cuda_device_detection(self):
         """Verify CUDA compute capability detection."""
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if device.type == "cuda":
-            cc_major = torch.cuda.get_device_properties(device).major
-            unsupported = _compiled_unsupported(device)
-            # Device is unsupported if cc_major >= 12
-            if cc_major >= 12:
-                self.assertTrue(unsupported)
-            else:
-                self.assertFalse(unsupported)
+        device = torch.device("cuda:0")
+        cc_major = torch.cuda.get_device_properties(device).major
+        unsupported = _compiled_unsupported(device)
+        if cc_major >= 12:
+            self.assertTrue(unsupported)
+        else:
+            self.assertFalse(unsupported)
 
     def test_compiled_unsupported_return_type(self):
         """Verify return type is bool."""
@@ -56,19 +50,24 @@ class TestCompiledUnsupported(unittest.TestCase):
 class TestResampleFallback(unittest.TestCase):
     """Test Resample fallback behavior on unsupported devices."""
 
-    @unittest.skipIf(not torch.cuda.is_available(), reason="CUDA not available")
     def test_resample_compilation_flag_respected(self):
-        """Verify Resample respects _compiled_unsupported check."""
-        # This would require internal inspection or output verification
-        # Could test with mock device properties or actual Blackwell GPU
+        """Verify _compiled_unsupported identifies Blackwell (cc>=12) and supported (cc<12) devices."""
+        mock_props = MagicMock()
+        cuda_device = torch.device("cuda:0")
+
+        mock_props.major = 12  # Blackwell – unsupported
+        with patch("torch.cuda.get_device_properties", return_value=mock_props):
+            self.assertTrue(_compiled_unsupported(cuda_device))
+
+        mock_props.major = 9  # Hopper – supported
+        with patch("torch.cuda.get_device_properties", return_value=mock_props):
+            self.assertFalse(_compiled_unsupported(cuda_device))
 
     def test_compiled_unsupported_logic(self):
         """Test that unsupported devices are correctly detected."""
-        # CPU should be supported
         cpu_device = torch.device("cpu")
         self.assertFalse(_compiled_unsupported(cpu_device))
 
-        # Verify logic: return True if CUDA and cc_major >= 12
         cuda_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if cuda_device.type == "cuda":
             cc_major = torch.cuda.get_device_properties(cuda_device).major
@@ -77,7 +76,5 @@ class TestResampleFallback(unittest.TestCase):
             self.assertEqual(actual, expected)
 
 
-if __name__ == "__main__":
-    unittest.main()
 if __name__ == "__main__":
     unittest.main()
