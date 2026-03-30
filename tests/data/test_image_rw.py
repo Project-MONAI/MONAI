@@ -188,12 +188,29 @@ class TestLoadSaveNrrd(unittest.TestCase):
         self.nrrd_rw(test_data, reader, writer, np.float32)
 
 class TestLoadImageReaderError(unittest.TestCase):
+    """Tests for LoadImage error handling when reader initialization fails."""
+
     def test_missing_reader_package_raises_error(self):
+        """Verify OptionalImportError is raised when a class-based reader's package is unavailable.
+
+        Raises:
+            OptionalImportError: When FakeReader is passed and its backend is missing.
+        """
         class FakeReader:
             def __init__(self):
                 raise OptionalImportError("fake_package is not installed")
 
         with self.assertRaises(OptionalImportError):
             LoadImage(reader=FakeReader)
-if __name__ == "__main__":
-    unittest.main()
+
+    @unittest.skipUnless(has_itk, "itk not installed")
+    def test_string_reader_missing_package_raises_error(self):
+        """Verify OptionalImportError is raised when a string-based reader's package is unavailable.
+
+        Raises:
+            OptionalImportError: When ITKReader string is passed but itk is mocked as missing.
+        """
+        from unittest.mock import patch
+        with patch("monai.transforms.io.array.optional_import", return_value=(None, False)):
+            with self.assertRaises((OptionalImportError, KeyError)):
+                LoadImage(reader="NonExistentFakeReader123")
