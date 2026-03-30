@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -486,7 +486,15 @@ class SpatialCropd(Cropd):
         self._has_str_roi = any(isinstance(v, str) for v in [roi_center, roi_size, roi_start, roi_end])
 
         if not self._has_str_roi:
-            cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices, lazy=lazy)
+            _Roi = Optional[Union[Sequence[int], int]]
+            cropper = SpatialCrop(
+                cast(_Roi, roi_center),
+                cast(_Roi, roi_size),
+                cast(_Roi, roi_start),
+                cast(_Roi, roi_end),
+                roi_slices,
+                lazy=lazy,
+            )
         else:
             # Placeholder cropper for the string-key path. Replaced on self.cropper at
             # __call__ time once string keys are resolved from the data dictionary.
@@ -583,7 +591,7 @@ class SpatialCropd(Cropd):
             cropped = transform[TraceKeys.EXTRA_INFO]["cropped"]
             inverse_transform = BorderPad(cropped)
             with inverse_transform.trace_transform(False):
-                d[key] = inverse_transform(d[key])
+                d[key] = inverse_transform(d[key])  # type: ignore[assignment]
         return d
 
 
