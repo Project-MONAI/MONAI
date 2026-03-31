@@ -428,7 +428,7 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             guidance_tensor = guidance_tensor.unsqueeze(4)
 
         if self.len_spatial_sigma != spatial_dims:
-            raise ValueError(f"Spatial dimension ({spatial_dims}) must match initialized len(spatial_sigma).")
+            raise ValueError(f"Number of spatial dimensions ({spatial_dims}) must match initialized `len(spatial_sigma)`.")
 
         prediction = TrainableJointBilateralFilterFunction.apply(
             input_tensor, guidance_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
