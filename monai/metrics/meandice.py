@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction
+from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
 from monai.utils.module import optional_import
 
@@ -306,67 +306,6 @@ class DiceHelper:
         self.num_classes = num_classes
         self.per_component = per_component
 
-    def compute_voronoi_regions_fast(self, labels):
-        """
-        Voronoi assignment to connected components (CPU, single EDT) without cc3d.
-        Returns the ID of the nearest component for each voxel.
-
-        Args:
-            labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
-
-        Raises:
-            RuntimeError: when `scipy.ndimage` is not available.
-            ValueError: when `labels` has fewer than two dimensions.
-
-        Returns:
-            torch.Tensor: Voronoi region IDs (int32) on CPU.
-        """
-        if isinstance(labels, torch.Tensor) and labels.is_cuda and has_cupy and has_cupy_ndimage:
-            xp = cupy
-            nd_distance_transform_edt = cupy_ndimage.distance_transform_edt
-            nd_generate_binary_structure = cupy_ndimage.generate_binary_structure
-            nd_label = cupy_ndimage.label
-            x = cupy.asarray(labels.detach())
-        else:
-            xp = np
-            nd_distance_transform_edt = scipy_ndimage.distance_transform_edt
-            nd_generate_binary_structure = scipy_ndimage.generate_binary_structure
-            nd_label = scipy_ndimage.label
-
-            if not has_scipy_ndimage:
-                raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
-
-            if isinstance(labels, torch.Tensor):
-                warnings.warn(
-                    "Voronoi computation is running on CPU. "
-                    "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed."
-                )
-                x = labels.cpu().numpy()
-            else:
-                x = np.asarray(labels)
-        rank = x.ndim
-        if rank == 3:
-            conn_map = {6: 1, 18: 2, 26: 3}
-            connectivity = 26
-        elif rank == 2:
-            conn_map = {4: 1, 8: 2}
-            connectivity = 8
-        else:
-            raise ValueError("Only 2D or 3D inputs supported")
-        conn_rank = conn_map.get(connectivity, max(conn_map.values()))
-        structure = nd_generate_binary_structure(rank=rank, connectivity=conn_rank)
-        cc, num = nd_label(x > 0, structure=structure)
-        if num == 0:
-            return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
-        edt_input = xp.ones(cc.shape, dtype=xp.uint8)
-        edt_input[cc > 0] = 0
-        indices = nd_distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
-        voronoi = cc[tuple(indices)]
-        if xp is cupy:
-            return torch.as_tensor(cupy.asnumpy(voronoi), dtype=torch.int32)
-        else:
-            return torch.as_tensor(voronoi, dtype=torch.int32)
-
     def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Compute per-component Dice for a single batch item.
@@ -378,7 +317,6 @@ class DiceHelper:
         Returns:
             torch.Tensor: Mean Dice over connected components.
         """
-        data = []
         if y_pred.ndim == y.ndim:
             y_pred_idx = torch.argmax(y_pred, dim=1)
             y_idx = torch.argmax(y, dim=1)
@@ -387,13 +325,13 @@ class DiceHelper:
             y_idx = y
         if y_idx[0].sum() == 0:
             if self.ignore_empty:
-                data.append(torch.tensor(float("nan"), device=y_idx.device))
+                data = torch.tensor(float("nan"), device=y_idx.device)
             elif y_pred_idx.sum() == 0:
-                data.append(torch.tensor(1.0, device=y_idx.device))
+                data = torch.tensor(1.0, device=y_idx.device)
             else:
-                data.append(torch.tensor(0.0, device=y_idx.device))
+                data = torch.tensor(0.0, device=y_idx.device)
         else:
-            cc_assignment = self.compute_voronoi_regions_fast(y_idx[0])
+            cc_assignment = compute_voronoi_regions_fast(y_idx[0])
             if cc_assignment.device != y_idx.device:
                 cc_assignment = cc_assignment.to(y_idx.device)
             uniq, inv = torch.unique(cc_assignment.view(-1), return_inverse=True)
@@ -406,15 +344,10 @@ class DiceHelper:
             dice_scores = torch.where(
                 denom > 0, (2 * tp).float() / denom.float(), torch.tensor(1.0, device=denom.device)
             )
-            data.append(dice_scores.unsqueeze(-1))
-            data = [
-                torch.where(torch.isinf(x), torch.tensor(0.0, dtype=torch.float32, device=x.device), x) for x in data
-            ]
-            data = [
-                torch.where(torch.isnan(x), torch.tensor(0.0, dtype=torch.float32, device=x.device), x) for x in data
-            ]
-        data = [x.reshape(-1, 1) for x in data]
-        return torch.stack([x.mean() for x in data])
+            data = dice_scores.unsqueeze(-1)
+            data = torch.nan_to_num(data)
+        data = data.reshape(-1, 1)
+        return torch.stack([data.mean()])
 
     def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -486,8 +419,6 @@ class DiceHelper:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
                 c_list.append(self.compute_channel(x_pred, x))
-            # if self.per_component:
-            #     c_list = [self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0))]
             data.append(torch.stack(c_list))
 
         data = torch.stack(data, dim=0).contiguous()  # type: ignore
