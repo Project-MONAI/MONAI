@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch
 
 from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
