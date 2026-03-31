@@ -220,7 +220,7 @@ class TrainableBilateralFilter(torch.nn.Module):
             spatial_sigma = [spatial_sigma[0], spatial_sigma[1], spatial_sigma[2]]
             self.len_spatial_sigma = 3
         else:
-            raise ValueError(f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims (1, 2 or 3).")
+            raise ValueError(f"Length of `spatial_sigma` must match number of spatial dims (1, 2 or 3) or be a single float value ({spatial_sigma=}).")
 
         # Register sigmas as trainable parameters.
         self.sigma_x = torch.nn.Parameter(torch.tensor(spatial_sigma[0]))
