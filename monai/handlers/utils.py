@@ -48,7 +48,7 @@ def stopping_fn_from_loss() -> Callable[[Engine], Any]:
     """
 
     def stopping_fn(engine: Engine) -> Any:
-        return -engine.state.output  # type:ignore
+        return -engine.state.output  # type: ignore
 
     return stopping_fn
 
