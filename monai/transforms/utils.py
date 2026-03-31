@@ -666,7 +666,7 @@ def generate_pos_neg_label_crop_centers(
 
     """
     if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
+        rand_state = np.random.RandomState()
 
     centers = []
     fg_indices = np.asarray(fg_indices) if isinstance(fg_indices, Sequence) else fg_indices
@@ -721,7 +721,7 @@ def generate_label_classes_crop_centers(
 
     """
     if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
+        rand_state = np.random.RandomState()
 
     if num_samples < 1:
         raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
@@ -1585,7 +1585,7 @@ def get_extreme_points(
     """
     check_non_lazy_pending_ops(img, name="get_extreme_points")
     if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
+        rand_state = np.random.RandomState()
     indices = where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")

@@ -62,7 +62,7 @@ def create_test_image_2d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width))
-    rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
+    rs: np.random.RandomState = np.random.RandomState() if random_state is None else random_state
 
     for _ in range(num_objs):
         x = rs.randint(rad_max, height - rad_max)
@@ -139,7 +139,7 @@ def create_test_image_3d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width, depth))
-    rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
+    rs: np.random.RandomState = np.random.RandomState() if random_state is None else random_state
 
     for _ in range(num_objs):
         x = rs.randint(rad_max, height - rad_max)
