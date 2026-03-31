@@ -45,7 +45,7 @@ class TestSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.050103
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertTrue(abs(expected_value - result.item()) < 0.000001)
 
     def test_3d_gaussian(self):
         set_determinism(0)
