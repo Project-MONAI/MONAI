@@ -202,6 +202,6 @@ class Ordering:
                     idx.append((r, c))
 
         idx_np = np.array(idx)
-        np.random.RandomState().shuffle(idx_np)
+        np.random.shuffle(idx_np)
 
         return idx_np
