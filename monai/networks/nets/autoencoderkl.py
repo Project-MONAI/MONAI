@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import List
 
 import torch
 import torch.nn as nn
@@ -188,7 +187,7 @@ class Encoder(nn.Module):
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
 
-        blocks: List[nn.Module] = []
+        blocks: list[nn.Module] = []
         # Initial convolution
         blocks.append(
             Convolution(
@@ -338,7 +337,7 @@ class Decoder(nn.Module):
 
         reversed_block_out_channels = list(reversed(channels))
 
-        blocks: List[nn.Module] = []
+        blocks: list[nn.Module] = []
 
         # Initial convolution
         blocks.append(

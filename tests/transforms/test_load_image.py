@@ -188,7 +188,7 @@ for track_meta in (False, True):
 class TestLoadImage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         with skip_if_downloading_fails():
             cls.tmpdir = tempfile.mkdtemp()
             key = "DICOM_single"
@@ -203,7 +203,7 @@ class TestLoadImage(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
@@ -471,7 +471,7 @@ class TestLoadImage(unittest.TestCase):
 class TestLoadImageMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.tmpdir = tempfile.mkdtemp()
         test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
         nib.save(test_image, os.path.join(cls.tmpdir, "im.nii.gz"))
@@ -480,7 +480,7 @@ class TestLoadImageMeta(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_param, expected_shape, track_meta):
