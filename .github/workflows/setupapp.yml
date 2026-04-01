@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v6
       with:
@@ -90,23 +90,12 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-    - name: cache for pip
-      uses: actions/cache@v5
-      id: cache
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.cache/torch
-        key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
+        cache: pip
     - name: Install the dependencies
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
-        python -m pip install -r requirements-dev.txt
+        python -m pip install --no-build-isolation -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       env:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
@@ -115,8 +104,8 @@ jobs:
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests
-        BUILD_MONAI=1 ./runtests.sh --build --quick --min
+        BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
+        BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
       uses: codecov/codecov-action@v5
