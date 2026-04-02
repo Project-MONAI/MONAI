@@ -589,7 +589,7 @@ def compute_ms_ssim(
 
     if spatial_dims == 3 and dims != 5:
         raise ValueError(
-            f"y_pred should have 4 dimensions (batch, channel, height, width, depth) when using {spatial_dims}"
+            f"y_pred should have 5 dimensions (batch, channel, height, width, depth) when using {spatial_dims}"
             f" spatial dimensions, got {dims}."
         )
 
