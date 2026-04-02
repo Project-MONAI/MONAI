@@ -235,7 +235,7 @@ class PrepareBatchExtraInput(PrepareBatch):
                 args_.append(_get_data(k))
         elif isinstance(self.extra_keys, dict):
             for k, v in self.extra_keys.items():
-                kwargs_[k] = _get_data(v)
+                kwargs_.update({k: _get_data(v)})
 
         return cast(torch.Tensor, image), cast(torch.Tensor, label), tuple(args_), kwargs_
 
