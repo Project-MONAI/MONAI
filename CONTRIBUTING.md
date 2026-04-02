@@ -380,7 +380,8 @@ All code review comments should be specific, constructive, and actionable.
 
 ### Release a new version
 
-The `dev` branch's `HEAD` always corresponds to MONAI docker image's latest tag: `projectmonai/monai:latest`.
+The `dev` branch's `HEAD` always corresponds to MONAI Docker image's latest tag: `projectmonai/monai:latest`. (No
+release is currently done for the slim MONAI image, this is built locally by users.)
 The `main` branch's `HEAD` always corresponds to the latest MONAI milestone release.
 
 When major features are ready for a milestone, to prepare for a new release:
