@@ -156,13 +156,19 @@ sFinished test: test_actions (tests.apps.test_download_and_extract.TestDownloadA
 Starting test: test_default (tests.apps.test_download_and_extract.TestDownloadAndExtract.test_default)...
 sFinished test: test_default (tests.apps.test_download_and_extract.TestDownloadAndExtract.test_default) (2.72e-05s)
 Starting test: test_default_0_icon (tests.apps.test_download_and_extract.TestDownloadAndExtract.test_default_0_icon)...
-icon.tar.gz: 0.00B [00:00, ?B/s]icon.tar.gz: 8.00kB [00:00, 34.2kB/s]icon.tar.gz: 8.00kB [00:00, 34.2kB/s]
+
+icon.tar.gz: 0.00B [00:00, ?B/s]
+icon.tar.gz: 8.00kB [00:00, 34.2kB/s]
+icon.tar.gz: 8.00kB [00:00, 34.2kB/s]
 2026-04-02 13:20:55,665 - INFO - Downloaded: /tmp/tmp2me70nkj/icon.tar.gz
 2026-04-02 13:20:55,665 - INFO - Verified 'icon.tar.gz', sha256: 90f24cd8f20f3932624da95190ce384302261acf0ea15b358f7832e3b6becac0.
 2026-04-02 13:20:55,666 - INFO - Writing into directory: /tmp/tmpq9vtva97.
 .Finished test: test_default_0_icon (tests.apps.test_download_and_extract.TestDownloadAndExtract.test_default_0_icon) (0.739s)
 Starting test: test_default_1_favicon (tests.apps.test_download_and_extract.TestDownloadAndExtract.test_default_1_favicon)...
-favicon.ico.zip: 0.00B [00:00, ?B/s]favicon.ico.zip: 8.00kB [00:00, 31.7kB/s]favicon.ico.zip: 8.00kB [00:00, 31.7kB/s]
+
+favicon.ico.zip: 0.00B [00:00, ?B/s]
+favicon.ico.zip: 8.00kB [00:00, 31.7kB/s]
+favicon.ico.zip: 8.00kB [00:00, 31.7kB/s]
 2026-04-02 13:20:56,431 - INFO - Downloaded: /tmp/tmp5e31hcg6/favicon.ico.zip
 2026-04-02 13:20:56,431 - INFO - Verified 'favicon.ico.zip', sha256: 3a3635c8d8adb81feebc5926b4106e8eb643a24a4be2a69a9d35f9a578acadb5.
 2026-04-02 13:20:56,431 - INFO - Writing into directory: /tmp/tmphz19pw63.
@@ -209,43 +215,70 @@ Starting test: test_basic_operation_class (tests.apps.test_auto3dseg.TestDataAna
 Starting test: test_data_analyzer_cpu_0 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_0)...
 2026-04-02 13:20:56,474 - INFO - Using CPU for data analyzing!
 monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.30it/s]100% 4/4 [00:00<00:00, 11.40it/s]100% 4/4 [00:00<00:00,  7.01it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.30it/s]
+100% 4/4 [00:00<00:00, 11.40it/s]
+100% 4/4 [00:00<00:00,  7.01it/s]
 2026-04-02 13:20:57,060 - INFO - Writing data stats to /tmp/tmpprmytjc5/datastats.yml.
 2026-04-02 13:20:57,073 - INFO - Writing by-case data stats to /tmp/tmpprmytjc5/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_cpu_0 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_0) (0.652s)
 Starting test: test_data_analyzer_cpu_1 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_1)...
 2026-04-02 13:20:57,130 - INFO - Using CPU for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.27it/s]100% 4/4 [00:00<00:00, 10.90it/s]100% 4/4 [00:00<00:00,  6.76it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.27it/s]
+100% 4/4 [00:00<00:00, 10.90it/s]
+100% 4/4 [00:00<00:00,  6.76it/s]
 2026-04-02 13:20:57,743 - INFO - Writing data stats to /tmp/tmp6n25xb30/datastats.yml.
 2026-04-02 13:20:57,762 - INFO - Writing by-case data stats to /tmp/tmp6n25xb30/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_cpu_1 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_1) (0.703s)
 Starting test: test_data_analyzer_cpu_2 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_2)...
 2026-04-02 13:20:57,822 - INFO - Using CPU for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.59it/s]100% 4/4 [00:00<00:00, 11.31it/s]100% 4/4 [00:00<00:00,  6.93it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.59it/s]
+100% 4/4 [00:00<00:00, 11.31it/s]
+100% 4/4 [00:00<00:00,  6.93it/s]
 2026-04-02 13:20:58,405 - INFO - Writing data stats to /tmp/tmp9izncv0e/datastats.yml.
 2026-04-02 13:20:58,417 - INFO - Writing by-case data stats to /tmp/tmp9izncv0e/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_cpu_2 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_2) (0.63s)
 Starting test: test_data_analyzer_cpu_3 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_3)...
 2026-04-02 13:20:58,455 - INFO - Using CPU for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.53it/s]100% 4/4 [00:00<00:00, 11.42it/s]100% 4/4 [00:00<00:00,  6.89it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.53it/s]
+100% 4/4 [00:00<00:00, 11.42it/s]
+100% 4/4 [00:00<00:00,  6.89it/s]
 2026-04-02 13:20:59,042 - INFO - Writing data stats to /tmp/tmpjublv519/datastats.yml.
 2026-04-02 13:20:59,050 - INFO - Writing by-case data stats to /tmp/tmpjublv519/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_cpu_3 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_cpu_3) (0.625s)
 Starting test: test_data_analyzer_gpu_0 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_gpu_0)...
 2026-04-02 13:20:59,082 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:01,  2.37it/s]100% 4/4 [00:00<00:00,  6.35it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:01,  2.37it/s]
+100% 4/4 [00:00<00:00,  6.35it/s]
 2026-04-02 13:20:59,726 - INFO - Writing data stats to /tmp/tmpj2d6erwv/datastats.yml.
 2026-04-02 13:20:59,738 - INFO - Writing by-case data stats to /tmp/tmpj2d6erwv/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_gpu_0 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_gpu_0) (0.708s)
 Starting test: test_data_analyzer_gpu_1 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_gpu_1)...
 2026-04-02 13:20:59,786 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.41it/s]100% 4/4 [00:00<00:00, 11.44it/s]100% 4/4 [00:00<00:00,  6.68it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.41it/s]
+100% 4/4 [00:00<00:00, 11.44it/s]
+100% 4/4 [00:00<00:00,  6.68it/s]
 2026-04-02 13:21:00,390 - INFO - Writing data stats to /tmp/tmpru4jssbt/datastats.yml.
 2026-04-02 13:21:00,398 - INFO - Writing by-case data stats to /tmp/tmpru4jssbt/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_gpu_1 (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_gpu_1) (0.64s)
 Starting test: test_data_analyzer_histogram (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_histogram)...
 2026-04-02 13:21:00,425 - INFO - Using CPU for data analyzing!
-  0% 0/4 [00:00<?, ?it/s] 25% 1/4 [00:00<00:00,  3.51it/s]100% 4/4 [00:00<00:00, 11.45it/s]100% 4/4 [00:00<00:00,  6.85it/s]
+
+  0% 0/4 [00:00<?, ?it/s]
+ 25% 1/4 [00:00<00:00,  3.51it/s]
+100% 4/4 [00:00<00:00, 11.45it/s]
+100% 4/4 [00:00<00:00,  6.85it/s]
 2026-04-02 13:21:01,011 - INFO - Writing data stats to /tmp/tmpexa4v6lx/datastats.yml.
 2026-04-02 13:21:01,012 - INFO - Writing by-case data stats to /tmp/tmpexa4v6lx/datastats.yml.by_case.yaml, this may take a while.
 .Finished test: test_data_analyzer_histogram (tests.apps.test_auto3dseg.TestDataAnalyzer.test_data_analyzer_histogram) (0.602s)
@@ -835,26 +868,48 @@ Starting test: test_content_0 (tests.apps.pathology.test_prepare_batch_hovernet.
 2026-04-02 13:21:08,142 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.000
 .Finished test: test_content_0 (tests.apps.pathology.test_prepare_batch_hovernet.TestPrepareBatchHoVerNet.test_content_0) (0.00139s)
 Starting test: test_args_kwargs (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_args_kwargs)...
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 3563.55it/s]
-  0% 0/1 [00:00<?, ?it/s]Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:347.)
-100% 1/1 [00:00<00:00, 3002.37it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 3563.55it/s]
+
+  0% 0/1 [00:00<?, ?it/s]Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:347.)
+
+100% 1/1 [00:00<00:00, 3002.37it/s]
 .Finished test: test_args_kwargs (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_args_kwargs) (0.00221s)
 Starting test: test_cval (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_cval)...
 .Finished test: test_cval (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_cval) (0.00125s)
 Starting test: test_multioutput_0 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_multioutput_0)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 586.62it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 805.05it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 637.48it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 680.95it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 586.62it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 805.05it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 637.48it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 680.95it/s]
 .Finished test: test_multioutput_0 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_multioutput_0) (0.0152s)
 Starting test: test_multioutput_1 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_multioutput_1)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 752.21it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 807.45it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 696.44it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 697.89it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 752.21it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 807.45it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 696.44it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 697.89it/s]
 .Finished test: test_multioutput_1 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_multioutput_1) (0.0157s)
 Starting test: test_sigma (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_sigma)...
-  0% 0/3 [00:00<?, ?it/s]100% 3/3 [00:00<00:00, 2909.34it/s]
+
+  0% 0/3 [00:00<?, ?it/s]
+100% 3/3 [00:00<00:00, 2909.34it/s]
 .Finished test: test_sigma (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_sigma) (0.00856s)
 Starting test: test_sliding_window_default_00 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_sliding_window_default_00)...
 .Finished test: test_sliding_window_default_00 (tests.apps.pathology.test_sliding_window_hovernet_inference.TestSlidingWindowHoVerNetInference.test_sliding_window_default_00) (0.00146s)
@@ -1860,7 +1915,10 @@ Starting test: test_verify_error (tests.bundle.test_bundle_verify_metadata.TestV
 2026-04-02 13:22:31,220 - INFO - ---
 
 
-schema.json: 0.00B [00:00, ?B/s]schema.json: 8.00kB [00:00, 25.8kB/s]schema.json: 8.00kB [00:00, 25.8kB/s]
+
+schema.json: 0.00B [00:00, ?B/s]
+schema.json: 8.00kB [00:00, 25.8kB/s]
+schema.json: 8.00kB [00:00, 25.8kB/s]
 2026-04-02 13:22:31,539 - INFO - Downloaded: /tmp/tmpi51fw6g9/schema.json
 2026-04-02 13:22:31,539 - INFO - Expected md5 is None, skip md5 check for file /tmp/tmpi51fw6g9/schema.json.
 .Finished test: test_verify_error (tests.bundle.test_bundle_verify_metadata.TestVerifyMetaData.test_verify_error) (0.386s)
@@ -1997,17 +2055,17 @@ Starting test: test_responsive_inference_config_0__opt_monai_tests_testing_data_
 Starting test: test_train_config_0__opt_monai_tests_testing_data_config_fl_train_json (tests.bundle.test_bundle_workflow.TestBundleWorkflow.test_train_config_0__opt_monai_tests_testing_data_config_fl_train_json)...
 2026-04-02 13:22:56,539 - INFO - Setting logging properties based on config: /opt/monai/tests/testing_data/logging.conf.
 2026-04-02 13:22:56,885 - ignite.engine.engine.SupervisedTrainer - INFO - Engine run resuming from iteration 0, epoch 0 until 2 epochs
-2026-04-02 13:22:57,397 - INFO - Epoch: 1/2, Iter: 1/1 -- train_loss: 1.8662 
+2026-04-02 13:22:57,397 - INFO - Epoch: 1/2, Iter: 1/1 -- train_loss: 1.8662
 2026-04-02 13:22:57,397 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:22:57,731 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:22:57,731 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:22:57,731 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:22:57,731 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:22:57,731 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.176
 2026-04-02 13:22:57,731 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.333
 2026-04-02 13:22:57,920 - ignite.engine.engine.SupervisedTrainer - INFO - Epoch[1] Complete. Time taken: 00:00:00.873
-2026-04-02 13:22:58,439 - INFO - Epoch: 2/2, Iter: 1/1 -- train_loss: 1.8282 
+2026-04-02 13:22:58,439 - INFO - Epoch: 2/2, Iter: 1/1 -- train_loss: 1.8282
 2026-04-02 13:22:58,439 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 1 until 2 epochs
-2026-04-02 13:22:58,771 - INFO - Epoch[2] Metrics -- accuracy: 0.0000 
+2026-04-02 13:22:58,771 - INFO - Epoch[2] Metrics -- accuracy: 0.0000
 2026-04-02 13:22:58,771 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:22:58,771 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[2] Complete. Time taken: 00:00:00.176
 2026-04-02 13:22:58,771 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.332
@@ -2113,7 +2171,7 @@ See also Debugger commands documentation: https://docs.python.org/3/library/pdb.
 
 > /opt/monai/monai/utils/module.py(239)instantiate()
 -> if not callable(component):
-(Pdb) 
+(Pdb)
 
 
 pdb: instantiating component=<class 'monai.transforms.compose.Compose'>, mode=debug
@@ -2121,7 +2179,7 @@ See also Debugger commands documentation: https://docs.python.org/3/library/pdb.
 
 > /opt/monai/monai/transforms/compose.py(240)__init__()
 -> LazyTransform.__init__(self, lazy=lazy)
-(Pdb) 
+(Pdb)
 .Finished test: test_pdb (tests.bundle.test_config_parser.TestConfigParser.test_pdb) (13.5s)
 Starting test: test_relative_id_0 (tests.bundle.test_config_parser.TestConfigParser.test_relative_id_0)...
 .Finished test: test_relative_id_0 (tests.bundle.test_config_parser.TestConfigParser.test_relative_id_0) (0.000671s)
@@ -2220,7 +2278,7 @@ Printing system config...
 System: Linux
 Linux version: Debian GNU/Linux 12 (bookworm)
 Platform: Linux-6.8.0-106-generic-x86_64-with-glibc2.36
-Processor: 
+Processor:
 Machine: x86_64
 Python version: 3.11.2
 Process name: python
@@ -2258,17 +2316,25 @@ GPU 0 Total memory (GB): 31.4
 GPU 0 CUDA capability (maj.min): 12.0
 .Finished test: test_print_info (tests.config.test_print_info.TestPrintInfo.test_print_info) (0.0602s)
 Starting test: test_shape_0 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_0)...
-Loading dataset:   0% 0/5 [00:00<?, ?it/s]Loading dataset: 100% 5/5 [00:00<00:00, 429.27it/s]
+
+Loading dataset:   0% 0/5 [00:00<?, ?it/s]
+Loading dataset: 100% 5/5 [00:00<00:00, 429.27it/s]
 .Finished test: test_shape_0 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_0) (0.0164s)
 Starting test: test_shape_1 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_1)...
-Loading dataset:   0% 0/5 [00:00<?, ?it/s]Loading dataset: 100% 5/5 [00:00<00:00, 386.12it/s]
+
+Loading dataset:   0% 0/5 [00:00<?, ?it/s]
+Loading dataset: 100% 5/5 [00:00<00:00, 386.12it/s]
 .Finished test: test_shape_1 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_1) (0.0162s)
 Starting test: test_shape_2 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_2)...
-Loading dataset:   0% 0/5 [00:00<?, ?it/s]Loading dataset: 100% 5/5 [00:00<00:00, 25420.02it/s]
+
+Loading dataset:   0% 0/5 [00:00<?, ?it/s]
+Loading dataset: 100% 5/5 [00:00<00:00, 25420.02it/s]
 .Finished test: test_shape_2 (tests.data.test_cachedataset_parallel.TestCacheDatasetParallel.test_shape_2) (0.00323s)
 Starting test: test_duplicate_transforms (tests.data.test_cachedataset_persistent_workers.TestTransformsWCacheDatasetAndPersistentWorkers.test_duplicate_transforms)...
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]`data_array` is not of type MetaTensor, assuming affine to be identity.
-Loading dataset: 100% 1/1 [00:00<00:00, 621.01it/s]
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]`data_array` is not of type MetaTensor, assuming affine to be identity.
+
+Loading dataset: 100% 1/1 [00:00<00:00, 621.01it/s]
 .Finished test: test_duplicate_transforms (tests.data.test_cachedataset_persistent_workers.TestTransformsWCacheDatasetAndPersistentWorkers.test_duplicate_transforms) (0.403s)
 Starting test: test_n_trans_0 (tests.data.test_cachentransdataset.TestCacheNTransDataset.test_n_trans_0)...
 .Finished test: test_n_trans_0 (tests.data.test_cachentransdataset.TestCacheNTransDataset.test_n_trans_0) (0.154s)
@@ -2294,13 +2360,16 @@ Starting test: test_exception_1 (tests.data.test_dataloader.TestDataLoader.test_
        [2]])])
 .Finished test: test_exception_1 (tests.data.test_dataloader.TestDataLoader.test_exception_1) (0.000896s)
 Starting test: test_values (tests.data.test_dataloader.TestDataLoader.test_values)...
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]2026-04-02 13:23:14,568 - DataStats - INFO - Data statistics:
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]2026-04-02 13:23:14,568 - DataStats - INFO - Data statistics:
 Type: <class 'str'> None
 Value: spleen_19.nii.gz
 2026-04-02 13:23:14,568 - DataStats - INFO - Data statistics:
 Type: <class 'str'> None
 Value: spleen_label_19.nii.gz
-Loading dataset: 100% 1/1 [00:00<00:00,  4.97it/s]Loading dataset: 100% 1/1 [00:00<00:00,  4.97it/s]
+
+Loading dataset: 100% 1/1 [00:00<00:00,  4.97it/s]
+Loading dataset: 100% 1/1 [00:00<00:00,  4.97it/s]
 2026-04-02 13:23:14,992 - DataStats - INFO - Data statistics:
 Type: <class 'str'> None
 Value: spleen_31.nii.gz
@@ -2447,13 +2516,19 @@ Starting test: test_patch_iterd_14 (tests.data.test_grid_dataset.TestGridPatchDa
 Starting test: test_patch_iterd_15 (tests.data.test_grid_dataset.TestGridPatchDataset.test_patch_iterd_15)...
 .Finished test: test_patch_iterd_15 (tests.data.test_grid_dataset.TestGridPatchDataset.test_patch_iterd_15) (0.00193s)
 Starting test: test_set_data (tests.data.test_grid_dataset.TestGridPatchDataset.test_set_data)...
-Loading dataset:   0% 0/2 [00:00<?, ?it/s]Loading dataset: 100% 2/2 [00:00<00:00, 1085.20it/s]
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]Loading dataset: 100% 1/1 [00:00<00:00, 768.89it/s]
+
+Loading dataset:   0% 0/2 [00:00<?, ?it/s]
+Loading dataset: 100% 2/2 [00:00<00:00, 1085.20it/s]
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]
+Loading dataset: 100% 1/1 [00:00<00:00, 768.89it/s]
 .Finished test: test_set_data (tests.data.test_grid_dataset.TestGridPatchDataset.test_set_data) (1.36s)
 Starting test: test_shape (tests.data.test_grid_dataset.TestGridPatchDataset.test_shape)...
 .Finished test: test_shape (tests.data.test_grid_dataset.TestGridPatchDataset.test_shape) (0.509s)
 Starting test: test_content (tests.data.test_handler_smartcache.TestHandlerSmartCache.test_content)...
-Loading dataset:   0% 0/5 [00:00<?, ?it/s]Loading dataset: 100% 5/5 [00:00<00:00, 19222.29it/s]
+
+Loading dataset:   0% 0/5 [00:00<?, ?it/s]
+Loading dataset: 100% 5/5 [00:00<00:00, 19222.29it/s]
 2026-04-02 13:23:24,153 - ignite.engine.engine.Engine - INFO - Engine run starting with max_epochs=5.
 2026-04-02 13:23:24,363 - ignite.engine.engine.Engine - INFO - Epoch[1] Complete. Time taken: 00:00:00.044
 No data was collected. (no-data-collected); see https://coverage.readthedocs.io/en/7.13.5/messages.html#warning-no-data-collected
@@ -2877,8 +2952,10 @@ Starting test: test_type_shape_2 (tests.data.test_list_data_collate.TestListData
 .Finished test: test_type_shape_2 (tests.data.test_list_data_collate.TestListDataCollate.test_type_shape_2) (0.000194s)
 Starting test: test_cache (tests.data.test_lmdbdataset.TestLMDBDataset.test_cache)
 testing no inplace change to the hashed item...
-  0% 0/5 [00:00<?, ?it/s]Resizing the cache database from 0MB to 0MB.
-100% 5/5 [00:00<00:00, 70.28it/s]
+
+  0% 0/5 [00:00<?, ?it/s]Resizing the cache database from 0MB to 0MB.
+
+100% 5/5 [00:00<00:00, 70.28it/s]
 Accessing lmdb file: /tmp/tmpwxmzrojh/monai_cache.lmdb.
 EFinished test: test_cache (tests.data.test_lmdbdataset.TestLMDBDataset.test_cache)
 testing no inplace change to the hashed item (0.0755s)
@@ -3599,23 +3676,46 @@ Starting test: test_value_46 (tests.data.test_box_utils.TestCreateBoxList.test_v
 Starting test: test_value_47 (tests.data.test_box_utils.TestCreateBoxList.test_value_47)...
 .Finished test: test_value_47 (tests.data.test_box_utils.TestCreateBoxList.test_value_47) (0.0137s)
 Starting test: test_set_data (tests.data.test_cachedataset.TestCacheDataset.test_set_data)...
-Loading dataset:   0% 0/10 [00:00<?, ?it/s]Loading dataset: 100% 10/10 [00:00<00:00, 7512.63it/s]
-Loading dataset:   0% 0/10 [00:00<?, ?it/s]Loading dataset: 100% 10/10 [00:00<00:00, 8723.59it/s]
+
+Loading dataset:   0% 0/10 [00:00<?, ?it/s]
+Loading dataset: 100% 10/10 [00:00<00:00, 7512.63it/s]
+
+Loading dataset:   0% 0/10 [00:00<?, ?it/s]
+Loading dataset: 100% 10/10 [00:00<00:00, 8723.59it/s]
 .Finished test: test_set_data (tests.data.test_cachedataset.TestCacheDataset.test_set_data) (1.63s)
 Starting test: test_shape_0 (tests.data.test_cachedataset.TestCacheDataset.test_shape_0)...
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]Loading dataset: 100% 1/1 [00:00<00:00,  8.94it/s]Loading dataset: 100% 1/1 [00:00<00:00,  8.93it/s]
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]
+Loading dataset: 100% 1/1 [00:00<00:00,  8.94it/s]
+Loading dataset: 100% 1/1 [00:00<00:00,  8.93it/s]
 .Finished test: test_shape_0 (tests.data.test_cachedataset.TestCacheDataset.test_shape_0) (0.828s)
 Starting test: test_shape_1 (tests.data.test_cachedataset.TestCacheDataset.test_shape_1)...
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]Loading dataset: 100% 1/1 [00:00<00:00, 5940.94it/s]
-Loading dataset:   0% 0/1 [00:00<?, ?it/s]Loading dataset: 100% 1/1 [00:00<00:00, 10407.70it/s]
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]
+Loading dataset: 100% 1/1 [00:00<00:00, 5940.94it/s]
+
+Loading dataset:   0% 0/1 [00:00<?, ?it/s]
+Loading dataset: 100% 1/1 [00:00<00:00, 10407.70it/s]
 .Finished test: test_shape_1 (tests.data.test_cachedataset.TestCacheDataset.test_shape_1) (0.626s)
 Starting test: test_hash_as_key_0 (tests.data.test_cachedataset.TestCacheThread.test_hash_as_key_0)...
-Loading dataset:   0% 0/3 [00:00<?, ?it/s]Loading dataset:  33% 1/3 [00:00<00:00,  7.36it/s]Loading dataset: 100% 3/3 [00:00<00:00, 13.80it/s]Loading dataset: 100% 3/3 [00:00<00:00, 12.68it/s]
-Loading dataset:   0% 0/2 [00:00<?, ?it/s]Loading dataset:  50% 1/2 [00:00<00:00,  8.68it/s]Loading dataset: 100% 2/2 [00:00<00:00,  8.93it/s]Loading dataset: 100% 2/2 [00:00<00:00,  8.89it/s]
+
+Loading dataset:   0% 0/3 [00:00<?, ?it/s]
+Loading dataset:  33% 1/3 [00:00<00:00,  7.36it/s]
+Loading dataset: 100% 3/3 [00:00<00:00, 13.80it/s]
+Loading dataset: 100% 3/3 [00:00<00:00, 12.68it/s]
+
+Loading dataset:   0% 0/2 [00:00<?, ?it/s]
+Loading dataset:  50% 1/2 [00:00<00:00,  8.68it/s]
+Loading dataset: 100% 2/2 [00:00<00:00,  8.93it/s]
+Loading dataset: 100% 2/2 [00:00<00:00,  8.89it/s]
 .Finished test: test_hash_as_key_0 (tests.data.test_cachedataset.TestCacheThread.test_hash_as_key_0) (2.02s)
 Starting test: test_hash_as_key_1 (tests.data.test_cachedataset.TestCacheThread.test_hash_as_key_1)...
-Loading dataset:   0% 0/3 [00:00<?, ?it/s]Loading dataset: 100% 3/3 [00:00<00:00, 13873.11it/s]
-Loading dataset:   0% 0/2 [00:00<?, ?it/s]Loading dataset: 100% 2/2 [00:00<00:00, 12748.64it/s]
+
+Loading dataset:   0% 0/3 [00:00<?, ?it/s]
+Loading dataset: 100% 3/3 [00:00<00:00, 13873.11it/s]
+
+Loading dataset:   0% 0/2 [00:00<?, ?it/s]
+Loading dataset: 100% 2/2 [00:00<00:00, 12748.64it/s]
 .Finished test: test_hash_as_key_1 (tests.data.test_cachedataset.TestCacheThread.test_hash_as_key_1) (1.55s)
 Starting test: test_thread_safe_00 (tests.data.test_cachedataset.TestCacheThread.test_thread_safe_00)...
 .Finished test: test_thread_safe_00 (tests.data.test_cachedataset.TestCacheThread.test_thread_safe_00) (0.0188s)
@@ -3726,31 +3826,49 @@ Starting test: test_epochs (tests.data.test_shuffle_buffer.TestShuffleBuffer.tes
 Starting test: test_shape (tests.data.test_shuffle_buffer.TestShuffleBuffer.test_shape)...
 .Finished test: test_shape (tests.data.test_shuffle_buffer.TestShuffleBuffer.test_shape) (0.549s)
 Starting test: test_datalist (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_datalist)...
-Loading dataset:   0% 0/2 [00:00<?, ?it/s]Loading dataset: 100% 2/2 [00:00<00:00, 7281.78it/s]
+
+Loading dataset:   0% 0/2 [00:00<?, ?it/s]
+Loading dataset: 100% 2/2 [00:00<00:00, 7281.78it/s]
 .Finished test: test_datalist (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_datalist) (0.00324s)
 Starting test: test_set_data (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_set_data)...
 sFinished test: test_set_data (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_set_data) (4.41e-05s)
 Starting test: test_shape_0 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_0)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 397.04it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 397.04it/s]
 .Finished test: test_shape_0 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_0) (0.189s)
 Starting test: test_shape_1 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_1)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 365.54it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 365.54it/s]
 .Finished test: test_shape_1 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_1) (0.198s)
 Starting test: test_shape_2 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_2)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 407.99it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 407.99it/s]
 .Finished test: test_shape_2 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_2) (0.209s)
 Starting test: test_shape_3 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_3)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 38479.85it/s]
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 73503.68it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 38479.85it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 73503.68it/s]
 .Finished test: test_shape_3 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_3) (0.118s)
 Starting test: test_shape_4 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_4)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 416.77it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 416.77it/s]
 .Finished test: test_shape_4 (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shape_4) (0.225s)
 Starting test: test_shuffle (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shuffle)...
-Loading dataset:   0% 0/16 [00:00<?, ?it/s]Loading dataset: 100% 16/16 [00:00<00:00, 45343.83it/s]
+
+Loading dataset:   0% 0/16 [00:00<?, ?it/s]
+Loading dataset: 100% 16/16 [00:00<00:00, 45343.83it/s]
 .Finished test: test_shuffle (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_shuffle) (0.0577s)
 Starting test: test_update_cache (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_update_cache)...
-Loading dataset:   0% 0/10 [00:00<?, ?it/s]Loading dataset: 100% 10/10 [00:00<00:00, 34351.38it/s]
+
+Loading dataset:   0% 0/10 [00:00<?, ?it/s]
+Loading dataset: 100% 10/10 [00:00<00:00, 34351.38it/s]
 .Finished test: test_update_cache (tests.data.test_smartcachedataset.TestSmartCacheDataset.test_update_cache) (0.00394s)
 Starting test: test_dataset (tests.data.test_video_datasets.TestCameraDataset.test_dataset)...
 sFinished test: test_dataset (tests.data.test_video_datasets.TestCameraDataset.test_dataset) (3.67e-05s)
@@ -4575,7 +4693,10 @@ File /opt/monai/tests/testing_data/train_data_stats.yaml already exists and will
 2026-04-02 13:25:34,411 - INFO - test_fl compute data statistics on train...
 2026-04-02 13:25:34,411 - INFO - Found 1 GPUs for data analyzing!
 monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
-  0% 0/2 [00:00<?, ?it/s] 50% 1/2 [00:00<00:00,  2.43it/s]100% 2/2 [00:00<00:00,  2.85it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+ 50% 1/2 [00:00<00:00,  2.43it/s]
+100% 2/2 [00:00<00:00,  2.85it/s]
 2026-04-02 13:25:35,123 - INFO - Data spacing is not completely uniform. MONAI transforms may provide unexpected result
 2026-04-02 13:25:35,123 - INFO - Writing data stats to /opt/monai/tests/testing_data/train_data_stats.yaml.
 2026-04-02 13:25:35,140 - INFO - Writing by-case data stats to /opt/monai/tests/testing_data/train_data_stats_by_case.yaml, this may take a while.
@@ -4588,14 +4709,20 @@ Starting test: test_get_data_stats_1 (tests.fl.test_fl_monai_algo_stats.TestFLMo
 2026-04-02 13:25:35,181 - INFO - Computing statistics on /opt/monai/tests/testing_data
 2026-04-02 13:25:35,182 - INFO - test_fl compute data statistics on train...
 2026-04-02 13:25:35,182 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/2 [00:00<?, ?it/s] 50% 1/2 [00:00<00:00,  2.57it/s]100% 2/2 [00:00<00:00,  2.99it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+ 50% 1/2 [00:00<00:00,  2.57it/s]
+100% 2/2 [00:00<00:00,  2.99it/s]
 2026-04-02 13:25:35,862 - INFO - Data spacing is not completely uniform. MONAI transforms may provide unexpected result
 2026-04-02 13:25:35,862 - INFO - Writing data stats to /opt/monai/tests/testing_data/train_data_stats.yaml.
 2026-04-02 13:25:35,878 - INFO - Writing by-case data stats to /opt/monai/tests/testing_data/train_data_stats_by_case.yaml, this may take a while.
 File /opt/monai/tests/testing_data/eval_data_stats.yaml already exists and will be overwritten.
 2026-04-02 13:25:35,909 - INFO - test_fl compute data statistics on eval...
 2026-04-02 13:25:35,909 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/2 [00:00<?, ?it/s] 50% 1/2 [00:00<00:00,  2.63it/s]100% 2/2 [00:00<00:00,  3.01it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+ 50% 1/2 [00:00<00:00,  2.63it/s]
+100% 2/2 [00:00<00:00,  3.01it/s]
 2026-04-02 13:25:36,584 - INFO - Data spacing is not completely uniform. MONAI transforms may provide unexpected result
 2026-04-02 13:25:36,584 - INFO - Writing data stats to /opt/monai/tests/testing_data/eval_data_stats.yaml.
 2026-04-02 13:25:36,600 - INFO - Writing by-case data stats to /opt/monai/tests/testing_data/eval_data_stats_by_case.yaml, this may take a while.
@@ -4606,13 +4733,19 @@ Starting test: test_get_data_stats_2 (tests.fl.test_fl_monai_algo_stats.TestFLMo
 2026-04-02 13:25:36,650 - INFO - Computing statistics on /opt/monai/tests/testing_data
 2026-04-02 13:25:36,650 - INFO - test_fl compute data statistics on train...
 2026-04-02 13:25:36,650 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/2 [00:00<?, ?it/s] 50% 1/2 [00:00<00:00,  2.64it/s]100% 2/2 [00:00<00:00,  2.99it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+ 50% 1/2 [00:00<00:00,  2.64it/s]
+100% 2/2 [00:00<00:00,  2.99it/s]
 2026-04-02 13:25:37,331 - INFO - Data spacing is not completely uniform. MONAI transforms may provide unexpected result
 2026-04-02 13:25:37,331 - INFO - Writing data stats to /opt/monai/tests/testing_data/train_data_stats.yaml.
 2026-04-02 13:25:37,347 - INFO - Writing by-case data stats to /opt/monai/tests/testing_data/train_data_stats_by_case.yaml, this may take a while.
 2026-04-02 13:25:37,379 - INFO - test_fl compute data statistics on eval...
 2026-04-02 13:25:37,379 - INFO - Found 1 GPUs for data analyzing!
-  0% 0/2 [00:00<?, ?it/s] 50% 1/2 [00:00<00:00,  2.65it/s]100% 2/2 [00:00<00:00,  3.02it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+ 50% 1/2 [00:00<00:00,  2.65it/s]
+100% 2/2 [00:00<00:00,  3.02it/s]
 2026-04-02 13:25:38,055 - INFO - Data spacing is not completely uniform. MONAI transforms may provide unexpected result
 2026-04-02 13:25:38,055 - INFO - Writing data stats to /opt/monai/tests/testing_data/eval_data_stats.yaml.
 2026-04-02 13:25:38,072 - INFO - Writing by-case data stats to /opt/monai/tests/testing_data/eval_data_stats_by_case.yaml, this may take a while.
@@ -4628,7 +4761,7 @@ Summary of ExchangeObject: {'weights': 727}
 2026-04-02 13:25:38,426 - INFO - Start test_fl evaluating...
 2026-04-02 13:25:38,426 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:38,807 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:38,807 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:38,807 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:38,807 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:38,809 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.189
 2026-04-02 13:25:38,809 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.383
@@ -4643,7 +4776,7 @@ Starting test: test_evaluate_1 (tests.fl.monai_algo.test_fl_monai_algo.TestFLMon
 2026-04-02 13:25:39,313 - INFO - Start test_fl evaluating...
 2026-04-02 13:25:39,313 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:39,686 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:39,686 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:39,686 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:39,686 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:39,688 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.191
 2026-04-02 13:25:39,688 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.375
@@ -4658,7 +4791,7 @@ Summary of ExchangeObject: {'weights': 727}
 2026-04-02 13:25:40,205 - INFO - Start test_fl evaluating...
 2026-04-02 13:25:40,205 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:40,558 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:40,558 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:40,558 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:40,558 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:40,558 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.176
 2026-04-02 13:25:40,558 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.353
@@ -4690,10 +4823,10 @@ Summary of ExchangeObject: {'weights': 727}
 2026-04-02 13:25:41,523 - INFO - 'dst' model updated: 727 of 727 variables.
 2026-04-02 13:25:41,540 - INFO - Start test_fl training...
 2026-04-02 13:25:41,540 - ignite.engine.engine.SupervisedTrainer - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
-2026-04-02 13:25:41,877 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649 
+2026-04-02 13:25:41,877 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649
 2026-04-02 13:25:41,878 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:42,230 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:42,230 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:42,230 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:42,230 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:42,231 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.179
 2026-04-02 13:25:42,231 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.353
@@ -4715,10 +4848,10 @@ Starting test: test_train_1 (tests.fl.monai_algo.test_fl_monai_algo.TestFLMonaiA
 2026-04-02 13:25:42,933 - INFO - 'dst' model updated: 727 of 727 variables.
 2026-04-02 13:25:42,951 - INFO - Start test_fl training...
 2026-04-02 13:25:42,951 - ignite.engine.engine.SupervisedTrainer - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
-2026-04-02 13:25:43,283 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649 
+2026-04-02 13:25:43,283 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649
 2026-04-02 13:25:43,283 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:43,642 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:43,642 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:43,642 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:43,642 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:43,642 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.181
 2026-04-02 13:25:43,642 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.359
@@ -4740,10 +4873,10 @@ Summary of ExchangeObject: {'weights': 727}
 2026-04-02 13:25:44,336 - INFO - 'dst' model updated: 727 of 727 variables.
 2026-04-02 13:25:44,353 - INFO - Start test_fl training...
 2026-04-02 13:25:44,353 - ignite.engine.engine.SupervisedTrainer - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
-2026-04-02 13:25:44,694 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649 
+2026-04-02 13:25:44,694 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649
 2026-04-02 13:25:44,695 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:45,057 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:45,058 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:45,058 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:45,058 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:45,058 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.185
 2026-04-02 13:25:45,058 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.363
@@ -4764,10 +4897,10 @@ Starting test: test_train_3 (tests.fl.monai_algo.test_fl_monai_algo.TestFLMonaiA
 2026-04-02 13:25:45,723 - INFO - 'dst' model updated: 727 of 727 variables.
 2026-04-02 13:25:45,741 - INFO - Start test_fl training...
 2026-04-02 13:25:45,741 - ignite.engine.engine.SupervisedTrainer - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
-2026-04-02 13:25:46,091 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649 
+2026-04-02 13:25:46,091 - INFO - Epoch: 1/1, Iter: 1/1 -- train_loss: 2.1649
 2026-04-02 13:25:46,094 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run resuming from iteration 0, epoch 0 until 1 epochs
 2026-04-02 13:25:46,452 - ignite.engine.engine.SupervisedEvaluator - INFO - Got new best metric of accuracy: 0.0
-2026-04-02 13:25:46,452 - INFO - Epoch[1] Metrics -- accuracy: 0.0000 
+2026-04-02 13:25:46,452 - INFO - Epoch[1] Metrics -- accuracy: 0.0000
 2026-04-02 13:25:46,452 - INFO - Key metric: accuracy best value: 0.0 at epoch: 1
 2026-04-02 13:25:46,452 - ignite.engine.engine.SupervisedEvaluator - INFO - Epoch[1] Complete. Time taken: 00:00:00.177
 2026-04-02 13:25:46,452 - ignite.engine.engine.SupervisedEvaluator - INFO - Engine run finished. Time taken: 00:00:00.358
@@ -5447,13 +5580,13 @@ Starting test: test_attributes_print (tests.handlers.test_handler_stats.TestHand
 .Finished test: test_attributes_print (tests.handlers.test_handler_stats.TestHandlerStats.test_attributes_print) (0.00132s)
 Starting test: test_default_logger (tests.handlers.test_handler_stats.TestHandlerStats.test_default_logger)...
 2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Engine run starting with max_epochs=2.
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 1/3 -- myLoss: 0.0000 
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 2/3 -- myLoss: 0.0000 
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 3/3 -- myLoss: 0.0000 
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 1/3 -- myLoss: 0.0000
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 2/3 -- myLoss: 0.0000
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 1/2, Iter: 3/3 -- myLoss: 0.0000
 2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch[1] Complete. Time taken: 00:00:00.000
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 1/3 -- myLoss: 0.0000 
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 2/3 -- myLoss: 0.0000 
-2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 3/3 -- myLoss: 0.0000 
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 1/3 -- myLoss: 0.0000
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 2/3 -- myLoss: 0.0000
+2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch: 2/2, Iter: 3/3 -- myLoss: 0.0000
 2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Epoch[2] Complete. Time taken: 00:00:00.000
 2026-04-02 13:26:34,929 - ignite.engine.engine.Engine - INFO - Engine run finished. Time taken: 00:00:00.001
 .Finished test: test_default_logger (tests.handlers.test_handler_stats.TestHandlerStats.test_default_logger) (0.0123s)
@@ -5815,80 +5948,140 @@ Starting test: test_call_0 (tests.inferers.test_controlnet_inferers.ControlNetTe
 Starting test: test_call_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_call_1)...
 .Finished test: test_call_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_call_1) (0.0249s)
 Starting test: test_ddim_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddim_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 122.22it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 122.22it/s]
 .Finished test: test_ddim_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddim_sampler_0) (0.0956s)
 Starting test: test_ddim_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddim_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 120.75it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 120.75it/s]
 .Finished test: test_ddim_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddim_sampler_1) (0.0967s)
 Starting test: test_ddpm_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddpm_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 125.22it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 125.22it/s]
 .Finished test: test_ddpm_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddpm_sampler_0) (0.0933s)
 Starting test: test_ddpm_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddpm_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 119.52it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 119.52it/s]
 .Finished test: test_ddpm_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_ddpm_sampler_1) (0.0972s)
 Starting test: test_get_likelihood_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_get_likelihood_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 116.42it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 116.42it/s]
 .Finished test: test_get_likelihood_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_get_likelihood_0) (0.0994s)
 Starting test: test_get_likelihood_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_get_likelihood_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 113.67it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 113.67it/s]
 .Finished test: test_get_likelihood_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_get_likelihood_1) (0.102s)
 Starting test: test_normal_cdf (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_normal_cdf)...
 .Finished test: test_normal_cdf (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_normal_cdf) (0.00069s)
 Starting test: test_rflow_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_rflow_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 127.38it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 127.38it/s]
 .Finished test: test_rflow_sampler_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_rflow_sampler_0) (0.0921s)
 Starting test: test_rflow_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_rflow_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 122.50it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 122.50it/s]
 .Finished test: test_rflow_sampler_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_rflow_sampler_1) (0.0952s)
 Starting test: test_sample_intermediates_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sample_intermediates_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 119.88it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 125.01it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 119.88it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 125.01it/s]
 .Finished test: test_sample_intermediates_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sample_intermediates_0) (0.177s)
 Starting test: test_sample_intermediates_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sample_intermediates_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 116.31it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 120.38it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 116.31it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 120.38it/s]
 .Finished test: test_sample_intermediates_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sample_intermediates_1) (0.183s)
 Starting test: test_sampler_conditioned_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_0)...
-  0% 0/10 [00:00<?, ?it/s] 80% 8/10 [00:00<00:00, 76.68it/s]100% 10/10 [00:00<00:00, 76.61it/s]
-  0% 0/10 [00:00<?, ?it/s] 80% 8/10 [00:00<00:00, 77.44it/s]100% 10/10 [00:00<00:00, 77.40it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+ 80% 8/10 [00:00<00:00, 76.68it/s]
+100% 10/10 [00:00<00:00, 76.61it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+ 80% 8/10 [00:00<00:00, 77.44it/s]
+100% 10/10 [00:00<00:00, 77.40it/s]
 .Finished test: test_sampler_conditioned_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_0) (0.282s)
 Starting test: test_sampler_conditioned_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_1)...
-  0% 0/10 [00:00<?, ?it/s] 80% 8/10 [00:00<00:00, 74.59it/s]100% 10/10 [00:00<00:00, 74.54it/s]
-  0% 0/10 [00:00<?, ?it/s] 80% 8/10 [00:00<00:00, 72.84it/s]100% 10/10 [00:00<00:00, 72.42it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+ 80% 8/10 [00:00<00:00, 74.59it/s]
+100% 10/10 [00:00<00:00, 74.54it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+ 80% 8/10 [00:00<00:00, 72.84it/s]
+100% 10/10 [00:00<00:00, 72.42it/s]
 .Finished test: test_sampler_conditioned_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_1) (0.295s)
 Starting test: test_sampler_conditioned_concat_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_concat_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 121.18it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 126.91it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 121.18it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 126.91it/s]
 .Finished test: test_sampler_conditioned_concat_0 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_concat_0) (0.177s)
 Starting test: test_sampler_conditioned_concat_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_concat_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 118.92it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 122.22it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 118.92it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 122.22it/s]
 .Finished test: test_sampler_conditioned_concat_1 (tests.inferers.test_controlnet_inferers.ControlNetTestDiffusionSamplingInferer.test_sampler_conditioned_concat_1) (0.18s)
 Starting test: test_get_likelihoods_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 137.66it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 137.66it/s]
 .Finished test: test_get_likelihoods_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_0_AutoencoderKL) (0.0954s)
 Starting test: test_get_likelihoods_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 136.30it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 136.30it/s]
 .Finished test: test_get_likelihoods_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_1_VQVAE) (0.0999s)
 Starting test: test_get_likelihoods_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 129.01it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 129.01it/s]
 .Finished test: test_get_likelihoods_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_2_VQVAE) (0.0996s)
 Starting test: test_get_likelihoods_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 105.54it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 105.54it/s]
 .Finished test: test_get_likelihoods_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_get_likelihoods_3_SPADEAutoencoderKL) (0.138s)
 Starting test: test_incompatible_spade_setup (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_incompatible_spade_setup)...
 .Finished test: test_incompatible_spade_setup (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_incompatible_spade_setup) (0.0335s)
 Starting test: test_pred_shape_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 154.62it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 154.62it/s]
 .Finished test: test_pred_shape_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_0_AutoencoderKL) (0.0846s)
 Starting test: test_pred_shape_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 154.36it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 154.36it/s]
 .Finished test: test_pred_shape_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_1_VQVAE) (0.0858s)
 Starting test: test_pred_shape_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 140.64it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 140.64it/s]
 .Finished test: test_pred_shape_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_2_VQVAE) (0.0919s)
 Starting test: test_pred_shape_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 112.87it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 112.87it/s]
 .Finished test: test_pred_shape_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_pred_shape_3_SPADEAutoencoderKL) (0.135s)
 Starting test: test_prediction_shape_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_prediction_shape_0_AutoencoderKL)...
 .Finished test: test_prediction_shape_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_prediction_shape_0_AutoencoderKL) (0.0345s)
@@ -5907,58 +6100,94 @@ Starting test: test_prediction_shape_conditioned_concat_2_VQVAE (tests.inferers.
 Starting test: test_prediction_shape_conditioned_concat_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_prediction_shape_conditioned_concat_3_SPADEAutoencoderKL)...
 .Finished test: test_prediction_shape_conditioned_concat_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_prediction_shape_conditioned_concat_3_SPADEAutoencoderKL) (0.0526s)
 Starting test: test_resample_likelihoods_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 146.40it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 146.40it/s]
 .Finished test: test_resample_likelihoods_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_0_AutoencoderKL) (0.088s)
 Starting test: test_resample_likelihoods_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 146.31it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 146.31it/s]
 .Finished test: test_resample_likelihoods_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_1_VQVAE) (0.0886s)
 Starting test: test_resample_likelihoods_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 133.95it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 133.95it/s]
 .Finished test: test_resample_likelihoods_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_2_VQVAE) (0.0957s)
 Starting test: test_resample_likelihoods_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 109.00it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 109.00it/s]
 .Finished test: test_resample_likelihoods_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_resample_likelihoods_3_SPADEAutoencoderKL) (0.135s)
 Starting test: test_sample_intermediates_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 153.14it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 153.14it/s]
 .Finished test: test_sample_intermediates_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_0_AutoencoderKL) (0.0904s)
 Starting test: test_sample_intermediates_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 153.56it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 153.56it/s]
 .Finished test: test_sample_intermediates_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_1_VQVAE) (0.0931s)
 Starting test: test_sample_intermediates_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 140.73it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 140.73it/s]
 .Finished test: test_sample_intermediates_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_2_VQVAE) (0.1s)
 Starting test: test_sample_intermediates_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 113.04it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 113.04it/s]
 .Finished test: test_sample_intermediates_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_intermediates_3_SPADEAutoencoderKL) (0.173s)
 Starting test: test_sample_shape_conditioned_concat_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 154.21it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 154.21it/s]
 .Finished test: test_sample_shape_conditioned_concat_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_0_AutoencoderKL) (0.0845s)
 Starting test: test_sample_shape_conditioned_concat_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 154.09it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 154.09it/s]
 .Finished test: test_sample_shape_conditioned_concat_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_1_VQVAE) (0.0851s)
 Starting test: test_sample_shape_conditioned_concat_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 140.06it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 140.06it/s]
 .Finished test: test_sample_shape_conditioned_concat_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_2_VQVAE) (0.0918s)
 Starting test: test_sample_shape_conditioned_concat_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 112.96it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 112.96it/s]
 .Finished test: test_sample_shape_conditioned_concat_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_3_SPADEAutoencoderKL) (0.134s)
 Starting test: test_sample_shape_different_latents_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 146.62it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 146.62it/s]
 .Finished test: test_sample_shape_different_latents_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_0_AutoencoderKL) (0.0907s)
 Starting test: test_sample_shape_different_latents_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 147.08it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 147.08it/s]
 .Finished test: test_sample_shape_different_latents_1_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_1_VQVAE) (0.0919s)
 Starting test: test_sample_shape_different_latents_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 135.29it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 135.29it/s]
 .Finished test: test_sample_shape_different_latents_2_VQVAE (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_2_VQVAE) (0.0979s)
 Starting test: test_sample_shape_different_latents_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 153.19it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 153.19it/s]
 .Finished test: test_sample_shape_different_latents_3_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_3_SPADEAutoencoderKL) (0.0978s)
 Starting test: test_sample_shape_different_latents_4_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_4_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 113.36it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 113.36it/s]
 .Finished test: test_sample_shape_different_latents_4_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_4_AutoencoderKL) (0.122s)
 Starting test: test_sample_shape_different_latents_5_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_5_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 110.85it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 110.85it/s]
 .Finished test: test_sample_shape_different_latents_5_SPADEAutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_sample_shape_different_latents_5_SPADEAutoencoderKL) (0.13s)
 Starting test: test_shape_different_latents_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_shape_different_latents_0_AutoencoderKL)...
 .Finished test: test_shape_different_latents_0_AutoencoderKL (tests.inferers.test_controlnet_inferers.LatentControlNetTestDiffusionSamplingInferer.test_shape_different_latents_0_AutoencoderKL) (0.0358s)
@@ -5985,22 +6214,34 @@ Starting test: test_call_conditioned_concat_rflow_0 (tests.inferers.test_diffusi
 Starting test: test_call_conditioned_concat_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_call_conditioned_concat_rflow_1)...
 .Finished test: test_call_conditioned_concat_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_call_conditioned_concat_rflow_1) (0.0141s)
 Starting test: test_ddim_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddim_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 197.24it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 197.24it/s]
 .Finished test: test_ddim_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddim_sampler_0) (0.0588s)
 Starting test: test_ddim_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddim_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 189.09it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 189.09it/s]
 .Finished test: test_ddim_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddim_sampler_1) (0.0611s)
 Starting test: test_ddpm_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddpm_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 195.52it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 195.52it/s]
 .Finished test: test_ddpm_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddpm_sampler_0) (0.0592s)
 Starting test: test_ddpm_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddpm_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 187.02it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 187.02it/s]
 .Finished test: test_ddpm_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_ddpm_sampler_1) (0.0616s)
 Starting test: test_get_likelihood_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihood_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 180.50it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 180.50it/s]
 .Finished test: test_get_likelihood_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihood_0) (0.0635s)
 Starting test: test_get_likelihood_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihood_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 168.74it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 168.74it/s]
 .Finished test: test_get_likelihood_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihood_1) (0.0674s)
 Starting test: test_normal_cdf (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_normal_cdf)...
 /opt/monai/tests/inferers/test_diffusion_inferer.py:236: FutureWarning:
@@ -6009,64 +6250,104 @@ Starting test: test_normal_cdf (tests.inferers.test_diffusion_inferer.TestDiffus
 
 .Finished test: test_normal_cdf (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_normal_cdf) (0.000605s)
 Starting test: test_rflow_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_rflow_sampler_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 204.57it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 204.57it/s]
 .Finished test: test_rflow_sampler_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_rflow_sampler_0) (0.0568s)
 Starting test: test_rflow_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_rflow_sampler_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 194.44it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 194.44it/s]
 .Finished test: test_rflow_sampler_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_rflow_sampler_1) (0.0595s)
 Starting test: test_sample_cfg_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_cfg_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 194.47it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 194.47it/s]
 .Finished test: test_sample_cfg_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_cfg_0) (0.0595s)
 Starting test: test_sample_cfg_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_cfg_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 186.45it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 186.45it/s]
 .Finished test: test_sample_cfg_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_cfg_1) (0.0617s)
 Starting test: test_sample_intermediates_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 198.03it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 198.03it/s]
 .Finished test: test_sample_intermediates_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_0) (0.0585s)
 Starting test: test_sample_intermediates_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 188.65it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 188.65it/s]
 .Finished test: test_sample_intermediates_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_1) (0.0611s)
 Starting test: test_sampler_conditioned_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 118.02it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 118.02it/s]
 .Finished test: test_sampler_conditioned_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_0) (0.0984s)
 Starting test: test_sampler_conditioned_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 115.60it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 115.60it/s]
 .Finished test: test_sampler_conditioned_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_1) (0.1s)
 Starting test: test_sampler_conditioned_concat_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 197.99it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 197.99it/s]
 .Finished test: test_sampler_conditioned_concat_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_0) (0.0588s)
 Starting test: test_sampler_conditioned_concat_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 188.82it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 188.82it/s]
 .Finished test: test_sampler_conditioned_concat_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_1) (0.0612s)
 Starting test: test_sampler_conditioned_concat_cfg_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_cfg_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 193.24it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 193.24it/s]
 .Finished test: test_sampler_conditioned_concat_cfg_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_cfg_0) (0.0599s)
 Starting test: test_sampler_conditioned_concat_cfg_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_cfg_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 184.94it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 184.94it/s]
 .Finished test: test_sampler_conditioned_concat_cfg_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_cfg_1) (0.0624s)
 Starting test: test_sampler_conditioned_concat_rflow_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_rflow_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 201.90it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 201.90it/s]
 .Finished test: test_sampler_conditioned_concat_rflow_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_rflow_0) (0.0576s)
 Starting test: test_sampler_conditioned_concat_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_rflow_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 192.67it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 192.67it/s]
 .Finished test: test_sampler_conditioned_concat_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_concat_rflow_1) (0.06s)
 Starting test: test_sampler_conditioned_rflow_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_rflow_0)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 118.84it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 118.84it/s]
 .Finished test: test_sampler_conditioned_rflow_0 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_rflow_0) (0.0975s)
 Starting test: test_sampler_conditioned_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_rflow_1)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 115.72it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 115.72it/s]
 .Finished test: test_sampler_conditioned_rflow_1 (tests.inferers.test_diffusion_inferer.TestDiffusionSamplingInferer.test_sampler_conditioned_rflow_1) (0.0998s)
 Starting test: test_get_likelihoods_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 231.38it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 231.38it/s]
 .Finished test: test_get_likelihoods_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_0_AutoencoderKL) (0.0571s)
 Starting test: test_get_likelihoods_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 231.51it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 231.51it/s]
 .Finished test: test_get_likelihoods_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_1_VQVAE) (0.0576s)
 Starting test: test_get_likelihoods_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 210.29it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 210.29it/s]
 .Finished test: test_get_likelihoods_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_2_VQVAE) (0.062s)
 Starting test: test_get_likelihoods_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 151.33it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 151.33it/s]
 .Finished test: test_get_likelihoods_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_get_likelihoods_3_AutoencoderKL) (0.0895s)
 Starting test: test_incompatible_spade_setup (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_incompatible_spade_setup)...
 .Finished test: test_incompatible_spade_setup (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_incompatible_spade_setup) (0.0271s)
@@ -6087,104 +6368,200 @@ Starting test: test_prediction_shape_conditioned_concat_2_VQVAE (tests.inferers.
 Starting test: test_prediction_shape_conditioned_concat_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_prediction_shape_conditioned_concat_3_AutoencoderKL)...
 .Finished test: test_prediction_shape_conditioned_concat_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_prediction_shape_conditioned_concat_3_AutoencoderKL) (0.0383s)
 Starting test: test_resample_likelihoods_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 231.10it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 231.10it/s]
 .Finished test: test_resample_likelihoods_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_0_AutoencoderKL) (0.0571s)
 Starting test: test_resample_likelihoods_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 231.34it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 231.34it/s]
 .Finished test: test_resample_likelihoods_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_1_VQVAE) (0.0576s)
 Starting test: test_resample_likelihoods_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 211.16it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 211.16it/s]
 .Finished test: test_resample_likelihoods_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_2_VQVAE) (0.0621s)
 Starting test: test_resample_likelihoods_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 150.76it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 150.76it/s]
 .Finished test: test_resample_likelihoods_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_resample_likelihoods_3_AutoencoderKL) (0.0897s)
 Starting test: test_sample_intermediates_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 252.79it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 264.52it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 252.79it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 264.52it/s]
 .Finished test: test_sample_intermediates_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_0_AutoencoderKL) (0.103s)
 Starting test: test_sample_intermediates_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 249.31it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 263.24it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 249.31it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 263.24it/s]
 .Finished test: test_sample_intermediates_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_1_VQVAE) (0.109s)
 Starting test: test_sample_intermediates_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 227.49it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 236.10it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 227.49it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 236.10it/s]
 .Finished test: test_sample_intermediates_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_2_VQVAE) (0.12s)
 Starting test: test_sample_intermediates_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 159.10it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 165.00it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 159.10it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 165.00it/s]
 .Finished test: test_sample_intermediates_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_intermediates_3_AutoencoderKL) (0.16s)
 Starting test: test_sample_shape_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 252.84it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 266.15it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 252.84it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 266.15it/s]
 .Finished test: test_sample_shape_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_0_AutoencoderKL) (0.0921s)
 Starting test: test_sample_shape_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 253.94it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 267.99it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 253.94it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 267.99it/s]
 .Finished test: test_sample_shape_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_1_VQVAE) (0.0925s)
 Starting test: test_sample_shape_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 229.11it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 241.07it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 229.11it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 241.07it/s]
 .Finished test: test_sample_shape_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_2_VQVAE) (0.101s)
 Starting test: test_sample_shape_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 159.44it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 164.60it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 159.44it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 164.60it/s]
 .Finished test: test_sample_shape_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_3_AutoencoderKL) (0.148s)
 Starting test: test_sample_shape_conditioned_concat_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 250.18it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 263.65it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 250.18it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 263.65it/s]
 .Finished test: test_sample_shape_conditioned_concat_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_0_AutoencoderKL) (0.0923s)
 Starting test: test_sample_shape_conditioned_concat_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 253.51it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 265.36it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 253.51it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 265.36it/s]
 .Finished test: test_sample_shape_conditioned_concat_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_1_VQVAE) (0.0927s)
 Starting test: test_sample_shape_conditioned_concat_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 227.74it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 237.93it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 227.74it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 237.93it/s]
 .Finished test: test_sample_shape_conditioned_concat_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_2_VQVAE) (0.102s)
 Starting test: test_sample_shape_conditioned_concat_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 159.79it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 164.64it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 159.79it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 164.64it/s]
 .Finished test: test_sample_shape_conditioned_concat_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_conditioned_concat_3_AutoencoderKL) (0.147s)
 Starting test: test_sample_shape_different_latents_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 250.75it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 263.76it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 250.75it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 263.76it/s]
 .Finished test: test_sample_shape_different_latents_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_0_AutoencoderKL) (0.0952s)
 Starting test: test_sample_shape_different_latents_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 252.46it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 264.19it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 252.46it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 264.19it/s]
 .Finished test: test_sample_shape_different_latents_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_1_VQVAE) (0.0976s)
 Starting test: test_sample_shape_different_latents_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 226.69it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 236.73it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 226.69it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 236.73it/s]
 .Finished test: test_sample_shape_different_latents_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_2_VQVAE) (0.107s)
 Starting test: test_sample_shape_different_latents_3_SPADEAutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_3_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 249.26it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 264.10it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 249.26it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 264.10it/s]
 .Finished test: test_sample_shape_different_latents_3_SPADEAutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_3_SPADEAutoencoderKL) (0.143s)
 Starting test: test_sample_shape_different_latents_4_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_4_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 159.14it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 163.98it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 159.14it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 163.98it/s]
 .Finished test: test_sample_shape_different_latents_4_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_4_AutoencoderKL) (0.172s)
 Starting test: test_sample_shape_different_latents_5_SPADEAutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_5_SPADEAutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 159.44it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 164.55it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 159.44it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 164.55it/s]
 .Finished test: test_sample_shape_different_latents_5_SPADEAutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_different_latents_5_SPADEAutoencoderKL) (0.198s)
 Starting test: test_sample_shape_with_cfg_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_0_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 230.18it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 263.98it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 230.18it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 263.98it/s]
 .Finished test: test_sample_shape_with_cfg_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_0_AutoencoderKL) (0.0963s)
 Starting test: test_sample_shape_with_cfg_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_1_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 229.21it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 261.89it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 229.21it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 261.89it/s]
 .Finished test: test_sample_shape_with_cfg_1_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_1_VQVAE) (0.0975s)
 Starting test: test_sample_shape_with_cfg_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_2_VQVAE)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 214.90it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 239.00it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 214.90it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 239.00it/s]
 .Finished test: test_sample_shape_with_cfg_2_VQVAE (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_2_VQVAE) (0.104s)
 Starting test: test_sample_shape_with_cfg_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_3_AutoencoderKL)...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 158.32it/s]
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 162.69it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 158.32it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 162.69it/s]
 .Finished test: test_sample_shape_with_cfg_3_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_sample_shape_with_cfg_3_AutoencoderKL) (0.149s)
 Starting test: test_shape_different_latents_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_shape_different_latents_0_AutoencoderKL)...
 .Finished test: test_shape_different_latents_0_AutoencoderKL (tests.inferers.test_latent_diffusion_inferer.TestDiffusionSamplingInferer.test_shape_different_latents_0_AutoencoderKL) (0.0338s)
@@ -6303,9 +6680,15 @@ Starting test: test_shape_1_1 (tests.inferers.test_slice_inferer.TestSliceInfere
 Starting test: test_shape_2_2 (tests.inferers.test_slice_inferer.TestSliceInfererCond.test_shape_2_2)...
 .Finished test: test_shape_2_2 (tests.inferers.test_slice_inferer.TestSliceInfererCond.test_shape_2_2) (0.0494s)
 Starting test: test_args_kwargs (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_args_kwargs)...
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 4424.37it/s]
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 6052.39it/s]
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 6186.29it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 4424.37it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 6052.39it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 6186.29it/s]
 .Finished test: test_args_kwargs (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_args_kwargs) (0.00269s)
 Starting test: test_buffers_000 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_buffers_000)...
 .Finished test: test_buffers_000 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_buffers_000) (0.00114s)
@@ -7324,13 +7707,23 @@ Starting test: test_default_device_1 (tests.inferers.test_sliding_window_inferen
 Starting test: test_default_device_2 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_default_device_2)...
 .Finished test: test_default_device_2 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_default_device_2) (0.00165s)
 Starting test: test_multioutput (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_multioutput)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 799.60it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 802.74it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 783.18it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 818.72it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 799.60it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 802.74it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 783.18it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 818.72it/s]
 .Finished test: test_multioutput (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_multioutput) (0.0133s)
 Starting test: test_sigma (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sigma)...
-  0% 0/3 [00:00<?, ?it/s]100% 3/3 [00:00<00:00, 3002.37it/s]
+
+  0% 0/3 [00:00<?, ?it/s]
+100% 3/3 [00:00<00:00, 3002.37it/s]
 .Finished test: test_sigma (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sigma) (0.00748s)
 Starting test: test_sliding_window_default_00 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sliding_window_default_00)...
 .Finished test: test_sliding_window_default_00 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sliding_window_default_00) (0.00124s)
@@ -7407,9 +7800,15 @@ Starting test: test_sw_device_16 (tests.inferers.test_sliding_window_inference.T
 Starting test: test_sw_device_17 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sw_device_17)...
 .Finished test: test_sw_device_17 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInference.test_sw_device_17) (0.00126s)
 Starting test: test_args_kwargs (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_args_kwargs)...
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 5090.17it/s]
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 5269.23it/s]
-  0% 0/1 [00:00<?, ?it/s]100% 1/1 [00:00<00:00, 5398.07it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 5090.17it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 5269.23it/s]
+
+  0% 0/1 [00:00<?, ?it/s]
+100% 1/1 [00:00<00:00, 5398.07it/s]
 .Finished test: test_args_kwargs (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_args_kwargs) (0.00247s)
 Starting test: test_conditioned_branches_and_buffered_parity_0 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_conditioned_branches_and_buffered_parity_0)
 Validate conditioned parity between buffered and non-buffered flows [with sw_batch_size=1]....
@@ -7428,13 +7827,23 @@ Starting test: test_default_device_1 (tests.inferers.test_sliding_window_inferen
 Starting test: test_default_device_2 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_default_device_2)...
 .Finished test: test_default_device_2 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_default_device_2) (0.00174s)
 Starting test: test_multioutput (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_multioutput)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 764.20it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 764.27it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 774.29it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 771.58it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 764.20it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 764.27it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 774.29it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 771.58it/s]
 .Finished test: test_multioutput (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_multioutput) (0.0136s)
 Starting test: test_sigma (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_sigma)...
-  0% 0/3 [00:00<?, ?it/s]100% 3/3 [00:00<00:00, 2924.90it/s]
+
+  0% 0/3 [00:00<?, ?it/s]
+100% 3/3 [00:00<00:00, 2924.90it/s]
 .Finished test: test_sigma (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_sigma) (0.00742s)
 Starting test: test_sliding_window_default_00 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_sliding_window_default_00)...
 .Finished test: test_sliding_window_default_00 (tests.inferers.test_sliding_window_inference.TestSlidingWindowInferenceCond.test_sliding_window_default_00) (0.00131s)
@@ -7945,14 +8354,18 @@ xform cls testing itk consistency [with xform_cls='RandAffined', input_dict={'pr
 2026-04-02 13:27:00,478 - INFO - Verified 'MNI152_T1_2mm_strucseg.nii.gz', sha256: eb4f1e596ca85aadaefc359d409fb9a3e27d733e6def04b996953b7c54bc26d4.
 2026-04-02 13:27:00,478 - INFO - File exists: /opt/monai/tests/testing_data/MNI152_T1_2mm_strucseg.nii.gz, skipped downloading.
 Starting test: test_transforms_0_TEST_CASE_1 (tests.integration.test_metatensor_integration.TestMetaTensorIntegration.test_transforms_0_TEST_CASE_1)...
-Loading dataset:   0% 0/4 [00:00<?, ?it/s]Loading dataset: 100% 4/4 [00:00<00:00, 58.05it/s]
+
+Loading dataset:   0% 0/4 [00:00<?, ?it/s]
+Loading dataset: 100% 4/4 [00:00<00:00, 58.05it/s]
 2026-04-02 13:27:00,631 INFO image_writer.py:197 - writing: /tmp/tmpaan4kz_s/MNI152_T1_2mm/MNI152_T1_2mm_TEST_CASE_1.nii.gz
 2026-04-02 13:27:00,638 INFO image_writer.py:197 - writing: /tmp/tmpaan4kz_s/MNI152_T1_2mm_strucseg/MNI152_T1_2mm_strucseg_TEST_CASE_1.nii.gz
 2026-04-02 13:27:00,659 INFO image_writer.py:197 - writing: /tmp/tmp27sgyco_/MNI152_T1_2mm/MNI152_T1_2mm_TEST_CASE_1.nii.gz
 2026-04-02 13:27:00,671 INFO image_writer.py:197 - writing: /tmp/tmp27sgyco_/MNI152_T1_2mm_strucseg/MNI152_T1_2mm_strucseg_TEST_CASE_1.nii.gz
 .Finished test: test_transforms_0_TEST_CASE_1 (tests.integration.test_metatensor_integration.TestMetaTensorIntegration.test_transforms_0_TEST_CASE_1) (0.208s)
 Starting test: test_transforms_1_TEST_CASE_2 (tests.integration.test_metatensor_integration.TestMetaTensorIntegration.test_transforms_1_TEST_CASE_2)...
-Loading dataset:   0% 0/4 [00:00<?, ?it/s]Loading dataset: 100% 4/4 [00:00<00:00, 72.84it/s]
+
+Loading dataset:   0% 0/4 [00:00<?, ?it/s]
+Loading dataset: 100% 4/4 [00:00<00:00, 72.84it/s]
 2026-04-02 13:27:00,817 - DataStats - INFO - Data statistics:
 Type: <class 'monai.data.meta_tensor.MetaTensor'> torch.float32
 Shape: torch.Size([1, 91, 109, 91])
@@ -7979,7 +8392,9 @@ inverse has been called but no invertible transforms have been supplied
 2026-04-02 13:27:01,221 INFO image_writer.py:197 - writing: /tmp/tmp50mmbebq/MNI152_T1_2mm_strucseg/MNI152_T1_2mm_strucseg_TEST_CASE_2.nii.gz
 .Finished test: test_transforms_1_TEST_CASE_2 (tests.integration.test_metatensor_integration.TestMetaTensorIntegration.test_transforms_1_TEST_CASE_2) (0.552s)
 Starting test: test_transforms_2_TEST_CASE_3 (tests.integration.test_metatensor_integration.TestMetaTensorIntegration.test_transforms_2_TEST_CASE_3)...
-Loading dataset:   0% 0/4 [00:00<?, ?it/s]Loading dataset: 100% 4/4 [00:00<00:00, 48.45it/s]
+
+Loading dataset:   0% 0/4 [00:00<?, ?it/s]
+Loading dataset: 100% 4/4 [00:00<00:00, 48.45it/s]
 2026-04-02 13:27:01,667 INFO image_writer.py:197 - writing: /tmp/tmph6hjeujs/MNI152_T1_2mm/MNI152_T1_2mm_TEST_CASE_3.nii.gz
 2026-04-02 13:27:01,699 INFO image_writer.py:197 - writing: /tmp/tmph6hjeujs/MNI152_T1_2mm_strucseg/MNI152_T1_2mm_strucseg_TEST_CASE_3.nii.gz
 /opt/monai/monai/transforms/spatial/array.py:2167: UserWarning:
@@ -8056,19 +8471,52 @@ Starting test: test_shape_03 (tests.integration.test_vis_gradbased.TestGradientC
 Starting test: test_shape_04 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_04)...
 .Finished test: test_shape_04 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_04) (0.0476s)
 Starting test: test_shape_05 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_05)...
-Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing SmoothGrad:  16% 4/25 [00:00<00:00, 36.34it/s]Computing SmoothGrad:  32% 8/25 [00:00<00:00, 34.73it/s]Computing SmoothGrad:  48% 12/25 [00:00<00:00, 34.25it/s]Computing SmoothGrad:  64% 16/25 [00:00<00:00, 33.92it/s]Computing SmoothGrad:  80% 20/25 [00:00<00:00, 33.80it/s]Computing SmoothGrad:  96% 24/25 [00:00<00:00, 33.77it/s]Computing SmoothGrad: 100% 25/25 [00:00<00:00, 34.02it/s]
+
+Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing SmoothGrad:  16% 4/25 [00:00<00:00, 36.34it/s]
+Computing SmoothGrad:  32% 8/25 [00:00<00:00, 34.73it/s]
+Computing SmoothGrad:  48% 12/25 [00:00<00:00, 34.25it/s]
+Computing SmoothGrad:  64% 16/25 [00:00<00:00, 33.92it/s]
+Computing SmoothGrad:  80% 20/25 [00:00<00:00, 33.80it/s]
+Computing SmoothGrad:  96% 24/25 [00:00<00:00, 33.77it/s]
+Computing SmoothGrad: 100% 25/25 [00:00<00:00, 34.02it/s]
 .Finished test: test_shape_05 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_05) (0.745s)
 Starting test: test_shape_06 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_06)...
-Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing SmoothGrad: 100% 25/25 [00:00<00:00, 269.99it/s]
+
+Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing SmoothGrad: 100% 25/25 [00:00<00:00, 269.99it/s]
 .Finished test: test_shape_06 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_06) (0.0944s)
 Starting test: test_shape_07 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_07)...
-Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing SmoothGrad:  16% 4/25 [00:00<00:00, 39.77it/s]Computing SmoothGrad:  32% 8/25 [00:00<00:00, 39.80it/s]Computing SmoothGrad:  52% 13/25 [00:00<00:00, 40.09it/s]Computing SmoothGrad:  72% 18/25 [00:00<00:00, 40.00it/s]Computing SmoothGrad:  88% 22/25 [00:00<00:00, 39.98it/s]Computing SmoothGrad: 100% 25/25 [00:00<00:00, 39.96it/s]
+
+Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing SmoothGrad:  16% 4/25 [00:00<00:00, 39.77it/s]
+Computing SmoothGrad:  32% 8/25 [00:00<00:00, 39.80it/s]
+Computing SmoothGrad:  52% 13/25 [00:00<00:00, 40.09it/s]
+Computing SmoothGrad:  72% 18/25 [00:00<00:00, 40.00it/s]
+Computing SmoothGrad:  88% 22/25 [00:00<00:00, 39.98it/s]
+Computing SmoothGrad: 100% 25/25 [00:00<00:00, 39.96it/s]
 .Finished test: test_shape_07 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_07) (0.633s)
 Starting test: test_shape_08 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_08)...
-Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing SmoothGrad:  16% 4/25 [00:00<00:00, 39.18it/s]Computing SmoothGrad:  32% 8/25 [00:00<00:00, 39.14it/s]Computing SmoothGrad:  48% 12/25 [00:00<00:00, 39.28it/s]Computing SmoothGrad:  64% 16/25 [00:00<00:00, 39.29it/s]Computing SmoothGrad:  80% 20/25 [00:00<00:00, 39.34it/s]Computing SmoothGrad:  96% 24/25 [00:00<00:00, 39.31it/s]Computing SmoothGrad: 100% 25/25 [00:00<00:00, 39.28it/s]
+
+Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing SmoothGrad:  16% 4/25 [00:00<00:00, 39.18it/s]
+Computing SmoothGrad:  32% 8/25 [00:00<00:00, 39.14it/s]
+Computing SmoothGrad:  48% 12/25 [00:00<00:00, 39.28it/s]
+Computing SmoothGrad:  64% 16/25 [00:00<00:00, 39.29it/s]
+Computing SmoothGrad:  80% 20/25 [00:00<00:00, 39.34it/s]
+Computing SmoothGrad:  96% 24/25 [00:00<00:00, 39.31it/s]
+Computing SmoothGrad: 100% 25/25 [00:00<00:00, 39.28it/s]
 .Finished test: test_shape_08 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_08) (0.644s)
 Starting test: test_shape_09 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_09)...
-Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing SmoothGrad:  16% 4/25 [00:00<00:00, 33.46it/s]Computing SmoothGrad:  32% 8/25 [00:00<00:00, 33.35it/s]Computing SmoothGrad:  48% 12/25 [00:00<00:00, 33.40it/s]Computing SmoothGrad:  64% 16/25 [00:00<00:00, 33.34it/s]Computing SmoothGrad:  80% 20/25 [00:00<00:00, 33.34it/s]Computing SmoothGrad:  96% 24/25 [00:00<00:00, 33.35it/s]Computing SmoothGrad: 100% 25/25 [00:00<00:00, 33.38it/s]
+
+Computing SmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing SmoothGrad:  16% 4/25 [00:00<00:00, 33.46it/s]
+Computing SmoothGrad:  32% 8/25 [00:00<00:00, 33.35it/s]
+Computing SmoothGrad:  48% 12/25 [00:00<00:00, 33.40it/s]
+Computing SmoothGrad:  64% 16/25 [00:00<00:00, 33.34it/s]
+Computing SmoothGrad:  80% 20/25 [00:00<00:00, 33.34it/s]
+Computing SmoothGrad:  96% 24/25 [00:00<00:00, 33.35it/s]
+Computing SmoothGrad: 100% 25/25 [00:00<00:00, 33.38it/s]
 .Finished test: test_shape_09 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_09) (0.759s)
 Starting test: test_shape_10 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_10)...
 .Finished test: test_shape_10 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_10) (0.791s)
@@ -8081,19 +8529,58 @@ Starting test: test_shape_13 (tests.integration.test_vis_gradbased.TestGradientC
 Starting test: test_shape_14 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_14)...
 .Finished test: test_shape_14 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_14) (0.782s)
 Starting test: test_shape_15 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_15)...
-Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing GuidedBackpropSmoothGrad:  12% 3/25 [00:00<00:00, 22.03it/s]Computing GuidedBackpropSmoothGrad:  24% 6/25 [00:00<00:00, 24.95it/s]Computing GuidedBackpropSmoothGrad:  36% 9/25 [00:00<00:00, 25.99it/s]Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 26.53it/s]Computing GuidedBackpropSmoothGrad:  60% 15/25 [00:00<00:00, 26.82it/s]Computing GuidedBackpropSmoothGrad:  72% 18/25 [00:00<00:00, 27.04it/s]Computing GuidedBackpropSmoothGrad:  84% 21/25 [00:00<00:00, 27.16it/s]Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 27.25it/s]Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 26.63it/s]
+
+Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing GuidedBackpropSmoothGrad:  12% 3/25 [00:00<00:00, 22.03it/s]
+Computing GuidedBackpropSmoothGrad:  24% 6/25 [00:00<00:00, 24.95it/s]
+Computing GuidedBackpropSmoothGrad:  36% 9/25 [00:00<00:00, 25.99it/s]
+Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 26.53it/s]
+Computing GuidedBackpropSmoothGrad:  60% 15/25 [00:00<00:00, 26.82it/s]
+Computing GuidedBackpropSmoothGrad:  72% 18/25 [00:00<00:00, 27.04it/s]
+Computing GuidedBackpropSmoothGrad:  84% 21/25 [00:00<00:00, 27.16it/s]
+Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 27.25it/s]
+Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 26.63it/s]
 .Finished test: test_shape_15 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_15) (1.69s)
 Starting test: test_shape_16 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_16)...
-Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing GuidedBackpropSmoothGrad:  76% 19/25 [00:00<00:00, 186.42it/s]Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 185.92it/s]
+
+Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing GuidedBackpropSmoothGrad:  76% 19/25 [00:00<00:00, 186.42it/s]
+Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 185.92it/s]
 .Finished test: test_shape_16 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_16) (0.152s)
 Starting test: test_shape_17 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_17)...
-Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing GuidedBackpropSmoothGrad:  16% 4/25 [00:00<00:00, 39.51it/s]Computing GuidedBackpropSmoothGrad:  32% 8/25 [00:00<00:00, 39.60it/s]Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 39.56it/s]Computing GuidedBackpropSmoothGrad:  64% 16/25 [00:00<00:00, 39.60it/s]Computing GuidedBackpropSmoothGrad:  80% 20/25 [00:00<00:00, 39.59it/s]Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 39.59it/s]Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 39.61it/s]
+
+Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing GuidedBackpropSmoothGrad:  16% 4/25 [00:00<00:00, 39.51it/s]
+Computing GuidedBackpropSmoothGrad:  32% 8/25 [00:00<00:00, 39.60it/s]
+Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 39.56it/s]
+Computing GuidedBackpropSmoothGrad:  64% 16/25 [00:00<00:00, 39.60it/s]
+Computing GuidedBackpropSmoothGrad:  80% 20/25 [00:00<00:00, 39.59it/s]
+Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 39.59it/s]
+Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 39.61it/s]
 .Finished test: test_shape_17 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_17) (0.642s)
 Starting test: test_shape_18 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_18)...
-Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing GuidedBackpropSmoothGrad:  16% 4/25 [00:00<00:00, 39.80it/s]Computing GuidedBackpropSmoothGrad:  32% 8/25 [00:00<00:00, 39.55it/s]Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 39.37it/s]Computing GuidedBackpropSmoothGrad:  64% 16/25 [00:00<00:00, 39.36it/s]Computing GuidedBackpropSmoothGrad:  80% 20/25 [00:00<00:00, 39.41it/s]Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 39.45it/s]Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 39.44it/s]
+
+Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing GuidedBackpropSmoothGrad:  16% 4/25 [00:00<00:00, 39.80it/s]
+Computing GuidedBackpropSmoothGrad:  32% 8/25 [00:00<00:00, 39.55it/s]
+Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 39.37it/s]
+Computing GuidedBackpropSmoothGrad:  64% 16/25 [00:00<00:00, 39.36it/s]
+Computing GuidedBackpropSmoothGrad:  80% 20/25 [00:00<00:00, 39.41it/s]
+Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 39.45it/s]
+Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 39.44it/s]
 .Finished test: test_shape_18 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_18) (0.645s)
 Starting test: test_shape_19 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_19)...
-Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]Computing GuidedBackpropSmoothGrad:  12% 3/25 [00:00<00:00, 22.04it/s]Computing GuidedBackpropSmoothGrad:  24% 6/25 [00:00<00:00, 23.68it/s]Computing GuidedBackpropSmoothGrad:  36% 9/25 [00:00<00:00, 25.34it/s]Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 26.17it/s]Computing GuidedBackpropSmoothGrad:  60% 15/25 [00:00<00:00, 26.62it/s]Computing GuidedBackpropSmoothGrad:  72% 18/25 [00:00<00:00, 26.92it/s]Computing GuidedBackpropSmoothGrad:  84% 21/25 [00:00<00:00, 27.14it/s]Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 27.27it/s]Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 26.43it/s]
+
+Computing GuidedBackpropSmoothGrad:   0% 0/25 [00:00<?, ?it/s]
+Computing GuidedBackpropSmoothGrad:  12% 3/25 [00:00<00:00, 22.04it/s]
+Computing GuidedBackpropSmoothGrad:  24% 6/25 [00:00<00:00, 23.68it/s]
+Computing GuidedBackpropSmoothGrad:  36% 9/25 [00:00<00:00, 25.34it/s]
+Computing GuidedBackpropSmoothGrad:  48% 12/25 [00:00<00:00, 26.17it/s]
+Computing GuidedBackpropSmoothGrad:  60% 15/25 [00:00<00:00, 26.62it/s]
+Computing GuidedBackpropSmoothGrad:  72% 18/25 [00:00<00:00, 26.92it/s]
+Computing GuidedBackpropSmoothGrad:  84% 21/25 [00:00<00:00, 27.14it/s]
+Computing GuidedBackpropSmoothGrad:  96% 24/25 [00:00<00:00, 27.27it/s]
+Computing GuidedBackpropSmoothGrad: 100% 25/25 [00:00<00:00, 26.43it/s]
 .Finished test: test_shape_19 (tests.integration.test_vis_gradbased.TestGradientClassActivationMap.test_shape_19) (1.69s)
 Starting test: test_shape_0 (tests.integration.test_vista3d_utils.TestConvertPointsToDisc.test_shape_0)...
 /usr/local/lib/python3.11/dist-packages/torch/functional.py:505: UserWarning:
@@ -11594,34 +12081,64 @@ TverskyLoss iter: 30, acc: 1.0
 .Finished test: test_convergence_19 (tests.integration.test_seg_loss_integration.TestSegLossIntegration.test_convergence_19)
 The goal of this test is to assess if the gradient of the loss function [with loss_type=<class 'monai.losses.tversky.TverskyLoss'>, loss_args={'to_onehot_y': False, 'softmax'...True, 'alpha': 1.0, 'beta': 0.0}, forward_args={}] (0.0477s)
 Starting test: test_image_no_label (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_image_no_label)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 170.48it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 170.48it/s]
 .Finished test: test_image_no_label (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_image_no_label) (0.0153s)
 Starting test: test_non_spatial_output (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_non_spatial_output)
 Test TTA for non-spatial output (e.g., classification scores)....
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 576.50it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 549.60it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 576.50it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 549.60it/s]
 .Finished test: test_non_spatial_output (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_non_spatial_output)
 Test TTA for non-spatial output (e.g., classification scores). (0.00972s)
 Starting test: test_single_transform (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_single_transform)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 124.90it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 122.92it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 119.32it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 127.26it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 124.90it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 122.92it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 119.32it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 127.26it/s]
 .Finished test: test_single_transform (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_single_transform) (0.0754s)
 Starting test: test_test_time_augmentation (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_test_time_augmentation)...
-Loading dataset:   0% 0/10 [00:00<?, ?it/s]Loading dataset: 100% 10/10 [00:00<00:00, 4554.08it/s]
-training:   0% 0/10 [00:00<?, ?it/s]training:  20% 2/10 [00:00<00:00, 12.15it/s]training:  40% 4/10 [00:00<00:00, 12.73it/s]training:  60% 6/10 [00:00<00:00, 12.91it/s]training:  80% 8/10 [00:00<00:00, 13.06it/s]training: 100% 10/10 [00:00<00:00, 13.10it/s]training: 100% 10/10 [00:00<00:00, 12.97it/s]
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 18.30it/s]100% 2/2 [00:00<00:00, 18.28it/s]
+
+Loading dataset:   0% 0/10 [00:00<?, ?it/s]
+Loading dataset: 100% 10/10 [00:00<00:00, 4554.08it/s]
+
+training:   0% 0/10 [00:00<?, ?it/s]
+training:  20% 2/10 [00:00<00:00, 12.15it/s]
+training:  40% 4/10 [00:00<00:00, 12.73it/s]
+training:  60% 6/10 [00:00<00:00, 12.91it/s]
+training:  80% 8/10 [00:00<00:00, 13.06it/s]
+training: 100% 10/10 [00:00<00:00, 13.10it/s]
+training: 100% 10/10 [00:00<00:00, 12.97it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 18.30it/s]
+100% 2/2 [00:00<00:00, 18.28it/s]
 .Finished test: test_test_time_augmentation (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_test_time_augmentation) (0.891s)
 Starting test: test_warn_non_random (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_non_random)...
 .Finished test: test_warn_non_random (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_non_random) (0.0109s)
 Starting test: test_warn_random_but_all_not_invertible (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_random_but_all_not_invertible)
 test with no invertible stack...
-  0% 0/10 [00:00<?, ?it/s]100% 10/10 [00:00<00:00, 611.88it/s]
+
+  0% 0/10 [00:00<?, ?it/s]
+100% 10/10 [00:00<00:00, 611.88it/s]
 .Finished test: test_warn_random_but_all_not_invertible (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_random_but_all_not_invertible)
 test with no invertible stack (0.0249s)
 Starting test: test_warn_random_but_has_no_invertible (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_random_but_has_no_invertible)...
-  0% 0/2 [00:00<?, ?it/s]100% 2/2 [00:00<00:00, 86.46it/s]
+
+  0% 0/2 [00:00<?, ?it/s]
+100% 2/2 [00:00<00:00, 86.46it/s]
 .Finished test: test_warn_random_but_has_no_invertible (tests.integration.test_testtimeaugmentation.TestTestTimeAugmentation.test_warn_random_but_has_no_invertible) (0.0304s)
 Starting test: test_get_history (tests.integration.test_auto3dseg_hpo.TestHPO.test_get_history)...
 2026-04-02 13:27:33,232 - INFO - Found 1 GPUs for data analyzing!
@@ -11629,11 +12146,18 @@ Starting test: test_get_history (tests.integration.test_auto3dseg_hpo.TestHPO.te
 
 monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
 
-  0% 0/12 [00:00<?, ?it/s]  8% 1/12 [00:00<00:04,  2.37it/s] 58% 7/12 [00:00<00:00, 16.67it/s]100% 12/12 [00:00<00:00, 15.29it/s]
+
+  0% 0/12 [00:00<?, ?it/s]
+  8% 1/12 [00:00<00:04,  2.37it/s]
+ 58% 7/12 [00:00<00:00, 16.67it/s]
+100% 12/12 [00:00<00:00, 15.29it/s]
 2026-04-02 13:27:34,064 - INFO - Writing data stats to /tmp/tmpfca85c_d/workdir/datastats.yaml.
 2026-04-02 13:27:34,076 - INFO - Writing by-case data stats to /tmp/tmpfca85c_d/workdir/datastats_by_case.yaml, this may take a while.
 2026-04-02 13:27:34,169 - INFO - BundleGen from https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/21ed8e5.tar.gz
-algo_templates.tar.gz: 0.00B [00:00, ?B/s]algo_templates.tar.gz:   8% 8.00k/99.9k [00:00<00:03, 29.5kB/s]algo_templates.tar.gz: 104kB [00:00, 376kB/s]                  
+
+algo_templates.tar.gz: 0.00B [00:00, ?B/s]
+algo_templates.tar.gz:   8% 8.00k/99.9k [00:00<00:03, 29.5kB/s]
+algo_templates.tar.gz: 104kB [00:00, 376kB/s]
 2026-04-02 13:27:34,862 - INFO - Downloaded: /tmp/tmph6ooa_sb/algo_templates.tar.gz
 2026-04-02 13:27:34,862 - INFO - Expected md5 is None, skip md5 check for file /tmp/tmph6ooa_sb/algo_templates.tar.gz.
 2026-04-02 13:27:34,862 - INFO - Writing into directory: /tmp/tmpfca85c_d/workdir.
@@ -11657,11 +12181,17 @@ Starting test: test_run_algo (tests.integration.test_auto3dseg_hpo.TestHPO.test_
 
 monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
 
-  0% 0/12 [00:00<?, ?it/s]  8% 1/12 [00:00<00:04,  2.37it/s] 50% 6/12 [00:00<00:00, 14.41it/s]100% 12/12 [00:00<00:00, 14.30it/s]
+
+  0% 0/12 [00:00<?, ?it/s]
+  8% 1/12 [00:00<00:04,  2.37it/s]
+ 50% 6/12 [00:00<00:00, 14.41it/s]
+100% 12/12 [00:00<00:00, 14.30it/s]
 2026-04-02 13:27:47,853 - INFO - Writing data stats to /tmp/tmp5hijt3l6/workdir/datastats.yaml.
 2026-04-02 13:27:47,866 - INFO - Writing by-case data stats to /tmp/tmp5hijt3l6/workdir/datastats_by_case.yaml, this may take a while.
 2026-04-02 13:27:47,940 - INFO - BundleGen from https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/21ed8e5.tar.gz
-algo_templates.tar.gz: 0.00B [00:00, ?B/s]algo_templates.tar.gz: 104kB [00:00, 1.15MB/s]
+
+algo_templates.tar.gz: 0.00B [00:00, ?B/s]
+algo_templates.tar.gz: 104kB [00:00, 1.15MB/s]
 2026-04-02 13:27:48,115 - INFO - Downloaded: /tmp/tmp7n23mtls/algo_templates.tar.gz
 2026-04-02 13:27:48,115 - INFO - Expected md5 is None, skip md5 check for file /tmp/tmp7n23mtls/algo_templates.tar.gz.
 2026-04-02 13:27:48,115 - INFO - Writing into directory: /tmp/tmp5hijt3l6/workdir.
@@ -11685,11 +12215,17 @@ Starting test: test_run_optuna (tests.integration.test_auto3dseg_hpo.TestHPO.tes
 
 monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
 
-  0% 0/12 [00:00<?, ?it/s]  8% 1/12 [00:00<00:04,  2.40it/s] 42% 5/12 [00:00<00:00, 11.93it/s]100% 12/12 [00:00<00:00, 14.96it/s]
+
+  0% 0/12 [00:00<?, ?it/s]
+  8% 1/12 [00:00<00:04,  2.40it/s]
+ 42% 5/12 [00:00<00:00, 11.93it/s]
+100% 12/12 [00:00<00:00, 14.96it/s]
 2026-04-02 13:28:01,016 - INFO - Writing data stats to /tmp/tmpyi6ss7j3/workdir/datastats.yaml.
 2026-04-02 13:28:01,028 - INFO - Writing by-case data stats to /tmp/tmpyi6ss7j3/workdir/datastats_by_case.yaml, this may take a while.
 2026-04-02 13:28:01,101 - INFO - BundleGen from https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/21ed8e5.tar.gz
-algo_templates.tar.gz: 0.00B [00:00, ?B/s]algo_templates.tar.gz: 104kB [00:00, 1.33MB/s]
+
+algo_templates.tar.gz: 0.00B [00:00, ?B/s]
+algo_templates.tar.gz: 104kB [00:00, 1.33MB/s]
 2026-04-02 13:28:01,260 - INFO - Downloaded: /tmp/tmp8j7fxbzm/algo_templates.tar.gz
 2026-04-02 13:28:01,260 - INFO - Expected md5 is None, skip md5 check for file /tmp/tmp8j7fxbzm/algo_templates.tar.gz.
 2026-04-02 13:28:01,260 - INFO - Writing into directory: /tmp/tmpyi6ss7j3/workdir.
