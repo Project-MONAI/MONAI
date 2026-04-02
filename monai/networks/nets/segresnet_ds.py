@@ -254,24 +254,20 @@ class SegResNetDS(nn.Module):
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.
 
-                    Spatial shape constraints:
-        If ``resolution is None`` (isotropic downsampling), each input spatial dimension
-        must be divisible by ``2 ** (len(blocks_down) - 1)``.
-        With the default ``blocks_down=(1, 2, 2, 4)`` (4 levels), each spatial dimension
-        must be divisible by 8.
-
-        If ``resolution`` is provided, divisibility can differ by dimension based on
-        anisotropic scales; use :py:meth:`shape_factor` for the exact required factors.
-
-        Use :py:meth:`shape_factor` to query the required divisors for a given configuration,
-        and :py:meth:`is_valid_shape` to check whether a specific input tensor satisfies them.
+                    .. note::
+        **Spatial shape constraints**: If ``resolution`` is ``None`` (isotropic mode),
+        each spatial dimension must be divisible by ``2 ** (len(blocks_down) - 1)``.
+        With the default ``blocks_down=(1, 2, 2, 4)``, each dimension must be
+        divisible by 8. If ``resolution`` is provided (anisotropic mode),
+        divisibility can differ per dimension; use :py:meth:`shape_factor` for
+        the exact required factors and :py:meth:`is_valid_shape` to verify a shape.
 
         Example::
 
             model = SegResNetDS(spatial_dims=3, blocks_down=(1, 2, 2, 4))
             print(model.shape_factor())  # [8, 8, 8]
-            # Valid input: shape (1, 1, 128, 128, 128) -- all dims divisible by 8
-            # Invalid input: shape (1, 1, 100, 100, 100) -- 100 is not divisible by 8
+            print(model.is_valid_shape((1, 1, 128, 128, 128)))  # True
+            print(model.is_valid_shape((1, 1, 100, 100, 100)))  # False
 
     """
 
