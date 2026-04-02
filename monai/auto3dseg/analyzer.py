@@ -480,7 +480,7 @@ class LabelStats(Analyzer):
             label_tensor, (MetaTensor, torch.Tensor)
         ):
             if label_tensor.device != image_tensor.device:
-                label_tensor = label_tensor.to(image_tensor.device)
+                label_tensor = label_tensor.to(image_tensor.device)  # type: ignore
 
         ndas: list[MetaTensor] = [image_tensor[i] for i in range(image_tensor.shape[0])]  # type: ignore
         ndas_label: MetaTensor = label_tensor.astype(torch.int16)  # (H,W,D)
