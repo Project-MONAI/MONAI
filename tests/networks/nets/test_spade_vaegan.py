@@ -62,9 +62,7 @@ def create_semantic_data(shape: list, semantic_regions: int):
                 start_point[0] : (start_point[0] + shape_square[0]),
                 start_point[1] : (start_point[1] + shape_square[1]),
                 start_point[2] : (start_point[2] + shape_square[2]),
-            ] = (
-                base_intensity + torch.randn(shape_square) * 0.1
-            )
+            ] = (base_intensity + torch.randn(shape_square) * 0.1)
         else:
             ValueError("Supports only 2D and 3D tensors")
 
