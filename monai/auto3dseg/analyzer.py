@@ -471,6 +471,7 @@ class LabelStats(Analyzer):
         start = time.time()
         image_tensor = d[self.image_key]
         label_tensor = d[self.label_key]
+        # Check if either tensor is on CUDA to determine if we should move both to CUDA for processing
         using_cuda = any(
             isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor)
         )
