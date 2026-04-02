@@ -36,6 +36,7 @@ def _template_5_expected_output(device: torch.device) -> torch.Tensor:
         return _TEMPLATE_5_COMPILED
     return _TEMPLATE_5_NATIVE
 
+
 all_template_parts = [
     [
         {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
