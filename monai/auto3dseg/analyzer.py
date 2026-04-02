@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Hashable, Mapping
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -408,9 +408,10 @@ class LabelStats(Analyzer):
         }
 
         if self.do_ccp:
-            report_format[LabelStatsKeys.LABEL][0].update(
-                {LabelStatsKeys.LABEL_SHAPE: None, LabelStatsKeys.LABEL_NCOMP: None}
-            )
+            report_format[LabelStatsKeys.LABEL][0].update({
+                LabelStatsKeys.LABEL_SHAPE: None,
+                LabelStatsKeys.LABEL_NCOMP: None,
+            })
 
         super().__init__(stats_name, report_format)
         self.update_ops(LabelStatsKeys.IMAGE_INTST, SampleOperations())
@@ -479,8 +480,15 @@ class LabelStats(Analyzer):
         if isinstance(image_tensor, (MetaTensor, torch.Tensor)) and isinstance(
             label_tensor, (MetaTensor, torch.Tensor)
         ):
+            # If there's a device mismatch, move both to CUDA if either is on CUDA, otherwise sync to image device
             if label_tensor.device != image_tensor.device:
-                label_tensor = label_tensor.to(image_tensor.device)  # type: ignore
+                if using_cuda:
+                    # Prefer CUDA for performance when there's a mix
+                    cuda_device = image_tensor.device if image_tensor.device.type == "cuda" else label_tensor.device
+                    image_tensor = cast(MetaTensor, image_tensor.to(cuda_device))
+                    label_tensor = cast(MetaTensor, label_tensor.to(cuda_device))
+                else:
+                    label_tensor = cast(MetaTensor, label_tensor.to(image_tensor.device))
 
         ndas: list[MetaTensor] = [image_tensor[i] for i in range(image_tensor.shape[0])]  # type: ignore
         ndas_label: MetaTensor = label_tensor.astype(torch.int16)  # (H,W,D)
@@ -724,9 +732,10 @@ class LabelStatsSumm(Analyzer):
             LabelStatsKeys.LABEL: [{LabelStatsKeys.PIXEL_PCT: None, LabelStatsKeys.IMAGE_INTST: None}],
         }
         if self.do_ccp:
-            report_format[LabelStatsKeys.LABEL][0].update(
-                {LabelStatsKeys.LABEL_SHAPE: None, LabelStatsKeys.LABEL_NCOMP: None}
-            )
+            report_format[LabelStatsKeys.LABEL][0].update({
+                LabelStatsKeys.LABEL_SHAPE: None,
+                LabelStatsKeys.LABEL_NCOMP: None,
+            })
 
         super().__init__(stats_name, report_format)
         self.update_ops(LabelStatsKeys.IMAGE_INTST, SummaryOperations())

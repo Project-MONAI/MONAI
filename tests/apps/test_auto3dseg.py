@@ -303,16 +303,14 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_image_stats_case_analyzer(self):
         analyzer = ImageStats(image_key="image")
-        transform = Compose(
-            [
-                LoadImaged(keys=["image"]),
-                EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
-                ToDeviced(keys=["image"], device=device, non_blocking=True),
-                Orientationd(keys=["image"], axcodes="RAS"),
-                EnsureTyped(keys=["image"], data_type="tensor"),
-                analyzer,
-            ]
-        )
+        transform = Compose([
+            LoadImaged(keys=["image"]),
+            EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image"], device=device, non_blocking=True),
+            Orientationd(keys=["image"], axcodes="RAS"),
+            EnsureTyped(keys=["image"], data_type="tensor"),
+            analyzer,
+        ])
         create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
         files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
@@ -346,18 +344,16 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_label_stats_case_analyzer(self):
         analyzer = LabelStats(image_key="image", label_key="label")
-        transform = Compose(
-            [
-                LoadImaged(keys=["image", "label"]),
-                EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
-                ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
-                Orientationd(keys=["image", "label"], axcodes="RAS"),
-                EnsureTyped(keys=["image", "label"], data_type="tensor"),
-                Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
-                SqueezeDimd(keys=["label"], dim=0),
-                analyzer,
-            ]
-        )
+        transform = Compose([
+            LoadImaged(keys=["image", "label"]),
+            EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
+            Orientationd(keys=["image", "label"], axcodes="RAS"),
+            EnsureTyped(keys=["image", "label"], data_type="tensor"),
+            Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+            SqueezeDimd(keys=["label"], dim=0),
+            analyzer,
+        ])
         create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
         files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
@@ -393,6 +389,7 @@ class TestDataAnalyzer(unittest.TestCase):
         result = analyzer({"image": image_tensor, "label": label_tensor})
         report = result["label_stats"]
 
+        # Verify report format and computation succeeded despite mixed/unified devices
         assert verify_report_format(report, analyzer.get_report_format())
         assert report[LabelStatsKeys.LABEL_UID] == [0, 1]
 
