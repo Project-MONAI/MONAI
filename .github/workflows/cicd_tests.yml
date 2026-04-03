@@ -83,8 +83,8 @@ jobs:
         # Base test cases are to test on all three OSes with the lowest versions of Python and PyTorch, other cases are
         # added below as special cases to cover other Python and PyTorch versions under Ubuntu
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: [ ${{ env.PYTHON_VER1 }} ]
-        pytorch-version: [ ${{ env.PYTORCH_VER1 }} ]
+        python-version: ${{ env.PYTHON_VER1 }}
+        pytorch-version: ${{ env.PYTORCH_VER1 }}
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
