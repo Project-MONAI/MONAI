@@ -40,7 +40,7 @@ env:
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
-# Python and PyTorch in many places using the above environment variables, when support is dropped for a version it is 
+# Python and PyTorch in many places using the above environment variables, when support is dropped for a version it is
 # important to update these as appropriate.
 
 jobs:
