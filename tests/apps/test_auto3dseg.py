@@ -393,6 +393,7 @@ class TestDataAnalyzer(unittest.TestCase):
         result = analyzer({"image": image_tensor, "label": label_tensor})
         report = result["label_stats"]
 
+        # Verify report format and computation succeeded despite mixed/unified devices
         assert verify_report_format(report, analyzer.get_report_format())
         assert report[LabelStatsKeys.LABEL_UID] == [0, 1]
 
