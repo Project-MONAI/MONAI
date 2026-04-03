@@ -26,17 +26,17 @@ concurrency:
 
 env:
   # supported versions of Python
-  PYTHON_VER1: '3.10'
-  PYTHON_VER2: '3.11'
-  PYTHON_VER3: '3.12'
-  PYTHON_VER4: '3.13'
-  PYTHON_VER5: '3.14'
+  PYTHON_VER1: "3.10"
+  PYTHON_VER2: "3.11"
+  PYTHON_VER3: "3.12"
+  PYTHON_VER4: "3.13"
+  PYTHON_VER5: "3.14"
   # supported versions of PyTorch
-  PYTORCH_VER1: '2.8.0'
-  PYTORCH_VER2: '2.9.1'
-  PYTORCH_VER3: '2.10.0'
-  PYTORCH_VER4: '2.11.0'
-  TORCHVISION_VER: '0.23.0'  # used for testing with lowest PyTorch version
+  PYTORCH_VER1: "2.8.0"
+  PYTORCH_VER2: "2.9.1"
+  PYTORCH_VER3: "2.10.0"
+  PYTORCH_VER4: "2.11.0"
+  TORCHVISION_VER: "0.23.0"  # used for testing with lowest PyTorch version
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
