@@ -254,8 +254,6 @@ class SegResNetDS(nn.Module):
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.
 
-                    .. note::
-
                     **Spatial shape constraints**: If ``resolution`` is ``None`` (isotropic mode),
                     each spatial dimension must be divisible by ``2 ** (len(blocks_down) - 1)``.
                     With the default ``blocks_down=(1, 2, 2, 4)``, each dimension must be
