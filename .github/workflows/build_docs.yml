@@ -31,7 +31,7 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v6

@@ -24,9 +24,24 @@ concurrency:
   group: cicd-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # supported versions of Python
+  PYTHON_VER1: '3.10'
+  PYTHON_VER2: '3.11'
+  PYTHON_VER3: '3.12'
+  PYTHON_VER4: '3.13'
+  PYTHON_VER5: '3.14'
+  # supported versions of PyTorch
+  PYTORCH_VER1: '2.8.0'
+  PYTORCH_VER2: '2.9.1'
+  PYTORCH_VER3: '2.10.0'
+  PYTORCH_VER4: '2.11.0'
+  TORCHVISION_VER: "0.23.0"  # used for testing with lowest PyTorch version
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
+
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
-# Python and PyTorch in many places hard-coded as literals, so when support is dropped for a version it is important to
-# go through all jobs and check the versions they use are correct.
+# Python and PyTorch in many places using the above environment variables, when support is dropped for a version it is 
+# important to update these as appropriate.
 
 jobs:
   static-checks:  # Perform static type and other checks using runtests.sh
@@ -44,10 +59,10 @@ jobs:
         sudo docker system prune -f
 
     - uses: actions/checkout@v6
-    - name: Set up Python 3.10
+    - name: Set up Python {{ $PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: {{ $PYTHON_VER1 }}
         cache: 'pip'
     - name: Install dependencies
       run: |
@@ -65,31 +80,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Base test cases are to test on all three OSes with the lowest versions of Python and PyTorch, other cases are
+        # added below as special cases to cover other Python and PyTorch versions under Ubuntu
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ['3.10']
-        pytorch-version: ['2.6.0']
+        python-version: [{{ $PYTHON_VER1 }}]
+        pytorch-version: [{{ $PYTORCH_VER1 }}]
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
-          pytorch-version: '2.6.0'
-          python-version: '3.11'
+          pytorch-version: {{ $PYTORCH_VER1 }}
+          python-version: {{ $PYTHON_VER2 }}
         - os: ubuntu-latest
-          pytorch-version: '2.6.0'
-          python-version: '3.12'
+          pytorch-version: {{ $PYTORCH_VER1 }}
+          python-version: {{ $PYTHON_VER3 }}
         - os: ubuntu-latest
-          pytorch-version: '2.6.0'
-          python-version: '3.13'
+          pytorch-version: {{ $PYTORCH_VER1 }}
+          python-version: {{ $PYTHON_VER4 }}
+        - os: ubuntu-latest
+          pytorch-version: {{ $PYTORCH_VER1 }}
+          python-version: {{ $PYTHON_VER5 }}
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.7.1'
+          python-version: {{ $PYTHON_VER1 }}
+          pytorch-version: {{ $PYTORCH_VER2 }}
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.8.0'
+          python-version: {{ $PYTHON_VER1 }}
+          pytorch-version: {{ $PYTORCH_VER3 }}
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.9.0'
+          python-version: {{ $PYTHON_VER1 }}
+          pytorch-version: {{ $PYTORCH_VER4 }}
 
     timeout-minutes: 40
     steps:
@@ -101,28 +121,17 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
     - name: Prepare pip wheel
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install --user more-itertools>=8.0
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      shell: bash
-    - name: cache for pip
-      uses: actions/cache@v4
-      id: cache
-      with:
-        path: ${{ steps.pip-cache.outputs.dir }}
-        key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the minimum dependencies
       run: |
         # min. requirements
@@ -156,6 +165,8 @@ jobs:
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 120
+    env:
+      QUICKTEST: True
     steps:
     - if: runner.os == 'Linux'
       name: Clean unused tools
@@ -173,10 +184,10 @@ jobs:
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v6
-    - name: Set up Python 3.10
+    - name: Set up Python {{ $PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: {{ $PYTHON_VER1 }}
         cache: 'pip'
     - name: Prepare pip wheel
       run: |
@@ -185,7 +196,7 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==2.5.1 torchvision==0.20.1+cpu --index-url https://download.pytorch.org/whl/cpu
+        python -m pip install torch==$PYTORCH_VER1 torchvision==$TORCHVISION_VER+cpu --index-url https://download.pytorch.org/whl/cpu
     - if: runner.os == 'Linux'
       name: Install itk pre-release (Linux only)
       run: |
@@ -193,7 +204,7 @@ jobs:
     - name: Install the complete dependencies
       run: |
         python -m pip install --user --upgrade pip wheel
-        python -m pip install torch==2.5.1 torchvision==0.20.1
+        python -m pip install torch==$PYTORCH_VER1 torchvision==$TORCHVISION_VER
         cat "requirements-dev.txt"
         python -m pip install --no-build-isolation -r requirements-dev.txt
         python -m pip list
@@ -209,9 +220,6 @@ jobs:
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         # python -m unittest -v
-      env:
-        QUICKTEST: True
-        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   packaging:  # Test package generation
     runs-on: ubuntu-latest
@@ -230,10 +238,10 @@ jobs:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
-    - name: Set up Python 3.10
+    - name: Set up Python {{ $PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: {{ $PYTHON_VER1 }}
         cache: 'pip'
     - name: Install dependencies
       run: |
@@ -241,7 +249,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=2.5.1 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install torch==$PYTORCH_VER1 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Check packages
       run: |
         pip uninstall monai
@@ -293,17 +301,15 @@ jobs:
         ls -al
         python -m pip install --no-build-isolation -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
         python -m unittest -v
-      env:
-        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   build-docs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: Set up Python 3.10
+    - name: Set up Python {{ $PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: {{ $PYTHON_VER1 }}
         cache: 'pip'
     - name: Install dependencies
       run: |
