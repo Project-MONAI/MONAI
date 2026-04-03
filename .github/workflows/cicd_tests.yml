@@ -26,17 +26,17 @@ concurrency:
 
 env:
   # supported versions of Python
-  PYTHON_VER1: "3.10"
-  PYTHON_VER2: "3.11"
-  PYTHON_VER3: "3.12"
-  PYTHON_VER4: "3.13"
-  PYTHON_VER5: "3.14"
+  PYTHON_VER1: '3.10'
+  PYTHON_VER2: '3.11'
+  PYTHON_VER3: '3.12'
+  PYTHON_VER4: '3.13'
+  PYTHON_VER5: '3.14'
   # supported versions of PyTorch
-  PYTORCH_VER1: "2.8.0"
-  PYTORCH_VER2: "2.9.1"
-  PYTORCH_VER3: "2.10.0"
-  PYTORCH_VER4: "2.11.0"
-  TORCHVISION_VER: "0.23.0"  # used for testing with lowest PyTorch version
+  PYTORCH_VER1: '2.8.0'
+  PYTORCH_VER2: '2.9.1'
+  PYTORCH_VER3: '2.10.0'
+  PYTORCH_VER4: '2.11.0'
+  TORCHVISION_VER: '0.23.0'  # used for testing with lowest PyTorch version
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
@@ -83,33 +83,33 @@ jobs:
         # Base test cases are to test on all three OSes with the lowest versions of Python and PyTorch, other cases are
         # added below as special cases to cover other Python and PyTorch versions under Ubuntu
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ${{ env.PYTHON_VER1 }}
-        pytorch-version: ${{ env.PYTORCH_VER1 }}
+        python-version: ['3.10']
+        pytorch-version: ['2.8.0']
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
-          pytorch-version: ${{ env.PYTORCH_VER1 }}
-          python-version: ${{ env.PYTHON_VER2 }}
+          pytorch-version: '2.8.0'
+          python-version: '3.11'
         - os: ubuntu-latest
-          pytorch-version: ${{ env.PYTORCH_VER1 }}
-          python-version: ${{ env.PYTHON_VER3 }}
+          pytorch-version: '2.8.0'
+          python-version: '3.12'
         - os: ubuntu-latest
-          pytorch-version: ${{ env.PYTORCH_VER1 }}
-          python-version: ${{ env.PYTHON_VER4 }}
+          pytorch-version: '2.8.0'
+          python-version: '3.13'
         - os: ubuntu-latest
-          pytorch-version: ${{ env.PYTORCH_VER1 }}
-          python-version: ${{ env.PYTHON_VER5 }}
+          pytorch-version: '2.8.0'
+          python-version: '3.14'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
-          python-version: ${{ env.PYTHON_VER1 }}
-          pytorch-version: ${{ env.PYTORCH_VER2 }}
+          python-version: '3.10'
+          pytorch-version: '2.9.1'
         - os: ubuntu-latest
-          python-version: ${{ env.PYTHON_VER1 }}
-          pytorch-version: ${{ env.PYTORCH_VER3 }}
+          python-version: '3.10'
+          pytorch-version: '2.10.0'
         - os: ubuntu-latest
-          python-version: ${{ env.PYTHON_VER1 }}
-          pytorch-version: ${{ env.PYTORCH_VER4 }}
+          python-version: '3.10'
+          pytorch-version: '2.11.0'
 
     timeout-minutes: 40
     steps:
