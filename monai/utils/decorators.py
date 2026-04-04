@@ -16,7 +16,7 @@ from functools import wraps
 __all__ = ["RestartGenerator", "MethodReplacer"]
 
 from collections.abc import Generator
-from typing import Callable
+from collections.abc import Callable
 
 
 class RestartGenerator:

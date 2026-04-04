@@ -15,7 +15,8 @@ from collections import namedtuple
 from collections.abc import Iterable
 from keyword import iskeyword
 from textwrap import dedent, indent
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Callable
 
 T = TypeVar("T")
 

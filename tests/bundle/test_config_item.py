@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 from parameterized import parameterized

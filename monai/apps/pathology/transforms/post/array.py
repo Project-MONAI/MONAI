@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import torch

@@ -21,7 +21,8 @@ import warnings
 from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 import torch
