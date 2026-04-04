@@ -14,9 +14,9 @@ from __future__ import annotations
 import pickle
 import types
 import warnings
+from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
-from collections.abc import Callable
 
 import numpy as np
 import torch

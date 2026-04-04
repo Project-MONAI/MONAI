@@ -198,6 +198,7 @@ jobs:
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
+      shell: bash
     - if: runner.os == 'Linux'
       name: Install itk pre-release (Linux only)
       run: |

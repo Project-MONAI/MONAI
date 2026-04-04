@@ -60,7 +60,7 @@ kvikio, has_kvikio = optional_import("kvikio")
 if TYPE_CHECKING:
     import cupy
 
-    NdarrayOrCupy = Union[np.ndarray, cupy.ndarray]
+    NdarrayOrCupy = np.ndarray | cupy.ndarray
 else:
     NdarrayOrCupy = Any
 

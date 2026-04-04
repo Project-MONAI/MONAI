@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import unittest
-from functools import partial
 from collections.abc import Callable
+from functools import partial
 
 import torch
 from parameterized import parameterized

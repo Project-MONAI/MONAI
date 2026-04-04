@@ -20,10 +20,9 @@ import logging
 import sys
 import traceback
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from pydoc import locate
-from collections.abc import Callable
 
 import numpy as np
 import torch

@@ -118,7 +118,7 @@ __all__ = [
     "RandSimulateLowResolution",
 ]
 
-RandRange = Optional[Sequence[tuple[float, float] | float] | float]
+RandRange = Sequence[tuple[float, float] | float] | float | None
 
 
 class SpatialResample(InvertibleTransform, LazyTransform):
