@@ -18,7 +18,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from itertools import zip_longest
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import numpy as np
 import torch

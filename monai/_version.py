@@ -15,7 +15,6 @@ import os
 import re
 import subprocess
 import sys
-from typing import Dict
 from collections.abc import Callable
 import functools
 
