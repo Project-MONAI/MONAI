@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Collection, Hashable, Iterable, Sequence
-from typing import TypeVar, Union
+from typing import TypeVar
 
 import numpy as np
 import torch
