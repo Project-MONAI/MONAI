@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Hashable, Mapping
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -468,21 +468,35 @@ class LabelStats(Analyzer):
         """
         d: dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
-        if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
-            using_cuda = True
-        else:
-            using_cuda = False
+        image_tensor = d[self.image_key]
+        label_tensor = d[self.label_key]
+        # Check if either tensor is on CUDA to determine if we should move both to CUDA for processing
+        using_cuda = any(
+            isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor)
+        )
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
-        ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
-        ndas_label: MetaTensor = d[self.label_key].astype(torch.int16)  # (H,W,D)
+        if isinstance(image_tensor, (MetaTensor, torch.Tensor)) and isinstance(
+            label_tensor, (MetaTensor, torch.Tensor)
+        ):
+            if label_tensor.device != image_tensor.device:
+                if using_cuda:
+                    # Move both tensors to CUDA when mixing devices
+                    cuda_device = image_tensor.device if image_tensor.device.type == "cuda" else label_tensor.device
+                    image_tensor = cast(MetaTensor, image_tensor.to(cuda_device))
+                    label_tensor = cast(MetaTensor, label_tensor.to(cuda_device))
+                else:
+                    label_tensor = cast(MetaTensor, label_tensor.to(image_tensor.device))
+
+        ndas: list[MetaTensor] = [image_tensor[i] for i in range(image_tensor.shape[0])]  # type: ignore
+        ndas_label: MetaTensor = label_tensor.astype(torch.int16)  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
         nda_foregrounds: list[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
-        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
+        nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
