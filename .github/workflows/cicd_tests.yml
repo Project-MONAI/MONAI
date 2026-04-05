@@ -205,7 +205,7 @@ jobs:
         python -m pip install --pre -U itk
     - name: Install the complete dependencies
       run: |
-        python -m pip install --user --upgrade pip wheel pybind11
+        python -m pip install --user --upgrade pip wheel pybind11  # pybind11 added for macOS, may not be needed
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER}
         cat "requirements-dev.txt"
         python -m pip install --no-build-isolation -r requirements-dev.txt
