@@ -151,7 +151,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        # ./runtests.sh --min
+        ./runtests.sh --min
       shell: bash
       env:
         QUICKTEST: True
@@ -221,7 +221,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        # python -m unittest -v
+        python -m unittest -v
 
   packaging:  # Test package generation
     runs-on: ubuntu-latest
