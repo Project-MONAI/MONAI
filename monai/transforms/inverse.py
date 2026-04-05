@@ -282,8 +282,8 @@ class TraceableTransform(Transform):
                     msg += f" for key {key}"
 
                 pend = out_obj.pending_operations[-1]
-                statuses = pend.get(TraceKeys.STATUSES, dict())
-                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, list())
+                statuses = pend.get(TraceKeys.STATUSES, {})
+                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, [])
                 messages.append(msg)
                 statuses[TraceStatusKeys.PENDING_DURING_APPLY] = messages
                 info[TraceKeys.STATUSES] = statuses
