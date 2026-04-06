@@ -1,5 +1,5 @@
 include versioneer.py
 include monai/_version.py
-
+exclude tests/*
 include README.md
 include LICENSE
