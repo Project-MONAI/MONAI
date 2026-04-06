@@ -202,14 +202,21 @@ jobs:
         # BUG: PyTorch 2.8.0 appears to have a gloo bug under Windows with failing distributed tests
         python -m pip install torch==${PYTORCH_VER2} torchvision==${TORCHVISION_VER2}+cpu --index-url https://download.pytorch.org/whl/cpu
       shell: bash
+    - if: runner.os != 'windows'
+      name: Install torch gpu
+      run: |
+        # install the lowest version of PyTorch supported
+        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+      shell: bash
     - if: runner.os == 'Linux'
       name: Install itk pre-release (Linux only)
       run: |
         python -m pip install --pre -U itk
+      shell: bash
     - name: Install the complete dependencies
       run: |
         python -m pip install --user --upgrade pip wheel pybind11  # TODO: pybind11 added for macOS, may not be needed
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        #python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
         cat "requirements-dev.txt"
         python -m pip install --no-build-isolation -r requirements-dev.txt
         python -m pip list
@@ -225,6 +232,7 @@ jobs:
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         python -m unittest -v
+      shell: bash
 
   packaging:  # Test package generation
     runs-on: ubuntu-latest
