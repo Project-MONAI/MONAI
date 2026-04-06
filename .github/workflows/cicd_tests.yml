@@ -37,7 +37,7 @@ env:
   PYTORCH_VER2: '2.9.1'
   PYTORCH_VER3: '2.10.0'
   PYTORCH_VER4: '2.11.0'
-  TORCHVISION_VER: '0.23.0'  # used for testing with lowest PyTorch version
+  TORCHVISION_VER: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
@@ -98,7 +98,7 @@ jobs:
           pytorch-version: '2.8.0'
           python-version: '3.13'
         - os: ubuntu-latest
-          pytorch-version: '2.9.0'
+          pytorch-version: '2.9.1'
           python-version: '3.14'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
