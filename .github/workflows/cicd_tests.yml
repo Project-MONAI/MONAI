@@ -31,7 +31,7 @@ env:
   PYTHON_VER2: '3.11'
   PYTHON_VER3: '3.12'
   PYTHON_VER4: '3.13'
-  PYTHON_VER5: '3.14'
+  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
   # supported versions of PyTorch
   PYTORCH_VER1: '2.8.0'
   PYTORCH_VER2: '2.9.1'
@@ -97,9 +97,9 @@ jobs:
         - os: ubuntu-latest
           pytorch-version: '2.8.0'
           python-version: '3.13'
-        - os: ubuntu-latest
-          pytorch-version: '2.9.1'
-          python-version: '3.14'
+        # - os: ubuntu-latest
+        #   pytorch-version: '2.9.1'
+        #   python-version: '3.14'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
