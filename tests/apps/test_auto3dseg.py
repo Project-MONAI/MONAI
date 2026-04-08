@@ -539,6 +539,36 @@ class TestDataAnalyzer(unittest.TestCase):
         assert str(DataStatsKeys.FG_IMAGE_STATS) in report
         assert str(DataStatsKeys.LABEL_STATS) in report
 
+    def test_image_stats_precomputed_nda_croppeds(self):
+        # Verify that ImageStats does not crash when nda_croppeds is pre-populated in the dict.
+        # Previously this caused UnboundLocalError because the variable was only assigned in
+        # the else branch but used unconditionally.
+        analyzer = ImageStats(image_key="image")
+        image = torch.rand(1, 10, 10, 10)
+        precomputed = [np.random.rand(8, 8, 8)]  # simulated pre-cropped foreground
+        data = {"image": MetaTensor(image), "nda_croppeds": precomputed}
+        result = analyzer(data)
+        assert "image_stats" in result
+        assert verify_report_format(result["image_stats"], analyzer.get_report_format())
+
+    def test_analyzer_grad_state_restored_after_call(self):
+        # Verify that ImageStats.__call__ always restores the grad-enabled state it found
+        # on entry, regardless of which state that was.
+        analyzer = ImageStats(image_key="image")
+        image = torch.rand(1, 10, 10, 10)
+        data = {"image": MetaTensor(image)}
+
+        # grad enabled before call → must still be enabled after
+        torch.set_grad_enabled(True)
+        analyzer(data)
+        assert torch.is_grad_enabled(), "grad state was not restored after ImageStats call"
+
+        # grad disabled before call → must still be disabled after
+        torch.set_grad_enabled(False)
+        analyzer(data)
+        assert not torch.is_grad_enabled(), "grad state was not restored after ImageStats call"
+        torch.set_grad_enabled(True)  # restore for subsequent tests
+
     def tearDown(self) -> None:
         self.test_dir.cleanup()
 
