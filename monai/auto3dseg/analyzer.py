@@ -261,6 +261,12 @@ class ImageStats(Analyzer):
                 nda_croppeds = [get_foreground_image(nda) for nda in ndas]
             else:
                 nda_croppeds = d["nda_croppeds"]
+                if not isinstance(nda_croppeds, (list, tuple)) or len(nda_croppeds) != len(ndas):
+                    raise ValueError(
+                        f"Pre-computed 'nda_croppeds' must be a list with one entry per image channel "
+                        f"(expected {len(ndas)}, got "
+                        f"{len(nda_croppeds) if isinstance(nda_croppeds, (list, tuple)) else type(nda_croppeds).__name__})."
+                    )
 
             # perform calculation
             report = deepcopy(self.get_report_format())

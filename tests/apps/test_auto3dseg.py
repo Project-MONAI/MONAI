@@ -540,9 +540,11 @@ class TestDataAnalyzer(unittest.TestCase):
         assert str(DataStatsKeys.LABEL_STATS) in report
 
     def test_image_stats_precomputed_nda_croppeds(self):
-        # Verify that ImageStats does not crash when nda_croppeds is pre-populated in the dict.
-        # Previously this caused UnboundLocalError because the variable was only assigned in
-        # the else branch but used unconditionally.
+        """Verify ImageStats handles pre-populated nda_croppeds without crashing.
+
+        Previously raised UnboundLocalError because nda_croppeds was only assigned
+        inside the ``if "nda_croppeds" not in d`` branch but used unconditionally.
+        """
         analyzer = ImageStats(image_key="image")
         image = torch.rand(1, 10, 10, 10)
         precomputed = [np.random.rand(8, 8, 8)]  # simulated pre-cropped foreground
@@ -552,8 +554,11 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(result["image_stats"], analyzer.get_report_format())
 
     def test_analyzer_grad_state_restored_after_call(self):
-        # Verify that ImageStats.__call__ always restores the grad-enabled state it found
-        # on entry, regardless of which state that was.
+        """Verify ImageStats restores torch grad-enabled state on both normal and disabled entry.
+
+        Checks that the try/finally guard correctly restores the state regardless of
+        whether grad was enabled or disabled before the call.
+        """
         analyzer = ImageStats(image_key="image")
         image = torch.rand(1, 10, 10, 10)
         data = {"image": MetaTensor(image)}
@@ -565,9 +570,11 @@ class TestDataAnalyzer(unittest.TestCase):
 
         # grad disabled before call → must still be disabled after
         torch.set_grad_enabled(False)
-        analyzer(data)
-        assert not torch.is_grad_enabled(), "grad state was not restored after ImageStats call"
-        torch.set_grad_enabled(True)  # restore for subsequent tests
+        try:
+            analyzer(data)
+            assert not torch.is_grad_enabled(), "grad state was not restored after ImageStats call"
+        finally:
+            torch.set_grad_enabled(True)  # always restore for subsequent tests
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
