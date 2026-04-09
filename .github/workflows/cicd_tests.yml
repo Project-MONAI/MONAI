@@ -38,7 +38,10 @@ env:
   PYTORCH_VER3: '2.10.0'
   PYTORCH_VER4: '2.11.0'
   TORCHVISION_VER1: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
-  TORCHVISION_VER2: '0.24.1'  # used for testing with second lowest PyTorch version (PYTORCH_VER2)
+
+  # versions of PyTorch/Torchvision to use for full-dep Windows tests, needed to get around a gloo bug
+  WIN_FULLDEP_VER: '2.11.0'
+  WIN_FULLDEP_VISION_VER: '0.26.0'
 
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
@@ -200,7 +203,7 @@ jobs:
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         # BUG: PyTorch 2.8.0 appears to have a gloo bug under Windows with failing distributed tests
-        python -m pip install torch==${PYTORCH_VER2} torchvision==${TORCHVISION_VER2}+cpu --index-url https://download.pytorch.org/whl/cpu
+        python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
       shell: bash
     - if: runner.os != 'windows'
       name: Install torch gpu
