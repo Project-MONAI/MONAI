@@ -1315,7 +1315,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
 
     backend = ConvertToMultiChannelBasedOnBratsClasses.backend
 
-    def __init__(self, keys: KeysCollection, et_label: int = 4, allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, et_label: int = 4):
         super().__init__(keys, allow_missing_keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses(et_label=et_label)
 
