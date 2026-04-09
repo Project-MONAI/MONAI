@@ -35,7 +35,9 @@ def make_triangular_kernel(kernel_size: int) -> torch.Tensor:
 
 def make_gaussian_kernel(kernel_size: int) -> torch.Tensor:
     sigma = torch.tensor(kernel_size / 3.0)
-    kernel = gaussian_1d(sigma=sigma, truncated=kernel_size // 2, approx="sampled", normalize=False) * (
+    # truncated is the number of std devs; set so that tail = kernel_size // 2
+    truncated = (kernel_size // 2) / float(sigma)
+    kernel = gaussian_1d(sigma=sigma, truncated=truncated, approx="sampled", normalize=False) * (
         2.5066282 * sigma
     )
     return kernel[:kernel_size]
