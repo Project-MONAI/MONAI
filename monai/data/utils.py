@@ -881,7 +881,7 @@ def compute_shape_offset(
             Default is False, using option 1 to compute the shape and offset.
 
     """
-    shape = np.array(spatial_shape, copy=True, dtype=float)
+    shape = np.array(tuple(spatial_shape), copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
