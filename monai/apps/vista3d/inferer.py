@@ -116,7 +116,7 @@ def point_based_window_inferer(
 
     if stitched_output is None:
         raise ValueError("Input configuration resulted in no prediction windows being selected.")
-    
+
     # if stitched_mask is 0, then NaN value
     stitched_output = stitched_output / stitched_mask
     # revert padding
