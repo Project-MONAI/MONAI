@@ -12,8 +12,10 @@ on:
       - '**.rst'
       - 'docs/**'
   pull_request:
-    head_ref-ignore:
+    branches:
       - dev
+      - main
+      - releasing/*
     paths-ignore:  # skip if only docs are modified
       - '**.md'
       - '**.rst'
@@ -241,7 +243,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
-      shell: bash
     steps:
     - name: Clean unused tools
       run: |
@@ -250,7 +251,6 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
@@ -302,10 +302,9 @@ jobs:
     - name: Install source archive
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
-        # install from tar.gz
-        name=$(ls *.tar.gz | head -n1)
+        for name in *.tar.gz; do break; done
         echo $name
-        python -m pip install $name[all] --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
     - name: Quick test

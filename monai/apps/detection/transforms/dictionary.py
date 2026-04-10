@@ -811,12 +811,12 @@ class ClipBoxToImaged(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         box_keys_tuple = ensure_tuple(box_keys)
-        if len(box_keys_tuple) != 1:
+        if len(box_keys_tuple) < 1:
             raise ValueError(
                 "Please provide at least one key for `box_keys`. All `label_keys` are attached to this `box_keys`."
             )
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
-        if len(box_ref_image_keys_tuple) != 1:
+        if len(box_ref_image_keys_tuple) < 1:
             raise ValueError(
                 "Please provide at least one key for `box_ref_image_keys`. "
                 "All box_keys and label_keys are attached to this `box_ref_image_keys`."
