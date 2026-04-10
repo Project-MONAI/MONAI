@@ -308,9 +308,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         else:
             raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
         if "affine" not in meta_dict:
-            raise ValueError(
-                f"Key 'affine' not found in {meta_key}. Please check it is the correct the image meta key."
-            )
+            raise ValueError(f"Key 'affine' not found in {meta_key}, check this is the correct image meta key.")
         affine: NdarrayOrTensor = meta_dict["affine"]
 
         if self.affine_lps_to_ras:  # RAS affine
