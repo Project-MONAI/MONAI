@@ -21,7 +21,7 @@ from monai.data.utils import compute_shape_offset
 
 class TestComputeShapeOffset(unittest.TestCase):
     """Unit tests for :func:`monai.data.utils.compute_shape_offset`."""
-    
+
     def test_pytorch_size_input(self):
         """Validate `torch.Size` input produces expected shape and offset.
 
