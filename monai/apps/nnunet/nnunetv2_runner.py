@@ -196,6 +196,10 @@ class nnUNetV2Runner:  # noqa: N801
         # dataset_name_or_id has to be a string
         self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
 
+        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
+        if len(shlex.split(self.dataset_name_or_id))!=1:
+            raise ValueError("Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID.")
+
         try:
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
@@ -574,7 +578,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         cmd = [
             "nnUNetv2_train",
-            f"{self.dataset_name_or_id}",
+            f"{self.dataset_name_or_id}",  # value is checked in constructor to be an identifier or number
             f"{config}",
             f"{fold}",
             "-tr",
