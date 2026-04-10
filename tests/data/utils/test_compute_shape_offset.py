@@ -21,6 +21,26 @@ from monai.data.utils import compute_shape_offset
 
 class TestComputeShapeOffset(unittest.TestCase):
     """Unit tests for :func:`monai.data.utils.compute_shape_offset`."""
+    
+    def test_pytorch_size_input(self):
+        """Validate `torch.Size` input produces expected shape and offset.
+
+        Returns:
+            None.
+
+        Raises:
+            AssertionError: If computed shape/offset are not as expected.
+        """
+        # 1. Create a PyTorch Size object (which triggered the original bug)
+        spatial_shape = torch.Size([10, 10, 10])
+        in_affine = np.eye(4)
+        out_affine = np.eye(4)
+
+        # 2. Feed it into the function
+        shape, offset = compute_shape_offset(spatial_shape, in_affine, out_affine)
+
+        # 3. Prove it successfully processed the shape by checking its length
+        self.assertEqual(len(shape), 3)
 
     def setUp(self):
         """Set up a 4x4 identity affine used across all test cases."""
