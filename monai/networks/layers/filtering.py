@@ -420,7 +420,7 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             )
         if input_tensor.shape != guidance_tensor.shape:
             raise ValueError(
-                f"Shape of input image must equal shape of guidance image.Got {input_tensor.shape} and {guidance_tensor.shape}."
+                f"Shape of input image must equal shape of guidance image, got {input_tensor.shape} and {guidance_tensor.shape}."
             )
 
         len_input = len(input_tensor.shape)
