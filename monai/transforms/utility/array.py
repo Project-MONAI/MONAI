@@ -702,7 +702,7 @@ class DataStats(Transform):
                 # if the root log level is higher than INFO, set a separate stream handler to record
                 console = logging.StreamHandler(sys.stdout)
                 console.setLevel(logging.INFO)
-                console.is_data_stats_handler = True  # type:ignore[attr-defined]
+                console.is_data_stats_handler = True  # type: ignore[attr-defined]
                 _logger.addHandler(console)
 
     def __call__(

@@ -320,7 +320,7 @@ def get_edge_surface_distance(
     edges_spacing = None
     if use_subvoxels:
         edges_spacing = spacing if spacing is not None else ([1] * len(y_pred.shape))
-    (edges_pred, edges_gt, *areas) = get_mask_edges(
+    edges_pred, edges_gt, *areas = get_mask_edges(
         y_pred, y, crop=True, spacing=edges_spacing, always_return_as_numpy=False
     )
     if not edges_gt.any():
