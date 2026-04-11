@@ -226,7 +226,9 @@ class ImageStats(Analyzer):
             has stats pre-defined by SampleOperations (max, min, ....).
 
         Raises:
-            RuntimeError if the stats report generated is not consistent with the pre-
+            ValueError: if ``nda_croppeds`` is present in the input dict but is not a
+                list/tuple or has a different length than the number of image channels.
+            RuntimeError: if the stats report generated is not consistent with the pre-
                 defined report_format.
 
         Note:
