@@ -111,9 +111,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
         _kernel = look_up_option(kernel_type, kernel_dict)
-        self.kernel = _kernel(self.kernel_size)
-        self.kernel.require_grads = False
-        self.kernel_vol = self.get_kernel_vol()
+        self.register_buffer("kernel", _kernel(self.kernel_size))
+        self.register_buffer("kernel_vol", self.get_kernel_vol())
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
