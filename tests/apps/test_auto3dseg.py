@@ -178,7 +178,10 @@ class TestImageAnalyzer(Analyzer):
 
 
 class TestDataAnalyzer(unittest.TestCase):
+    """Integration tests for the auto3dseg analyzer pipeline."""
+
     def setUp(self):
+        """Create temporary directory and write simulated datalist JSON file."""
         self.test_dir = tempfile.TemporaryDirectory()
         work_dir = self.test_dir.name
         self.dataroot_dir = os.path.join(work_dir, "sim_dataroot")
@@ -188,6 +191,7 @@ class TestDataAnalyzer(unittest.TestCase):
 
     @parameterized.expand(SIM_CPU_TEST_CASES)
     def test_data_analyzer_cpu(self, input_params):
+        """Verify DataAnalyzer produces per-case stats on CPU across dim/label combinations."""
         sim_dim = input_params["sim_dim"]
         label_key = input_params["label_key"]
         image_only = not bool(label_key)
@@ -204,6 +208,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
     def test_data_analyzer_histogram(self):
+        """Verify DataAnalyzer runs in histogram_only mode with no label key."""
         create_sim_data(
             self.dataroot_dir, sim_datalist, [32] * 3, image_only=True, rad_max=8, rad_min=1, num_seg_classes=1
         )
@@ -221,6 +226,7 @@ class TestDataAnalyzer(unittest.TestCase):
     @parameterized.expand(SIM_GPU_TEST_CASES)
     @skip_if_no_cuda
     def test_data_analyzer_gpu(self, input_params):
+        """Verify DataAnalyzer produces per-case stats on GPU (skipped if CUDA unavailable)."""
         sim_dim = input_params["sim_dim"]
         label_key = input_params["label_key"]
         image_only = not bool(label_key)
@@ -236,6 +242,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
     def test_basic_operation_class(self):
+        """Verify Operations.evaluate returns correct stat keys and shapes with and without axis."""
         op = TestOperations()
         test_data = np.random.rand(10, 10).astype(np.float64)
         test_ret_1 = op.evaluate(test_data)
@@ -250,6 +257,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert test_ret_2["max"].ndim == 1
 
     def test_sample_operations(self):
+        """Verify SampleOperations works with both numpy arrays and MetaTensors."""
         op = SampleOperations()
         test_data_np = np.random.rand(10, 10).astype(np.float64)
         test_data_mt = MetaTensor(test_data_np, device=device)
@@ -265,6 +273,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert "sum" in test_ret_np
 
     def test_summary_operations(self):
+        """Verify SummaryOperations reduces a stat dict to scalar summary values."""
         op = SummaryOperations()
         test_dict = {"min": [0, 1, 2, 3], "max": [2, 3, 4, 5], "mean": [1, 2, 3, 4], "sum": [2, 4, 6, 8]}
         test_ret = op.evaluate(test_dict)
@@ -277,6 +286,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert isinstance(test_ret["sum"], Number)
 
     def test_basic_analyzer_class(self):
+        """Verify a custom Analyzer subclass computes and stores stats in the output dict."""
         test_data = {}
         test_data["image_test"] = np.random.rand(10, 10)
         report_format = {"stats": None}
@@ -288,6 +298,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert result["test"]["stats"]["mean"] == np.mean(test_data["image_test"])
 
     def test_transform_analyzer_class(self):
+        """Verify a custom Analyzer integrates correctly as a step in a Compose transform."""
         transform = Compose([LoadImaged(keys=["image"]), TestImageAnalyzer(image_key="image")])
         create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
         files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
@@ -302,6 +313,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert "mean" in d["test_image"]["test_stats"]
 
     def test_image_stats_case_analyzer(self):
+        """Verify ImageStats produces a report matching the expected format for 3-D images."""
         analyzer = ImageStats(image_key="image")
         transform = Compose(
             [
@@ -323,6 +335,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["image_stats"], report_format)
 
     def test_foreground_image_stats_cases_analyzer(self):
+        """Verify FgImageStats produces a valid foreground stats report."""
         analyzer = FgImageStats(image_key="image", label_key="label")
         transform_list = [
             LoadImaged(keys=["image", "label"]),
@@ -345,6 +358,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["image_foreground_stats"], report_format)
 
     def test_label_stats_case_analyzer(self):
+        """Verify LabelStats produces a valid report including per-label statistics."""
         analyzer = LabelStats(image_key="image", label_key="label")
         transform = Compose(
             [
@@ -369,6 +383,7 @@ class TestDataAnalyzer(unittest.TestCase):
 
     @parameterized.expand(LABEL_STATS_DEVICE_TEST_CASES)
     def test_label_stats_mixed_device_analyzer(self, input_params):
+        """Verify LabelStats handles tensors split across CPU and CUDA devices."""
         image_device = torch.device(input_params["image_device"])
         label_device = torch.device(input_params["label_device"])
 
@@ -413,6 +428,7 @@ class TestDataAnalyzer(unittest.TestCase):
         self.assertAlmostEqual(foreground_stats[1]["mean"], 14.75)
 
     def test_filename_case_analyzer(self):
+        """Verify FilenameStats records both image and label paths in the output dict."""
         analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)
         analyzer_label = FilenameStats("label", DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image", "label"]), analyzer_image, analyzer_label]
@@ -426,6 +442,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
 
     def test_filename_case_analyzer_image_only(self):
+        """Verify FilenameStats handles image-only input and stores 'None' for the label path."""
         analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)
         analyzer_label = FilenameStats(None, DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image"]), analyzer_image, analyzer_label]
@@ -440,6 +457,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert d[DataStatsKeys.BY_CASE_IMAGE_PATH] == "None"
 
     def test_image_stats_summary_analyzer(self):
+        """Verify ImageStatsSumm correctly aggregates per-case image stats."""
         summary_analyzer = ImageStatsSumm("image_stats")
 
         transform_list = [
@@ -463,6 +481,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(summary_report, report_format)
 
     def test_fg_image_stats_summary_analyzer(self):
+        """Verify FgImageStatsSumm correctly aggregates per-case foreground stats."""
         summary_analyzer = FgImageStatsSumm("image_foreground_stats")
 
         transform_list = [
@@ -488,6 +507,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(summary_report, report_format)
 
     def test_label_stats_summary_analyzer(self):
+        """Verify LabelStatsSumm correctly aggregates per-case label stats."""
         summary_analyzer = LabelStatsSumm("label_stats")
 
         transform_list = [
@@ -513,6 +533,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(summary_report, report_format)
 
     def test_seg_summarizer(self):
+        """Verify SegSummarizer produces a summary with image, foreground, and label stat keys."""
         summarizer = SegSummarizer("image", "label")
         keys = ["image", "label"]
         transform_list = [
@@ -577,6 +598,7 @@ class TestDataAnalyzer(unittest.TestCase):
             torch.set_grad_enabled(True)  # always restore for subsequent tests
 
     def tearDown(self) -> None:
+        """Remove the temporary test directory."""
         self.test_dir.cleanup()
 
 
