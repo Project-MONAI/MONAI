@@ -21,7 +21,7 @@ from monai.utils import set_determinism
 
 class TestSSIMMetric(unittest.TestCase):
 
-    def test2d_gaussian(self):
+    def test_2d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(2, 3, 16, 16))
         target = torch.abs(torch.randn(2, 3, 16, 16))
@@ -32,9 +32,9 @@ class TestSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.045415
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertTrue(abs(expected_value - result.item()) < 0.000001)
 
-    def test2d_uniform(self):
+    def test_2d_uniform(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(2, 3, 16, 16))
         target = torch.abs(torch.randn(2, 3, 16, 16))
@@ -45,9 +45,9 @@ class TestSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.050103
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertTrue(abs(expected_value - result.item()) < 0.000001)
 
-    def test3d_gaussian(self):
+    def test_3d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(2, 3, 16, 16, 16))
         target = torch.abs(torch.randn(2, 3, 16, 16, 16))
