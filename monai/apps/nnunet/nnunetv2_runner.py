@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import shlex
 import subprocess
 from typing import Any
@@ -33,6 +34,8 @@ nib, _ = optional_import("nibabel")
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["nnUNetV2Runner"]
+
+DATASET_ID_FORMAT = r"Dataset[0-9]{3}_[0-9]{3}|[0-9]+"  # regex format for a valid nnUnet dataset name
 
 
 class nnUNetV2Runner:  # noqa: N801
@@ -197,7 +200,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
 
         # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
-        if len(shlex.split(self.dataset_name_or_id))!=1:
+        if re.fullmatch(DATASET_ID_FORMAT, self.dataset_name_or_id) is None:
             raise ValueError("Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID.")
 
         try:
@@ -578,21 +581,25 @@ class nnUNetV2Runner:  # noqa: N801
 
         cmd = [
             "nnUNetv2_train",
-            f"{self.dataset_name_or_id}",  # value is checked in constructor to be an identifier or number
-            f"{config}",
-            f"{fold}",
+            self.dataset_name_or_id,
+            config,
+            fold,
             "-tr",
-            f"{self.trainer_class_name}",
+            self.trainer_class_name,
             "-num_gpus",
-            f"{num_gpus}",
+            num_gpus,
         ]
+
         if self.export_validation_probabilities:
             cmd.append("--npz")
+
         for _key, _value in kwargs.items():
-            if _key == "p" or _key == "pretrained_weights":
-                cmd.extend([f"-{_key}", f"{_value}"])
-            else:
-                cmd.extend([f"--{_key}", f"{_value}"])
+            prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
+            cmd += [f"{prefix}{_key}", str(_value)]
+
+        # ensure components are quoted strings to prevent injection (not robust in Windows)
+        cmd = [shlex.quote(str(c)) for c in cmd]
+
         return cmd, env
 
     def train(
