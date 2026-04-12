@@ -85,10 +85,9 @@ ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
-_cucim_skimage, _has_cucim_skimage = optional_import("cucim.skimage")
-_cucim_morphology_edt, _has_cucim_morphology = optional_import(
-    "cucim.core.operations.morphology", name="distance_transform_edt"
-)
+# NOTE: cucim is deliberately NOT imported at module level.
+# Module-level cucim imports caused very slow import times and other buggy behaviour.
+# Keep cucim imports inside the functions that need them.
 
 __all__ = [
     "allow_missing_keys_mode",
@@ -1151,10 +1150,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
-    use_cp = has_cp and _has_cucim_skimage and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
+    skimage, has_cucim = optional_import("cucim.skimage")
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = _cucim_skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -1207,13 +1207,13 @@ def keep_merge_components_with_points(
         margins: include points outside of the region but within the margin.
     """
 
-    use_cp = (
-        has_cp and _has_cucim_skimage and isinstance(img_pos, torch.Tensor) and img_pos.device != torch.device("cpu")
-    )
+    cucim_skimage, has_cucim = optional_import("cucim.skimage")
+
+    use_cp = has_cp and has_cucim and isinstance(img_pos, torch.Tensor) and img_pos.device != torch.device("cpu")
     if use_cp:
         img_pos_ = convert_to_cupy(img_pos.short())  # type: ignore
         img_neg_ = convert_to_cupy(img_neg.short())  # type: ignore
-        label = _cucim_skimage.measure.label
+        label = cucim_skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -2466,7 +2466,10 @@ def distance_transform_edt(
             Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
 
     """
-    use_cp = has_cp and _has_cucim_morphology and isinstance(img, torch.Tensor) and img.device.type == "cuda"
+    distance_transform_edt, has_cucim = optional_import(
+        "cucim.core.operations.morphology", name="distance_transform_edt"
+    )
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
     if not return_distances and not return_indices:
         raise RuntimeError("Neither return_distances nor return_indices True")
 
@@ -2499,7 +2502,7 @@ def distance_transform_edt(
             indices_ = convert_to_cupy(indices)
         img_ = convert_to_cupy(img)
         for channel_idx in range(img_.shape[0]):
-            _cucim_morphology_edt(
+            distance_transform_edt(
                 img_[channel_idx],
                 sampling=sampling,
                 return_distances=return_distances,

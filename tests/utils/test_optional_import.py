@@ -88,7 +88,7 @@ class TestOptionalImport(unittest.TestCase):
             ref = weakref.ref(marker)
             # Call optional_import for a module that does not exist.
             # If the traceback is leaked, `marker` stays alive via frame references.
-            mod, flag = optional_import("nonexistent_module_for_leak_test")
+            _mod, flag = optional_import("nonexistent_module_for_leak_test")
             self.assertFalse(flag)
             return ref
 
