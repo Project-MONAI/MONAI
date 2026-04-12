@@ -27,11 +27,13 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance2, LoadImage)
 
         for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            try:
-                inst = LoadImaged("image", reader=r)
-                self.assertIsInstance(inst, LoadImaged)
-            except OptionalImportError:
-                pass  # expected when the reader's package is not installed
+            with self.subTest(reader=r):
+                try:
+                    inst = LoadImaged("image", reader=r)
+                    self.assertIsInstance(inst, LoadImaged)
+                except OptionalImportError:
+                    if r is None:
+                        self.fail("LoadImaged(reader=None) should not raise OptionalImportError.")
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
