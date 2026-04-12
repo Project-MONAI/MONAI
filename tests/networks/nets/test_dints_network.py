@@ -153,6 +153,24 @@ class TestDints(unittest.TestCase):
         self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
+class TestDintsInputShape(unittest.TestCase):
+    def test_invalid_input_shape_3d(self):
+        # num_depths=3, use_downsample=True -> factor = 2**(3+1) = 16
+        # 33 is not divisible by 16
+        grid = TopologySearch(channel_mul=0.2, num_blocks=6, num_depths=3, use_downsample=True, spatial_dims=3)
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, use_downsample=True, spatial_dims=3)
+        with self.assertRaises(ValueError):
+            net(torch.randn(1, 1, 33, 32, 32))
+
+    def test_invalid_input_shape_2d(self):
+        # num_depths=3, use_downsample=False -> factor = 2**(3+0) = 8
+        # 33 is not divisible by 8
+        grid = TopologySearch(channel_mul=0.2, num_blocks=6, num_depths=3, use_downsample=False, spatial_dims=2)
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, use_downsample=False, spatial_dims=2)
+        with self.assertRaises(ValueError):
+            net(torch.randn(1, 1, 33, 32))
+
+
 class TestDintsTS(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
