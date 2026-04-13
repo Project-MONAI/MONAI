@@ -61,8 +61,11 @@ class CrossAttentionBlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative positional
                 parameter size.
             attention_dtype: cast attention operations to this dtype.
-            use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
-                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            use_flash_attention: if True, dispatch attention through
+                ``torch.nn.functional.scaled_dot_product_attention``. PyTorch selects the backend;
+                the true flash kernel is used only when no attention bias is present. When combined
+                with ``rel_pos_embedding`` or ``causal``, PyTorch will fall back to the
+                memory-efficient or cuDNN SDPA backend.
         """
 
         super().__init__()
@@ -87,9 +90,6 @@ class CrossAttentionBlock(nn.Module):
                 "save_attn has been set to True, but use_flash_attention is also set"
                 "to True. save_attn can only be used if use_flash_attention is False"
             )
-
-        if use_flash_attention and rel_pos_embedding is not None:
-            raise ValueError("rel_pos_embedding must be None if you are using flash_attention.")
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
@@ -155,8 +155,31 @@ class CrossAttentionBlock(nn.Module):
             k = k.to(self.attention_dtype)
 
         if self.use_flash_attention:
+            # Additive bias path mirrors SABlock: null bias preserves the true
+            # flash kernel fast path; any of rel_pos_embedding / causal forces
+            # fallback to the efficient or cuDNN SDPA backend.
+            bias: torch.Tensor | None = None
+            lq, lk = q.shape[-2], k.shape[-2]
+
+            if self.rel_positional_embedding is not None:
+                zero_logits = torch.zeros(q.shape[0], self.num_heads, lq, lk, dtype=q.dtype, device=q.device)
+                bias = self.rel_positional_embedding(x, zero_logits, q)
+
+            is_causal_arg = self.causal
+            if self.causal and bias is not None:
+                causal_bias = torch.zeros(lq, lk, dtype=q.dtype, device=q.device)
+                causal_bias.masked_fill_(self.causal_mask[0, 0, :lq, :lk] == 0, float("-inf"))
+                bias = bias + causal_bias
+                is_causal_arg = False
+
             x = torch.nn.functional.scaled_dot_product_attention(
-                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+                query=q,
+                key=k,
+                value=v,
+                attn_mask=bias,
+                scale=self.scale,
+                dropout_p=self.dropout_rate,
+                is_causal=is_causal_arg,
             )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale

@@ -43,7 +43,7 @@ for dropout_rate in np.linspace(0, 1, 4):
                                     "input_size": input_size,
                                     "include_fc": include_fc,
                                     "use_combined_linear": use_combined_linear,
-                                    "use_flash_attention": True if rel_pos_embedding is None else False,
+                                    "use_flash_attention": True,
                                 },
                                 (2, 512, hidden_size),
                                 (2, 512, hidden_size),
@@ -67,16 +67,28 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_rel_pos_embedding_with_flash_attention(self):
-        with self.assertRaises(ValueError):
-            SABlock(
-                hidden_size=128,
-                num_heads=3,
-                dropout_rate=0.1,
-                use_flash_attention=True,
-                save_attn=False,
-                rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
-            )
+        # rel_pos_embedding is now allowed with use_flash_attention; SDPA picks
+        # a fused backend that supports an additive attention bias. The two
+        # code paths must be numerically equivalent for the same weights.
+        for input_size in [(16, 32), (8, 8, 8)]:
+            input_param = {
+                "hidden_size": 128,
+                "num_heads": 4,
+                "dropout_rate": 0.0,
+                "rel_pos_embedding": RelPosEmbedding.DECOMPOSED,
+                "input_size": input_size,
+            }
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = SABlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = SABlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            test_data = torch.randn(2, int(np.prod(input_size)), 128).to(device)
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data)
+                out_ref = block_ref(test_data)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
 
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
