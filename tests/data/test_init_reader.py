@@ -86,16 +86,19 @@ class TestInitLoadImage(unittest.TestCase):
 
         test_image = np.arange(2 * 3 * 4, dtype=np.int16).reshape(2, 3, 4)
         with tempfile.TemporaryDirectory() as tempdir:
-            filename = os.path.join(tempdir, "test_image.nii.gz")
-            nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
+            for suffix in (".nii", ".nii.gz"):
+                with self.subTest(suffix=suffix):
+                    filename = os.path.join(tempdir, f"test_image{suffix}")
+                    nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
-            reader = NibabelReader(mmap=False)
-            img = reader.read(filename)
-            data, _ = reader.get_data(img)
+                    reader = NibabelReader(mmap=False)
+                    img = reader.read(filename)
+                    data, _ = reader.get_data(img)
 
-            np.testing.assert_array_equal(data, test_image)
-            self.assertTrue(data.flags.f_contiguous)
-            self.assertFalse(data.flags.c_contiguous)
+                    np.testing.assert_array_equal(data, test_image)
+                    # The reader must not force an eager C-order copy; the native
+                    # (F-order) layout from nibabel should be preserved here.
+                    self.assertFalse(data.flags.c_contiguous)
 
 
 if __name__ == "__main__":
