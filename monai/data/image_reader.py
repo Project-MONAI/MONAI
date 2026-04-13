@@ -1217,7 +1217,7 @@ class NibabelReader(ImageReader):
             data_offset = img.dataobj.offset
             data_dtype = img.dataobj.dtype
             return image[data_offset:].view(data_dtype).reshape(data_shape, order="F")
-        return np.asanyarray(img.dataobj, order="C")
+        return np.asanyarray(img.dataobj)
 
 
 class NumpyReader(ImageReader):
