@@ -45,9 +45,10 @@ def point_based_window_inferer(
     patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
-        inputs: [1CWHD], input image to be processed (axis 0 is columns/Width,
-            axis 1 is rows/Height, axis 2 is Depth, matching arrays returned by
-            MONAI's NIfTI/ITK readers).
+        inputs: [1CWHD], input image to be processed (spatial axes are in
+            Width, Height, Depth order; i.e., for [N, C, W, H, D], Width is
+            axis 2, Height is axis 3, Depth is axis 4, matching arrays
+            returned by MONAI's NIfTI/ITK readers).
         roi_size: the spatial window size for inferences.
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the

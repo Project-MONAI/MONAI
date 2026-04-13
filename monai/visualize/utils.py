@@ -65,10 +65,10 @@ def matshow3d(
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
         frame_dim: for higher dimensional arrays, which dimension from (`-1`, `-2`, `-3`) is moved to
-            the `-3` dimension. dim and reshape to (-1, spatial0, spatial1) shape to construct frames,
+            the `-3` dimension, then reshaped to (-1, spatial0, spatial1) to construct frames,
             default to `-3`.
         channel_dim: if not None, explicitly specify the channel dimension to be transposed to the
-            last dimensionas shape (-1, spatial0, spatial1, C). this can be used to plot RGB color image.
+            last dimension as shape (-1, spatial0, spatial1, C). this can be used to plot RGB color image.
             if None, the channel dimension will be flattened with `frame_dim` and `batch_dim` as
             shape (-1, spatial0, spatial1).
             note that it can only support 3D input image. default is None.
