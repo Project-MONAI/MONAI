@@ -144,7 +144,7 @@ jit_extension_source = [os.path.join("..", path) for path in jit_extension_sourc
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
-    packages=find_packages(exclude=("docs", "examples", "tests")),
+    packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
     package_data={"monai": ["py.typed", *jit_extension_source]},  # type: ignore[arg-type]
     ext_modules=get_extensions(),

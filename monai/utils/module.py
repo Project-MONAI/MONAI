@@ -17,6 +17,7 @@ import os
 import pdb
 import re
 import sys
+import traceback as traceback_mod
 import warnings
 from collections.abc import Callable, Collection, Hashable, Iterable, Mapping
 from functools import partial, wraps
@@ -368,8 +369,9 @@ def optional_import(
         OptionalImportError: from torch.nn.functional import conv1d (requires version '42' by 'min_version').
     """
 
-    tb = None
+    had_exception = False
     exception_str = ""
+    tb_str = ""
     if name:
         actual_cmd = f"from {module} import {name}"
     else:
@@ -384,8 +386,12 @@ def optional_import(
         if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import
-        tb = import_exception.__traceback__
+        tb_str = "".join(
+            traceback_mod.format_exception(type(import_exception), import_exception, import_exception.__traceback__)
+        )
+        import_exception.__traceback__ = None
         exception_str = f"{import_exception}"
+        had_exception = True
     else:  # found the module
         if version_args and version_checker(pkg, f"{version}", version_args):
             return the_module, True
@@ -394,7 +400,7 @@ def optional_import(
 
     # preparing lazy error message
     msg = descriptor.format(actual_cmd)
-    if version and tb is None:  # a pure version issue
+    if version and not had_exception:  # a pure version issue
         msg += f" (requires '{module} {version}' by '{version_checker.__name__}')"
     if exception_str:
         msg += f" ({exception_str})"
@@ -407,10 +413,9 @@ def optional_import(
                 + "\n\nFor details about installing the optional dependencies, please visit:"
                 + "\n    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies"
             )
-            if tb is None:
-                self._exception = OptionalImportError(_default_msg)
-            else:
-                self._exception = OptionalImportError(_default_msg).with_traceback(tb)
+            if tb_str:
+                _default_msg += f"\n\nOriginal traceback:\n{tb_str}"
+            self._exception = OptionalImportError(_default_msg)
 
         def __getattr__(self, name):
             """
