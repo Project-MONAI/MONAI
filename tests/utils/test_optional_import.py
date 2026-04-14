@@ -101,7 +101,7 @@ class TestOptionalImport(unittest.TestCase):
         mod, flag = optional_import("nonexistent_module_for_tb_test")
         self.assertFalse(flag)
         with self.assertRaises(OptionalImportError) as ctx:
-            _ = getattr(mod, "something")
+            _ = mod.something
         self.assertIn("Original traceback", str(ctx.exception))
         self.assertIn("ModuleNotFoundError", str(ctx.exception))
 
