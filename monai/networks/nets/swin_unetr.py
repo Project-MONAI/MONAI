@@ -47,6 +47,19 @@ class SwinUNETR(nn.Module):
     Swin UNETR based on: "Hatamizadeh et al.,
     Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images
     <https://arxiv.org/abs/2201.01266>"
+
+    Spatial Shape Constraints:
+        Each spatial dimension of the input must be divisible by ``patch_size ** 5``.
+        With the default ``patch_size=2``, this means each spatial dimension must be divisible by **32**
+        (i.e., 2^5 = 32). This requirement comes from the patch embedding step followed by 4 stages
+        of PatchMerging downsampling, each halving the spatial resolution.
+
+        For a custom ``patch_size``, the divisibility requirement is ``patch_size ** 5``.
+
+        Examples of valid 3D input sizes (with default ``patch_size=2``):
+        ``(32, 32, 32)``, ``(64, 64, 64)``, ``(96, 96, 96)``, ``(128, 128, 128)``, ``(64, 32, 192)``.
+
+        A ``ValueError`` is raised in ``forward()`` if the input spatial shape violates this constraint.
     """
 
     def __init__(
@@ -76,7 +89,8 @@ class SwinUNETR(nn.Module):
         Args:
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
-            patch_size: size of the patch token.
+            patch_size: size of the patch token. Input spatial dimensions must be divisible by
+                ``patch_size ** 5`` (e.g., divisible by 32 when ``patch_size=2``).
             feature_size: dimension of network feature size.
             depths: number of layers in each stage.
             num_heads: number of attention heads.
@@ -107,6 +121,10 @@ class SwinUNETR(nn.Module):
 
             # for 2D single channel input with size (96,96), 2-channel output and gradient checkpointing.
             >>> net = SwinUNETR(in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
+
+        Raises:
+            ValueError: When a spatial dimension of the input is not divisible by ``patch_size ** 5``.
+                Use ``net._check_input_size(spatial_shape)`` to validate a shape before inference.
 
         """
 

@@ -90,6 +90,17 @@ class TestSWINUNETR(unittest.TestCase):
         with self.assertRaises(ValueError):
             SwinUNETR(in_channels=1, out_channels=3, feature_size=24, norm_name="instance", drop_rate=-1)
 
+    @skipUnless(has_einops, "Requires einops")
+    def test_invalid_input_shape(self):
+        # spatial dims not divisible by patch_size**5 (default patch_size=2, so must be divisible by 32)
+        net = SwinUNETR(in_channels=1, out_channels=2, feature_size=24, spatial_dims=3)
+        with self.assertRaises(ValueError):
+            net(torch.randn(1, 1, 33, 64, 64))  # 33 is not divisible by 32
+
+        net_2d = SwinUNETR(in_channels=1, out_channels=2, feature_size=24, spatial_dims=2)
+        with self.assertRaises(ValueError):
+            net_2d(torch.randn(1, 1, 48, 33))  # 33 is not divisible by 32
+
     def test_patch_merging(self):
         dim = 10
         t = PatchMerging(dim)(torch.zeros((1, 21, 20, 20, dim)))
