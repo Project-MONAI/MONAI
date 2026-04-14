@@ -490,6 +490,7 @@ class DiNTS(nn.Module):
     def weight_parameters(self):
         return [param for name, param in self.named_parameters()]
 
+    @torch.jit.unused
     def _check_input_size(self, spatial_shape):
         """
         Validate that input spatial dimensions satisfy the divisibility requirement.
@@ -521,7 +522,8 @@ class DiNTS(nn.Module):
             ValueError: if any spatial dimension of ``x`` is not divisible by
                 ``2 ** (num_depths + int(use_downsample))``.
         """
-        self._check_input_size(x.shape[2:])
+        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
+            self._check_input_size(x.shape[2:])
         inputs = []
         for d in range(self.num_depths):
             # allow multi-resolution input

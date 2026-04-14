@@ -84,8 +84,8 @@ TEST_CASES_2D = [
             "use_downsample": True,
             "spatial_dims": 2,
         },
-        (2, 2, 32, 16),
-        (2, 2, 32, 16),
+        (2, 2, 32, 32),  # use_downsample=True, num_depths=4 -> factor=32; both dims must be divisible by 32
+        (2, 2, 32, 32),
     ]
 ]
 if torch.cuda.is_available():
