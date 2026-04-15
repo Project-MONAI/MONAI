@@ -498,7 +498,7 @@ class LabelStats(Analyzer):
 
         unique_label = unique_label.astype(np.int16).tolist()
 
-        label_substats = []
+        label_substats = []  # each element is one label
         pixel_sum = 0
         pixel_arr = []
         for index in unique_label:
@@ -512,8 +512,10 @@ class LabelStats(Analyzer):
             pixel_count = sum(mask_index)
             pixel_arr.append(pixel_count)
             pixel_sum += pixel_count
-            if self.do_ccp:
+            if self.do_ccp:  # apply connected component
                 if using_cuda:
+                    # The back end of get_label_ccp is CuPy
+                    # which is unable to automatically release CUDA GPU memory held by PyTorch
                     del nda_masks
                     torch.cuda.empty_cache()
                 shape_list, ncomponents = get_label_ccp(mask_index)
