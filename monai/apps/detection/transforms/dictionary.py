@@ -125,8 +125,10 @@ class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
         super().__init__(box_keys, allow_missing_keys)
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
         if len(box_ref_image_keys_tuple) > 1:
-            raise ValueError("Please provide a single key for box_ref_image_keys.\
-                All boxes of box_keys are attached to box_ref_image_keys.")
+            raise ValueError(
+                "Please provide a single key for box_ref_image_keys.\
+                All boxes of box_keys are attached to box_ref_image_keys."
+            )
         self.box_ref_image_keys = box_ref_image_keys
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -809,15 +811,13 @@ class ClipBoxToImaged(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         box_keys_tuple = ensure_tuple(box_keys)
-        if len(box_keys_tuple) < 1:
-            raise ValueError(
-                "Please provide at least one key for `box_keys`. All `label_keys` are attached to this `box_keys`."
-            )
+        if len(box_keys_tuple) != 1:
+            raise ValueError("Provide a single key for `box_keys`. All `label_keys` are attached to this `box_keys`.")
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
-        if len(box_ref_image_keys_tuple) < 1:
+        if len(box_ref_image_keys_tuple) != 1:
             raise ValueError(
-                "Please provide at least one key for `box_ref_image_keys`. "
-                "All box_keys and label_keys are attached to this `box_ref_image_keys`."
+                "Provide a single key for `box_ref_image_keys`. "
+                "All `box_keys` and `label_keys` are attached to this `box_ref_image_keys`."
             )
 
         self.label_keys = ensure_tuple(label_keys)
@@ -1086,8 +1086,10 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
         box_keys_tuple = ensure_tuple(box_keys)
         if len(box_keys_tuple) != 1:
-            raise ValueError("Please provide a single key for box_keys.\
-                All label_keys are attached to this box_keys.")
+            raise ValueError(
+                "Please provide a single key for box_keys.\
+                All label_keys are attached to this box_keys."
+            )
         self.box_keys = box_keys_tuple[0]
         self.label_keys = ensure_tuple(label_keys)
 
