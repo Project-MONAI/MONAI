@@ -373,6 +373,12 @@ class DiNTS(nn.Module):
     ):
         super().__init__()
 
+        if hasattr(dints_space, "use_downsample") and dints_space.use_downsample != use_downsample:
+            raise ValueError(
+                f"DiNTS.use_downsample ({use_downsample}) must match dints_space.use_downsample "
+                f"({dints_space.use_downsample})."
+            )
+        self.use_downsample = use_downsample
         self.dints_space = dints_space
         self.filter_nums = dints_space.filter_nums
         self.num_blocks = dints_space.num_blocks
@@ -503,7 +509,7 @@ class DiNTS(nn.Module):
         Raises:
             ValueError: if any spatial dimension is not divisible by the required factor.
         """
-        factor = 2 ** (self.num_depths + int(self.dints_space.use_downsample))
+        factor = 2 ** (self.num_depths + int(self.use_downsample))
         wrong_dims = [i + 2 for i, s in enumerate(spatial_shape) if s % factor != 0]
         if wrong_dims:
             raise ValueError(
