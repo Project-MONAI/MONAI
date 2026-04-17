@@ -32,13 +32,13 @@
         },
         "0000_t2_tse_tra_4": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/ProstateX-0000_t2_tse_tra_4.nii.gz",
-            "hash_type": "sha256",
-            "hash_val": "79202b407a54c61d446777718415845c278c0e28b12a940466c16cd5faf3603a"
+            "hash_type": "md5",
+            "hash_val": "adb3f1c4db66a6481c3e4a2a3033c7d5"
         },
         "0000_ep2d_diff_tra_7": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/ProstateX-0000_ep2d_diff_tra_7.nii.gz",
-            "hash_type": "sha256",
-            "hash_val": "a61b2994426dc4fc1cb5192d7aee287446d3c4a57ee8802732fffb74e48bba0c"
+            "hash_type": "md5",
+            "hash_val": "f12a11ad0ebb0b1876e9e010564745d2"
         },
         "ref_avg152T1_LR": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/avg152T1_LR_nifti.nii.gz",
@@ -62,13 +62,13 @@
         },
         "copd1_highres_INSP_STD_COPD_img": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/copd1_highres_INSP_STD_COPD_img.nii.gz",
-            "hash_type": "sha256",
-            "hash_val": "9c10df5829d0ea682cd51d42b8646e2e9cbe89ce42582fb5aa819f3be6716ccf"
+            "hash_type": "sha512",
+            "hash_val": "60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9"
         },
         "copd1_highres_EXP_STD_COPD_img": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/copd1_highres_EXP_STD_COPD_img.nii.gz",
-            "hash_type": "sha256",
-            "hash_val": "fb911fe9b5caa9f41750dfccd914f54dadf951f6d4f8b83d498e0480807f4903"
+            "hash_type": "sha512",
+            "hash_val": "841ef303958541474e66c2d1ccdc8b7ed17ba2f2681101307766b979a07979f2ec818ddf13791c3f1ac5a8ec3258d6ea45b692b4b4a838de9188602618972b6d"
         },
         "CT_2D_head_fixed": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CT_2D_head_fixed.mha",
@@ -94,13 +94,13 @@
     "videos": {
         "endovis": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/d1_im.mp4",
-            "hash_type": "sha256",
-            "hash_val": "e486b5e1651274a082e6d97081fba139a533ee7e4b684b424b21d582c019e159"
+            "hash_type": "md5",
+            "hash_val": "9b103c07326439b0ea376018d7189384"
         },
         "ultrasound": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/example_data_Ultrasound_Q000_04_tu_segmented_ultrasound_256.avi",
-            "hash_type": "sha256",
-            "hash_val": "41a65c581ecff53c08f6bacc539daa3d7fbabefbf308a7e3c83e93a9453cc5c7"
+            "hash_type": "md5",
+            "hash_val": "f0755960cc4a08a958561cda9a79a157"
         }
     },
     "models": {
