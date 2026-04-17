@@ -202,7 +202,7 @@ def test_download_url():
         )
 
         # fails with wrong hash
-        with self.assertRaises(RuntimeError):
+        with unittest.assertRaises(RuntimeError):
             download_url(
                 url=SAMPLE_TIFF,
                 filepath=os.path.join(tempdir, "model_bad.tiff"),
