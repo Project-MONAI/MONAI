@@ -179,7 +179,7 @@ def flip_boxes(
     spatial_dims: int = get_spatial_dims(boxes=boxes)
     spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
     if flip_axes is None:
-        flip_axes = tuple(range(0, spatial_dims))
+        flip_axes = tuple(range(spatial_dims))
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
@@ -267,7 +267,7 @@ def convert_box_to_mask(
             boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])
         # apply to global mask
         slicing = [b]
-        slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type:ignore
+        slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type: ignore
         boxes_mask_np[tuple(slicing)] = boxes_only_mask
     return convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)[0]
 
