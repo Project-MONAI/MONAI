@@ -232,10 +232,10 @@ class PrepareBatchExtraInput(PrepareBatch):
 
         if isinstance(self.extra_keys, (str, list, tuple)):
             args_ = tuple(_get_data(k) for k in ensure_tuple(self.extra_keys))
-                
+
         elif isinstance(self.extra_keys, dict):
                         kwargs_ = {k: _get_data(v) for k, v in self.extra_keys.items()}
-                
+
 
                 return cast(torch.Tensor, image), cast(torch.Tensor, label), args_, kwargs_
 
