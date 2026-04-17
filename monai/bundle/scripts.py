@@ -2013,3 +2013,76 @@ def download_large_files(bundle_path: str | None = None, large_file_name: str | 
         lf_data["filepath"] = os.path.join(bundle_path, lf_data["path"])
         lf_data.pop("path")
         download_url(**lf_data)
+
+def inspect_ckpt(
+    path: str,
+    print_all_vars: bool = True,
+    compute_hash: bool = False,
+    hash_type: str = "md5",
+) -> dict:
+    """
+    Inspect the variables and shapes saved in a checkpoint file.
+    Prints a human-readable summary of the tensor names, shapes, and dtypes
+    stored in the checkpoint, similar to TensorFlow's inspect_checkpoint tool.
+    Optionally also computes the hash value of the file (useful when creating
+    a ``large_files.yml`` for model-zoo bundles).
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        # Display all tensor names, shapes, and dtypes:
+        python -m monai.bundle inspect_ckpt --path model.pt
+
+        # Suppress individual variable printing (only show file-level info):
+        python -m monai.bundle inspect_ckpt --path model.pt --print_all_vars false
+
+        # Also compute md5 hash of the checkpoint file:
+        python -m monai.bundle inspect_ckpt --path model.pt --compute_hash true
+
+        # Use sha256 hash instead of md5:
+        python -m monai.bundle inspect_ckpt --path model.pt --compute_hash true --hash_type sha256
+
+    Args:
+        path: path to the checkpoint file to inspect.
+        print_all_vars: whether to print individual variable names, shapes,
+            and dtypes. Default to ``True``.
+        compute_hash: whether to compute and print the hash value of the
+            checkpoint file. Default to ``False``.
+        hash_type: the hash type to use when ``compute_hash`` is ``True``.
+            Should be ``"md5"`` or ``"sha256"``. Default to ``"md5"``.
+
+    Returns:
+        A dictionary mapping variable names to a dict containing
+        ``"shape"`` (tuple) and ``"dtype"`` (str) for each tensor.
+    """
+    import hashlib
+
+    _log_input_summary(tag="inspect_ckpt", args={"path": path, "print_all_vars": print_all_vars, "compute_hash": compute_hash})
+
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
+    if not isinstance(ckpt, Mapping):
+        ckpt = get_state_dict(ckpt)
+
+    var_info: dict = {}
+    for name, val in ckpt.items():
+        if isinstance(val, torch.Tensor):
+            var_info[name] = {"shape": tuple(val.shape), "dtype": str(val.dtype)}
+        else:
+            var_info[name] = {"shape": None, "dtype": type(val).__name__}
+
+    logger.info(f"checkpoint file: {path}")
+    logger.info(f"total variables: {len(var_info)}")
+    if print_all_vars:
+        for name, info in var_info.items():
+            logger.info(f"  {name}: shape={info['shape']}, dtype={info['dtype']}")
+
+    if compute_hash:
+        h = hashlib.new(hash_type)
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        digest = h.hexdigest()
+        logger.info(f"{hash_type} hash: {digest}")
+
+    return var_info
