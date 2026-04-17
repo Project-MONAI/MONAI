@@ -25,23 +25,18 @@ class Algo:
 
     def set_data_stats(self, *args, **kwargs):
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
-        pass
 
     def train(self, *args, **kwargs):
         """Read training/validation data and output a model."""
-        pass
 
     def predict(self, *args, **kwargs):
         """Read test data and output model predictions."""
-        pass
 
     def get_score(self, *args, **kwargs):
         """Returns the model quality measurement based on training and validation datasets."""
-        pass
 
     def get_output_path(self, *args, **kwargs):
         """Returns the algo output paths for scripts location"""
-        pass
 
 
 class AlgoGen(Randomizable):
@@ -70,31 +65,24 @@ class AlgoGen(Randomizable):
 
     def set_data_stats(self, *args, **kwargs):  # type ignore
         """Provide dataset summaries/properties so that the generator can be conditioned on the input datasets."""
-        pass
 
     def set_budget(self, *args, **kwargs):
         """Provide computational budget so that the generator outputs algorithms that requires reasonable resources."""
-        pass
 
     def set_score(self, *args, **kwargs):
         """Feedback from the previously generated algo, the score can be used for new Algo generations."""
-        pass
 
     def get_data_stats(self, *args, **kwargs):
         """Get current dataset summaries."""
-        pass
 
     def get_budget(self, *args, **kwargs):
         """Get the current computational budget."""
-        pass
 
     def get_history(self, *args, **kwargs):
         """Get the previously generated algo."""
-        pass
 
     def generate(self):
         """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
-        pass
 
     def run_algo(self, *args, **kwargs):
         """
@@ -104,4 +92,3 @@ class AlgoGen(Randomizable):
         implemented separately is preferred to run them. In this case the controller should also report back the
         scores and the algo history, so that the future ``AlgoGen.generate`` can leverage the information.
         """
-        pass

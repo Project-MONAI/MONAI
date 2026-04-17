@@ -22,7 +22,7 @@ import torch
 from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import to_affine_nd
+from monai.data.utils import affine_to_spacing, to_affine_nd
 from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import Transform
 from monai.utils import (
@@ -119,6 +119,8 @@ class TraceableTransform(Transform):
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
         """
+        self._init_trace_threadlocal()
+
         vals = (
             self.__class__.__name__,
             id(self),
@@ -224,6 +226,9 @@ class TraceableTransform(Transform):
                 else:
                     raise
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
+            if MetaKeys.PIXDIM in out_obj.meta:
+                spacing = affine_to_spacing(out_obj.meta[MetaKeys.AFFINE])
+                out_obj.meta[MetaKeys.PIXDIM][1 : 1 + len(spacing)] = spacing
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
@@ -277,8 +282,8 @@ class TraceableTransform(Transform):
                     msg += f" for key {key}"
 
                 pend = out_obj.pending_operations[-1]
-                statuses = pend.get(TraceKeys.STATUSES, dict())
-                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, list())
+                statuses = pend.get(TraceKeys.STATUSES, {})
+                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, [])
                 messages.append(msg)
                 statuses[TraceStatusKeys.PENDING_DURING_APPLY] = messages
                 info[TraceKeys.STATUSES] = statuses
@@ -297,24 +302,44 @@ class TraceableTransform(Transform):
         return out_obj
 
     def check_transforms_match(self, transform: Mapping) -> None:
-        """Check transforms are of same instance."""
+        """Check whether a traced transform entry matches this transform.
+
+        When multiprocessing uses ``spawn``, transform instances are recreated,
+        so matching can fall back to the transform class name instead of the
+        original instance ID.
+        """
+        if self._transforms_match(transform):
+            return
+
         xform_id = transform.get(TraceKeys.ID, "")
-        if xform_id == id(self):
-            return
-        # TraceKeys.NONE to skip the id check
-        if xform_id == TraceKeys.NONE:
-            return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         warning_msg = transform.get(TraceKeys.EXTRA_INFO, {}).get("warn")
         if warning_msg:
             warnings.warn(warning_msg)
-        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
-            return
         raise RuntimeError(
             f"Error {self.__class__.__name__} getting the most recently "
             f"applied invertible transform {xform_name} {xform_id} != {id(self)}."
         )
+
+    def _transforms_match(self, transform: Mapping) -> bool:
+        """Return whether a traced transform entry matches this transform.
+
+        Matching succeeds when the traced ID matches this instance, when the ID
+        check is explicitly disabled with ``TraceKeys.NONE``, or when
+        multiprocessing uses ``spawn`` and the traced class name matches this
+        transform class.
+        """
+        xform_id = transform.get(TraceKeys.ID, "")
+        if xform_id == id(self):
+            return True
+        # TraceKeys.NONE to skip the id check
+        if xform_id == TraceKeys.NONE:
+            return True
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
+        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn" and xform_name == self.__class__.__name__:
+            return True
+        return False
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
@@ -347,10 +372,16 @@ class TraceableTransform(Transform):
         if not all_transforms:
             raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
 
+        match_idx = len(all_transforms) - 1
         if check:
-            self.check_transforms_match(all_transforms[-1])
+            for idx in range(len(all_transforms) - 1, -1, -1):
+                if self._transforms_match(all_transforms[idx]):
+                    match_idx = idx
+                    break
+            else:
+                self.check_transforms_match(all_transforms[-1])
 
-        return all_transforms.pop(-1) if pop else all_transforms[-1]
+        return all_transforms.pop(match_idx) if pop else all_transforms[match_idx]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """
