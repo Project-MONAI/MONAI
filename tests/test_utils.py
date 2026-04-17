@@ -200,7 +200,7 @@ def test_download_url():
             hash_val=SAMPLE_TIFF_HASH,
             hash_type=SAMPLE_TIFF_HASH_TYPE,
         )
-        
+
         # fails with wrong hash
         with self.assertRaises(RuntimeError):
             download_url(
