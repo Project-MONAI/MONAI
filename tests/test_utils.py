@@ -199,7 +199,7 @@ class TestDownloadUrl(unittest.TestCase):
         """Download a sample TIFF and validate hash handling.
 
         Raises:
-            RuntimeError: When the downloaded file's hash does not match.
+            ValueError: When the downloaded file's hash does not match.
         """
         with tempfile.TemporaryDirectory() as tempdir:
             with skip_if_downloading_fails():
@@ -209,7 +209,7 @@ class TestDownloadUrl(unittest.TestCase):
                     hash_val=SAMPLE_TIFF_HASH,
                     hash_type=SAMPLE_TIFF_HASH_TYPE,
                 )
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(ValueError):
                 download_url(
                     url=SAMPLE_TIFF,
                     filepath=os.path.join(tempdir, "model_bad.tiff"),

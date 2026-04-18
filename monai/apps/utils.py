@@ -220,8 +220,7 @@ def download_url(
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        RuntimeError: When the hash validation of the ``url`` downloaded file fails.
-
+        ValueError: When the hash validation of the ``url`` downloaded file fails.
     """
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
@@ -260,6 +259,13 @@ def download_url(
                 raise RuntimeError(
                     f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
                 )
+            if not check_hash(filepath, hash_val, hash_type):
+                raise ValueError(
+                    f"{hash_type} hash check of downloaded file failed: URL={url}, "
+                    f"filepath={filepath}, expected {hash_type}={hash_val}, "
+                    f"The file may be corrupted or tampered with. "
+                    "Please retry the download or verify the source."
+                )
             file_dir = filepath.parent
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
@@ -267,13 +273,6 @@ def download_url(
     except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
         pass
     logger.info(f"Downloaded: {filepath}")
-    if not check_hash(filepath, hash_val, hash_type):
-        raise ValueError(
-            f"{hash_type} hash check of downloaded file failed: URL={url}, "
-            f"filepath={filepath}, expected {hash_type}={hash_val}, "
-            f"The file may be corrupted or tampered with. "
-            "Please retry the download or verify the source."
-        )
 
 
 def _extract_zip(filepath, output_dir):
