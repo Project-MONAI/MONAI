@@ -117,7 +117,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def get_kernel_vol(self):
+    def get_kernel_vol(self) -> torch.Tensor:
+        assert self.kernel is not None
         vol = self.kernel
         for _ in range(self.ndim - 1):
             vol = torch.matmul(vol.unsqueeze(-1), self.kernel.unsqueeze(0))
@@ -137,6 +138,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
         t2, p2, tp = target * target, pred * pred, target * pred
+        assert self.kernel is not None
+        assert self.kernel_vol is not None
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         kernels = [kernel] * self.ndim
         # sum over kernel
