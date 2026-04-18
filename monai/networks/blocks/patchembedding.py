@@ -38,10 +38,10 @@ class _PatchRearrange(nn.Module):
         self.patch_size = patch_size
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, C = x.shape[0], x.shape[1]
+        batch, channels = x.shape[0], x.shape[1]
         sp = x.shape[2:]
         g = tuple(s // p for s, p in zip(sp, self.patch_size))
-        v: list[int] = [B, C]
+        v: list[int] = [batch, channels]
         for gi, pi in zip(g, self.patch_size):
             v += [gi, pi]
         x = x.view(*v)
@@ -52,7 +52,7 @@ class _PatchRearrange(nn.Module):
         n_patches = 1
         for gi in g:
             n_patches *= gi
-        return x.reshape(B, n_patches, -1)
+        return x.reshape(batch, n_patches, -1)
 
 
 class PatchEmbeddingBlock(nn.Module):
