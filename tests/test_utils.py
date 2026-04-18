@@ -186,6 +186,8 @@ def skip_if_downloading_fails():
         if "hash check" in str(v_e):
             raise unittest.SkipTest(f"Hash value error while downloading: {v_e}") from v_e
 
+        raise v_e
+
 
 SAMPLE_TIFF = "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1.tiff"
 SAMPLE_TIFF_HASH = "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
@@ -202,20 +204,15 @@ class TestDownloadUrl(unittest.TestCase):
             ValueError: When the downloaded file's hash does not match.
         """
         with tempfile.TemporaryDirectory() as tempdir:
+            model_path = os.path.join(tempdir, "model.tiff")
+
             with skip_if_downloading_fails():
                 download_url(
-                    url=SAMPLE_TIFF,
-                    filepath=os.path.join(tempdir, "model.tiff"),
-                    hash_val=SAMPLE_TIFF_HASH,
-                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                    url=SAMPLE_TIFF, filepath=model_path, hash_val=SAMPLE_TIFF_HASH, hash_type=SAMPLE_TIFF_HASH_TYPE
                 )
             with self.assertRaises(ValueError):
-                download_url(
-                    url=SAMPLE_TIFF,
-                    filepath=os.path.join(tempdir, "model_bad.tiff"),
-                    hash_val="0" * 64,
-                    hash_type=SAMPLE_TIFF_HASH_TYPE,
-                )
+                # checking for wrong hash
+                download_url(filepath=model_path, hash_val="0" * 64, hash_type=SAMPLE_TIFF_HASH_TYPE)
 
 
 def test_pretrained_networks(network, input_param, device):

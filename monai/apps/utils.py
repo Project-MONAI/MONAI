@@ -228,8 +228,8 @@ def download_url(
     filepath = Path(filepath)
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
-            raise RuntimeError(
-                f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
+            raise ValueError(
+                f"{hash_type} hash check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
             )
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
@@ -259,7 +259,7 @@ def download_url(
                 raise RuntimeError(
                     f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
                 )
-            if not check_hash(filepath, hash_val, hash_type):
+            if not check_hash(tmp_name, hash_val, hash_type):
                 raise ValueError(
                     f"{hash_type} hash check of downloaded file failed: URL={url}, "
                     f"filepath={filepath}, expected {hash_type}={hash_val}, "
