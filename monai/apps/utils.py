@@ -268,9 +268,11 @@ def download_url(
         pass
     logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of downloaded file failed: URL={url}, "
-            f"filepath={filepath}, expected {hash_type}={hash_val}."
+        raise ValueError(
+            f"{hash_type} hash check of downloaded file failed: URL={url}, "
+            f"filepath={filepath}, expected {hash_type}={hash_val}, "
+            f"The file may be corrupted or tampered with. "
+            "Please retry the download or verify the source."
         )
 
 
