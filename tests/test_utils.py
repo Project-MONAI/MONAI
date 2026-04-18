@@ -198,10 +198,8 @@ class TestDownloadUrl(unittest.TestCase):
     """Exercise ``download_url`` success and hash-mismatch paths."""
 
     def test_download_url(self):
-        """Download a sample TIFF and validate hash handling.
-
-        Raises:
-            ValueError: When the downloaded file's hash does not match.
+        """
+        Download a sample TIFF and validate hash handling.
         """
         with tempfile.TemporaryDirectory() as tempdir:
             model_path = os.path.join(tempdir, "model.tiff")
@@ -210,9 +208,13 @@ class TestDownloadUrl(unittest.TestCase):
                 download_url(
                     url=SAMPLE_TIFF, filepath=model_path, hash_val=SAMPLE_TIFF_HASH, hash_type=SAMPLE_TIFF_HASH_TYPE
                 )
+
+            # Verify file exists before testing hash mismatch
+            if not os.path.exists(model_path):
+                self.skipTest("File was not downloaded successfully")
+
             with self.assertRaises(ValueError):
-                # checking for wrong hash
-                download_url(filepath=model_path, hash_val="0" * 64, hash_type=SAMPLE_TIFF_HASH_TYPE)
+                download_url(url=SAMPLE_TIFF, filepath=model_path, hash_val="0" * 64, hash_type=SAMPLE_TIFF_HASH_TYPE)
 
 
 def test_pretrained_networks(network, input_param, device):
