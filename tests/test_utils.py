@@ -79,7 +79,7 @@ DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
     "network issue",
     "gdown dependency",  # gdown not installed
-    "hash check",    # check hash value of downloaded file
+    "hash check",  # check hash value of downloaded file
     "limit",  # HTTP Error 503: Egress is over the account limit
     "authenticate",
     "timed out",  # urlopen error [Errno 110] Connection timed out
@@ -180,7 +180,7 @@ def skip_if_downloading_fails():
         err_str = str(rt_e)
         if any(k in err_str for k in DOWNLOAD_FAIL_MSGS):
             raise unittest.SkipTest(f"Error while downloading: {rt_e}") from rt_e  # incomplete download
-        
+
         raise rt_e
     except ValueError as v_e:
         if "hash check" in str(v_e):
