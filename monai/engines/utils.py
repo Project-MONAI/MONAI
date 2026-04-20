@@ -237,7 +237,7 @@ class PrepareBatchExtraInput(PrepareBatch):
                         kwargs_ = {k: _get_data(v) for k, v in self.extra_keys.items()}
 
 
-                return cast(torch.Tensor, image), cast(torch.Tensor, label), args_, kwargs_
+            return cast(torch.Tensor, image), cast(torch.Tensor, label), args_, kwargs_
 
 
 class DiffusionPrepareBatch(PrepareBatch):
