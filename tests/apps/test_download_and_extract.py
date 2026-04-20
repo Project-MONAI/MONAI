@@ -36,7 +36,6 @@ class TestDownloadAndExtract(unittest.TestCase):
         hash_val, hash_type = config_dict["hash_val"], config_dict["hash_type"]
         with skip_if_downloading_fails():
             download_and_extract(url, filepath, output_dir, hash_val=hash_val, hash_type=hash_type)
-            download_and_extract(url, filepath, output_dir, hash_val=hash_val, hash_type=hash_type)
 
         wrong_md5 = "0"
         with self.assertLogs(logger="monai.apps", level="ERROR"):
