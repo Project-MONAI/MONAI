@@ -3,3 +3,5 @@ include monai/_version.py
 
 include README.md
 include LICENSE
+
+prune tests

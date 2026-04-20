@@ -15,7 +15,7 @@ import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.layers import gaussian_1d, separable_filtering
+from monai.networks.layers import separable_filtering
 from monai.utils import LossReduction
 from monai.utils.module import look_up_option
 
@@ -34,11 +34,11 @@ def make_triangular_kernel(kernel_size: int) -> torch.Tensor:
 
 
 def make_gaussian_kernel(kernel_size: int) -> torch.Tensor:
-    sigma = torch.tensor(kernel_size / 3.0)
-    kernel = gaussian_1d(sigma=sigma, truncated=kernel_size // 2, approx="sampled", normalize=False) * (
-        2.5066282 * sigma
-    )
-    return kernel[:kernel_size]
+    sigma = kernel_size / 3.0
+    half = kernel_size // 2
+    x = torch.arange(-half, half + 1, dtype=torch.float)
+    kernel = torch.exp(-0.5 / (sigma * sigma) * x**2)
+    return kernel
 
 
 kernel_dict = {
