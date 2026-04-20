@@ -16,7 +16,6 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from urllib.error import ContentTooShortError, HTTPError
 
 from parameterized import parameterized
 
