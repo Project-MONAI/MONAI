@@ -42,10 +42,11 @@ class TestDownloadAndExtract(unittest.TestCase):
         with self.assertLogs(logger="monai.apps", level="ERROR"):
             try:
                 download_url(url, filepath, wrong_md5)
-            except (ContentTooShortError, HTTPError, ValueError, RuntimeError) as e:
-                if isinstance(e, ValueError):
-                    # FIXME: skip MD5 check as current downloading method may fail
-                    self.assertIn("hash check", str(e))
+            except ValueError as e:
+                # FIXME: skip MD5 check as current downloading method may fail
+                self.assertIn("hash check", str(e))
+                return
+            except (ContentTooShortError, HTTPError, RuntimeError) as e:
                 return  # skipping this test due the network connection errors
 
         try:
