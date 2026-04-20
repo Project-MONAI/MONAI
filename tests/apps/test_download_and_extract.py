@@ -26,39 +26,62 @@ from tests.test_utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_
 
 @SkipIfNoModule("requests")
 class TestDownloadAndExtract(unittest.TestCase):
+    def setUp(self):
+        self.testing_dir = Path(__file__).parents[1] / "testing_data"
+        self.config = testing_data_config("images", "mednist")
+        self.url = self.config["url"]
+        self.hash_val = self.config["hash_val"]
+        self.hash_type = self.config["hash_type"]
+
     @skip_if_quick
-    def test_actions(self):
-        testing_dir = Path(__file__).parents[1] / "testing_data"
-        config_dict = testing_data_config("images", "mednist")
-        url = config_dict["url"]
-        filepath = Path(testing_dir) / "MedNIST.tar.gz"
-        output_dir = Path(testing_dir)
-        hash_val, hash_type = config_dict["hash_val"], config_dict["hash_type"]
+    def test_download_and_extract_success(self):
+        """End-to-end: download and extract should succeed with correct hash."""
+        filepath = self.testing_dir / "MedNIST.tar.gz"
+        output_dir = self.testing_dir
+
         with skip_if_downloading_fails():
-            download_and_extract(url, filepath, output_dir, hash_val=hash_val, hash_type=hash_type)
+            download_and_extract(self.url, filepath, output_dir, hash_val=self.hash_val, hash_type=self.hash_type)
 
-        wrong_md5 = "0"
-        with self.assertLogs(logger="monai.apps", level="ERROR"):
-            try:
-                download_url(url, filepath, wrong_md5)
-            except ValueError as e:
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertIn("hash check", str(e))
-                return
-            except (ContentTooShortError, HTTPError, RuntimeError):
-                return  # skipping this test due the network connection errors
-
-        try:
-            extractall(filepath, output_dir, wrong_md5)
-        except RuntimeError as e:
-            self.assertTrue(str(e).startswith("md5 check"))
+        self.assertTrue(filepath.exists(), "Downloaded file does not exist")
+        self.assertTrue(any(output_dir.iterdir()), "Extraction output is empty")
 
     @skip_if_quick
-    @parameterized.expand((("icon", "tar"), ("favicon", "zip")))
-    def test_default(self, key, file_type):
+    def test_download_url_hash_mismatch(self):
+        """download_url should raise ValueError on hash mismatch."""
+        filepath = self.testing_dir / "MedNIST.tar.gz"
+
+        with skip_if_downloading_fails():
+            # First ensure file is downloaded correctly
+            download_url(self.url, filepath, hash_val=self.hash_val, hash_type=self.hash_type)
+
+        # Now test incorrect hash
+        with self.assertRaises(ValueError) as ctx:
+            download_url(self.url, filepath, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
+
+        self.assertIn("hash check", str(ctx.exception).lower())
+
+    @skip_if_quick
+    def test_extractall_hash_mismatch(self):
+        """extractall should raise ValueError when hash is incorrect."""
+        filepath = self.testing_dir / "MedNIST.tar.gz"
+        output_dir = self.testing_dir
+
+        with skip_if_downloading_fails():
+            download_url(self.url, filepath, hash_val=self.hash_val, hash_type=self.hash_type)
+
+        with self.assertRaises(ValueError) as ctx:
+            extractall(filepath, output_dir, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
+
+        self.assertIn("hash check", str(ctx.exception).lower())
+
+    @skip_if_quick
+    @parameterized.expand([("icon", "tar"), ("favicon", "zip")])
+    def test_download_and_extract_various_formats(self, key, file_type):
+        """Verify different archive formats download and extract correctly."""
         with tempfile.TemporaryDirectory() as tmp_dir:
+            img_spec = testing_data_config("images", key)
+
             with skip_if_downloading_fails():
-                img_spec = testing_data_config("images", key)
                 download_and_extract(
                     img_spec["url"],
                     output_dir=tmp_dir,
@@ -66,6 +89,8 @@ class TestDownloadAndExtract(unittest.TestCase):
                     hash_type=img_spec["hash_type"],
                     file_type=file_type,
                 )
+
+            self.assertTrue(any(Path(tmp_dir).iterdir()), f"Extraction failed for format: {file_type}")
 
 
 class TestPathTraversalProtection(unittest.TestCase):

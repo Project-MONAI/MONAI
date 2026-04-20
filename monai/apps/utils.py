@@ -326,10 +326,16 @@ def extractall(
             be False.
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
+        ValueError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
+    filepath = Path(filepath)
+    if hash_val and not check_hash(filepath, hash_val, hash_type):
+        raise ValueError(
+            f"{hash_type} hash check of compressed file failed: "
+            f"filepath={filepath}, expected {hash_type}={hash_val}."
+        )
     if has_base:
         # the extracted files will be in this folder
         cache_dir = Path(output_dir, _basename(filepath).split(".")[0])
@@ -338,11 +344,6 @@ def extractall(
     if cache_dir.exists() and next(cache_dir.iterdir(), None) is not None:
         logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
-    filepath = Path(filepath)
-    if hash_val and not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
-        )
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
