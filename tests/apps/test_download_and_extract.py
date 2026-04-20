@@ -46,7 +46,7 @@ class TestDownloadAndExtract(unittest.TestCase):
                 # FIXME: skip MD5 check as current downloading method may fail
                 self.assertIn("hash check", str(e))
                 return
-            except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            except (ContentTooShortError, HTTPError, RuntimeError):
                 return  # skipping this test due the network connection errors
 
         try:
