@@ -229,7 +229,7 @@ class AutoRunner:
             input = os.path.join(os.path.abspath(work_dir), "input.yaml")
             logger.info(f"Input config is not provided, using the default {input}")
 
-        self.data_src_cfg = dict()
+        self.data_src_cfg = {}
         if isinstance(input, dict):
             self.data_src_cfg = input
         elif isinstance(input, str) and os.path.isfile(input):
