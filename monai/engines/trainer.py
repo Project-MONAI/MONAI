@@ -131,6 +131,12 @@ class SupervisedTrainer(Trainer):
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
             https://pytorch.org/docs/stable/generated/torch.compile.html#torch-compile.
+        accumulation_steps: number of mini-batches over which to accumulate gradients before
+            calling ``optimizer.step()``, effectively simulating a larger batch size on
+            memory-constrained hardware. Must be a positive integer. Default: 1 (no accumulation).
+            When ``epoch_length`` is known and not divisible by ``accumulation_steps``, a flush
+            (optimizer step) is performed at the end of each epoch so no gradients are silently
+            discarded. The loss stored in ``engine.state.output`` is always the **unscaled** value.
     """
 
     def __init__(
@@ -160,7 +166,10 @@ class SupervisedTrainer(Trainer):
         amp_kwargs: dict | None = None,
         compile: bool = False,
         compile_kwargs: dict | None = None,
+        accumulation_steps: int = 1,
     ) -> None:
+        if accumulation_steps < 1:
+            raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
         super().__init__(
             device=device,
             max_epochs=max_epochs,
@@ -190,6 +199,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
+        self.accumulation_steps = accumulation_steps
 
     def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]) -> dict:
         """
@@ -245,21 +255,42 @@ class SupervisedTrainer(Trainer):
             engine.state.output[Keys.LOSS] = engine.loss_function(engine.state.output[Keys.PRED], targets).mean()
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
+        # Determine gradient accumulation state
+        acc = engine.accumulation_steps
+        if acc > 1:
+            epoch_length = engine.state.epoch_length
+            if epoch_length is not None:
+                local_iter = (engine.state.iteration - 1) % epoch_length  # 0-indexed within epoch
+                should_zero_grad = local_iter % acc == 0
+                should_step = (local_iter + 1) % acc == 0 or (local_iter + 1) == epoch_length
+            else:
+                local_iter = engine.state.iteration - 1  # 0-indexed global
+                should_zero_grad = local_iter % acc == 0
+                should_step = (local_iter + 1) % acc == 0
+        else:
+            should_zero_grad = True
+            should_step = True
+
         engine.network.train()
-        engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
+        if should_zero_grad:
+            engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.scaler is not None:
             with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_pred_loss()
-            engine.scaler.scale(engine.state.output[Keys.LOSS]).backward()
+            loss = engine.state.output[Keys.LOSS]
+            engine.scaler.scale(loss / acc if acc > 1 else loss).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            engine.scaler.step(engine.optimizer)
-            engine.scaler.update()
+            if should_step:
+                engine.scaler.step(engine.optimizer)
+                engine.scaler.update()
         else:
             _compute_pred_loss()
-            engine.state.output[Keys.LOSS].backward()
+            loss = engine.state.output[Keys.LOSS]
+            (loss / acc if acc > 1 else loss).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            engine.optimizer.step()
+            if should_step:
+                engine.optimizer.step()
         # copy back meta info
         if self.compile:
             if inputs_meta is not None:

@@ -85,6 +85,9 @@ ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
+# NOTE: cucim is deliberately NOT imported at module level.
+# Module-level cucim imports caused very slow import times and other buggy behaviour.
+# Keep cucim imports inside the functions that need them.
 
 __all__ = [
     "allow_missing_keys_mode",
@@ -1884,9 +1887,7 @@ class Fourier:
         return ascontiguousarray(k) if as_contiguous else k
 
     @staticmethod
-    def inv_shift_fourier(
-        k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False
-    ) -> NdarrayOrTensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, as_contiguous: bool = False) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
