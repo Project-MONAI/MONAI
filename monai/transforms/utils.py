@@ -955,14 +955,15 @@ def create_shear(
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
-            take a 3D affine as example::
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D).
+            Individual single-axis shear matrices are composed (multiplied) in
+            coefficient order so that the result is a proper shear with determinant 1.
+            For 2D with coefs ``(Sx, Sy)`` the composed matrix is::
 
                 [
-                    [1.0, coefs[0], coefs[1], 0.0],
-                    [coefs[2], 1.0, coefs[3], 0.0],
-                    [coefs[4], coefs[5], 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
+                    [1.0,  Sx,          0.0],
+                    [Sy,   1.0 + Sx*Sy, 0.0],
+                    [0.0,  0.0,         1.0],
                 ]
 
         device: device to compute and store the output (when the backend is "torch").
@@ -985,17 +986,30 @@ def create_shear(
 def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np.eye) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        out = eye_func(3)
-        out[0, 1], out[1, 0] = coefs[0], coefs[1]
-        return out  # type: ignore
-    if spatial_dims == 3:
+        rank = 3
+        shear_indices = [(0, 1, coefs[0]), (1, 0, coefs[1])]
+    elif spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
-        out = eye_func(4)
-        out[0, 1], out[0, 2] = coefs[0], coefs[1]
-        out[1, 0], out[1, 2] = coefs[2], coefs[3]
-        out[2, 0], out[2, 1] = coefs[4], coefs[5]
-        return out  # type: ignore
-    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+        rank = 4
+        shear_indices = [
+            (0, 1, coefs[0]),
+            (0, 2, coefs[1]),
+            (1, 0, coefs[2]),
+            (1, 2, coefs[3]),
+            (2, 0, coefs[4]),
+            (2, 1, coefs[5]),
+        ]
+    else:
+        raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+    # Compose individual single-axis shear matrices so that the result is a
+    # proper (area/volume-preserving) shear with determinant 1.  Each elementary
+    # shear is pre-multiplied, so the first coefficient is applied first.
+    out = eye_func(rank)
+    for i, j, c in shear_indices:
+        s = eye_func(rank)
+        s[i, j] = c
+        out = s @ out
+    return out  # type: ignore
 
 
 def create_scale(
