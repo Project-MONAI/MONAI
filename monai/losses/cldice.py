@@ -122,6 +122,7 @@ class SoftclDiceLoss(_Loss):
         iter_: int = 3,
         smooth_nr: float = 1.0,
         smooth_dr: float = 1.0,
+        smooth: float = 1e-4,
         include_background: bool = True,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -134,6 +135,7 @@ class SoftclDiceLoss(_Loss):
             iter_: Number of iterations for skeletonization. Must be a non-negative integer. Defaults to 3.
             smooth_nr: a small constant added to the numerator to avoid zero. Defaults to 1.0.
             smooth_dr: a small constant added to the denominator to avoid nan. Defaults to 1.0.
+            smooth: a small constant added to the denominator of the harmonic mean to avoid nan. Defaults to 1e-4.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -154,6 +156,7 @@ class SoftclDiceLoss(_Loss):
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
             TypeError: When ``iter_`` is not an ``int``.
             ValueError: When ``iter_`` is a negative integer.
+            ValueError: When ``smooth`` is not a positive value.
             ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
                 Incompatible values.
 
@@ -167,9 +170,12 @@ class SoftclDiceLoss(_Loss):
             raise TypeError(f"iter_ must be an integer but got {type(iter_).__name__}.")
         if iter_ < 0:
             raise ValueError(f"iter_ must be a non-negative integer but got {iter_}.")
+        if smooth <= 0:
+            raise ValueError(f"smooth must be a positive value but got {smooth}.")
         self.iter = iter_
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
+        self.smooth = float(smooth)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
@@ -233,7 +239,7 @@ class SoftclDiceLoss(_Loss):
             torch.sum(skel_true, dim=reduce_axis) + self.smooth_dr
         )
         # Add small epsilon for numerical stability in harmonic mean
-        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens + 1e-7)
+        cl_dice: torch.Tensor = 1.0 - 2.0 * (tprec * tsens) / (tprec + tsens + self.smooth)
 
         # Apply reduction
         if self.reduction == LossReduction.MEAN.value:
@@ -266,6 +272,7 @@ class SoftDiceclDiceLoss(_Loss):
         alpha: float = 0.5,
         smooth_nr: float = 1.0,
         smooth_dr: float = 1.0,
+        smooth: float = 1e-4,
         include_background: bool = True,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -280,6 +287,8 @@ class SoftDiceclDiceLoss(_Loss):
                 Defaults to 0.5.
             smooth_nr: a small constant added to the numerator to avoid zero, used by both Dice and clDice. Defaults to 1.0.
             smooth_dr: a small constant added to the denominator to avoid nan, used by both Dice and clDice. Defaults to 1.0.
+            smooth: a small constant added to the denominator of the harmonic mean in clDice to avoid nan.
+                Defaults to 1e-4. Note: This differs from standalone DiceLoss defaults (1e-5) to follow clDice convention.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -320,6 +329,7 @@ class SoftDiceclDiceLoss(_Loss):
             iter_=iter_,
             smooth_nr=smooth_nr,
             smooth_dr=smooth_dr,
+            smooth=smooth,
             include_background=include_background,
             to_onehot_y=False,
             sigmoid=sigmoid,
