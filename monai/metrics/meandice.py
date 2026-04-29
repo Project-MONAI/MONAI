@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import torch
 
-from monai.apps.detection import metrics
 from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
 from monai.utils.module import optional_import
