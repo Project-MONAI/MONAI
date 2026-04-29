@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import torch
 
+from monai.apps.detection import metrics
 from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
 from monai.utils.module import optional_import
@@ -47,8 +48,17 @@ class DiceMetric(CumulativeIterationMetric):
     image size they can get overwhelmed by the signal from the background. This assumes the shape of both prediction
     and ground truth is BCHW[D].
 
-    The ``per_component`` parameter can be set to `True` to compute the Dice metric per connected component in the ground truth
-    , and then average. This requires binary segmentations with 2 channels (background + foreground) as input.
+    The `per_component=True` approach computes the Dice metric on a per-connected component basis in the ground truth segmentation,
+    ensuring equal weighting for each component regardless of its size. This method eliminates biases in traditional metrics,
+    providing a more balanced evaluation, particularly in scenarios where object size does not correlate with clinical relevance.
+    This provides a more granular evaluation of segmentation quality, especially useful when dealing with fragmented or
+    disconnected objects in the foreground.
+    Note:
+    - The input prediction (`y_pred`) and ground truth (`y`) must both have 2 channels (foreground/background),
+    with binary segmentation (0 for background, 1 for foreground). That is, this assumes the shape of both prediction
+    and ground truth is B2HW[D].
+    - This method cannot be used with multiclass segmentation.
+    For more information, refer to the original paper: https://arxiv.org/abs/2410.18684
 
     The typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
