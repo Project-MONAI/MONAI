@@ -16,6 +16,7 @@ from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
+from .embedding_collapse import EmbeddingCollapseMetric, compute_embedding_collapse
 from .f_beta_score import FBetaScore
 from .fid import FIDMetric, compute_frechet_distance
 from .froc import compute_fp_tp_probs, compute_fp_tp_probs_nd, compute_froc_curve_data, compute_froc_score
