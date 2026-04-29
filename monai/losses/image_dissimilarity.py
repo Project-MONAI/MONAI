@@ -111,6 +111,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
         _kernel = look_up_option(kernel_type, kernel_dict)
+        self.kernel: torch.Tensor
+        self.kernel_vol: torch.Tensor
         self.register_buffer("kernel", _kernel(self.kernel_size), persistent=False)
         self.register_buffer("kernel_vol", self.get_kernel_vol(), persistent=False)
 
