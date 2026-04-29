@@ -52,7 +52,7 @@ data in sliding-window inference. For more details about how to enable it, pleas
 
 ## New models in MONAI Model Zoo
 
-New pretrained models are being created and released [in the Model Zoo](https://monai.io/model-zoo.html).
+New pretrained models are being created and released [in the Model Zoo](https://project-monai.github.io/model-zoo.html).
 Notably,
 
 - The `mednist_reg` model demonstrates how to build image registration workflows in MONAI bundle

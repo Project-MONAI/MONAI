@@ -290,7 +290,7 @@ class BorderPad(Pad):
         else:
             raise ValueError(
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
-                f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
+                f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2 * len(spatial_shape)}]."
             )
         return tuple([(0, 0)] + data_pad_width)  # type: ignore
 

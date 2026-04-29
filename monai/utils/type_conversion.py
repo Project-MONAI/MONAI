@@ -117,6 +117,7 @@ def convert_to_tensor(
     wrap_sequence: bool = False,
     track_meta: bool = False,
     safe: bool = False,
+    convert_numeric: bool = True,
 ) -> Any:
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
@@ -136,6 +137,7 @@ def convert_to_tensor(
         safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
             E.g., `[256, -12]` -> `[tensor(0), tensor(244)]`.
             If `True`, then `[256, -12]` -> `[tensor(255), tensor(0)]`.
+        convert_numeric: if `True`, convert numeric Python values to tensors.
 
     """
 
@@ -156,6 +158,7 @@ def convert_to_tensor(
     if safe:
         data = safe_dtype_range(data, dtype)
     dtype = get_equivalent_dtype(dtype, torch.Tensor)
+
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
     if isinstance(data, np.ndarray):
@@ -167,16 +170,25 @@ def convert_to_tensor(
             if data.ndim > 0:
                 data = np.ascontiguousarray(data)
             return _convert_tensor(data, dtype=dtype, device=device)
-    elif (has_cp and isinstance(data, cp_ndarray)) or isinstance(data, (float, int, bool)):
+    elif (has_cp and isinstance(data, cp_ndarray)) or (convert_numeric and isinstance(data, (float, int, bool))):
         return _convert_tensor(data, dtype=dtype, device=device)
     elif isinstance(data, list):
-        list_ret = [convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data]
+        list_ret = [
+            convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta, convert_numeric=convert_numeric)
+            for i in data
+        ]
         return _convert_tensor(list_ret, dtype=dtype, device=device) if wrap_sequence else list_ret
     elif isinstance(data, tuple):
-        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data)
+        tuple_ret = tuple(
+            convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta, convert_numeric=convert_numeric)
+            for i in data
+        )
         return _convert_tensor(tuple_ret, dtype=dtype, device=device) if wrap_sequence else tuple_ret
     elif isinstance(data, dict):
-        return {k: convert_to_tensor(v, dtype=dtype, device=device, track_meta=track_meta) for k, v in data.items()}
+        return {
+            k: convert_to_tensor(v, dtype=dtype, device=device, track_meta=track_meta, convert_numeric=convert_numeric)
+            for k, v in data.items()
+        }
 
     return data
 

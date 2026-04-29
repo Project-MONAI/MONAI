@@ -102,6 +102,10 @@ _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
 NP_MAX = np.iinfo(np.uint32).max
 MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
 
+# Environment variable must be set to enable determinism for algorithms (alternative value is ":16:8").
+# This needs to be here to ensure it's set before deterministic algorithms are used/initialised.
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = os.environ.get("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 
 def zip_with(op, *vals, mapfunc=map):
     """
@@ -374,23 +378,16 @@ def set_determinism(
         for func in additional_settings:
             func(seed)
 
-    if torch.backends.flags_frozen():
-        warnings.warn("PyTorch global flag support of backends is disabled, enable it to set global `cudnn` flags.")
-        torch.backends.__allow_nonbracketed_mutation_flag = True
+    with torch.backends.__allow_nonbracketed_mutation():  # FIXME: better method without accessing private member
+        if seed is not None:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:  # restore the original flags
+            torch.backends.cudnn.deterministic = _flag_deterministic
+            torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
-    if seed is not None:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-    else:  # restore the original flags
-        torch.backends.cudnn.deterministic = _flag_deterministic
-        torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
     if use_deterministic_algorithms is not None:
-        if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
-            torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
-            torch.set_deterministic(use_deterministic_algorithms)
-        else:
-            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
+        torch.use_deterministic_algorithms(use_deterministic_algorithms)
 
 
 def list_to_dict(items):
@@ -882,7 +879,12 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         a CompletedProcess instance after the command completes.
     """
     debug = MONAIEnvVars.debug()
-    kwargs["capture_output"] = kwargs.get("capture_output", debug)
+    # Always capture output when check=True so that error details are available
+    # in the CalledProcessError exception for debugging subprocess failures.
+    if kwargs.get("check", False):
+        kwargs.setdefault("capture_output", True)
+    else:
+        kwargs["capture_output"] = kwargs.get("capture_output", debug)
 
     if kwargs.pop("run_cmd_verbose", False):
         import monai
@@ -891,11 +893,9 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(cmd_list, **kwargs)
     except subprocess.CalledProcessError as e:
-        if not debug:
-            raise
-        output = str(e.stdout.decode(errors="replace"))
-        errors = str(e.stderr.decode(errors="replace"))
-        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+        output = str(e.stdout.decode(errors="replace")) if e.stdout else ""
+        errors = str(e.stderr.decode(errors="replace")) if e.stderr else ""
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
 def is_sqrt(num: Sequence[int] | int) -> bool:

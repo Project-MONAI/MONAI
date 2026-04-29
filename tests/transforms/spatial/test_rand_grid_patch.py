@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import RandGridPatch
 from monai.utils import set_determinism
-from tests.test_utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -112,7 +112,6 @@ class TestRandGridPatch(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TEST_SINGLE)
-    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
@@ -128,7 +127,6 @@ class TestRandGridPatch(unittest.TestCase):
             )
 
     @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])
-    @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_rand_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
         set_track_meta(True)
         splitter = RandGridPatch(**input_parameters)

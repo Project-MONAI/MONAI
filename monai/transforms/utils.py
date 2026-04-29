@@ -85,6 +85,9 @@ ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
+# NOTE: cucim is deliberately NOT imported at module level.
+# Module-level cucim imports caused very slow import times and other buggy behaviour.
+# Keep cucim imports inside the functions that need them.
 
 __all__ = [
     "allow_missing_keys_mode",
@@ -508,7 +511,7 @@ def map_classes_to_indices(
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
         check_non_lazy_pending_ops(image, name="map_classes_to_indices")
-        img_flat = ravel((image > image_threshold).any(0))
+        img_flat = ravel((image > image_threshold).any(0))  # type: ignore
 
     # assuming the first dimension is channel
     channels = len(label)
@@ -952,14 +955,15 @@ def create_shear(
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
-            take a 3D affine as example::
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D).
+            Individual single-axis shear matrices are composed (multiplied) in
+            coefficient order so that the result is a proper shear with determinant 1.
+            For 2D with coefs ``(Sx, Sy)`` the composed matrix is::
 
                 [
-                    [1.0, coefs[0], coefs[1], 0.0],
-                    [coefs[2], 1.0, coefs[3], 0.0],
-                    [coefs[4], coefs[5], 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
+                    [1.0,  Sx,          0.0],
+                    [Sy,   1.0 + Sx*Sy, 0.0],
+                    [0.0,  0.0,         1.0],
                 ]
 
         device: device to compute and store the output (when the backend is "torch").
@@ -982,17 +986,30 @@ def create_shear(
 def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np.eye) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        out = eye_func(3)
-        out[0, 1], out[1, 0] = coefs[0], coefs[1]
-        return out  # type: ignore
-    if spatial_dims == 3:
+        rank = 3
+        shear_indices = [(0, 1, coefs[0]), (1, 0, coefs[1])]
+    elif spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
-        out = eye_func(4)
-        out[0, 1], out[0, 2] = coefs[0], coefs[1]
-        out[1, 0], out[1, 2] = coefs[2], coefs[3]
-        out[2, 0], out[2, 1] = coefs[4], coefs[5]
-        return out  # type: ignore
-    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+        rank = 4
+        shear_indices = [
+            (0, 1, coefs[0]),
+            (0, 2, coefs[1]),
+            (1, 0, coefs[2]),
+            (1, 2, coefs[3]),
+            (2, 0, coefs[4]),
+            (2, 1, coefs[5]),
+        ]
+    else:
+        raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+    # Compose individual single-axis shear matrices so that the result is a
+    # proper (area/volume-preserving) shear with determinant 1.  Each elementary
+    # shear is pre-multiplied, so the first coefficient is applied first.
+    out = eye_func(rank)
+    for i, j, c in shear_indices:
+        s = eye_func(rank)
+        s[i, j] = c
+        out = s @ out
+    return out  # type: ignore
 
 
 def create_scale(
@@ -1878,19 +1895,13 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
-            if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
-                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
-            else:
-                # if using old PyTorch, will convert to numpy array and return
-                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+            k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
         else:
             k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return ascontiguousarray(k) if as_contiguous else k
 
     @staticmethod
-    def inv_shift_fourier(
-        k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False
-    ) -> NdarrayOrTensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, as_contiguous: bool = False) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1906,11 +1917,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
-            if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
-                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
-            else:
-                # if using old PyTorch, will convert to numpy array and return
-                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
         else:
             out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
         return ascontiguousarray(out) if as_contiguous else out
@@ -2498,7 +2505,7 @@ def distance_transform_edt(
         if return_indices:
             dtype = torch.int32
             if indices is None:
-                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+                indices = torch.zeros((img.shape[0],) + (img.dim() - 1,) + img.shape[1:], dtype=dtype)  # type: ignore
             else:
                 if not isinstance(indices, torch.Tensor) and indices.device != img.device:
                     raise TypeError("indices must be a torch.Tensor on the same device as img")
@@ -2532,7 +2539,7 @@ def distance_transform_edt(
                     raise TypeError("distances must be a numpy.ndarray of dtype float64")
         if return_indices:
             if indices is None:
-                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+                indices = np.zeros((img_.shape[0],) + (img_.ndim - 1,) + img_.shape[1:], dtype=np.int32)
             else:
                 if not isinstance(indices, np.ndarray):
                     raise TypeError("indices must be a numpy.ndarray")

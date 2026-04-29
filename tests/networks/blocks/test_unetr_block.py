@@ -19,86 +19,82 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import get_padding
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
-from tests.test_utils import test_script_save
+from tests.test_utils import dict_product, test_script_save
 
+
+def _get_out_size(params):
+    in_size = params["in_size"]
+    kernel_size = params["kernel_size"]
+    stride = params["stride"]
+    padding = get_padding(kernel_size, stride)
+    if not isinstance(padding, int):
+        padding = padding[0]
+    return int((in_size + 2 * padding - kernel_size) / stride) + 1
+
+
+norm_names = [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]
+param_dicts = dict_product(
+    spatial_dims=range(1, 4), kernel_size=[1, 3], stride=[2], norm_name=norm_names, in_size=[15, 16]
+)
 TEST_CASE_UNETR_BASIC_BLOCK = []
-for spatial_dims in range(1, 4):
-    for kernel_size in [1, 3]:
-        for stride in [2]:
-            for norm_name in [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]:
-                for in_size in [15, 16]:
-                    padding = get_padding(kernel_size, stride)
-                    if not isinstance(padding, int):
-                        padding = padding[0]
-                    out_size = int((in_size + 2 * padding - kernel_size) / stride) + 1
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "in_channels": 16,
-                            "out_channels": 16,
-                            "kernel_size": kernel_size,
-                            "norm_name": norm_name,
-                            "stride": stride,
-                        },
-                        (1, 16, *([in_size] * spatial_dims)),
-                        (1, 16, *([out_size] * spatial_dims)),
-                    ]
-                    TEST_CASE_UNETR_BASIC_BLOCK.append(test_case)
+for params in param_dicts:
+    input_param = {**{k: v for k, v in params.items() if k != "in_size"}, "in_channels": 16, "out_channels": 16}
+    input_shape = (1, 16, *([params["in_size"]] * params["spatial_dims"]))
+    expected_shape = (1, 16, *([_get_out_size(params)] * params["spatial_dims"]))
+    TEST_CASE_UNETR_BASIC_BLOCK.append([input_param, input_shape, expected_shape])
 
-TEST_UP_BLOCK = []
-in_channels, out_channels = 4, 2
-for spatial_dims in range(1, 4):
-    for kernel_size in [1, 3]:
-        for res_block in [False, True]:
-            for norm_name in ["instance"]:
-                for in_size in [15, 16]:
-                    out_size = in_size * stride
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "in_channels": in_channels,
-                            "out_channels": out_channels,
-                            "kernel_size": kernel_size,
-                            "norm_name": norm_name,
-                            "res_block": res_block,
-                            "upsample_kernel_size": stride,
-                        },
-                        (1, in_channels, *([in_size] * spatial_dims)),
-                        (1, out_channels, *([out_size] * spatial_dims)),
-                        (1, out_channels, *([in_size * stride] * spatial_dims)),
-                    ]
-                    TEST_UP_BLOCK.append(test_case)
+
+TEST_UP_BLOCK = [
+    [
+        {
+            **{k: v for k, v in params.items() if k not in ["in_size", "stride", "upsample_kernel_size"]},
+            "upsample_kernel_size": params["stride"],
+        },
+        (1, params["in_channels"], *([params["in_size"]] * params["spatial_dims"])),
+        (1, params["out_channels"], *([params["in_size"] * params["stride"]] * params["spatial_dims"])),
+        (1, params["out_channels"], *([params["in_size"] * params["stride"]] * params["spatial_dims"])),
+    ]
+    for params in dict_product(
+        spatial_dims=range(1, 4),
+        in_channels=[4],
+        out_channels=[2],
+        kernel_size=[1, 3],
+        norm_name=["instance"],
+        res_block=[False, True],
+        upsample_kernel_size=[2, 3],
+        stride=[1, 2],
+        in_size=[15, 16],
+    )
+]
 
 TEST_PRUP_BLOCK = []
 in_channels, out_channels = 4, 2
-for spatial_dims in range(1, 4):
-    for kernel_size in [1, 3]:
-        for upsample_kernel_size in [2, 3]:
-            for stride in [1, 2]:
-                for res_block in [False, True]:
-                    for norm_name in ["instance"]:
-                        for in_size in [15, 16]:
-                            for num_layer in [0, 2]:
-                                in_size_tmp = in_size
-                                for _ in range(num_layer + 1):
-                                    out_size = in_size_tmp * upsample_kernel_size
-                                    in_size_tmp = out_size
-                            test_case = [
-                                {
-                                    "spatial_dims": spatial_dims,
-                                    "in_channels": in_channels,
-                                    "out_channels": out_channels,
-                                    "num_layer": num_layer,
-                                    "kernel_size": kernel_size,
-                                    "norm_name": norm_name,
-                                    "stride": stride,
-                                    "res_block": res_block,
-                                    "upsample_kernel_size": upsample_kernel_size,
-                                },
-                                (1, in_channels, *([in_size] * spatial_dims)),
-                                (1, out_channels, *([out_size] * spatial_dims)),
-                            ]
-                            TEST_PRUP_BLOCK.append(test_case)
+for params in dict_product(
+    spatial_dims=range(1, 4),
+    kernel_size=[1, 3],
+    upsample_kernel_size=[2, 3],
+    stride=[1, 2],
+    res_block=[False, True],
+    norm_name=["instance"],
+    in_size_scalar=[15, 16],
+    num_layer=[0, 2],
+):
+    in_size_tmp = params["in_size_scalar"]
+    out_size = 0  # Initialize out_size
+    for _ in range(params["num_layer"] + 1):
+        out_size = in_size_tmp * params["upsample_kernel_size"]
+        in_size_tmp = out_size
+
+    test_case = [
+        {
+            **{k: v for k, v in params.items() if k != "in_size_scalar"},
+            "in_channels": in_channels,
+            "out_channels": out_channels,
+        },
+        (1, in_channels, *([params["in_size_scalar"]] * params["spatial_dims"])),
+        (1, out_channels, *([out_size] * params["spatial_dims"])),
+    ]
+    TEST_PRUP_BLOCK.append(test_case)
 
 
 class TestResBasicBlock(unittest.TestCase):

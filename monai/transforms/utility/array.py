@@ -21,7 +21,7 @@ import warnings
 from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Union
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ from monai.networks.layers.simplelayers import (
     median_filter,
 )
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.traits import MultiSampleTrait, ReduceTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     apply_affine_to_points,
@@ -110,6 +110,7 @@ __all__ = [
     "ImageFilter",
     "RandImageFilter",
     "ApplyTransformToPoints",
+    "FlattenSequence",
 ]
 
 
@@ -701,7 +702,7 @@ class DataStats(Transform):
                 # if the root log level is higher than INFO, set a separate stream handler to record
                 console = logging.StreamHandler(sys.stdout)
                 console.setLevel(logging.INFO)
-                console.is_data_stats_handler = True  # type:ignore[attr-defined]
+                console.is_data_stats_handler = True  # type: ignore[attr-defined]
                 _logger.addHandler(console)
 
     def __call__(
@@ -941,7 +942,7 @@ class LabelToMask(Transform):
             data = where(in1d(img, select_labels), True, False).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
-            return data.any(0)[None]
+            return data.any(0)[None]  # type: ignore
 
         return data
 
@@ -1048,19 +1049,34 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
     label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
     label 2 is the peritumoral edema, which is counted only under WT subregion,
-    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+    the specified `et_label` (default 4) is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+
+    Args:
+        et_label: the label used for the GD-enhancing tumor (ET).
+        - Use 4 for BraTS 2018-2022.
+        - Use 3 for BraTS 2023.
+        Defaults to 4.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, et_label: int = 4) -> None:
+        if et_label in (1, 2):
+            raise ValueError(f"et_label cannot be 1 or 2, as these are reserved. Got {et_label}.")
+        self.et_label = et_label
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = img.squeeze(0)
 
-        result = [(img == 1) | (img == 4), (img == 1) | (img == 4) | (img == 2), img == 4]
-        # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        # label 4 is ET
+        result = [
+            (img == 1) | (img == self.et_label),
+            (img == 1) | (img == self.et_label) | (img == 2),
+            img == self.et_label,
+        ]
+        # merge labels 1 (tumor non-enh) and self.et_label (tumor enh) and 2 (large edema) to WT
+        # self.et_label is ET (4 or 3)
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 
@@ -1216,7 +1232,7 @@ class TorchIO(Transform):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
@@ -1248,7 +1264,7 @@ class RandTorchIO(Transform, RandomizableTrait):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
@@ -1949,4 +1965,40 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
 
+        return data
+
+
+class FlattenSequence(Transform, ReduceTrait):
+    """
+    Flatten a nested sequence (list or tuple) by one level.
+    If the input is a sequence of sequences, it will flatten them into a single sequence.
+    Non-nested sequences and other data types are returned unchanged.
+
+    For example:
+
+    .. code-block:: python
+
+        flatten = FlattenSequence()
+        data = [[1, 2], [3, 4], [5, 6]]
+        print(flatten(data))
+        [1, 2, 3, 4, 5, 6]
+
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, data: list | tuple | Any) -> list | tuple | Any:
+        """
+        Flatten a nested sequence by one level.
+        Args:
+            data: Input data, can be a nested sequence.
+        Returns:
+            Flattened list if input is a nested sequence, otherwise returns data unchanged.
+        """
+        if isinstance(data, (list, tuple)):
+            if len(data) == 0:
+                return data
+            if all(isinstance(item, (list, tuple)) for item in data):
+                return [item for sublist in data for item in sublist]
         return data

@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai import transforms
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
-from tests.test_utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, skip_if_quick, testing_data_config
+from tests.test_utils import download_url_or_skip_test, skip_if_quick, testing_data_config
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -66,7 +66,6 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
             hash_type=config.get("hash_type", "sha256"),
         )
 
-    @SkipIfBeforePyTorchVersion((1, 9))
     def test_bspline(self):
         loss_fn = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=32, sigma_ratio=0.015)
 

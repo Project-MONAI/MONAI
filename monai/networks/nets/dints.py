@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Optional
 
 import numpy as np
 import torch
@@ -41,7 +40,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:  # type: ignore
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -175,7 +174,7 @@ class MixedOp(nn.Module):
             if arch_c > 0:
                 self.ops.append(ops[op_name](c))
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor] = None):
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None = None):
         """
         Args:
             x: input tensor.
@@ -303,7 +302,7 @@ class Cell(CellInterface):
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
-    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:
         """
         Args:
             x: input tensor
@@ -492,7 +491,7 @@ class DiNTS(nn.Module):
         inputs = []
         for d in range(self.num_depths):
             # allow multi-resolution input
-            _mod_w: StemInterface = self.stem_down[str(d)]
+            _mod_w: StemInterface = self.stem_down[str(d)]  # type: ignore[assignment]
             x_out = _mod_w.forward(x)
             if self.node_a[0][d]:
                 inputs.append(x_out)
@@ -505,7 +504,7 @@ class DiNTS(nn.Module):
         start = False
         _temp: torch.Tensor = torch.empty(0)
         for res_idx in range(self.num_depths - 1, -1, -1):
-            _mod_up: StemInterface = self.stem_up[str(res_idx)]
+            _mod_up: StemInterface = self.stem_up[str(res_idx)]  # type: ignore[assignment]
             if start:
                 _temp = _mod_up.forward(outputs[res_idx] + _temp)
             elif self.node_a[blk_idx + 1][res_idx]:
@@ -574,9 +573,8 @@ class TopologyConstruction(nn.Module):
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         print(
-            "{} - Length of input patch is recommended to be a multiple of {:d}.".format(
-                datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
-            )
+            f"{datetime.datetime.now()}"
+            f" - Length of input patch is recommended to be a multiple of {2 ** (num_depths + int(use_downsample)):d}."
         )
 
         self._spatial_dims = spatial_dims
@@ -629,7 +627,6 @@ class TopologyConstruction(nn.Module):
 
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
-        pass
 
 
 class TopologyInstance(TopologyConstruction):
@@ -680,7 +677,7 @@ class TopologyInstance(TopologyConstruction):
             outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
             for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
                 if activation:
-                    mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
+                    mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore[assignment]
                     _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
                     outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
             inputs = outputs
@@ -782,12 +779,10 @@ class TopologySearch(TopologyConstruction):
         for blk_idx in range(self.num_blocks):
             for res_idx in range(len(self.arch_code2out)):
                 if self.arch_code_a[blk_idx, res_idx] == 1:
+                    cell_inter: Cell = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore
                     self.ram_cost[blk_idx, res_idx] = np.array(
-                        [
-                            op.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
-                            for op in self.cell_tree[str((blk_idx, res_idx))].op.ops[: self.num_cell_ops]
-                        ]
-                    )
+                        [op.ram_cost + cell_inter.preprocess.ram_cost for op in cell_inter.op.ops[: self.num_cell_ops]]
+                    )  # type: ignore
 
         # define cell and macro architecture probabilities
         self.log_alpha_c = nn.Parameter(

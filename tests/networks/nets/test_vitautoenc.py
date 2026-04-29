@@ -17,32 +17,29 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.test_utils import skip_if_quick, skip_if_windows
+from tests.test_utils import dict_product, skip_if_quick, skip_if_windows
 
-TEST_CASE_Vitautoenc = []
-for in_channels in [1, 4]:
-    for img_size in [64, 96, 128]:
-        for patch_size in [16]:
-            for proj_type in ["conv", "perceptron"]:
-                for nd in [2, 3]:
-                    test_case = [
-                        {
-                            "in_channels": in_channels,
-                            "img_size": (img_size,) * nd,
-                            "patch_size": (patch_size,) * nd,
-                            "hidden_size": 768,
-                            "mlp_dim": 3072,
-                            "num_layers": 4,
-                            "num_heads": 12,
-                            "proj_type": proj_type,
-                            "dropout_rate": 0.6,
-                            "spatial_dims": nd,
-                        },
-                        (2, in_channels, *([img_size] * nd)),
-                        (2, 1, *([img_size] * nd)),
-                    ]
-
-                    TEST_CASE_Vitautoenc.append(test_case)
+TEST_CASE_Vitautoenc = [
+    [
+        {
+            "in_channels": params["in_channels"],
+            "img_size": (params["img_size"],) * params["nd"],
+            "patch_size": (params["patch_size"],) * params["nd"],
+            "hidden_size": 768,
+            "mlp_dim": 3072,
+            "num_layers": 4,
+            "num_heads": 12,
+            "proj_type": params["proj_type"],
+            "dropout_rate": 0.6,
+            "spatial_dims": params["nd"],
+        },
+        (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+        (2, 1, *([params["img_size"]] * params["nd"])),
+    ]
+    for params in dict_product(
+        in_channels=[1, 4], img_size=[64, 96, 128], patch_size=[16], proj_type=["conv", "perceptron"], nd=[2, 3]
+    )
+]
 
 TEST_CASE_Vitautoenc.append(
     [

@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Hashable, Mapping
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -105,7 +105,7 @@ class Analyzer(MapTransform, ABC):
             raise ValueError("Nested_key input format is wrong. Please ensure it is like key1#0#key2")
         root: str
         child_key: str
-        (root, _, child_key) = keys
+        root, _, child_key = keys
         if root not in self.ops:
             self.ops[root] = [{}]
         self.ops[root][0].update({child_key: None})
@@ -216,9 +216,10 @@ class ImageStats(Analyzer):
         super().__init__(stats_name, report_format)
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data):
         """
-        Callable to execute the pre-defined functions
+        Callable to execute the pre-defined functions.
 
         Returns:
             A dictionary. The dict has the key in self.report_format. The value of
@@ -226,7 +227,12 @@ class ImageStats(Analyzer):
             has stats pre-defined by SampleOperations (max, min, ....).
 
         Raises:
-            RuntimeError if the stats report generated is not consistent with the pre-
+            KeyError: if ``self.image_key`` is not present in the input data.
+            TypeError: if the input data is not a dictionary, or if the image value is
+                not a numpy array, torch.Tensor, or MetaTensor.
+            ValueError: if the image has fewer than 3 dimensions, or if pre-computed
+                ``nda_croppeds`` is not a list/tuple with one entry per image channel.
+            RuntimeError: if the stats report generated is not consistent with the pre-
                 defined report_format.
 
         Note:
@@ -234,16 +240,34 @@ class ImageStats(Analyzer):
             functions. If the input has nan/inf, the stats results will be nan/inf.
 
         """
+        if not isinstance(data, dict):
+            raise TypeError(f"Input data must be a dict, but got {type(data).__name__}.")
+        if self.image_key not in data:
+            raise KeyError(f"Key '{self.image_key}' not found in input data.")
+        image = data[self.image_key]
+        if not isinstance(image, (np.ndarray, torch.Tensor, MetaTensor)):
+            raise TypeError(
+                f"Value for '{self.image_key}' must be a numpy array, torch.Tensor, or MetaTensor, "
+                f"but got {type(image).__name__}."
+            )
+        if image.ndim < 3:
+            raise ValueError(
+                f"Image data under '{self.image_key}' must have at least 3 dimensions, but got shape {image.shape}."
+            )
+
         d = dict(data)
         start = time.time()
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
-
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
-        if "nda_croppeds" not in d:
+        if "nda_croppeds" in d:
+            nda_croppeds = d["nda_croppeds"]
+            if not isinstance(nda_croppeds, (list, tuple)) or len(nda_croppeds) != len(ndas):
+                raise ValueError(
+                    "Pre-computed 'nda_croppeds' must be a list or tuple with one entry per image channel "
+                    f"(expected {len(ndas)})."
+                )
+        else:
             nda_croppeds = [get_foreground_image(nda) for nda in ndas]
 
-        # perform calculation
         report = deepcopy(self.get_report_format())
 
         report[ImageStatsKeys.SHAPE] = [list(nda.shape) for nda in ndas]
@@ -268,8 +292,7 @@ class ImageStats(Analyzer):
 
         d[self.stats_name] = report
 
-        torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get image stats spent {time.time()-start}")
+        logger.debug(f"Get image stats spent {time.time() - start}")
         return d
 
 
@@ -305,6 +328,7 @@ class FgImageStats(Analyzer):
         super().__init__(stats_name, report_format)
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data: Mapping) -> dict:
         """
         Callable to execute the pre-defined functions
@@ -325,9 +349,6 @@ class FgImageStats(Analyzer):
 
         d = dict(data)
         start = time.time()
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
-
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
 
@@ -337,7 +358,6 @@ class FgImageStats(Analyzer):
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
-        # perform calculation
         report = deepcopy(self.get_report_format())
 
         report[ImageStatsKeys.INTENSITY] = [
@@ -349,8 +369,7 @@ class FgImageStats(Analyzer):
 
         d[self.stats_name] = report
 
-        torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get foreground image stats spent {time.time()-start}")
+        logger.debug(f"Get foreground image stats spent {time.time() - start}")
         return d
 
 
@@ -402,6 +421,7 @@ class LabelStats(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INTST])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor | dict]:
         """
         Callable to execute the pre-defined functions.
@@ -452,21 +472,31 @@ class LabelStats(Analyzer):
         """
         d: dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
-        if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
-            using_cuda = True
-        else:
-            using_cuda = False
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
+        image_tensor = d[self.image_key]
+        label_tensor = d[self.label_key]
+        using_cuda = any(
+            isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor)
+        )
 
-        ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
-        ndas_label: MetaTensor = d[self.label_key].astype(torch.int16)  # (H,W,D)
+        if isinstance(image_tensor, (MetaTensor, torch.Tensor)) and isinstance(
+            label_tensor, (MetaTensor, torch.Tensor)
+        ):
+            if label_tensor.device != image_tensor.device:
+                if using_cuda:
+                    cuda_device = image_tensor.device if image_tensor.device.type == "cuda" else label_tensor.device
+                    image_tensor = cast(MetaTensor, image_tensor.to(cuda_device))
+                    label_tensor = cast(MetaTensor, label_tensor.to(cuda_device))
+                else:
+                    label_tensor = cast(MetaTensor, label_tensor.to(image_tensor.device))
+
+        ndas: list[MetaTensor] = [image_tensor[i] for i in range(image_tensor.shape[0])]  # type: ignore
+        ndas_label: MetaTensor = label_tensor.astype(torch.int16)  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
         nda_foregrounds: list[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
-        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
+        nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
@@ -518,8 +548,7 @@ class LabelStats(Analyzer):
 
         d[self.stats_name] = report  # type: ignore[assignment]
 
-        torch.set_grad_enabled(restore_grad_state)
-        logger.debug(f"Get label stats spent {time.time()-start}")
+        logger.debug(f"Get label stats spent {time.time() - start}")
         return d  # type: ignore[return-value]
 
 
@@ -897,9 +926,11 @@ class ImageHistogram(Analyzer):
         for i, hist_params in enumerate(zip(self.hist_bins, self.hist_range)):
             _hist_bins, _hist_range = hist_params
             if not isinstance(_hist_bins, int) or _hist_bins < 0:
-                raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
+                raise ValueError(f"Expected {i + 1}. hist_bins value to be positive integer but got {_hist_bins}")
             if not isinstance(_hist_range, list) or len(_hist_range) != 2:
-                raise ValueError(f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}")
+                raise ValueError(
+                    f"Expected {i + 1}. hist_range values to be list of length 2 but received {_hist_range}"
+                )
 
     def __call__(self, data: dict) -> dict:
         """

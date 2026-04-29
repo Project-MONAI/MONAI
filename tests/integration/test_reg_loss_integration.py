@@ -19,13 +19,14 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
-from tests.test_utils import SkipIfBeforePyTorchVersion
+from monai.utils import set_determinism
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"], 3],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "rectangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 5, "kernel_type": "triangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 3, "kernel_type": "gaussian"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "gaussian"}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"kernel_type": "b-spline", "num_bins": 10}, ["pred", "target"]],
 ]
@@ -33,17 +34,13 @@ TEST_CASES = [
 
 class TestRegLossIntegration(unittest.TestCase):
     def setUp(self):
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.manual_seed(0)
+        set_determinism(0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        torch.backends.cudnn.deterministic = False
-        torch.backends.cudnn.benchmark = True
+        set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
-    @SkipIfBeforePyTorchVersion((1, 9))
     def test_convergence(self, loss_type, loss_args, forward_args, pred_channels=1):
         """
         The goal of this test is to assess if the gradient of the loss function
@@ -101,6 +98,24 @@ class TestRegLossIntegration(unittest.TestCase):
             loss_val.backward()
             optimizer.step()
         self.assertGreater(init_loss, loss_val, "loss did not decrease")
+
+    def test_lncc_gaussian_kernel_gt3_identical_images(self):
+        """
+        Regression test for make_gaussian_kernel truncated parameter bug.
+        LNCC on identical inputs must be close to -1.0 for gaussian kernel_size > 3.
+        """
+        for kernel_size in [5, 7]:
+            with self.subTest(kernel_size=kernel_size):
+                loss_fn = LocalNormalizedCrossCorrelationLoss(
+                    spatial_dims=2, kernel_size=kernel_size, kernel_type="gaussian"
+                ).to(self.device)
+                x = torch.rand(2, 1, 32, 32, device=self.device)
+                y = x.clone()
+                loss = loss_fn(x, y)
+                self.assertTrue(
+                    torch.allclose(loss, torch.tensor(-1.0, device=self.device, dtype=loss.dtype), atol=1e-3),
+                    f"LNCC of identical images should be -1.0, got {loss.item():.6f} (kernel_size={kernel_size})",
+                )
 
 
 if __name__ == "__main__":

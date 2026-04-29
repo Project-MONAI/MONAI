@@ -19,10 +19,10 @@ import re
 import tempfile
 import warnings
 from collections import OrderedDict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch
@@ -372,7 +372,7 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
@@ -713,13 +713,22 @@ def convert_to_onnx(
         torch_versioned_kwargs = {}
         if use_trace:
             # let torch.onnx.export to trace the model.
-            mode_to_export = model
+            model_to_export = model
             torch_versioned_kwargs = kwargs
             if "dynamo" in kwargs and kwargs["dynamo"] and verify:
                 torch_versioned_kwargs["verify"] = verify
                 verify = False
         else:
-            mode_to_export = torch.jit.script(model, **kwargs)
+            # The dynamo-based ONNX exporter (torch.export) does not support ScriptModule.
+            # PyTorch 2.6–2.8: dynamo is available but NOT the default; TorchScript exporter
+            #   remains the default, so we must still script the model here.
+            # PyTorch 2.9+: dynamo became the default exporter for torch.onnx.export;
+            #   pass the raw nn.Module directly—the exporter handles it via torch.export.
+            _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
+            if _pt_major_minor >= (2, 9):
+                model_to_export = model
+            else:
+                model_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
@@ -731,9 +740,8 @@ def convert_to_onnx(
             f = temp_file.name
         else:
             f = filename
-        print(f"torch_versioned_kwargs={torch_versioned_kwargs}")
         torch.onnx.export(
-            mode_to_export,
+            model_to_export,
             onnx_inputs,
             f=f,
             input_names=input_names,
@@ -1183,7 +1191,7 @@ def replace_modules_temp(
 
 def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
     """
-    A utilty function to help freeze specific layers.
+    A utility function to help freeze specific layers.
 
     Args:
         model: a source PyTorch model to freeze layer.
@@ -1272,7 +1280,7 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
 class CastToFloat(torch.nn.Module):
     """
     Class used to add autocast protection for ONNX export
-    for forward methods with single return vaue
+    for forward methods with single return value
     """
 
     def __init__(self, mod):

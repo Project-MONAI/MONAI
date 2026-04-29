@@ -30,7 +30,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
+from monai.transforms.traits import MultiSampleTrait, RandomizableTrait, ReduceTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddCoordinateChannels,
@@ -45,6 +45,7 @@ from monai.transforms.utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -191,6 +192,9 @@ __all__ = [
     "ApplyTransformToPointsd",
     "ApplyTransformToPointsD",
     "ApplyTransformToPointsDict",
+    "FlattenSequenced",
+    "FlattenSequenceD",
+    "FlattenSequenceDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1293,19 +1297,27 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
-    Convert labels to multi channels based on brats18 classes:
+    Convert labels to multi channels based on brats classes:
     label 1 is the necrotic and non-enhancing tumor core
     label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
+    the specified `et_label` (default 4) is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        et_label: the label used for the GD-enhancing tumor (ET).
+            - Use 4 for BraTS 2018-2022.
+            - Use 3 for BraTS 2023.
+            Defaults to 4.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ConvertToMultiChannelBasedOnBratsClasses.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, et_label: int = 4):
         super().__init__(keys, allow_missing_keys)
-        self.converter = ConvertToMultiChannelBasedOnBratsClasses()
+        self.converter = ConvertToMultiChannelBasedOnBratsClasses(et_label=et_label)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1906,6 +1918,28 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         return d
 
 
+class FlattenSequenced(MapTransform, ReduceTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FlattenSequence`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, **kwargs) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.flatten_sequence = FlattenSequence(**kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.flatten_sequence(d[key])  # type: ignore[assignment]
+        return d
+
+
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
@@ -1949,3 +1983,4 @@ RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
 ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd
+FlattenSequenceD = FlattenSequenceDict = FlattenSequenced

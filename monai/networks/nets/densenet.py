@@ -117,7 +117,7 @@ class _DenseBlock(nn.Sequential):
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob, act=act, norm=norm)
             in_channels += growth_rate
-            self.add_module("denselayer%d" % (i + 1), layer)
+            self.add_module(f"denselayer{i + 1}", layer)
 
 
 class _Transition(nn.Sequential):

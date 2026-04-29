@@ -26,6 +26,7 @@ from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
 from tests.test_utils import (
     assert_allclose,
+    dict_product,
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
@@ -34,35 +35,32 @@ from tests.test_utils import (
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_SWIN_UNETR = []
-case_idx = 0
 test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 checkpoint_vals = [True, False]
-for attn_drop_rate in [0.4]:
-    for in_channels in [1]:
-        for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
-            for out_channels in [2]:
-                for img_size in ((64, 32, 192), (96, 32)):
-                    for feature_size in [12]:
-                        for norm_name in ["instance"]:
-                            for use_checkpoint in checkpoint_vals:
-                                test_case = [
-                                    {
-                                        "spatial_dims": len(img_size),
-                                        "in_channels": in_channels,
-                                        "out_channels": out_channels,
-                                        "feature_size": feature_size,
-                                        "depths": depth,
-                                        "norm_name": norm_name,
-                                        "attn_drop_rate": attn_drop_rate,
-                                        "downsample": test_merging_mode[case_idx % 4],
-                                        "use_checkpoint": use_checkpoint,
-                                    },
-                                    (2, in_channels, *img_size),
-                                    (2, out_channels, *img_size),
-                                ]
-                                case_idx += 1
-                                TEST_CASE_SWIN_UNETR.append(test_case)
+
+TEST_CASE_SWIN_UNETR = [
+    [
+        {
+            **{k: v for k, v in params.items() if k != "img_size"},
+            "spatial_dims": len(params["img_size"]),
+            "downsample": test_merging_mode[i % len(test_merging_mode)],
+        },
+        (2, params["in_channels"], *params["img_size"]),
+        (2, params["out_channels"], *params["img_size"]),
+    ]
+    for i, params in enumerate(
+        dict_product(
+            attn_drop_rate=[0.4],
+            depths=[[2, 1, 1, 1], [1, 2, 1, 1]],
+            feature_size=[12],
+            img_size=((64, 32, 192), (96, 32)),
+            in_channels=[1],
+            norm_name=["instance"],
+            out_channels=[2],
+            use_checkpoint=checkpoint_vals,
+        )
+    )
+]
 
 TEST_CASE_FILTER = [
     [
@@ -91,6 +89,17 @@ class TestSWINUNETR(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             SwinUNETR(in_channels=1, out_channels=3, feature_size=24, norm_name="instance", drop_rate=-1)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_invalid_input_shape(self):
+        # spatial dims not divisible by patch_size**5 (default patch_size=2, so must be divisible by 32)
+        net = SwinUNETR(in_channels=1, out_channels=2, feature_size=24, spatial_dims=3)
+        with self.assertRaises(ValueError):
+            net(torch.randn(1, 1, 33, 64, 64))  # 33 is not divisible by 32
+
+        net_2d = SwinUNETR(in_channels=1, out_channels=2, feature_size=24, spatial_dims=2)
+        with self.assertRaises(ValueError):
+            net_2d(torch.randn(1, 1, 48, 33))  # 33 is not divisible by 32
 
     def test_patch_merging(self):
         dim = 10

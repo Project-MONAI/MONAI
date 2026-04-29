@@ -18,7 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any
 
 import torch
 
@@ -39,7 +39,9 @@ if polygraphy_imported:
 
 trt, trt_imported = optional_import("tensorrt")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
-cudart, _ = optional_import("cuda.cudart")
+cudart, _cudart_imported = optional_import("cuda.bindings.runtime")
+if not _cudart_imported:
+    cudart, _cudart_imported = optional_import("cuda.cudart")
 
 
 lock_sm = threading.Lock()
@@ -83,11 +85,22 @@ def cuassert(cuda_ret):
     """
     Error reporting method for CUDA calls.
     Args:
-     cuda_ret: CUDA return code.
+        cuda_ret: Tuple returned by CUDA runtime calls, where the first element
+            is a cudaError_t enum and subsequent elements are return values.
+
+    Raises:
+        RuntimeError: If the CUDA call returned an error.
     """
     err = cuda_ret[0]
-    if err != 0:
-        raise RuntimeError(f"CUDA ERROR: {err}")
+    if err.value != 0:
+        err_msg = f"CUDA ERROR: {err.value}"
+        try:
+            _, err_name = cudart.cudaGetErrorName(err)
+            _, err_str = cudart.cudaGetErrorString(err)
+            err_msg = f"CUDA ERROR {err.value}: {err_name} — {err_str}"
+        except Exception as e:
+            get_logger("monai.networks.trt_compiler").debug(f"Failed to retrieve CUDA error details: {e}")
+        raise RuntimeError(err_msg)
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None
@@ -97,8 +110,6 @@ class ShapeError(Exception):
     """
     Exception class to report errors from setting TRT plan input shapes
     """
-
-    pass
 
 
 class TRTEngine:
@@ -242,8 +253,8 @@ def unroll_input(input_names, input_example):
 
 
 def parse_groups(
-    ret: List[torch.Tensor], output_lists: List[List[int]]
-) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
+    ret: list[torch.Tensor], output_lists: list[list[int]]
+) -> tuple[torch.Tensor | list[torch.Tensor], ...]:
     """
     Implements parsing of 'output_lists' arg of trt_compile().
 
@@ -261,10 +272,10 @@ def parse_groups(
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
     """
-    groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+    groups: tuple[torch.Tensor | list[torch.Tensor], ...] = ()
     cur = 0
-    for l in range(len(output_lists)):
-        gl = output_lists[l]
+    for idx in range(len(output_lists)):
+        gl = output_lists[idx]
         assert len(gl) == 0 or len(gl) == 1
         if len(gl) == 0 or gl[0] == 0:
             groups = (*groups, ret[cur])
@@ -273,9 +284,9 @@ def parse_groups(
             groups = (*groups, ret[cur : cur + gl[0]])
             cur = cur + gl[0]
         elif gl[0] == -1:
-            rev_groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+            rev_groups: tuple[torch.Tensor | list[torch.Tensor], ...] = ()
             rcur = len(ret)
-            for rl in range(len(output_lists) - 1, l, -1):
+            for rl in range(len(output_lists) - 1, idx, -1):
                 rgl = output_lists[rl]
                 assert len(rgl) == 0 or len(rgl) == 1
                 if len(rgl) == 0 or rgl[0] == 0:
@@ -601,8 +612,8 @@ def trt_forward(self, *argv, **kwargs):
 def trt_compile(
     model: torch.nn.Module,
     base_path: str,
-    args: Dict[str, Any] | None = None,
-    submodule: Union[str, List[str]] | None = None,
+    args: dict[str, Any] | None = None,
+    submodule: str | list[str] | None = None,
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
@@ -625,7 +636,7 @@ def trt_compile(
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
 
-    default_args: Dict[str, Any] = {
+    default_args: dict[str, Any] = {
         "method": "onnx",
         "precision": "fp16",
         "build_args": {"builder_optimization_level": 5, "precision_constraints": "obey"},

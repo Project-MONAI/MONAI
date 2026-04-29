@@ -602,6 +602,7 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         fixed_mean: bool = True,
         preserve_range: bool = False,
         dtype: DtypeLike = np.float32,
+        channel_wise: bool = False,
     ) -> None:
         """
         Args:
@@ -610,10 +611,10 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
             preserve_range: clips the output array/tensor to the range of the input array/tensor
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
-            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -626,17 +627,25 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         self.factor = self.factors[0]
         self.fixed_mean = fixed_mean
         self.preserve_range = preserve_range
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
         self.scaler = ScaleIntensityFixedMean(
-            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
+            factor=self.factor,
+            fixed_mean=self.fixed_mean,
+            preserve_range=self.preserve_range,
+            channel_wise=self.channel_wise,
+            dtype=self.dtype,
         )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        if self.channel_wise:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1], size=data.shape[:1])  # type: ignore
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -644,10 +653,24 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
+
+        if self.channel_wise:
+            out: list[torch.Tensor] = []
+            for i, d in enumerate(img):
+                scale_trans = ScaleIntensityFixedMean(
+                    factor=float(self.factor[i]),  # type: ignore[index]
+                    fixed_mean=self.fixed_mean,
+                    preserve_range=self.preserve_range,
+                    dtype=self.dtype,
+                )
+                out.append(scale_trans(d[None]))  # type: ignore[arg-type]
+            ret: NdarrayOrTensor = torch.cat(out)
+            ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img.dtype)[0]
+            return ret
 
         return self.scaler(img, self.factor)
 
@@ -900,27 +923,28 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t: torch.Tensor = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore[assignment]
         dtype = self.dtype or img.dtype
+        img_len = len(img_t)
         if self.channel_wise:
-            if self.subtrahend is not None and len(self.subtrahend) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
-            if self.divisor is not None and len(self.divisor) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+            if self.subtrahend is not None and len(self.subtrahend) != img_len:
+                raise ValueError(f"img has {img_len} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != img_len:
+                raise ValueError(f"img has {img_len} channels, but divisor has {len(self.divisor)} components.")
 
-            if not img.dtype.is_floating_point:
-                img, *_ = convert_data_type(img, dtype=torch.float32)
+            if not img_t.dtype.is_floating_point:
+                img_t, *_ = convert_data_type(img_t, dtype=torch.float32)
 
-            for i, d in enumerate(img):
-                img[i] = self._normalize(  # type: ignore
+            for i, d in enumerate(img_t):
+                img_t[i] = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
                 )
         else:
-            img = self._normalize(img, self.subtrahend, self.divisor)
+            img_t = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
 
-        out = convert_to_dst_type(img, img, dtype=dtype)[0]
+        out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
         return out
 
 
@@ -2764,7 +2788,7 @@ class ComputeHoVerMaps(Transform):
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor):
-        instance_mask = convert_data_type(mask, np.ndarray)[0]
+        instance_mask: np.ndarray = convert_data_type(mask, np.ndarray)[0]  # type: ignore[assignment]
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)

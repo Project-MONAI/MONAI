@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -56,6 +56,13 @@ else:
 
 cp, has_cp = optional_import("cupy")
 kvikio, has_kvikio = optional_import("kvikio")
+
+if TYPE_CHECKING:
+    import cupy
+
+    NdarrayOrCupy = Union[np.ndarray, cupy.ndarray]
+else:
+    NdarrayOrCupy = Any
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -580,7 +587,7 @@ class PydicomReader(ImageReader):
         shape = first_array.shape
         spacing = getattr(first_slice, "PixelSpacing", [1.0] * len(shape))
         prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
-        stack_array = [first_array]
+        stack_array_list: list = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx][0], slices[idx][1])
             slc_shape = slc_array.shape
@@ -592,22 +599,24 @@ class PydicomReader(ImageReader):
                 warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
             average_distance += abs(prev_pos - slc_pos)
             prev_pos = slc_pos
-            stack_array.append(slc_array)
+            stack_array_list.append(slc_array)
 
         if len(slices) > 1:
             average_distance /= len(slices) - 1
             spacing.append(average_distance)
             if self.to_gpu:
-                stack_array = cp.stack(stack_array, axis=-1)
+                stack_array = cp.stack(stack_array_list, axis=-1)
             else:
-                stack_array = np.stack(stack_array, axis=-1)
+                stack_array = np.stack(stack_array_list, axis=-1)
+
+            del stack_array_list[:]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             if hasattr(slices[-1][0], "ImagePositionPatient"):
                 stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1][0].ImagePositionPatient)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
-            stack_array = stack_array[0]
+            stack_array = stack_array_list[0]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape
@@ -661,10 +670,7 @@ class PydicomReader(ImageReader):
                     metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
-        # TODO: the actual type is list[np.ndarray | cp.ndarray]
-        # should figure out how to define correct types without having cupy not found error
-        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
-        img_array: list[np.ndarray] = []
+        img_array: list[NdarrayOrCupy] = []
         compatible_meta: dict = {}
 
         for data_array, metadata in ensure_tuple(dicom_data):
@@ -1102,14 +1108,13 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        # TODO: the actual type is list[np.ndarray | cp.ndarray]
-        # should figure out how to define correct types without having cupy not found error
-        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
-        img_array: list[np.ndarray] = []
+        img_array: list[NdarrayOrCupy] = []
         compatible_meta: dict = {}
 
         for i, filename in zip(ensure_tuple(img), self.filenames):
             header = self._get_meta_dict(i)
+            if MetaKeys.PIXDIM in header:
+                header[MetaKeys.ORIGINAL_PIXDIM] = np.array(header[MetaKeys.PIXDIM], copy=True)
             header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header["as_closest_canonical"] = self.as_closest_canonical
