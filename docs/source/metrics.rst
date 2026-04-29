@@ -158,6 +158,13 @@ Metrics
 
 `Fréchet Inception Distance`
 ------------------------------
+`Embedding Collapse`
+------------------------------
+.. autofunction:: compute_embedding_collapse
+
+.. autoclass:: EmbeddingCollapseMetric
+    :members:
+
 .. autofunction:: compute_frechet_distance
 
 .. autoclass:: FIDMetric
