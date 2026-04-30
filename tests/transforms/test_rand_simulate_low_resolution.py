@@ -112,7 +112,7 @@ class TestRandGaussianSmooth(unittest.TestCase):
                     if get_track_meta() != expected_track_meta:
                         errors.append(RuntimeError("track_meta state changed in thread"))
                         break
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 errors.append(e)
 
         threads = [threading.Thread(target=run_transform) for _ in range(8)]
