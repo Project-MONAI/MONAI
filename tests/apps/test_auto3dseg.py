@@ -53,7 +53,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-from monai.utils.enums import DataStatsKeys, LabelStatsKeys
+from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from tests.test_utils import skip_if_no_cuda
 
 device = "cpu"
@@ -322,6 +322,47 @@ class TestDataAnalyzer(unittest.TestCase):
             report_format = analyzer.get_report_format()
             assert verify_report_format(d["image_stats"], report_format)
 
+    def test_image_stats_uses_precomputed_nda_croppeds(self):
+        """Verify ImageStats uses valid pre-computed foreground crops."""
+        analyzer = ImageStats(image_key="image")
+        image = torch.arange(64.0, dtype=torch.float32).reshape(1, 4, 4, 4)
+        nda_croppeds = [torch.ones((2, 2, 2), dtype=torch.float32)]
+
+        result = analyzer({"image": image, "nda_croppeds": nda_croppeds})
+        report = result["image_stats"]
+
+        assert verify_report_format(report, analyzer.get_report_format())
+        assert report[ImageStatsKeys.CROPPED_SHAPE] == [[2, 2, 2]]
+        self.assertAlmostEqual(report[ImageStatsKeys.INTENSITY][0]["mean"], 1.0)
+
+    def test_image_stats_validates_precomputed_nda_croppeds(self):
+        """Verify ImageStats rejects malformed pre-computed foreground crops."""
+        analyzer = ImageStats(image_key="image")
+        image = torch.ones((2, 4, 4, 4), dtype=torch.float32)
+        invalid_cases = [
+            ("wrong_type", torch.ones((2, 2, 2), dtype=torch.float32)),
+            ("wrong_length", [torch.ones((2, 2, 2), dtype=torch.float32)]),
+        ]
+
+        for name, nda_croppeds in invalid_cases:
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(ValueError, "one entry per image channel"):
+                    analyzer({"image": image, "nda_croppeds": nda_croppeds})
+
+    def test_image_stats_preserves_grad_state_after_call(self):
+        """Verify ImageStats preserves caller grad state on successful execution."""
+        analyzer = ImageStats(image_key="image")
+        data = {"image": MetaTensor(torch.rand(1, 10, 10, 10))}
+        original_grad_state = torch.is_grad_enabled()
+        try:
+            for grad_enabled in (True, False):
+                with self.subTest(grad_enabled=grad_enabled):
+                    torch.set_grad_enabled(grad_enabled)
+                    analyzer(data)
+                    self.assertEqual(torch.is_grad_enabled(), grad_enabled)
+        finally:
+            torch.set_grad_enabled(original_grad_state)
+
     def test_foreground_image_stats_cases_analyzer(self):
         analyzer = FgImageStats(image_key="image", label_key="label")
         transform_list = [
@@ -411,6 +452,41 @@ class TestDataAnalyzer(unittest.TestCase):
         foreground_stats = report[LabelStatsKeys.IMAGE_INTST]
         self.assertAlmostEqual(foreground_stats[0]["mean"], 4.75)
         self.assertAlmostEqual(foreground_stats[1]["mean"], 14.75)
+
+    def test_case_analyzers_restore_grad_state_on_exception(self):
+        """Verify analyzer calls restore caller grad state after exceptions."""
+        cases = [
+            (
+                "image_stats",
+                ImageStats(image_key="image"),
+                {"image": torch.randn(2, 4, 4, 4), "nda_croppeds": [torch.ones((2, 2, 2))]},
+                ValueError,
+            ),
+            (
+                "fg_image_stats",
+                FgImageStats(image_key="image", label_key="label"),
+                {"image": torch.randn(1, 4, 4, 4), "label": torch.ones(3, 4, 4)},
+                ValueError,
+            ),
+            (
+                "label_stats",
+                LabelStats(image_key="image", label_key="label"),
+                {"image": MetaTensor(torch.randn(1, 4, 4, 4)), "label": MetaTensor(torch.ones(3, 4, 4))},
+                ValueError,
+            ),
+        ]
+
+        original_grad_state = torch.is_grad_enabled()
+        try:
+            for name, analyzer, data, error in cases:
+                for grad_enabled in (True, False):
+                    with self.subTest(analyzer=name, grad_enabled=grad_enabled):
+                        torch.set_grad_enabled(grad_enabled)
+                        with self.assertRaises(error):
+                            analyzer(data)
+                        self.assertEqual(torch.is_grad_enabled(), grad_enabled)
+        finally:
+            torch.set_grad_enabled(original_grad_state)
 
     def test_filename_case_analyzer(self):
         analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)

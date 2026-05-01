@@ -216,8 +216,30 @@ class ImageStats(Analyzer):
         super().__init__(stats_name, report_format)
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data):
-        # Input Validation Addition
+        """
+        Callable to execute the pre-defined functions.
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format. The value of
+            ImageStatsKeys.INTENSITY is in a list format. Each element of the value list
+            has stats pre-defined by SampleOperations (max, min, ....).
+
+        Raises:
+            KeyError: if ``self.image_key`` is not present in the input data.
+            TypeError: if the input data is not a dictionary, or if the image value is
+                not a numpy array, torch.Tensor, or MetaTensor.
+            ValueError: if the image has fewer than 3 dimensions, or if pre-computed
+                ``nda_croppeds`` is not a list/tuple with one entry per image channel.
+            RuntimeError: if the stats report generated is not consistent with the pre-
+                defined report_format.
+
+        Note:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+
+        """
         if not isinstance(data, dict):
             raise TypeError(f"Input data must be a dict, but got {type(data).__name__}.")
         if self.image_key not in data:
@@ -232,34 +254,20 @@ class ImageStats(Analyzer):
             raise ValueError(
                 f"Image data under '{self.image_key}' must have at least 3 dimensions, but got shape {image.shape}."
             )
-            # --- End of validation ---
-        """
-        Callable to execute the pre-defined functions
 
-        Returns:
-            A dictionary. The dict has the key in self.report_format. The value of
-            ImageStatsKeys.INTENSITY is in a list format. Each element of the value list
-            has stats pre-defined by SampleOperations (max, min, ....).
-
-        Raises:
-            RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format.
-
-        Note:
-            The stats operation uses numpy and torch to compute max, min, and other
-            functions. If the input has nan/inf, the stats results will be nan/inf.
-
-        """
         d = dict(data)
         start = time.time()
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
-
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
-        if "nda_croppeds" not in d:
+        if "nda_croppeds" in d:
+            nda_croppeds = d["nda_croppeds"]
+            if not isinstance(nda_croppeds, (list, tuple)) or len(nda_croppeds) != len(ndas):
+                raise ValueError(
+                    "Pre-computed 'nda_croppeds' must be a list or tuple with one entry per image channel "
+                    f"(expected {len(ndas)})."
+                )
+        else:
             nda_croppeds = [get_foreground_image(nda) for nda in ndas]
 
-        # perform calculation
         report = deepcopy(self.get_report_format())
 
         report[ImageStatsKeys.SHAPE] = [list(nda.shape) for nda in ndas]
@@ -284,7 +292,6 @@ class ImageStats(Analyzer):
 
         d[self.stats_name] = report
 
-        torch.set_grad_enabled(restore_grad_state)
         logger.debug(f"Get image stats spent {time.time() - start}")
         return d
 
@@ -321,6 +328,7 @@ class FgImageStats(Analyzer):
         super().__init__(stats_name, report_format)
         self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data: Mapping) -> dict:
         """
         Callable to execute the pre-defined functions
@@ -341,9 +349,6 @@ class FgImageStats(Analyzer):
 
         d = dict(data)
         start = time.time()
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
-
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
 
@@ -353,7 +358,6 @@ class FgImageStats(Analyzer):
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
-        # perform calculation
         report = deepcopy(self.get_report_format())
 
         report[ImageStatsKeys.INTENSITY] = [
@@ -365,7 +369,6 @@ class FgImageStats(Analyzer):
 
         d[self.stats_name] = report
 
-        torch.set_grad_enabled(restore_grad_state)
         logger.debug(f"Get foreground image stats spent {time.time() - start}")
         return d
 
@@ -418,6 +421,7 @@ class LabelStats(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INTST])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
+    @torch.no_grad()
     def __call__(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor | dict]:
         """
         Callable to execute the pre-defined functions.
@@ -470,19 +474,15 @@ class LabelStats(Analyzer):
         start = time.time()
         image_tensor = d[self.image_key]
         label_tensor = d[self.label_key]
-        # Check if either tensor is on CUDA to determine if we should move both to CUDA for processing
         using_cuda = any(
             isinstance(t, (torch.Tensor, MetaTensor)) and t.device.type == "cuda" for t in (image_tensor, label_tensor)
         )
-        restore_grad_state = torch.is_grad_enabled()
-        torch.set_grad_enabled(False)
 
         if isinstance(image_tensor, (MetaTensor, torch.Tensor)) and isinstance(
             label_tensor, (MetaTensor, torch.Tensor)
         ):
             if label_tensor.device != image_tensor.device:
                 if using_cuda:
-                    # Move both tensors to CUDA when mixing devices
                     cuda_device = image_tensor.device if image_tensor.device.type == "cuda" else label_tensor.device
                     image_tensor = cast(MetaTensor, image_tensor.to(cuda_device))
                     label_tensor = cast(MetaTensor, label_tensor.to(cuda_device))
@@ -548,7 +548,6 @@ class LabelStats(Analyzer):
 
         d[self.stats_name] = report  # type: ignore[assignment]
 
-        torch.set_grad_enabled(restore_grad_state)
         logger.debug(f"Get label stats spent {time.time() - start}")
         return d  # type: ignore[return-value]
 
