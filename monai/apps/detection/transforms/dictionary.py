@@ -124,9 +124,9 @@ class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
         """
         super().__init__(box_keys, allow_missing_keys)
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
-        if len(box_ref_image_keys_tuple) > 1:
-            raise ValueError("Please provide a single key for box_ref_image_keys.\
-                All boxes of box_keys are attached to box_ref_image_keys.")
+        if len(box_ref_image_keys_tuple) != 1:
+            msg = "Provide a single key for `box_ref_image_keys`. All boxes of `box_keys` are attached to this key."
+            raise ValueError(msg)
         self.box_ref_image_keys = box_ref_image_keys
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -308,9 +308,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         else:
             raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
         if "affine" not in meta_dict:
-            raise ValueError(
-                f"Key 'affine' not found in {meta_key}. Please check it is the correct the image meta key."
-            )
+            raise ValueError(f"Key 'affine' not found in {meta_key}, check this is the correct image meta key.")
         affine: NdarrayOrTensor = meta_dict["affine"]
 
         if self.affine_lps_to_ras:  # RAS affine
@@ -812,14 +810,12 @@ class ClipBoxToImaged(MapTransform):
     ) -> None:
         box_keys_tuple = ensure_tuple(box_keys)
         if len(box_keys_tuple) != 1:
-            raise ValueError(
-                "Please provide at least one key for `box_keys`. All `label_keys` are attached to this `box_keys`."
-            )
+            raise ValueError("Provide a single key for `box_keys`. All `label_keys` are attached to this `box_keys`.")
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
         if len(box_ref_image_keys_tuple) != 1:
             raise ValueError(
-                "Please provide at least one key for `box_ref_image_keys`. "
-                "All box_keys and label_keys are attached to this `box_ref_image_keys`."
+                "Provide a single key for `box_ref_image_keys`. "
+                "All `box_keys` and `label_keys` are attached to this `box_ref_image_keys`."
             )
 
         self.label_keys = ensure_tuple(label_keys)
@@ -1064,7 +1060,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
     def __init__(
         self,
         image_keys: KeysCollection,
-        box_keys: str,
+        box_keys: KeysCollection,
         label_keys: KeysCollection,
         spatial_size: Sequence[int] | int,
         pos: float = 1.0,
@@ -1088,8 +1084,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
         box_keys_tuple = ensure_tuple(box_keys)
         if len(box_keys_tuple) != 1:
-            raise ValueError("Please provide a single key for box_keys.\
-                All label_keys are attached to this box_keys.")
+            raise ValueError("Provide a single key for box_keys. All label_keys are attached to this key.")
         self.box_keys = box_keys_tuple[0]
         self.label_keys = ensure_tuple(label_keys)
 

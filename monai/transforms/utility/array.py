@@ -1049,19 +1049,34 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
     label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
     label 2 is the peritumoral edema, which is counted only under WT subregion,
-    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+    the specified `et_label` (default 4) is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+
+    Args:
+        et_label: the label used for the GD-enhancing tumor (ET).
+        - Use 4 for BraTS 2018-2022.
+        - Use 3 for BraTS 2023.
+        Defaults to 4.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, et_label: int = 4) -> None:
+        if et_label in (1, 2):
+            raise ValueError(f"et_label cannot be 1 or 2, as these are reserved. Got {et_label}.")
+        self.et_label = et_label
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = img.squeeze(0)
 
-        result = [(img == 1) | (img == 4), (img == 1) | (img == 4) | (img == 2), img == 4]
-        # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        # label 4 is ET
+        result = [
+            (img == 1) | (img == self.et_label),
+            (img == 1) | (img == self.et_label) | (img == 2),
+            img == self.et_label,
+        ]
+        # merge labels 1 (tumor non-enh) and self.et_label (tumor enh) and 2 (large edema) to WT
+        # self.et_label is ET (4 or 3)
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 

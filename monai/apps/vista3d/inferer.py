@@ -114,7 +114,9 @@ def point_based_window_inferer(
                     stitched_output[unravel_slice] += output.to("cpu")
                     stitched_mask[unravel_slice] = 1
 
-    assert stitched_output is not None  # needed for correct typing below
+    if stitched_output is None:
+        raise ValueError("Input configuration resulted in no prediction windows being selected.")
+
     # if stitched_mask is 0, then NaN value
     stitched_output = stitched_output / stitched_mask
     # revert padding

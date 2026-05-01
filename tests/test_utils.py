@@ -571,7 +571,7 @@ class DistCall:
 
             for p in processes:
                 p.join()
-                pr = results.get()
+                pr = results.get(block=False)
                 assert pr is True, f"Distributed call failed: {pr}"
             _del_original_func(obj)
 

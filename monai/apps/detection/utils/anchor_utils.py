@@ -171,7 +171,7 @@ class AnchorGenerator(nn.Module):
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
             raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should be "
-                f"{len(aspect_ratios_t.shape) - 1}-D. Got aspect_ratios with shape {aspect_ratios_t.shape}."
+                f"{self.spatial_dims - 1}-D. Got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
