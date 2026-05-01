@@ -497,6 +497,16 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertNotIsInstance(r, MetaTensor)
             self.assertFalse(hasattr(r, "affine"))
 
+    def test_track_meta_false_ensure_channel_first(self):
+        try:
+            set_track_meta(False)
+            r = LoadImage(image_only=True, ensure_channel_first=True)(self.test_data)
+            self.assertTupleEqual(r.shape, (1, 128, 128, 128))
+            self.assertIsInstance(r, torch.Tensor)
+            self.assertNotIsInstance(r, MetaTensor)
+        finally:
+            set_track_meta(True)
+
 
 if __name__ == "__main__":
     unittest.main()
