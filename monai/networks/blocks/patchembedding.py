@@ -25,34 +25,22 @@ from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
+einops_rearrange, _ = optional_import("einops", name="rearrange")
 SUPPORTED_PATCH_EMBEDDING_TYPES = {"conv", "perceptron"}
 SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos", "fourier"}
 
 
-class _PatchRearrange(nn.Module):
-    """Fallback patch rearrangement using pure PyTorch, for einops compatibility."""
+class _RearrangeFn(nn.Module):
+    """Thin wrapper around einops.rearrange function, used as a fallback when the
+    Rearrange layer rejects axis-size kwargs in some einops builds."""
 
-    def __init__(self, spatial_dims: int, patch_size: tuple) -> None:
+    def __init__(self, pattern: str, axes_lengths: dict) -> None:
         super().__init__()
-        self.spatial_dims = spatial_dims
-        self.patch_size = patch_size
+        self.pattern = pattern
+        self.axes_lengths = axes_lengths
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch, channels = x.shape[0], x.shape[1]
-        sp = x.shape[2:]
-        g = tuple(s // p for s, p in zip(sp, self.patch_size))
-        v: list[int] = [batch, channels]
-        for gi, pi in zip(g, self.patch_size):
-            v += [gi, pi]
-        x = x.view(*v)
-        n = self.spatial_dims
-        gdims = list(range(2, 2 + 2 * n, 2))
-        pdims = list(range(3, 3 + 2 * n, 2))
-        x = x.permute(0, *gdims, *pdims, 1).contiguous()
-        n_patches = 1
-        for gi in g:
-            n_patches *= gi
-        return x.reshape(batch, n_patches, -1)
+        return einops_rearrange(x, self.pattern, **self.axes_lengths)
 
 
 class PatchEmbeddingBlock(nn.Module):
@@ -131,7 +119,7 @@ class PatchEmbeddingBlock(nn.Module):
             try:
                 rearrange_layer: nn.Module = Rearrange(f"{from_chars} -> {to_chars}", **axes_len)
             except TypeError:
-                rearrange_layer = _PatchRearrange(spatial_dims, tuple(int(p) for p in patch_size))
+                rearrange_layer = _RearrangeFn(f"{from_chars} -> {to_chars}", axes_len)
             self.patch_embeddings = nn.Sequential(rearrange_layer, nn.Linear(self.patch_dim, hidden_size))
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
