@@ -184,6 +184,37 @@ def skip_if_downloading_fails():
         raise rt_e
 
 
+SAMPLE_TIFF = "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1.tiff"
+SAMPLE_TIFF_HASH = "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+SAMPLE_TIFF_HASH_TYPE = "sha256"
+
+
+class TestDownloadUrl(unittest.TestCase):
+    """Exercise ``download_url`` success and hash-mismatch paths."""
+
+    def test_download_url(self):
+        """Download a sample TIFF and validate hash handling.
+
+        Raises:
+            RuntimeError: When the downloaded file's hash does not match.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            with skip_if_downloading_fails():
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model.tiff"),
+                    hash_val=SAMPLE_TIFF_HASH,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
+            with self.assertRaises(RuntimeError):
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model_bad.tiff"),
+                    hash_val="0" * 64,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
+
+
 def test_pretrained_networks(network, input_param, device):
     with skip_if_downloading_fails():
         return network(**input_param).to(device)
