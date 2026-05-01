@@ -202,7 +202,6 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        # BUG: PyTorch 2.8.0 appears to have a gloo bug under Windows with failing distributed tests
         python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
       shell: bash
     - if: runner.os != 'windows'
