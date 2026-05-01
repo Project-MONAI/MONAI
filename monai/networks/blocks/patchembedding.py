@@ -40,7 +40,8 @@ class _RearrangeFn(nn.Module):
         self.axes_lengths = axes_lengths
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return einops_rearrange(x, self.pattern, **self.axes_lengths)
+        out: torch.Tensor = einops_rearrange(x, self.pattern, **self.axes_lengths)
+        return out
 
 
 class PatchEmbeddingBlock(nn.Module):
