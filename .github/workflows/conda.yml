@@ -37,7 +37,7 @@ jobs:
       run: |
         find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         rm -rf /usr/share/dotnet/
-    - uses: conda-incubator/setup-miniconda@v3
+    - uses: conda-incubator/setup-miniconda@v4
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
