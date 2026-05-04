@@ -15,7 +15,7 @@ import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.layers import gaussian_1d, separable_filtering
+from monai.networks.layers import separable_filtering
 from monai.utils import LossReduction
 from monai.utils.module import look_up_option
 
@@ -34,11 +34,11 @@ def make_triangular_kernel(kernel_size: int) -> torch.Tensor:
 
 
 def make_gaussian_kernel(kernel_size: int) -> torch.Tensor:
-    sigma = torch.tensor(kernel_size / 3.0)
-    kernel = gaussian_1d(sigma=sigma, truncated=kernel_size // 2, approx="sampled", normalize=False) * (
-        2.5066282 * sigma
-    )
-    return kernel[:kernel_size]
+    sigma = kernel_size / 3.0
+    half = kernel_size // 2
+    x = torch.arange(-half, half + 1, dtype=torch.float)
+    kernel = torch.exp(-0.5 / (sigma * sigma) * x**2)
+    return kernel
 
 
 kernel_dict = {
@@ -111,14 +111,16 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
         _kernel = look_up_option(kernel_type, kernel_dict)
-        self.kernel = _kernel(self.kernel_size)
-        self.kernel.require_grads = False
-        self.kernel_vol = self.get_kernel_vol()
+        self.kernel: torch.Tensor
+        self.kernel_vol: torch.Tensor
+        self.register_buffer("kernel", _kernel(self.kernel_size), persistent=False)
+        self.register_buffer("kernel_vol", self.get_kernel_vol(), persistent=False)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def get_kernel_vol(self):
+    def get_kernel_vol(self) -> torch.Tensor:
+        assert self.kernel is not None
         vol = self.kernel
         for _ in range(self.ndim - 1):
             vol = torch.matmul(vol.unsqueeze(-1), self.kernel.unsqueeze(0))
@@ -138,6 +140,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
         t2, p2, tp = target * target, pred * pred, target * pred
+        assert self.kernel is not None
+        assert self.kernel_vol is not None
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         kernels = [kernel] * self.ndim
         # sum over kernel
