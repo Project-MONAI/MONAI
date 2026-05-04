@@ -1297,19 +1297,27 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
-    Convert labels to multi channels based on brats18 classes:
+    Convert labels to multi channels based on brats classes:
     label 1 is the necrotic and non-enhancing tumor core
     label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
+    the specified `et_label` (default 4) is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        et_label: the label used for the GD-enhancing tumor (ET).
+            - Use 4 for BraTS 2018-2022.
+            - Use 3 for BraTS 2023.
+            Defaults to 4.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ConvertToMultiChannelBasedOnBratsClasses.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, et_label: int = 4):
         super().__init__(keys, allow_missing_keys)
-        self.converter = ConvertToMultiChannelBasedOnBratsClasses()
+        self.converter = ConvertToMultiChannelBasedOnBratsClasses(et_label=et_label)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
