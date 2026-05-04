@@ -63,9 +63,11 @@ class CrossAttentionBlock(nn.Module):
             attention_dtype: cast attention operations to this dtype.
             use_flash_attention: if True, dispatch attention through
                 ``torch.nn.functional.scaled_dot_product_attention``. PyTorch selects the backend;
-                the true flash kernel is used only when no attention bias is present. When combined
-                with ``rel_pos_embedding`` or ``causal``, PyTorch will fall back to the
-                memory-efficient or cuDNN SDPA backend.
+                the true flash kernel is used when no custom additive attention bias is passed.
+                Pure ``causal`` masking (with no ``rel_pos_embedding``) keeps the fast path via
+                ``is_causal=True``. When an additive bias is required (for example,
+                ``rel_pos_embedding``, or ``causal`` merged with another bias), PyTorch falls
+                back to the memory-efficient or cuDNN SDPA backend.
         """
 
         super().__init__()

@@ -90,6 +90,57 @@ class TestResBlock(unittest.TestCase):
                 out_ref = block_ref(test_data)
             assert_allclose(out_flash, out_ref, atol=1e-4)
 
+    @skipUnless(has_einops, "Requires einops")
+    def test_causal_rel_pos_with_flash_attention(self):
+        # Exercise the merged causal-bias branch: causal=True together with
+        # rel_pos_embedding builds an additive bias and disables is_causal,
+        # so flash and reference paths must still match numerically.
+        for input_size in [(16, 32), (8, 8, 8)]:
+            seq_len = int(np.prod(input_size))
+            input_param = {
+                "hidden_size": 128,
+                "num_heads": 4,
+                "dropout_rate": 0.0,
+                "rel_pos_embedding": RelPosEmbedding.DECOMPOSED,
+                "input_size": input_size,
+                "causal": True,
+                "sequence_length": seq_len,
+            }
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = SABlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = SABlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            test_data = torch.randn(2, seq_len, 128).to(device)
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data)
+                out_ref = block_ref(test_data)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_attn_mask_rel_pos_with_flash_attention(self):
+        # Exercise the user-attn-mask + rel_pos branch: the user mask is
+        # merged into the additive bias passed via SDPA's attn_mask argument.
+        for input_size in [(16, 32), (8, 8, 8)]:
+            seq_len = int(np.prod(input_size))
+            input_param = {
+                "hidden_size": 128,
+                "num_heads": 4,
+                "dropout_rate": 0.0,
+                "rel_pos_embedding": RelPosEmbedding.DECOMPOSED,
+                "input_size": input_size,
+            }
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = SABlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = SABlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            test_data = torch.randn(2, seq_len, 128).to(device)
+            attn_mask = torch.ones(2, seq_len, dtype=torch.bool, device=device)
+            attn_mask[:, seq_len // 2 :] = False  # mask out the second half
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data, attn_mask=attn_mask)
+                out_ref = block_ref(test_data, attn_mask=attn_mask)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
+
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
