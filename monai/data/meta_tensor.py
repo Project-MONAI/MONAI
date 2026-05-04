@@ -15,6 +15,7 @@ import functools
 import warnings
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from numbers import Integral
 from typing import Any
 
 import numpy as np
@@ -543,9 +544,11 @@ class MetaTensor(MetaObj, torch.Tensor):
     @spatial_ndim.setter
     def spatial_ndim(self, val: int) -> None:
         """Set the number of spatial dimensions."""
+        if not isinstance(val, Integral):
+            raise TypeError(f"'val' must be an numbers.Integral type; got {type(val)}.")
         if val < 1:
             raise ValueError(f"spatial_ndim must be >= 1, got {val}")
-        self._spatial_ndim = val
+        self._spatial_ndim = int(val)
 
     @property
     def pixdim(self):
