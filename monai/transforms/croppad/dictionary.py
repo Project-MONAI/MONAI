@@ -533,8 +533,8 @@ class SpatialCropd(Cropd):
         return resolved
 
     @property
-    def requires_current_data(self):
-        """bool: Whether this transform requires the current data dictionary to resolve ROI parameters."""
+    def requires_current_data(self) -> bool:
+        """Returns True if ROI values are derived from dictionary members, False if constant members."""
         return self._has_str_roi
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -546,7 +546,7 @@ class SpatialCropd(Cropd):
         Returns:
             Dictionary with cropped data for each key.
         """
-        if not self._has_str_roi:
+        if not self.requires_current_data:
             return super().__call__(data, lazy=lazy)
 
         d = dict(data)
