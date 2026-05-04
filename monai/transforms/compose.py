@@ -358,7 +358,14 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             else:
                 new_transforms.append(t)
 
-        return Compose(new_transforms)
+        return Compose(
+            new_transforms,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            log_stats=self.log_stats,
+            lazy=self._lazy,
+            overrides=self.overrides,
+        )
 
     def __len__(self):
         """Return number of transformations."""
