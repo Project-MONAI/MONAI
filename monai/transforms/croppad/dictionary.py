@@ -556,7 +556,7 @@ class SpatialCropd(Cropd):
         roi_end = self._resolve_roi_param(self._roi_end, d)
 
         lazy_ = self.lazy if lazy is None else lazy
-        self.cropper = SpatialCrop(
+        cropper = SpatialCrop(
             roi_center=roi_center,
             roi_size=roi_size,
             roi_start=roi_start,
@@ -565,17 +565,17 @@ class SpatialCropd(Cropd):
             lazy=lazy_,
         )
         for key in self.key_iterator(d):
-            d[key] = self.cropper(d[key], lazy=lazy_)
+            d[key] = cropper(d[key], lazy=lazy_)
         return d
 
     def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
         """
         Inverse of the crop transform, restoring the original spatial dimensions via padding.
 
-        For the string-key path, ``self.cropper`` is recreated on each ``__call__``, so its
-        ``id()`` won't match the one stored in the MetaTensor's transform stack. This override
-        bypasses the ID check and applies the inverse directly using the crop info stored in the
-        MetaTensor.
+        For the string-key path, the cropper used in ``__call__`` is a per-invocation local
+        instance, so its ``id()`` won't match the one stored in the MetaTensor's transform stack.
+        This override bypasses the ID check and applies the inverse directly using the crop info
+        stored in the MetaTensor.
 
         Args:
             data: dictionary of cropped ``MetaTensor`` items.
@@ -583,7 +583,7 @@ class SpatialCropd(Cropd):
         Returns:
             Dictionary with inverse-transformed (padded) data for each key.
         """
-        if not self._has_str_roi:
+        if not self.requires_current_data:
             return super().inverse(data)
         d = dict(data)
         for key in self.key_iterator(d):
