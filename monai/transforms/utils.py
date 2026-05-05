@@ -2105,6 +2105,7 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True, align_co
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
         centered: whether the scaling is with respect to the image center (True, default) or corner (False).
+            Ignored when ``align_corners=True``, since corner-aligned scaling is inherently centered.
         align_corners: if True, use (size-1) based scaling to match torch.nn.functional.interpolate behavior.
 
     Returns:
@@ -2115,9 +2116,10 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True, align_co
     if spatial_size == new_spatial_size:
         return np.eye(r + 1)
     if align_corners:
-        # Match interpolate behavior: (src-1)/(dst-1)
+        # Match interpolate behavior: (src-1)/(dst-1); when dst == 1 the scale collapses to 0
         s = np.array(
-            [(float(o) - 1) / max(float(n) - 1, 1) for o, n in zip(spatial_size, new_spatial_size)], dtype=float
+            [0.0 if float(n) == 1 else (float(o) - 1) / (float(n) - 1) for o, n in zip(spatial_size, new_spatial_size)],
+            dtype=float,
         )
     else:
         # Standard scaling: src/dst

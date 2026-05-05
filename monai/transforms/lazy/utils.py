@@ -90,7 +90,11 @@ def affine_from_pending(pending_item):
 
 
 def kwargs_from_pending(pending_item):
-    """Extract kwargs from a pending transform item."""
+    """Extract kwargs from a pending transform item.
+
+    When ``pending_item`` is a dict, ``align_corners`` is also extracted from its ``extra_info`` entry
+    (if present and boolean) so the lazy pipeline preserves the original transform's alignment.
+    """
     if not isinstance(pending_item, dict):
         return {}
     ret = {
