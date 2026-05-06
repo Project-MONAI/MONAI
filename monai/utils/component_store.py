@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from keyword import iskeyword
 from textwrap import dedent, indent
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 

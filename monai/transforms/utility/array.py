@@ -18,10 +18,10 @@ import logging
 import sys
 import time
 import warnings
-from collections.abc import Hashable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import torch
