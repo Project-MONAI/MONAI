@@ -192,6 +192,12 @@ __all__ = [
     "ApplyTransformToPointsd",
     "ApplyTransformToPointsD",
     "ApplyTransformToPointsDict",
+    "TransformPointsWorldToImaged",
+    "TransformPointsWorldToImageD",
+    "TransformPointsWorldToImageDict",
+    "TransformPointsImageToWorldd",
+    "TransformPointsImageToWorldD",
+    "TransformPointsImageToWorldDict",
     "FlattenSequenced",
     "FlattenSequenceD",
     "FlattenSequenceDict",
@@ -1918,6 +1924,86 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         return d
 
 
+class TransformPointsWorldToImaged(ApplyTransformToPointsd):
+    """
+    Dictionary-based transform to convert points from world coordinates to image coordinates.
+
+    This is a convenience subclass of :py:class:`monai.transforms.ApplyTransformToPointsd` with
+    ``invert_affine=True``, which transforms world-space coordinates into the coordinate space of a
+    reference image by inverting the image's affine matrix.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_keys: The key of the reference image used to derive the affine transformation.
+            This is required because the affine must come from a reference image.
+            It can also be a sequence of keys, in which case each refers to the affine applied
+            to the matching points in ``keys``.
+        dtype: The desired data type for the output.
+        affine_lps_to_ras: Defaults to ``False``. Set to ``True`` if your point data is in the RAS
+            coordinate system or you're using ``ITKReader`` with ``affine_lps_to_ras=True``.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        refer_keys: KeysCollection,
+        dtype: DtypeLike | torch.dtype = torch.float64,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(
+            keys=keys,
+            refer_keys=refer_keys,
+            dtype=dtype,
+            affine=None,
+            invert_affine=True,
+            affine_lps_to_ras=affine_lps_to_ras,
+            allow_missing_keys=allow_missing_keys,
+        )
+
+
+class TransformPointsImageToWorldd(ApplyTransformToPointsd):
+    """
+    Dictionary-based transform to convert points from image coordinates to world coordinates.
+
+    This is a convenience subclass of :py:class:`monai.transforms.ApplyTransformToPointsd` with
+    ``invert_affine=False``, which transforms image-space coordinates into world-space coordinates
+    by applying the reference image's affine matrix directly.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_keys: The key of the reference image used to derive the affine transformation.
+            This is required because the affine must come from a reference image.
+            It can also be a sequence of keys, in which case each refers to the affine applied
+            to the matching points in ``keys``.
+        dtype: The desired data type for the output.
+        affine_lps_to_ras: Defaults to ``False``. Set to ``True`` if your point data is in the RAS
+            coordinate system or you're using ``ITKReader`` with ``affine_lps_to_ras=True``.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        refer_keys: KeysCollection,
+        dtype: DtypeLike | torch.dtype = torch.float64,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(
+            keys=keys,
+            refer_keys=refer_keys,
+            dtype=dtype,
+            affine=None,
+            invert_affine=False,
+            affine_lps_to_ras=affine_lps_to_ras,
+            allow_missing_keys=allow_missing_keys,
+        )
+
+
 class FlattenSequenced(MapTransform, ReduceTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.FlattenSequence`.
@@ -1983,4 +2069,6 @@ RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
 ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd
+TransformPointsWorldToImageD = TransformPointsWorldToImageDict = TransformPointsWorldToImaged
+TransformPointsImageToWorldD = TransformPointsImageToWorldDict = TransformPointsImageToWorldd
 FlattenSequenceD = FlattenSequenceDict = FlattenSequenced
