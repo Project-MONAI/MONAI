@@ -39,6 +39,10 @@ binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
+scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
+cupy, has_cupy = optional_import("cupy")
+cupy_ndimage, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
+
 __all__ = [
     "ignore_background",
     "do_metric_reduction",
@@ -460,6 +464,59 @@ def prepare_spacing(
     raise ValueError(
         f"`spacing` should either be a number, a sequence of numbers or a sequence of sequences, got {spacing}."
     )
+
+
+def compute_voronoi_regions_fast(labels: np.ndarray | torch.Tensor) -> torch.Tensor:
+    """
+    Voronoi assignment to connected components (CPU, single EDT) without cc3d.
+    Returns the ID of the nearest component for each voxel.
+
+    Args:
+        labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
+
+    Raises:
+        RuntimeError: when `scipy.ndimage` is not available.
+        ValueError: when `labels` has fewer than two dimensions.
+
+    Returns:
+        torch.Tensor: Voronoi region IDs (int32) on CPU.
+    """
+    if isinstance(labels, torch.Tensor) and labels.is_cuda and has_cupy and has_cupy_ndimage:
+        xp = cupy
+        nd_distance_transform_edt = cupy_ndimage.distance_transform_edt
+        nd_generate_binary_structure = cupy_ndimage.generate_binary_structure
+        nd_label = cupy_ndimage.label
+        x = cupy.asarray(labels.detach())
+    else:
+        xp = np
+        nd_distance_transform_edt = scipy_ndimage.distance_transform_edt
+        nd_generate_binary_structure = scipy_ndimage.generate_binary_structure
+        nd_label = scipy_ndimage.label
+
+        if not has_scipy_ndimage:
+            raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
+
+        if isinstance(labels, torch.Tensor):
+            warnings.warn(
+                "Voronoi computation is running on CPU. "
+                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed."
+            )
+            x = labels.cpu().numpy()
+        else:
+            x = np.asarray(labels)
+    rank = conn_rank = x.ndim
+    structure = nd_generate_binary_structure(rank=rank, connectivity=conn_rank)
+    cc, num = nd_label(x > 0, structure=structure)
+    if num == 0:
+        return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
+    edt_input = xp.ones(cc.shape, dtype=xp.uint8)
+    edt_input[cc > 0] = 0
+    indices = nd_distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
+    voronoi = cc[tuple(indices)]
+    if xp is cupy:
+        return torch.as_tensor(cupy.asnumpy(voronoi), dtype=torch.int32)
+    else:
+        return torch.as_tensor(voronoi, dtype=torch.int32)
 
 
 ENCODING_KERNEL = {2: [[8, 4], [2, 1]], 3: [[[128, 64], [32, 16]], [[8, 4], [2, 1]]]}
