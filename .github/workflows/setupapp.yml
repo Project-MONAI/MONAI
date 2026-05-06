@@ -72,7 +72,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -108,7 +108,7 @@ jobs:
         BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -116,10 +116,10 @@ jobs:
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.9
+    - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
-        python-version: '3.9'
+        python-version: '3.10'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
