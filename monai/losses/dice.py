@@ -204,9 +204,8 @@ class DiceLoss(_Loss):
             else:
                 if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
-                        """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include
-                        the background category class 0."""
+                        "The length of the `weight` sequence should be the same as the number of classes. "
+                        "If `include_background=False`, the weight should not include the background category class 0."
                     )
             if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")

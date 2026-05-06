@@ -124,10 +124,7 @@ class AnchorGenerator(nn.Module):
             aspect_ratios = (aspect_ratios,) * len(self.sizes)
 
         if len(self.sizes) != len(aspect_ratios):
-            raise ValueError(
-                "len(sizes) and len(aspect_ratios) should be equal. \
-                It represents the number of feature maps."
-            )
+            raise ValueError("The number of feature maps, `len(sizes)` and `len(aspect_ratios)`, should be equal.")
 
         spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
         spatial_dims = look_up_option(spatial_dims, [2, 3])
@@ -173,14 +170,14 @@ class AnchorGenerator(nn.Module):
         aspect_ratios_t = torch.as_tensor(aspect_ratios, dtype=dtype, device=device)  # sized (M,) or (M,2)
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
             raise ValueError(
-                f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
-                {len(aspect_ratios_t.shape) - 1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                f"In {self.spatial_dims}-D image, aspect_ratios for each level should be "
+                f"{self.spatial_dims - 1}-D. Got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
             raise ValueError(
-                f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
-                shape (_,{self.spatial_dims - 1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
+                f"In {self.spatial_dims}-D image, aspect_ratios for each level should have "
+                f"shape (_,{self.spatial_dims - 1}). Got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         # if 2d, w:h = 1:aspect_ratios
