@@ -70,7 +70,6 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
         per_component: whether to compute the Hausdorff distance on a per-connected component basis. Defaults to ``False``.
-
     """
 
     def __init__(
