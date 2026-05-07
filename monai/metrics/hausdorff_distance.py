@@ -213,13 +213,12 @@ def compute_hausdorff_distance(
 
     for b, c in np.ndindex(batch_size, n_class):
         if per_component:
-            if y[b, c].sum() == 0 or y_pred[b, c].sum() == 0:
-                if y_pred[b, c].sum() == 0 and y[b, c].sum() == 0:
-                    hd[b, c] = 0.0
-                else:
-                    hd[b, c] = 1.0
+            pred_empty = y_pred[b, c].sum() == 0
+            label_empty = y[b, c].sum() == 0
+            if pred_empty and label_empty:
+                hd[b, c] = 0.0 if (pred_empty and label_empty) else float("nan")
                 continue
-            cc_assignment = compute_voronoi_regions_fast(y_pred[b, c].cpu().numpy())
+            cc_assignment = compute_voronoi_regions_fast(y[b, c].cpu().numpy())
             if cc_assignment.device != y_pred[b, c].device:
                 cc_assignment = cc_assignment.to(y_pred[b, c].device)
             component_scores = []

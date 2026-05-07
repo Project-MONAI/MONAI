@@ -170,7 +170,7 @@ y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
 y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
 y_hat[0, 1, 5:10, 5:10, 5:10] = 1
 y_hat[0, 0] = 1 - y_hat[0, 1]
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[1.0], [0.0]]])
+TEST_CASES_CC_METRICS.append([[y, y_hat], [[float('inf')], [0.0]]])
 
 y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
 y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
