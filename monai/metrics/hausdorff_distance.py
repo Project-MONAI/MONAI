@@ -223,7 +223,7 @@ def compute_hausdorff_distance(
             cc_assignment = compute_voronoi_regions_fast(y_pred[b, c].cpu().numpy())
             if cc_assignment.device != y_pred[b, c].device:
                 cc_assignment = cc_assignment.to(y_pred[b, c].device)
-            max_list = []
+            component_scores = []
             for cc_id in torch.unique(cc_assignment.view(-1)):
                 cc_mask = cc_assignment == cc_id
 
@@ -275,9 +275,9 @@ def compute_hausdorff_distance(
                     class_index=c,
                 )
                 percentile_distances = [_compute_percentile_hausdorff_distance(d, percentile) for d in distances]
-                max_list.append(torch.stack(percentile_distances))
+                component_scores.append(torch.max(torch.stack(percentile_distances)))
 
-            hd[b, c] = torch.nanmean(torch.stack(max_list)) if max_list else 0.0
+            hd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
         else:
             _, distances, _ = get_edge_surface_distance(
                 y_pred[b, c],
