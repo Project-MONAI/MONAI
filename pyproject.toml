@@ -3,14 +3,15 @@ requires = [
   "wheel",
   "setuptools",
   "more-itertools>=8.0",
-  "torch>=2.4.1",
+  "torch>=2.8.0",
   "ninja",
   "packaging"
 ]
 
 [tool.black]
 line-length = 120
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py310']
+skip-magic-trailing-comma = true
 include = '\.pyi?$'
 exclude = '''
 (
@@ -30,6 +31,7 @@ exclude = '''
     | dist
   )/
   # also separately exclude a file named versioneer.py
+  | versioneer.py
   | monai/_version.py
 )
 '''
@@ -40,7 +42,7 @@ exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
