@@ -26,6 +26,7 @@ import torch
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
@@ -483,7 +484,7 @@ class ScaleIntensity(Transform):
 
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
@@ -542,7 +543,7 @@ class ScaleIntensityFixedMean(Transform):
         factor = factor if factor is not None else self.factor
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         ret: NdarrayOrTensor
         if self.channel_wise:
             out = []
@@ -1168,7 +1169,7 @@ class ClipIntensityPercentiles(Transform):
         Apply the transform to `img`.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         if self.channel_wise:
             img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
         else:
@@ -1433,7 +1434,7 @@ class ScaleIntensityRangePercentiles(Transform):
         Apply the transform to `img`.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         if self.channel_wise:
             img_t = torch.stack([self._normalize(img=d) for d in img_t])  # type: ignore
         else:
@@ -1530,7 +1531,7 @@ class SavitzkyGolaySmooth(Transform):
 
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        self.img_t = convert_to_tensor(img, track_meta=False)
+        self.img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
@@ -1907,7 +1908,7 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         img_min, img_max = img_t.min(), img_t.max()
         if img_min == img_max:
             warn(
@@ -1952,7 +1953,7 @@ class GibbsNoise(Transform, Fourier):
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = convert_to_tensor(img, track_meta=False)
+        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         n_dims = len(img_t.shape[1:])
 
         # FT
@@ -2604,7 +2605,7 @@ class IntensityRemap(RandomizableTransform):
             img: image to remap.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_ = convert_to_tensor(img, track_meta=False)
+        img_ = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         # sample noise
         vals_to_sample = torch.unique(img_).tolist()
         noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Iterable, Sequence
+from typing import cast
 
 import numpy as np
 import torch
@@ -338,7 +339,7 @@ class KeepLargestConnectedComponent(Transform):
         else:
             applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
+        img_: torch.Tensor = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         if self.independent:
             for i in applied_labels:
                 foreground = img_[i] > 0 if is_onehot else img_[0] == i
@@ -497,7 +498,7 @@ class LabelFilter(Transform):
 
         if isinstance(img, torch.Tensor):
             img = convert_to_tensor(img, track_meta=get_track_meta())
-            img_ = convert_to_tensor(img, track_meta=False)
+            img_ = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
             if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img_.device)
                 out = torch.where(torch.isin(img_, appl_lbls), img_, torch.tensor(0.0).to(img_))
@@ -623,7 +624,7 @@ class LabelToContour(Transform):
 
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
+        img_: torch.Tensor = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
