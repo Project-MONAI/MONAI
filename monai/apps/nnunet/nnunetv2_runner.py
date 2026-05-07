@@ -555,7 +555,7 @@ class nnUNetV2Runner:  # noqa: N801
         Raises:
             ValueError: If gpu_id is an empty tuple or list.
         """
-        env = os.environ.copy()
+        env:dict[str, str]  = os.environ.copy()
         device_setting: str = "0"
         num_gpus = 1
         if isinstance(gpu_id, str):
@@ -598,9 +598,9 @@ class nnUNetV2Runner:  # noqa: N801
             cmd += [f"{prefix}{_key}", str(_value)]
 
         # ensure components are quoted strings to prevent injection (not robust in Windows)
-        cmd = [shlex.quote(str(c)) for c in cmd]
+        cmd_str:list[str] = [shlex.quote(str(c)) for c in cmd]
 
-        return cmd, env
+        return cmd_str, env
 
     def train(
         self,
