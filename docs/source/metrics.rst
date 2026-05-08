@@ -143,6 +143,11 @@ Metrics
 .. autoclass:: PSNRMetric
     :members:
 
+`Mean absolute percentage error`
+---------------------------------
+.. autoclass:: MAPEMetric
+    :members:
+
 `Structural similarity index measure`
 -------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
@@ -153,6 +158,13 @@ Metrics
 
 `Fréchet Inception Distance`
 ------------------------------
+`Embedding Collapse`
+------------------------------
+.. autofunction:: compute_embedding_collapse
+
+.. autoclass:: EmbeddingCollapseMetric
+    :members:
+
 .. autofunction:: compute_frechet_distance
 
 .. autoclass:: FIDMetric
@@ -180,6 +192,15 @@ Metrics
 .. autoclass:: MetricsReloadedCategorical
     :members:
 
+`Calibration Error`
+-------------------
+.. autofunction:: calibration_binning
+
+.. autoclass:: CalibrationReduction
+    :members:
+
+.. autoclass:: CalibrationErrorMetric
+    :members:
 
 
 Utilities

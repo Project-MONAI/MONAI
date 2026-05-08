@@ -1,12 +1,11 @@
--f https://download.pytorch.org/whl/cpu/torch-2.4.1%2Bcpu-cp39-cp39-linux_x86_64.whl
-torch>=2.4.1
-pytorch-ignite==0.4.11
-numpy>=1.20
+torch>=2.8.0
+numpy>=1.24,<3.0
+pytorch-ignite
 itk>=5.2
 nibabel
 parameterized
 scikit-image>=0.19.0
-scipy>=1.12.0; python_version >= '3.9'
+scipy>=1.12.0
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
@@ -33,11 +32,11 @@ jsonschema
 pynrrd
 pydicom
 h5py
-nni; platform_system == "Linux"
+nni==2.10.1; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
 optuna
 opencv-python-headless
 onnx>=1.13.0
-onnxruntime; python_version <= '3.10'
+onnxruntime
 zarr
 huggingface_hub
 pyamg>=5.0.0, <5.3.0

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -54,6 +54,7 @@ class HausdorffDTLoss(_Loss):
     ) -> None:
         """
         Args:
+            alpha: the exponent to transform the distance when computing the loss. Defaults to 2.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -82,7 +83,7 @@ class HausdorffDTLoss(_Loss):
         super().__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        if int(sigmoid) + int(softmax) > 1:
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
 
         self.alpha = alpha
