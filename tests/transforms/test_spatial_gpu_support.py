@@ -18,7 +18,13 @@ from unittest.mock import MagicMock, patch
 
 import torch
 
+from monai._C import max_compute_capability as _max_cc
 from monai.transforms.spatial.functional import _compiled_unsupported
+
+
+def _has_sm120_support() -> bool:
+    """Return True if the compiled _C extension includes sm_120 (cc 12.0) support."""
+    return _max_cc() >= 1200
 
 
 class TestCompiledUnsupported(unittest.TestCase):
@@ -31,14 +37,17 @@ class TestCompiledUnsupported(unittest.TestCase):
 
     @unittest.skipIf(not torch.cuda.is_available(), reason="CUDA not available")
     def test_cuda_device_detection(self):
-        """Verify CUDA compute capability detection."""
+        """Verify CUDA compute capability detection against compiled arch list."""
         device = torch.device("cuda:0")
-        cc_major = torch.cuda.get_device_properties(device).major
-        unsupported = _compiled_unsupported(device)
-        if cc_major >= 12:
-            self.assertTrue(unsupported)
+        cc = torch.cuda.get_device_properties(device)
+        device_cc = cc.major * 100 + cc.minor
+        max_cc = _max_cc()
+        if max_cc == 0:
+            # No build info — rely on heuristic
+            expected = cc.major >= 12
         else:
-            self.assertFalse(unsupported)
+            expected = device_cc > max_cc
+        self.assertEqual(_compiled_unsupported(device), expected)
 
     def test_compiled_unsupported_return_type(self):
         """Verify return type is bool."""
@@ -51,17 +60,30 @@ class TestResampleFallback(unittest.TestCase):
     """Test Resample fallback behavior on unsupported devices."""
 
     def test_resample_compilation_flag_respected(self):
-        """Verify _compiled_unsupported identifies Blackwell (cc>=12) and supported (cc<12) devices."""
+        """Verify _compiled_unsupported compares device CC against compiled arch list."""
         mock_props = MagicMock()
         cuda_device = torch.device("cuda:0")
 
-        mock_props.major = 12  # Blackwell – unsupported
-        with patch("torch.cuda.get_device_properties", return_value=mock_props):
-            self.assertTrue(_compiled_unsupported(cuda_device))
+        max_cc = _max_cc()
+        if max_cc == 0:
+            # No build info — use old heuristic
+            mock_props.major = 12  # Blackwell
+            with patch("torch.cuda.get_device_properties", return_value=mock_props):
+                self.assertTrue(_compiled_unsupported(cuda_device))
 
-        mock_props.major = 9  # Hopper – supported
-        with patch("torch.cuda.get_device_properties", return_value=mock_props):
-            self.assertFalse(_compiled_unsupported(cuda_device))
+            mock_props.major = 9  # Hopper
+            with patch("torch.cuda.get_device_properties", return_value=mock_props):
+                self.assertFalse(_compiled_unsupported(cuda_device))
+        else:
+            # With build info: device_cc > max_cc means unsupported
+            mock_props.major = max_cc // 100
+            mock_props.minor = max_cc % 100
+            with patch("torch.cuda.get_device_properties", return_value=mock_props):
+                self.assertFalse(_compiled_unsupported(cuda_device))
+
+            mock_props.major = max_cc // 100 + 2  # beyond compiled range
+            with patch("torch.cuda.get_device_properties", return_value=mock_props):
+                self.assertTrue(_compiled_unsupported(cuda_device))
 
     def test_compiled_unsupported_logic(self):
         """Test that unsupported devices are correctly detected."""
@@ -70,10 +92,14 @@ class TestResampleFallback(unittest.TestCase):
 
         cuda_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if cuda_device.type == "cuda":
-            cc_major = torch.cuda.get_device_properties(cuda_device).major
-            expected = cc_major >= 12
-            actual = _compiled_unsupported(cuda_device)
-            self.assertEqual(actual, expected)
+            cc = torch.cuda.get_device_properties(cuda_device)
+            device_cc = cc.major * 100 + cc.minor
+            max_cc = _max_cc()
+            if max_cc == 0:
+                expected = cc.major >= 12
+            else:
+                expected = device_cc > max_cc
+            self.assertEqual(_compiled_unsupported(cuda_device), expected)
 
 
 if __name__ == "__main__":
