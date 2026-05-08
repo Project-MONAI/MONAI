@@ -36,7 +36,7 @@ from monai.auto3dseg.utils import (
     _prepare_cmd_torchrun,
     _run_cmd_bcprun,
     _run_cmd_torchrun,
-    algo_to_pickle,
+    algo_to_json,
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
@@ -692,7 +692,7 @@ class BundleGen(AlgoGen):
                 else:
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
 
-                algo_to_pickle(gen_algo, template_path=algo.template_path)
+                algo_to_json(gen_algo, template_path=algo.template_path)
                 self.history.append(
                     {AlgoKeys.ID: name, AlgoKeys.ALGO: gen_algo}
                 )  # track the previous, may create a persistent history

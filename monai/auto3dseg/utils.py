@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pickle
 import subprocess
 import sys
 import warnings
@@ -31,7 +32,7 @@ from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import, run_cmd
-from monai.utils.deprecate_utils import deprecated
+from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
     "get_foreground_image",
@@ -43,9 +44,16 @@ __all__ = [
     "verify_report_format",
     "algo_to_json",
     "algo_from_json",
-    "algo_to_pickle",  # deprecated alias
-    "algo_from_pickle",  # deprecated alias
+    "algo_to_pickle",
+    "algo_from_pickle",
 ]
+
+_PICKLE_DISABLED_MSG = (
+    "Pickle serialization for Auto3DSeg is disabled by default for security reasons. "
+    "Set the environment variable MONAI_ALLOW_PICKLE=1 to enable. Pickle can execute "
+    "arbitrary code on load — only enable for files from trusted sources. "
+    "Prefer algo_to_json / algo_from_json."
+)
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
@@ -348,8 +356,10 @@ def _load_legacy_pickle(pkl_filename: str, template_path: PathLike | None = None
     Load an Algo object from a legacy pickle file.
 
     This is an internal function to support backward compatibility with pickle files.
+    Gated behind ``MONAI_ALLOW_PICKLE=1`` because unpickling executes arbitrary code.
     """
-    import pickle
+    if not MONAIEnvVars.allow_pickle():
+        raise RuntimeError(_PICKLE_DISABLED_MSG)
 
     with open(pkl_filename, "rb") as f_pi:
         data_bytes = f_pi.read()
@@ -653,12 +663,38 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     return run_cmd(cmd_list, run_cmd_verbose=True, **params)
 
 
-# Deprecated aliases for backward compatibility
-@deprecated(since="1.6", msg_suffix="Use algo_to_json instead.")
 def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
-    return algo_to_json(algo, template_path, **algo_meta_data)
+    """Export the Algo object to a pickle file. **Unsafe**; prefer ``algo_to_json``.
+
+    Pickle can execute arbitrary code on load. This function is disabled unless the
+    environment variable ``MONAI_ALLOW_PICKLE=1`` is set, and emits a ``UserWarning``
+    even when enabled. Use ``algo_to_json`` for safe, pickle-free serialization.
+
+    Args:
+        algo: Algo-like object.
+        template_path: a str path that is needed to be added to ``sys.path`` to
+            instantiate the class on load.
+        algo_meta_data: additional keywords to save (e.g., acc/best_metrics).
+
+    Returns:
+        Filename of the pickled Algo object.
+    """
+    if not MONAIEnvVars.allow_pickle():
+        raise RuntimeError(_PICKLE_DISABLED_MSG)
+    data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
+    pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
+    for k, v in algo_meta_data.items():
+        data.update({k: v})
+    data_bytes = pickle.dumps(data)
+    with open(pkl_filename, "wb") as f_pi:
+        f_pi.write(data_bytes)
+    return pkl_filename
 
 
-@deprecated(since="1.6", msg_suffix="Use algo_from_json instead.")
-def algo_from_pickle(filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
-    return algo_from_json(filename, template_path, **kwargs)
+def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
+    """Import the Algo object from a pickle file. **Unsafe**; prefer ``algo_from_json``.
+
+    Disabled unless ``MONAI_ALLOW_PICKLE=1`` is set. See ``_load_legacy_pickle`` for
+    template-path resolution details.
+    """
+    return _load_legacy_pickle(pkl_filename, template_path)

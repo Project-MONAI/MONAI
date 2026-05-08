@@ -12,13 +12,21 @@
 from __future__ import annotations
 
 import os
+import pickle
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 import torch
 
-from monai.auto3dseg.utils import _add_path_with_parent, _make_json_serializable
+from monai.auto3dseg.utils import (
+    _add_path_with_parent,
+    _make_json_serializable,
+    algo_from_json,
+    algo_from_pickle,
+    algo_to_pickle,
+)
 
 
 class TestMakeJsonSerializable(unittest.TestCase):
@@ -71,6 +79,36 @@ class TestAddPathWithParent(unittest.TestCase):
         paths: list[str] = []
         _add_path_with_parent(paths, "/nonexistent/path/12345")
         assert len(paths) == 0
+
+
+class TestPickleGate(unittest.TestCase):
+    """Pickle (de)serialization is gated behind MONAI_ALLOW_PICKLE=1."""
+
+    def setUp(self) -> None:
+        patcher = mock.patch.dict(os.environ, {}, clear=False)
+        patcher.start()
+        os.environ.pop("MONAI_ALLOW_PICKLE", None)
+        self.addCleanup(patcher.stop)
+
+    def test_algo_to_pickle_disabled_by_default(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "MONAI_ALLOW_PICKLE"):
+            algo_to_pickle(object())  # type: ignore[arg-type]
+
+    def test_algo_from_pickle_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pkl = os.path.join(tmpdir, "algo_object.pkl")
+            with open(pkl, "wb") as f:
+                f.write(b"not used")
+            with self.assertRaisesRegex(RuntimeError, "MONAI_ALLOW_PICKLE"):
+                algo_from_pickle(pkl)
+
+    def test_algo_from_json_legacy_pkl_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pkl = os.path.join(tmpdir, "algo_object.pkl")
+            with open(pkl, "wb") as f:
+                pickle.dump({"algo_bytes": b"x", "template_path": None}, f)
+            with self.assertRaisesRegex(RuntimeError, "MONAI_ALLOW_PICKLE"):
+                algo_from_json(pkl)
 
 
 if __name__ == "__main__":
