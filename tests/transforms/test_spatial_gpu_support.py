@@ -18,13 +18,23 @@ from unittest.mock import MagicMock, patch
 
 import torch
 
-from monai._C import max_compute_capability as _max_cc
 from monai.transforms.spatial.functional import _compiled_unsupported
+
+
+def _get_max_cc() -> int:
+    """Return the max compute capability (major*100+minor) the _C extension was compiled for,
+    or 0 if the extension is not available (no build info)."""
+    try:
+        from monai._C import max_compute_capability
+
+        return max_compute_capability()
+    except (ImportError, AttributeError):
+        return 0
 
 
 def _has_sm120_support() -> bool:
     """Return True if the compiled _C extension includes sm_120 (cc 12.0) support."""
-    return _max_cc() >= 1200
+    return _get_max_cc() >= 1200
 
 
 class TestCompiledUnsupported(unittest.TestCase):
@@ -41,7 +51,7 @@ class TestCompiledUnsupported(unittest.TestCase):
         device = torch.device("cuda:0")
         cc = torch.cuda.get_device_properties(device)
         device_cc = cc.major * 100 + cc.minor
-        max_cc = _max_cc()
+        max_cc = _get_max_cc()
         if max_cc == 0:
             # No build info — rely on heuristic
             expected = cc.major >= 12
@@ -64,7 +74,7 @@ class TestResampleFallback(unittest.TestCase):
         mock_props = MagicMock()
         cuda_device = torch.device("cuda:0")
 
-        max_cc = _max_cc()
+        max_cc = _get_max_cc()
         if max_cc == 0:
             # No build info — use old heuristic
             mock_props.major = 12  # Blackwell
@@ -94,7 +104,7 @@ class TestResampleFallback(unittest.TestCase):
         if cuda_device.type == "cuda":
             cc = torch.cuda.get_device_properties(cuda_device)
             device_cc = cc.major * 100 + cc.minor
-            max_cc = _max_cc()
+            max_cc = _get_max_cc()
             if max_cc == 0:
                 expected = cc.major >= 12
             else:
