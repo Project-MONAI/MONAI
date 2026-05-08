@@ -32,6 +32,7 @@ from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import, run_cmd
+from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
@@ -663,6 +664,7 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     return run_cmd(cmd_list, run_cmd_verbose=True, **params)
 
 
+@deprecated(since="1.6", msg_suffix="Use algo_to_json instead. Pickle is unsafe; see MONAI_ALLOW_PICKLE.")
 def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
     """Export the Algo object to a pickle file. **Unsafe**; prefer ``algo_to_json``.
 
@@ -691,6 +693,7 @@ def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_met
     return pkl_filename
 
 
+@deprecated(since="1.6", msg_suffix="Use algo_from_json instead. Pickle is unsafe; see MONAI_ALLOW_PICKLE.")
 def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
     """Import the Algo object from a pickle file. **Unsafe**; prefer ``algo_from_json``.
 
