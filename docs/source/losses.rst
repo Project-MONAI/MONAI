@@ -98,6 +98,11 @@ Segmentation Losses
 .. autoclass:: NACLLoss
     :members:
 
+`MCCLoss`
+~~~~~~~~~
+.. autoclass:: MCCLoss
+    :members:
+
 Registration Losses
 -------------------
 

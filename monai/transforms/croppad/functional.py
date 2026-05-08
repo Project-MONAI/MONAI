@@ -91,23 +91,27 @@ def pad_nd(
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
+    Raises:
+        ValueError: If `value` is provided when `mode` is not ``"constant"``.
     """
+    if mode != "constant" and "value" in kwargs:
+        raise ValueError("'value' argument is only valid when mode='constant'")
     if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     try:
         _pad = _np_pad
-        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and img.dtype not in {
-            torch.int16,
-            torch.int64,
-            torch.bool,
-            torch.uint8,
-        }:
+        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"}:
+            # Try PyTorch pad for these modes; fallback to NumPy on error.
             _pad = _pt_pad
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
+    except NotImplementedError:
+        # PyTorch does not support this combination, fall back to NumPy
+        return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
-        if isinstance(err, NotImplementedError) or any(
-            k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
-        ):
+        # PyTorch may raise generic errors for unsupported modes/dtypes or kwargs.
+        # Since there are no stable exception types for these cases, we fall back
+        # to NumPy by matching known error message patterns.
+        if any(k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
         raise ValueError(
             f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"

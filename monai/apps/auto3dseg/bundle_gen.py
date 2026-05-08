@@ -208,7 +208,7 @@ class BundleAlgo(Algo):
         config_files = []
         if os.path.isdir(config_dir):
             for file in sorted(os.listdir(config_dir)):
-                if file.endswith("yaml") or file.endswith("json"):
+                if file.endswith(("yaml", "json")):
                     # Python Fire may be confused by single-quoted WindowsPath
                     config_files.append(Path(os.path.join(config_dir, file)).as_posix())
 

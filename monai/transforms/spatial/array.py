@@ -18,7 +18,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from itertools import zip_longest
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -118,7 +118,7 @@ __all__ = [
     "RandSimulateLowResolution",
 ]
 
-RandRange = Optional[Union[Sequence[Union[tuple[float, float], float]], float]]
+RandRange = Sequence[tuple[float, float] | float] | float | None
 
 
 class SpatialResample(InvertibleTransform, LazyTransform):
@@ -1848,7 +1848,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         """
         Args:
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -2386,7 +2386,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -2435,6 +2435,13 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        Note:
+            The affine transformations in MONAI use a 'backward mapping' (image-to-grid) logic.
+            This can be counter-intuitive:
+            - Translation: A positive value shifts the image in the negative direction.
+            - Scaling: Positive scale_range values decrease the image size; values in [-1, 0) increase it.
+            - Rotation: The direction (CW/CCW) may vary depending on the axis.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2649,7 +2656,7 @@ class Rand2DElastic(RandomizableTransform):
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -2817,7 +2824,7 @@ class Rand3DElastic(RandomizableTransform):
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
