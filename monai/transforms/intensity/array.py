@@ -484,7 +484,7 @@ class ScaleIntensity(Transform):
 
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
@@ -543,7 +543,7 @@ class ScaleIntensityFixedMean(Transform):
         factor = factor if factor is not None else self.factor
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         ret: NdarrayOrTensor
         if self.channel_wise:
             out = []
@@ -1169,7 +1169,7 @@ class ClipIntensityPercentiles(Transform):
         Apply the transform to `img`.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         if self.channel_wise:
             img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
         else:
@@ -1434,7 +1434,7 @@ class ScaleIntensityRangePercentiles(Transform):
         Apply the transform to `img`.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         if self.channel_wise:
             img_t = torch.stack([self._normalize(img=d) for d in img_t])  # type: ignore
         else:
@@ -1908,7 +1908,7 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         img_min, img_max = img_t.min(), img_t.max()
         if img_min == img_max:
             warn(
@@ -1953,7 +1953,7 @@ class GibbsNoise(Transform, Fourier):
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_t: NdarrayOrTensor = img.as_tensor() if isinstance(img, MetaTensor) else img
         n_dims = len(img_t.shape[1:])
 
         # FT
@@ -2605,7 +2605,7 @@ class IntensityRemap(RandomizableTransform):
             img: image to remap.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_ = img.as_tensor() if isinstance(img, MetaTensor) else cast(torch.Tensor, img)
+        img_ = img.as_tensor() if isinstance(img, MetaTensor) else img
         # sample noise
         vals_to_sample = torch.unique(img_).tolist()
         noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
