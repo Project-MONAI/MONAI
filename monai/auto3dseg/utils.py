@@ -352,7 +352,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     }
 
     json_filename = os.path.join(algo.get_output_path(), "algo_object.json")
-    with open(json_filename, "w") as f:
+    with open(json_filename, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
 
     return json_filename
@@ -452,7 +452,7 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
         )
         return _load_legacy_pickle(filename, template_path)
 
-    with open(filename) as f:
+    with open(filename, encoding="utf-8") as f:
         data = json.load(f)
 
     if not isinstance(data, dict):
@@ -480,6 +480,7 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
     paths_to_try: list[str | None] = list(template_paths) if template_paths else [None]
     algo = None
     used_template_path: str | None = None
+    last_error: ModuleNotFoundError | None = None
     for path in paths_to_try:
         path_added = False
         try:
@@ -496,7 +497,8 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
             algo = parser.get_parsed_content()
             used_template_path = path
             break
-        except ImportError as e:
+        except ModuleNotFoundError as e:
+            last_error = e
             logging.debug(f"Failed to instantiate {target} with path {path}: {e}")
             continue
         finally:
@@ -504,7 +506,9 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
                 sys.path.remove(path)
 
     if algo is None:
-        raise ValueError(f"Failed to instantiate Algo from target '{target}' with paths {template_paths}")
+        raise ValueError(
+            f"Failed to instantiate Algo from target '{target}' with paths {template_paths}"
+        ) from last_error
 
     # Restore the state
     algo.load_state_dict(state)

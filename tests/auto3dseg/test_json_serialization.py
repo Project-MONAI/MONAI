@@ -15,6 +15,7 @@ import os
 import pickle
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -52,6 +53,9 @@ class TestMakeJsonSerializable(unittest.TestCase):
         t = torch.tensor([1.0, 2.0])
         result = _make_json_serializable(t)
         assert result == [1.0, 2.0]
+
+    def test_path(self) -> None:
+        assert _make_json_serializable(Path("/some/path")) == os.fspath(Path("/some/path"))
 
     def test_fallback(self) -> None:
         class Custom:
