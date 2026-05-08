@@ -25,7 +25,7 @@ from PIL import Image
 
 from monai.apps import download_and_extract
 from monai.data import NibabelReader, PydicomReader
-from monai.data.meta_obj import set_track_meta
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
 from monai.utils import optional_import
@@ -496,6 +496,17 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertIsInstance(r, torch.Tensor)
             self.assertNotIsInstance(r, MetaTensor)
             self.assertFalse(hasattr(r, "affine"))
+
+    def test_track_meta_false_ensure_channel_first(self):
+        _previous_meta = get_track_meta()
+        try:
+            set_track_meta(False)
+            r = LoadImage(image_only=True, ensure_channel_first=True)(self.test_data)
+            self.assertTupleEqual(r.shape, (1, 128, 128, 128))
+            self.assertIsInstance(r, torch.Tensor)
+            self.assertNotIsInstance(r, MetaTensor)
+        finally:
+            set_track_meta(_previous_meta)
 
 
 if __name__ == "__main__":
