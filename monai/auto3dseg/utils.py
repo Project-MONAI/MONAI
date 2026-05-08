@@ -56,6 +56,12 @@ _PICKLE_DISABLED_MSG = (
     "Prefer algo_to_json / algo_from_json."
 )
 
+
+def _require_pickle_allowed() -> None:
+    if not MONAIEnvVars.allow_pickle():
+        raise RuntimeError(_PICKLE_DISABLED_MSG)
+
+
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
 
@@ -359,8 +365,7 @@ def _load_legacy_pickle(pkl_filename: str, template_path: PathLike | None = None
     This is an internal function to support backward compatibility with pickle files.
     Gated behind ``MONAI_ALLOW_PICKLE=1`` because unpickling executes arbitrary code.
     """
-    if not MONAIEnvVars.allow_pickle():
-        raise RuntimeError(_PICKLE_DISABLED_MSG)
+    _require_pickle_allowed()
 
     with open(pkl_filename, "rb") as f_pi:
         data_bytes = f_pi.read()
@@ -681,8 +686,7 @@ def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_met
     Returns:
         Filename of the pickled Algo object.
     """
-    if not MONAIEnvVars.allow_pickle():
-        raise RuntimeError(_PICKLE_DISABLED_MSG)
+    _require_pickle_allowed()
     data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
     pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
     for k, v in algo_meta_data.items():
