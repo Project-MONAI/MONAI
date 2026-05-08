@@ -349,7 +349,7 @@ do
         ;;
         --timeout)
             # Accept an optional numeric value; default to 180s if none given.
-            if [[ -n "$2" ]] && [[ "$2" =~ ^[0-9]+$ ]]; then
+            if (("$2" > 0)); then
                 testTimeout=$2
                 shift
             else
@@ -708,7 +708,7 @@ then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
     timeoutArg=""
-    if [ "$testTimeout" -gt 0 ] 2>/dev/null; then
+    if (("$testTimeout" > 0)); then
         timeoutArg="--timeout $testTimeout"
     fi
     ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$" $timeoutArg  # excluding integration/dist/perceptual_loss tests

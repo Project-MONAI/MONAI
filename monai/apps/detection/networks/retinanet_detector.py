@@ -342,7 +342,7 @@ class RetinaNetDetector(nn.Module):
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
-                f"Require fg_iou_thresh >= bg_iou_thresh. Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
+                f"Required condition fg_iou_thresh >= bg_iou_thresh not met ({fg_iou_thresh=}, {bg_iou_thresh=})."
             )
         self.proposal_matcher = Matcher(
             fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
