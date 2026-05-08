@@ -61,7 +61,6 @@ class Algo:
         Args:
             state: A dictionary containing the state to restore.
         """
-        pass
 
 
 class AlgoGen(Randomizable):
