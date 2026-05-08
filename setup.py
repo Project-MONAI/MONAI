@@ -103,6 +103,26 @@ def get_extensions():
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
+        # Embed the maximum compute capability from TORCH_CUDA_ARCH_LIST
+        _torch_cuda_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST", "")
+        _max_cc = 0
+        if _torch_cuda_arch_list:
+            for _arch in _torch_cuda_arch_list.replace(";", " ").split():
+                _arch = _arch.strip()
+                if not _arch:
+                    continue
+                if "+" in _arch:
+                    _arch = _arch.split("+")[0]
+                _parts = _arch.split(".")
+                if len(_parts) == 2:
+                    try:
+                        _cc = int(_parts[0]) * 100 + int(_parts[1])
+                        if _cc > _max_cc:
+                            _max_cc = _cc
+                    except ValueError:
+                        pass
+        if _max_cc > 0:
+            define_macros += [("MONAI_MAX_COMPUTE_CAPABILITY", _max_cc)]
         extra_compile_args = {"cxx": [], "nvcc": []}
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()

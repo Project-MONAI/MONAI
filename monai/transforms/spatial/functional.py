@@ -80,7 +80,19 @@ def _compiled_unsupported(device: torch.device) -> bool:
     """
     if device.type != "cuda":
         return False
-    return torch.cuda.get_device_properties(device).major >= 12
+    try:
+        from monai._C import max_compute_capability as _max_cc_func
+        max_cc = _max_cc_func()
+        if max_cc == 0:
+            # No architecture info embedded (older build), fall back to heuristic
+            return torch.cuda.get_device_properties(device).major >= 12
+        device_cc = (
+            torch.cuda.get_device_properties(device).major * 100
+            + torch.cuda.get_device_properties(device).minor
+        )
+        return device_cc > max_cc
+    except (ImportError, AttributeError):
+        return torch.cuda.get_device_properties(device).major >= 12
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
