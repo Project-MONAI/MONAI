@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Optional, Union, cast
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 import torch
@@ -486,7 +486,7 @@ class SpatialCropd(Cropd):
         self._has_str_roi = any(isinstance(v, str) for v in [roi_center, roi_size, roi_start, roi_end])
 
         if not self._has_str_roi:
-            _roi_t = Optional[Union[Sequence[int], int]]
+            _roi_t: TypeAlias = Sequence[int] | int | None
             cropper = SpatialCrop(
                 cast(_roi_t, roi_center),
                 cast(_roi_t, roi_size),

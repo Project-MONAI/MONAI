@@ -516,9 +516,9 @@ then
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}"${PY_EXE}" -m black --skip-magic-trailing-comma "$homedir"
+        ${cmdPrefix}"${PY_EXE}" -m black "$homedir"
     else
-        ${cmdPrefix}"${PY_EXE}" -m black --skip-magic-trailing-comma --check "$homedir"
+        ${cmdPrefix}"${PY_EXE}" -m black --check "$homedir"
     fi
 
     black_status=$?
