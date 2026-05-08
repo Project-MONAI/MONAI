@@ -28,13 +28,13 @@ import time
 import traceback
 import unittest
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from functools import partial, reduce
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Callable
+from typing import Any
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -564,7 +564,7 @@ class DistCall:
                 time.sleep(0.1)
             results.put(True)
         except Exception as e:
-            results.put(False)
+            results.put(str(e))
             raise e
         finally:
             os.environ.clear()
@@ -593,15 +593,17 @@ class DistCall:
             results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
+
             for proc_rank in range(self.nproc_per_node):
-                p = tmp.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
-                )
+                run_args = (func, proc_rank, args, kwargs, results)
+                p = tmp.Process(target=self.run_process, args=run_args, daemon=self.daemon)
                 p.start()
                 processes.append(p)
+
             for p in processes:
                 p.join()
-                assert results.get(), "Distributed call failed."
+                pr = results.get(block=False)
+                assert pr is True, f"Distributed call failed: {pr}"
             _del_original_func(obj)
 
         return _wrapper
