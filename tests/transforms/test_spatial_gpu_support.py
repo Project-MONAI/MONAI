@@ -27,7 +27,7 @@ def _get_max_cc() -> int:
     try:
         from monai._C import max_compute_capability
 
-        return max_compute_capability()
+        return int(max_compute_capability())
     except (ImportError, AttributeError):
         return 0
 

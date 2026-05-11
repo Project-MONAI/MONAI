@@ -86,13 +86,13 @@ def _compiled_unsupported(device: torch.device) -> bool:
         max_cc = _max_cc_func()
         if max_cc == 0:
             # No architecture info embedded (older build), fall back to heuristic
-            return torch.cuda.get_device_properties(device).major >= 12
+            return bool(torch.cuda.get_device_properties(device).major >= 12)
         device_cc = (
             torch.cuda.get_device_properties(device).major * 100 + torch.cuda.get_device_properties(device).minor
         )
-        return device_cc > max_cc
+        return bool(device_cc > max_cc)
     except (ImportError, AttributeError):
-        return torch.cuda.get_device_properties(device).major >= 12
+        return bool(torch.cuda.get_device_properties(device).major >= 12)
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
