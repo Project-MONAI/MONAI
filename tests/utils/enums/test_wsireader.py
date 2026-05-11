@@ -41,7 +41,9 @@ WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"  # TIFF image with incorrect mpp value
 WSI_GENERIC_TIFF_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
 WSI_GENERIC_TIFF_CORRECT_MPP_KEY = "wsi_generic_tiff_correct_mpp"
-WSI_GENERIC_TIFF_CORRECT_MPP_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_CORRECT_MPP_KEY}.tiff")
+WSI_GENERIC_TIFF_CORRECT_MPP_PATH = os.path.join(
+    TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_CORRECT_MPP_KEY}.tiff"
+)
 
 WSI_APERIO_SVS_KEY = "wsi_aperio_svs"
 WSI_APERIO_SVS_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_APERIO_SVS_KEY}.svs")
@@ -307,11 +309,7 @@ TEST_CASE_TIFF_MPP_4 = [
     {"openslide": (3, 10949, 15303), "cucim": (3, 10949, 15303), "tifffile": (3, 10949, 15303)},
 ]
 
-TEST_CASE_SVS_MPP_SCALAR = [
-    WSI_APERIO_SVS_PATH,
-    {"mpp": 8.0},
-    {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875)},
-]
+TEST_CASE_SVS_MPP_SCALAR = [WSI_APERIO_SVS_PATH, {"mpp": 8.0}, {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875)}]
 
 TEST_CASE_DEVICE_2 = [
     WSI_GENERIC_TIFF_PATH,
@@ -470,17 +468,17 @@ class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        # @parameterized.expand([TEST_CASE_WHOLE_0])
-        # def test_read_whole_image(self, file_path, level, expected_shape):
-        #     reader = WSIReader(self.backend, level=level)
-        #     with reader.read(file_path) as img_obj:
-        #         img, meta = reader.get_data(img_obj)
-        #     self.assertTupleEqual(img.shape, expected_shape)
-        #     self.assertEqual(meta["backend"], self.backend)
-        #     self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
-        #     self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
-        #     assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
-        #     assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
+        @parameterized.expand([TEST_CASE_WHOLE_0])
+        def test_read_whole_image(self, file_path, level, expected_shape):
+            reader = WSIReader(self.backend, level=level)
+            with reader.read(file_path) as img_obj:
+                img, meta = reader.get_data(img_obj)
+            self.assertTupleEqual(img.shape, expected_shape)
+            self.assertEqual(meta["backend"], self.backend)
+            self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
+            self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
+            assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
+            assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
 
         @parameterized.expand(
             [

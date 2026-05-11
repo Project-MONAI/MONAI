@@ -127,7 +127,7 @@ class BaseWSIReader(ImageReader):
             self.dtype = np.dtype(dtype)
 
     def set_device(self, device):
-        if device is None or isinstance(device, (torch.device, str)):
+        if device is None or isinstance(device, torch.device | str):
             self.device = device
         else:
             raise ValueError(f"`device` must be `torch.device`, `str` or `None` but {type(device)} is given.")
@@ -358,7 +358,7 @@ class BaseWSIReader(ImageReader):
         metadata_list: list = []
 
         # CuImage object is iterable, so ensure_tuple won't work on single object
-        if not isinstance(wsi, (list, tuple)):
+        if not isinstance(wsi, list | tuple):
             wsi = (wsi,)
         for each_wsi in ensure_tuple(wsi):
             # get the valid level based on resolution info
@@ -835,7 +835,9 @@ class CuCIMWSIReader(BaseWSIReader):
 
         raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
-    def get_wsi_at_mpp(self, wsi, mpp: float | tuple[float, float], atol: float = 0.00, rtol: float = 0.05) -> Any:
+    def get_wsi_at_mpp(
+        self, wsi, mpp: float | tuple[float, float], atol: float = 0.00, rtol: float = 0.05
+    ) -> np.ndarray:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
@@ -852,7 +854,7 @@ class CuCIMWSIReader(BaseWSIReader):
             rtol: the acceptable relative tolerance for resolution in micro per pixel.
 
         Returns:
-            Cupy array containing the whole slide image at the requested MPP resolution.
+            Numpy array containing the whole slide image at the requested MPP resolution.
 
         """
         cp, _ = optional_import("cupy")
@@ -1423,7 +1425,8 @@ class TiffFileWSIReader(BaseWSIReader):
         if within_tolerance:
             # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
             # TiffFile does not expose `read_region`; read the whole page instead (consistent with `_get_patch`).
-            closest_lvl_wsi = wsi.pages[closest_lvl].asarray()
+            pil_image, _ = optional_import("PIL", name="Image")
+            closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())
 
         elif closest_level_is_bigger:
             # Otherwise, select the level closest to the desired mpp with a higher resolution and downsample it.
@@ -1436,6 +1439,9 @@ class TiffFileWSIReader(BaseWSIReader):
             else:
                 closest_lvl = closest_lvl - 1
                 closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+
+        # Convert to specified mode to normalize dtype
+        closest_lvl_wsi = closest_lvl_wsi.convert(self.mode)
 
         wsi_arr = np.array(closest_lvl_wsi)
 
