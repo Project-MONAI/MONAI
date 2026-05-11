@@ -11,7 +11,11 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+
+import numpy as np
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
@@ -75,6 +79,26 @@ class TestInitLoadImage(unittest.TestCase):
         for to_gpu in [True, False]:
             inst = NibabelReader(to_gpu=to_gpu)
             self.assertIsInstance(inst, NibabelReader)
+
+    @SkipIfNoModule("nibabel")
+    def test_nibabel_reader_avoids_eager_c_order_copy(self):
+        import nibabel as nib
+
+        test_image = np.arange(2 * 3 * 4, dtype=np.int16).reshape(2, 3, 4)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for suffix in (".nii", ".nii.gz"):
+                with self.subTest(suffix=suffix):
+                    filename = os.path.join(tempdir, f"test_image{suffix}")
+                    nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
+
+                    reader = NibabelReader(mmap=False)
+                    img = reader.read(filename)
+                    data, _ = reader.get_data(img)
+
+                    np.testing.assert_array_equal(data, test_image)
+                    # The reader must not force an eager C-order copy; the native
+                    # (F-order) layout from nibabel should be preserved here.
+                    self.assertFalse(data.flags.c_contiguous)
 
 
 if __name__ == "__main__":

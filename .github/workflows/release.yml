@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v6
       with:
@@ -64,14 +64,14 @@ jobs:
       env:
         QUICKTEST: True
 
-    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
+    - if: matrix.python-version == '3.10' && startsWith(github.ref, 'refs/tags/')
       name: Upload artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: dist
         path: dist/
 
-    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
+    - if: matrix.python-version == '3.10' && startsWith(github.ref, 'refs/tags/')
       name: Check artifacts
       run: |
         ls -al dist/
@@ -79,7 +79,7 @@ jobs:
         ls -al dist/
 
     # remove publishing to Test PyPI as it is moved to blossom
-    # - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
+    # - if: matrix.python-version == '3.10' && startsWith(github.ref, 'refs/tags/')
     #   name: Publish to Test PyPI
     #   uses: pypa/gh-action-pypi-publish@release/v1
     #   with:
@@ -97,10 +97,10 @@ jobs:
         # full history so that we can git describe
         with:
           fetch-depth: 0
-      - name: Set up Python 3.9
+      - name: Set up Python 3.10
         uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - shell: bash
         run: |
           find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
@@ -109,7 +109,7 @@ jobs:
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: _version.py
           path: build/lib/monai/_version.py

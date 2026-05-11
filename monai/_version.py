@@ -15,7 +15,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Callable, Dict
+from collections.abc import Callable
 import functools
 
 
@@ -54,8 +54,8 @@ class NotThisMethod(Exception):
     """Exception raised if a method is not valid for the current scenario."""
 
 
-LONG_VERSION_PY: Dict[str, str] = {}
-HANDLERS: Dict[str, Dict[str, Callable]] = {}
+LONG_VERSION_PY: dict[str, str] = {}
+HANDLERS: dict[str, dict[str, Callable]] = {}
 
 
 def register_vcs_handler(vcs, method):  # decorator
@@ -145,7 +145,7 @@ def git_get_keywords(versionfile_abs):
     # _version.py.
     keywords = {}
     try:
-        with open(versionfile_abs, "r") as fobj:
+        with open(versionfile_abs) as fobj:
             for line in fobj:
                 if line.strip().startswith("git_refnames ="):
                     mo = re.search(r'=\s*"(.*)"', line)

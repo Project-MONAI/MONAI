@@ -597,11 +597,12 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
     ):
         return batch
+    # if scalar tensor/array, return the item itself.
+    if getattr(batch, "ndim", -1) == 0 and hasattr(batch, "item"):
+        return batch.item() if detach else batch
     if isinstance(batch, torch.Tensor):
         if detach:
             batch = batch.detach()
-        if batch.ndim == 0:
-            return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
         if isinstance(batch, MetaObj):
@@ -880,7 +881,7 @@ def compute_shape_offset(
             Default is False, using option 1 to compute the shape and offset.
 
     """
-    shape = np.array(spatial_shape, copy=True, dtype=float)
+    shape = np.array(tuple(spatial_shape), copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
