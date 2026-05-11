@@ -229,7 +229,7 @@ class AutoRunner:
             input = os.path.join(os.path.abspath(work_dir), "input.yaml")
             logger.info(f"Input config is not provided, using the default {input}")
 
-        self.data_src_cfg = dict()
+        self.data_src_cfg = {}
         if isinstance(input, dict):
             self.data_src_cfg = input
         elif isinstance(input, str) and os.path.isfile(input):
@@ -560,7 +560,7 @@ class AutoRunner:
             cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
                 Default using env "CMD_PREFIX" or None, examples are:
 
-                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.9 ",
+                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.10",
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or

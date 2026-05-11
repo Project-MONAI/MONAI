@@ -31,6 +31,7 @@ def default_upsampler(spatial_size: Sized, align_corners: bool = False) -> Calla
     def up(x):
         linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
         interp_mode = linear_mode[len(spatial_size) - 1]
-        return F.interpolate(x, size=spatial_size, mode=str(interp_mode.value), align_corners=align_corners)
+        smode = str(interp_mode.value)
+        return F.interpolate(x, size=spatial_size, mode=smode, align_corners=align_corners)  # type: ignore
 
     return up

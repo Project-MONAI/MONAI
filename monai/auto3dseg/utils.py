@@ -407,7 +407,8 @@ def _prepare_cmd_default(cmd: str, cmd_prefix: str | None = None, **kwargs: Any)
 
     Args:
         cmd: the command or script to run in the distributed job.
-        cmd_prefix: the command prefix to run the script, e.g., "python", "python -m", "python3", "/opt/conda/bin/python3.9 ".
+        cmd_prefix: the command prefix to run the script,
+            e.g., "python", "python -m", "python3", "/opt/conda/bin/python3.10".
         kwargs: the keyword arguments to be passed to the script.
 
     Returns:
