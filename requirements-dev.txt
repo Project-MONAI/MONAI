@@ -2,7 +2,7 @@
 -r requirements-min.txt
 pytorch-ignite
 gdown>=4.7.3
-scipy>=1.12.0; python_version >= '3.9'
+scipy>=1.12.0
 itk>=5.2
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
@@ -14,7 +14,7 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-black==25.1.0
+black>=26.3.1
 isort>=5.1, <6, !=6.0.0
 ruff>=0.14.11,<0.15
 pytype>=2020.6.1, <=2024.4.11; platform_system != "Windows"
@@ -25,7 +25,8 @@ ninja
 torchio
 torchvision
 psutil
-cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
+cucim-cu12; platform_system == "Linux" and python_version <= "3.10"
+cucim-cu13; platform_system == "Linux" and python_version >= '3.11'
 openslide-python
 openslide-bin
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
