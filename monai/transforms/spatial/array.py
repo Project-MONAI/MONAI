@@ -26,7 +26,7 @@ import torch
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode, StandardMode
-from monai.data.meta_obj import get_track_meta, set_track_meta
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
@@ -3576,33 +3576,35 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         if self._do_transform:
             input_shape = img.shape[1:]
-            target_shape = tuple(np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_).tolist())
+            # Clamp each axis to at least 1 so F.interpolate never sees a zero-sized dimension.
+            target_shape = tuple(max(1, int(np.round(s * self.zoom_factor))) for s in input_shape)
 
-            resize_tfm_downsample = Resize(
-                spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False
+            # Use F.interpolate directly on a plain tensor to avoid mutating the global
+            # set_track_meta flag, which is not thread-safe (see GitHub issue #8409).
+            img_t = convert_to_tensor(img, track_meta=False)
+            # F.interpolate requires float input and a batch dimension; cast matches
+            # the default dtype=float32 that Resize uses internally.
+            img_float = img_t.unsqueeze(0).to(dtype=torch.float32)
+
+            downsample_mode = str(self.downsample_mode)
+            upsample_mode = str(self.upsample_mode)
+            # align_corners is only valid for linear/bilinear/bicubic/trilinear modes
+            _align_corners_modes = {"linear", "bilinear", "bicubic", "trilinear"}
+            downsample_align_corners = self.align_corners if downsample_mode in _align_corners_modes else None
+            upsample_align_corners = self.align_corners if upsample_mode in _align_corners_modes else None
+
+            img_downsampled = torch.nn.functional.interpolate(
+                img_float, size=target_shape, mode=downsample_mode, align_corners=downsample_align_corners
             )
+            img_upsampled_t = torch.nn.functional.interpolate(
+                img_downsampled, size=input_shape, mode=upsample_mode, align_corners=upsample_align_corners
+            ).squeeze(0)
 
-            resize_tfm_upsample = Resize(
-                spatial_size=input_shape,
-                size_mode="all",
-                mode=self.upsample_mode,
-                anti_aliasing=False,
-                align_corners=self.align_corners,
-            )
-            # temporarily disable metadata tracking, since we do not want to invert the two Resize functions during
-            # post-processing
-            original_tack_meta_value = get_track_meta()
-            set_track_meta(False)
-
-            img_downsampled = resize_tfm_downsample(img)
-            img_upsampled = resize_tfm_upsample(img_downsampled)
-
-            # reset metadata tracking to original value
-            set_track_meta(original_tack_meta_value)
-
-            # copy metadata from original image to down-and-upsampled image
-            img_upsampled = MetaTensor(img_upsampled)
-            img_upsampled.copy_meta_from(img)
+            # copy metadata from original image to down-and-upsampled image,
+            # respecting the caller's get_track_meta() setting.
+            img_upsampled = cast(torch.Tensor, convert_to_tensor(img_upsampled_t, track_meta=get_track_meta()))
+            if isinstance(img_upsampled, MetaTensor):
+                img_upsampled.copy_meta_from(img)
 
             return img_upsampled
 
