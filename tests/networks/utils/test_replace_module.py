@@ -71,7 +71,7 @@ class TestReplaceModule(unittest.TestCase):
         # all replaced modules should be ReLU
         for r in replaced:
             self.assertIsInstance(r[1], torch.nn.ReLU)
-        # if a specfic module was named, check that the name matches exactly
+        # if a specific module was named, check that the name matches exactly
         if name == "features.denseblock1.denselayer1.layers.relu1":
             self.assertEqual(replaced[0][0], name)
 
