@@ -30,7 +30,7 @@ import torch.nn as nn
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
+from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, get_spatial_ndim
 from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
@@ -329,6 +329,8 @@ class SplitDim(Transform, MultiSampleTrait):
                     out = MetaTensor(out, meta=img.meta)
                     outputs[idx] = out
                 if dim == 0:  # don't update affine if channel dim
+                    if not self.keepdim:
+                        out.spatial_ndim = _normalize_spatial_ndim(out.spatial_ndim, out.ndim)
                     continue
                 ndim = len(out.affine)
                 shift = torch.eye(ndim, device=out.affine.device, dtype=out.affine.dtype)

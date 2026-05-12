@@ -71,13 +71,18 @@ class TestSplitDim(unittest.TestCase):
             self.assertEqual(item.spatial_ndim, 2)
 
     def test_spatial_ndim_channel_dim_no_decrement(self):
-        """spatial_ndim not decremented for keepdim=False on channel dim (dim=0)."""
+        """spatial_ndim clamped to the new tensor rank for keepdim=False on channel dim (dim=0)."""
         import torch
 
         arr = MetaTensor(torch.randn(3, 8, 7))
         self.assertEqual(arr.spatial_ndim, 2)
         out = SplitDim(dim=0, keepdim=False)(arr)
         for item in out:
+            self.assertIsInstance(item, MetaTensor)
+            self.assertEqual(item.spatial_ndim, 1)
+
+        out_keep = SplitDim(dim=0, keepdim=True)(arr)
+        for item in out_keep:
             self.assertIsInstance(item, MetaTensor)
             self.assertEqual(item.spatial_ndim, 2)
 
