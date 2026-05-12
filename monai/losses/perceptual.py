@@ -70,6 +70,12 @@ class PerceptualLoss(nn.Module):
             Defaults to `None`.
         channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
             Defaults to ``False``.
+
+    Raises:
+        NotImplementedError: if ``spatial_dims`` is not 2 or 3.
+        ValueError: if a MedicalNet network is used with ``spatial_dims=2`` or ``is_fake_3d=True``.
+        ValueError: if ``channel_wise=True`` is used with a non-MedicalNet network.
+        ValueError: if ``network_type`` is not one of the supported options.
     """
 
     def __init__(
