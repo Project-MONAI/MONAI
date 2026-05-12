@@ -72,7 +72,7 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertIsInstance(dt, datetime.datetime)
 
     def test_profile_multithread(self):
-        """Test resulst are gathered from multiple threads using ThreadDataLoader."""
+        """Test results are gathered from multiple threads using ThreadDataLoader."""
         ds = Dataset([self.test_image] * 4, self.scale)
         dl = ThreadDataLoader(ds, batch_size=4, num_workers=4, use_thread_workers=True)
 
