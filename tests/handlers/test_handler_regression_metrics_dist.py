@@ -94,7 +94,7 @@ class DistributedMeanSquaredError(DistTestCase):
 
         out_tensor = metric.compute()
 
-        # do numpy functions to get ground truth referece
+        # do numpy functions to get ground truth reference
         out_tensor_np1 = msemetric_np(y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
         out_tensor_np2 = msemetric_np(y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
         out_tensor_np = (out_tensor_np1 + out_tensor_np2) / 2.0
@@ -140,7 +140,7 @@ class DistributedMeanAbsoluteError(DistTestCase):
 
         out_tensor = metric.compute()
 
-        # do numpy functions to get ground truth referece
+        # do numpy functions to get ground truth reference
         out_tensor_np1 = maemetric_np(y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
         out_tensor_np2 = maemetric_np(y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
         out_tensor_np = (out_tensor_np1 + out_tensor_np2) / 2.0
@@ -186,7 +186,7 @@ class DistributedRootMeanSquaredError(DistTestCase):
 
         out_tensor = metric.compute()
 
-        # do numpy functions to get ground truth referece
+        # do numpy functions to get ground truth reference
         out_tensor_np1 = rmsemetric_np(y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
         out_tensor_np2 = rmsemetric_np(y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
         out_tensor_np = (out_tensor_np1 + out_tensor_np2) / 2.0
@@ -233,7 +233,7 @@ class DistributedPeakSignalToNoiseRatio(DistTestCase):
 
         out_tensor = metric.compute()
 
-        # do numpy functions to get ground truth referece
+        # do numpy functions to get ground truth reference
         out_tensor_np1 = psnrmetric_np(max_val=max_val, y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
         out_tensor_np2 = psnrmetric_np(max_val=max_val, y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
         out_tensor_np = (out_tensor_np1 + out_tensor_np2) / 2.0
