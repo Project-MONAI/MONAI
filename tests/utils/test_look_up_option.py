@@ -72,7 +72,7 @@ class TestLookUpOption(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "did you mean"):
             look_up_option(3, {1: "a", 2: "b", "c": 3})
         with self.assertRaisesRegex(ValueError, "did.*empty"):
-            look_up_option("empy", _CaseEnum)
+            look_up_option("empty", _CaseEnum)
         with self.assertRaisesRegex(ValueError, "Unsupported"):
             look_up_option(_CaseEnum1.EMPTY, _CaseEnum)
         with self.assertRaisesRegex(ValueError, "Unsupported"):
