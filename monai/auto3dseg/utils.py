@@ -306,7 +306,7 @@ def _make_json_serializable(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_make_json_serializable(v) for v in value]
     if isinstance(value, dict):
-        return {k: _make_json_serializable(v) for k, v in value.items()}
+        return {str(k): _make_json_serializable(v) for k, v in value.items()}
     if isinstance(value, np.ndarray):
         return value.tolist()
     if isinstance(value, (np.integer, np.floating)):
@@ -337,7 +337,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     Returns:
         Filename of the saved Algo object (algo_object.json).
     """
-    state = {k: _make_json_serializable(v) for k, v in algo.state_dict().items()}
+    state = {str(k): _make_json_serializable(v) for k, v in algo.state_dict().items()}
 
     # Build target string for dynamic class instantiation
     cls = algo.__class__
@@ -347,7 +347,9 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     data: dict[str, Any] = {
         "_target_": target,
         "_state_": state,
-        "template_path": str(template_path) if template_path else None,
+        "template_path": str(template_path)
+        if template_path
+        else (str(getattr(algo, "template_path", "")) or None),
         **algo_meta_data,
     }
 

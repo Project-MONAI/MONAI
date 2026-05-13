@@ -19,6 +19,12 @@ class Algo:
     """
     An algorithm in this context is loosely defined as a data processing pipeline consisting of multiple components
     such as image preprocessing, followed by deep learning model training and evaluation.
+
+    Note:
+        When serialized via ``algo_to_json`` / ``algo_from_json``, subclasses are re-instantiated
+        from their fully-qualified class name through ``monai.bundle.ConfigParser``. This requires
+        the subclass to have a default constructor (no required positional arguments); state is
+        restored afterwards via ``load_state_dict``.
     """
 
     template_path: PathLike | None = None
