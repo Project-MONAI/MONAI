@@ -116,7 +116,18 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}. Please install pillow (`pip install pillow`)")
+        hints = {
+            "png": "pip install pillow",
+            "jpg": "pip install pillow",
+            "jpeg": "pip install pillow",
+            "nii": "pip install nibabel",
+            "nii.gz": "pip install nibabel",
+            "dcm": "pip install itk",
+        }
+        hint = hints.get(fmt.lstrip(".").lower(), "pip install pillow or pip install nibabel")
+        raise OptionalImportError(
+        f"No ImageWriter backend found for {fmt}. Try: {hint}."
+            )
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
