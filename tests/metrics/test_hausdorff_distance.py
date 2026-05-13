@@ -163,42 +163,42 @@ for test_case in TEST_CASES:
 
 TEST_CASES_CC_METRICS = []
 y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[0.0], [0.0]]])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.0], [0.0]]])
 
 y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-y_hat[0, 1, 5:10, 5:10, 5:10] = 1
-y_hat[0, 0] = 1 - y_hat[0, 1]
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[float("inf")], [0.0]]])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred[0, 1, 5:10, 5:10, 5:10] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[float("nan")], [0.0]]])
 
 y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
 y[0, 1, 10:15, 10:15, 10:15] = 1
 y[0, 0] = 1 - y[0, 1]
-y_hat[0, 1, 10:15, 10:15, 10:15] = 1
-y_hat[0, 0] = 1 - y_hat[0, 1]
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[0.0], [0.0]]])
+y_pred[0, 1, 10:15, 10:15, 10:15] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.0], [0.0]]])
 
 y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
-y_hat = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
 y[0, 1, 10:15, 10:15, 10:15] = 1
 y[0, 1, 20:25, 20:25, 20:25] = 1
 y[0, 0] = 1 - y[0, 1]
-y_hat[0, 1, 11:16, 10:15, 10:15] = 1
-y_hat[0, 1, 21:26, 19:24, 20:25] = 1
-y_hat[0, 0] = 1 - y_hat[0, 1]
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[1.2071], [0.0]]])
+y_pred[0, 1, 11:16, 10:15, 10:15] = 1
+y_pred[0, 1, 21:26, 19:24, 20:25] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[1.2071], [0.0]]])
 
 y = torch.zeros((2, 2, 32, 32), device=_devices[-1])
-y_hat = torch.zeros((2, 2, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32), device=_devices[-1])
 y[0, 1, 10:15, 10:15] = 1
 y[0, 1, 20:25, 20:25] = 1
 y[0, 0] = 1 - y[0, 1]
-y_hat[0, 1, 10:15, 10:15] = 1
-y_hat[0, 1, 21:26, 19:24] = 1
-y_hat[0, 0] = 1 - y_hat[0, 1]
-TEST_CASES_CC_METRICS.append([[y, y_hat], [[0.7071], [0.0]]])
+y_pred[0, 1, 10:15, 10:15] = 1
+y_pred[0, 1, 21:26, 19:24] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.7071], [0.0]]])
 
 
 def _describe_test_case(test_func, test_number, params):
