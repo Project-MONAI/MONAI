@@ -886,7 +886,7 @@ class CuCIMWSIReader(BaseWSIReader):
                 closest_lvl = closest_lvl - 1
                 closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
-        wsi_arr = cp.asnumpy(closest_lvl_wsi)
+        wsi_arr: np.ndarray = cp.asnumpy(closest_lvl_wsi)
 
         # Ensure channel dimension exists for grayscale
         if wsi_arr.ndim < 3:

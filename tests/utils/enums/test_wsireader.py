@@ -27,7 +27,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix, WSIPatchKeys
-from tests.test_utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, testing_data_config
+from tests.test_utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, skip_if_quick, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -480,6 +480,7 @@ class WSIReaderTests:
             assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
             assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
 
+        @skip_if_quick
         @parameterized.expand(
             [
                 TEST_CASE_SVS_MPP_1,
