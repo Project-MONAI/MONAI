@@ -111,16 +111,15 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         if self.per_component:
-            if y_pred.ndim not in (4, 5) or y.ndim not in (4, 5) or y_pred.shape[1] != 2 or y.shape[1] != 2:
-                same_rank = y_pred.ndim == y.ndim and y_pred.ndim in (4, 5)
-                binary_channels = y_pred.shape[1] == 2 and y.shape[1] == 2
-                same_shape = y_pred.shape == y.shape
-                if not (same_rank and binary_channels and same_shape):
-                    raise ValueError(
-                        "per_component requires matching 4D/5D binary tensors "
-                        "(B, 2, H, W) or (B, 2, D, H, W). "
-                        f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
-                    )
+            same_rank = y_pred.ndim == y.ndim and y_pred.ndim in (4, 5)
+            binary_channels = y_pred.shape[1] == 2 and y.shape[1] == 2
+            same_shape = y_pred.shape == y.shape
+            if not (same_rank and binary_channels and same_shape):
+                raise ValueError(
+                    "per_component requires matching 4D/5D binary tensors "
+                    "(B, 2, H, W) or (B, 2, D, H, W). "
+                    f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
+                )
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
             y_pred=y_pred,
@@ -210,7 +209,7 @@ def compute_average_surface_distance(
         if per_component:
             pred_empty = y_pred[b, c].sum() == 0
             label_empty = y[b, c].sum() == 0
-            if pred_empty and label_empty:
+            if pred_empty or label_empty:
                 asd[b, c] = 0.0 if (pred_empty and label_empty) else float("nan")
                 continue
             cc_assignment = compute_voronoi_regions_fast(y[b, c].cpu().numpy())
