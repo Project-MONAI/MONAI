@@ -330,7 +330,8 @@ class SplitDim(Transform, MultiSampleTrait):
                     outputs[idx] = out
                 if dim == 0:  # don't update affine if channel dim
                     if not self.keepdim:
-                        out.spatial_ndim = _normalize_spatial_ndim(out.spatial_ndim, out.ndim)
+                        # channel dim was squeezed out; remaining dims are all spatial
+                        out.spatial_ndim = _normalize_spatial_ndim(out.spatial_ndim, out.ndim, no_channel=True)
                     continue
                 ndim = len(out.affine)
                 shift = torch.eye(ndim, device=out.affine.device, dtype=out.affine.dtype)
