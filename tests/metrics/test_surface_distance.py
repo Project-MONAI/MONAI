@@ -226,9 +226,9 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         [seg_1, seg_2] = input_data
         seg_1 = torch.tensor(seg_1)
         seg_2 = torch.tensor(seg_2)
-        hd_metric = SurfaceDistanceMetric(per_component=True)
-        hd_metric(seg_1, seg_2)
-        result = hd_metric.aggregate(reduction="none")
+        sd_metric = SurfaceDistanceMetric(per_component=True)
+        sd_metric(seg_1, seg_2)
+        result = sd_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     def test_channel_dimensions(self):
