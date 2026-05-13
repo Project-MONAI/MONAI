@@ -210,7 +210,7 @@ class LoadImage(Transform):
                 try:
                     self.register(the_reader(*args, **kwargs))
                 except OptionalImportError:
-                    warnings.warn(
+                    raise ImportError(
                         f"required package for reader {_r} is not installed, or the version doesn't match requirement."
                     )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
