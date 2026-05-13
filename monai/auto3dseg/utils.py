@@ -347,9 +347,7 @@ def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_
     data: dict[str, Any] = {
         "_target_": target,
         "_state_": state,
-        "template_path": str(template_path)
-        if template_path
-        else (str(getattr(algo, "template_path", "")) or None),
+        "template_path": str(template_path) if template_path else (str(getattr(algo, "template_path", "")) or None),
         **algo_meta_data,
     }
 
