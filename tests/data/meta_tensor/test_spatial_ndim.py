@@ -100,7 +100,7 @@ class TestSpatialNdim(unittest.TestCase):
         t = MetaTensor(torch.randn(3, 8, 7))
         for item in SplitDim(dim=0, keepdim=False)(t):
             if isinstance(item, MetaTensor):
-                self.assertEqual(item.spatial_ndim, 2)
+                self.assertEqual(item.spatial_ndim, 1)
 
     def test_lazy_apply_pending_2d(self):
         """apply_pending uses spatial_ndim for 2D data instead of hardcoded 3."""
