@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -60,9 +60,9 @@ kvikio, has_kvikio = optional_import("kvikio")
 if TYPE_CHECKING:
     import cupy
 
-    NdarrayOrCupy = Union[np.ndarray, cupy.ndarray]
+    NdarrayOrCupy: TypeAlias = np.ndarray | cupy.ndarray
 else:
-    NdarrayOrCupy = Any
+    NdarrayOrCupy: TypeAlias = Any
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -1102,7 +1102,8 @@ class NibabelReader(ImageReader):
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the metadata of the first image is used to present the output metadata.
+        and the metadata of the first image is used to present the output metadata. The returned arrays
+        preserve the ordering in the original data, typically this is F-ordering for NIfTI files.
 
         Args:
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
@@ -1217,7 +1218,7 @@ class NibabelReader(ImageReader):
             data_offset = img.dataobj.offset
             data_dtype = img.dataobj.dtype
             return image[data_offset:].view(data_dtype).reshape(data_shape, order="F")
-        return np.asanyarray(img.dataobj, order="C")
+        return np.asanyarray(img.dataobj)
 
 
 class NumpyReader(ImageReader):
