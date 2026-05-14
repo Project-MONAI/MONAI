@@ -35,6 +35,81 @@ __all__ = ["ConfigParser"]
 _default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
 
 
+def _wrap_parsed(parser: ConfigParser, id: str, value: Any) -> Any:
+    """Wrap a parsed dict/list in a ``_ConfigProxy`` so nested access keeps chaining; pass scalars through."""
+    if isinstance(value, (dict, list)):
+        return _ConfigProxy(parser, id, value)
+    return value
+
+
+class _ConfigProxy:
+    """
+    Proxy that enables dot-notation and bracket-notation access to nested config structures.
+
+    When ``ConfigParser.__getattr__`` resolves to a dict or list, the result is wrapped
+    in this proxy so that further attribute and index access chains through the config
+    hierarchy using ``get_parsed_content``.
+
+    For example, ``parser.training.trainer.max_epochs`` is equivalent to
+    ``parser.get_parsed_content("training::trainer::max_epochs")``.
+
+    If a config key is not found, the proxy falls back to the underlying dict/list, so
+    that dict/list methods (``.keys()``, ``.items()``, etc.) and normal indexing
+    semantics (``IndexError``, negative indices) still work when there is no config key
+    of the same name.  Config keys that collide with dict/list method names (e.g.
+    ``"keys"``) should be accessed via bracket notation or ``get_parsed_content``, and
+    the underlying dict/list is available via ``._raw``.
+
+    """
+
+    def __init__(self, parser: ConfigParser, id: str, value: Any):
+        self._parser = parser
+        self._id = id
+        self._value = value
+
+    def _chain(self, key: str) -> Any:
+        new_id = f"{self._id}{ID_SEP_KEY}{key}"
+        return _wrap_parsed(self._parser, new_id, self._parser.get_parsed_content(new_id))
+
+    def __getattr__(self, key: str) -> Any:
+        try:
+            return self._chain(key)
+        except KeyError:
+            return getattr(self._value, key)
+
+    def __getitem__(self, key: str | int) -> Any:
+        try:
+            return self._chain(str(key))
+        except KeyError:
+            # no config key of that name: defer to the underlying dict/list so normal
+            # indexing semantics apply (IndexError, negative indices, dict KeyError).
+            return self._value[key]
+
+    def __len__(self) -> int:
+        return len(self._value)
+
+    def __iter__(self) -> Any:
+        return iter(self._value)
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._value
+
+    def __bool__(self) -> bool:
+        return bool(self._value)
+
+    def __repr__(self) -> str:
+        return repr(self._value)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _ConfigProxy):
+            other = other._value
+        return bool(self._value == other)
+
+    @property
+    def _raw(self) -> Any:
+        return self._value
+
+
 class ConfigParser:
     """
     The primary configuration parser. It traverses a structured config (in the form of nested Python dict or list),
@@ -127,6 +202,10 @@ class ConfigParser:
         """
         Get the parsed result of ``ConfigItem`` with the specified ``id``
         with default arguments (e.g. ``lazy=True``, ``instantiate=True`` and ``eval_expr=True``).
+        When the result is a dict or list, it is wrapped in a ``_ConfigProxy`` so that
+        nested attributes and indices chain through the config hierarchy.
+        For example, ``parser.training.trainer.max_epochs`` is equivalent to
+        ``parser.get_parsed_content("training::trainer::max_epochs")``.
 
         Args:
             id: id of the ``ConfigItem``.
@@ -134,7 +213,7 @@ class ConfigParser:
         See also:
              :py:meth:`get_parsed_content`
         """
-        return self.get_parsed_content(id)
+        return _wrap_parsed(self, id, self.get_parsed_content(id))
 
     def __getitem__(self, id: str | int) -> Any:
         """

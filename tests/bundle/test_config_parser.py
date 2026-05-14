@@ -326,6 +326,47 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
+    def test_nested_dot_notation(self):
+        config = {
+            "A": {"B": {"C": 1, "D": [10, 20]}},
+            "training": {"trainer": {"max_epochs": 100, "lr": 0.001}},
+            "transforms": [{"keys": "image"}, {"keys": "label"}],
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+        }
+        parser = ConfigParser(config=config, globals={"monai": "monai"})
+
+        self.assertEqual(parser.A.B.C, 1)
+        self.assertEqual(parser.training.trainer.max_epochs, 100)
+        self.assertEqual(parser.training.trainer.lr, 0.001)
+        self.assertEqual(parser.dims_1, 3)
+
+        self.assertEqual(parser.A.B.D[0], 10)
+        self.assertEqual(parser.A.B.D[1], 20)
+
+        self.assertEqual(parser.transforms[0].keys, "image")
+        self.assertEqual(parser.transforms[1].keys, "label")
+
+        self.assertEqual(parser.A._raw, {"B": {"C": 1, "D": [10, 20]}})
+
+        # container protocol delegates to the underlying dict/list
+        self.assertEqual(len(parser.A.B.D), 2)
+        self.assertEqual(list(parser.A.B.D), [10, 20])
+        self.assertIn("B", parser.A)
+        self.assertTrue(parser.A.B.D)
+        self.assertFalse(ConfigParser(config={"e": []}, globals={"monai": "monai"}).e)
+
+        # bracket access falls back to native container semantics when there is no
+        # config key of that name: negative indexing, IndexError, and dict KeyError.
+        self.assertEqual(parser.A.B.D[-1], 20)
+        with self.assertRaises(IndexError):
+            _ = parser.A.B.D[5]
+        with self.assertRaises(KeyError):
+            _ = parser.A.B["nonexistent"]
+
+        with self.assertRaises(AttributeError):
+            _ = parser.A.nonexistent
+
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)
