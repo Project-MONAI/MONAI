@@ -304,7 +304,7 @@ def resize(
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=scale_affine(orig_size, out_size),
+        affine=scale_affine(orig_size, out_size, align_corners=align_corners if align_corners is not None else False),
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
@@ -439,7 +439,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
-    xform = scale_affine(im_shape, output_size)
+    xform = scale_affine(im_shape, output_size, align_corners=align_corners if align_corners is not None else False)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
