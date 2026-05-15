@@ -27,7 +27,13 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix, WSIPatchKeys
-from tests.test_utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, testing_data_config
+from tests.test_utils import (
+    assert_allclose,
+    download_url_or_skip_test,
+    skip_if_no_cuda,
+    skip_if_quick,
+    testing_data_config,
+)
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -37,8 +43,13 @@ _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
 TESTS_PATH = Path(__file__).parents[2]
-WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
+WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"  # TIFF image with incorrect mpp values
 WSI_GENERIC_TIFF_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
+
+WSI_GENERIC_TIFF_CORRECT_MPP_KEY = "wsi_generic_tiff_correct_mpp"
+WSI_GENERIC_TIFF_CORRECT_MPP_PATH = os.path.join(
+    TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_CORRECT_MPP_KEY}.tiff"
+)
 
 WSI_APERIO_SVS_KEY = "wsi_aperio_svs"
 WSI_APERIO_SVS_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_APERIO_SVS_KEY}.svs")
@@ -256,6 +267,56 @@ TEST_CASE_DEVICE_1 = [
     "cpu",
 ]
 
+TEST_CASE_SVS_MPP_1 = [
+    WSI_APERIO_SVS_PATH,
+    {"mpp": (4.0, 4.0), "atol": 0.0, "rtol": 0.1},
+    {"openslide": (3, 4106, 5739), "cucim": (3, 4106, 5739)},
+]
+
+TEST_CASE_SVS_MPP_2 = [
+    WSI_APERIO_SVS_PATH,
+    {"mpp": (8.0, 8.0)},
+    {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875)},
+]
+
+TEST_CASE_SVS_MPP_3 = [
+    WSI_APERIO_SVS_PATH,
+    {"mpp": (3.0, 3.0)},
+    {"openslide": (3, 5475, 7652), "cucim": (3, 5475, 7652)},
+]
+
+TEST_CASE_SVS_MPP_4 = [
+    WSI_APERIO_SVS_PATH,
+    {"mpp": (1.5, 1.5)},
+    {"openslide": (3, 10949, 15303), "cucim": (3, 10949, 15303)},
+]
+
+TEST_CASE_TIFF_MPP_1 = [
+    WSI_GENERIC_TIFF_CORRECT_MPP_PATH,
+    {"mpp": (4.0, 4.0), "atol": 0.0, "rtol": 0.1},
+    {"openslide": (3, 4114, 5750), "cucim": (3, 4114, 5750), "tifffile": (3, 4106, 5739)},
+]
+
+TEST_CASE_TIFF_MPP_2 = [
+    WSI_GENERIC_TIFF_CORRECT_MPP_PATH,
+    {"mpp": (8.0, 8.0)},
+    {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875), "tifffile": (3, 2053, 2869)},
+]
+
+TEST_CASE_TIFF_MPP_3 = [
+    WSI_GENERIC_TIFF_CORRECT_MPP_PATH,
+    {"mpp": (3.0, 3.0)},
+    {"openslide": (3, 5475, 7652), "cucim": (3, 5475, 7652), "tifffile": (3, 5475, 7651)},
+]
+
+TEST_CASE_TIFF_MPP_4 = [
+    WSI_GENERIC_TIFF_CORRECT_MPP_PATH,
+    {"mpp": (1.5, 1.5)},
+    {"openslide": (3, 10949, 15303), "cucim": (3, 10949, 15303), "tifffile": (3, 10949, 15303)},
+]
+
+TEST_CASE_SVS_MPP_SCALAR = [WSI_APERIO_SVS_PATH, {"mpp": 8.0}, {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875)}]
+
 TEST_CASE_DEVICE_2 = [
     WSI_GENERIC_TIFF_PATH,
     {"level": 8, "dtype": torch.float32, "device": "cuda"},
@@ -396,6 +457,12 @@ def setUpModule():
         hash_val=testing_data_config("images", WSI_GENERIC_TIFF_KEY, "hash_val"),
     )
     download_url_or_skip_test(
+        testing_data_config("images", WSI_GENERIC_TIFF_CORRECT_MPP_KEY, "url"),
+        WSI_GENERIC_TIFF_CORRECT_MPP_PATH,
+        hash_type=testing_data_config("images", WSI_GENERIC_TIFF_CORRECT_MPP_KEY, "hash_type"),
+        hash_val=testing_data_config("images", WSI_GENERIC_TIFF_CORRECT_MPP_KEY, "hash_val"),
+    )
+    download_url_or_skip_test(
         testing_data_config("images", WSI_APERIO_SVS_KEY, "url"),
         WSI_APERIO_SVS_PATH,
         hash_type=testing_data_config("images", WSI_APERIO_SVS_KEY, "hash_type"),
@@ -418,6 +485,37 @@ class WSIReaderTests:
             self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
             assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
             assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
+
+        @parameterized.expand(
+            [
+                TEST_CASE_SVS_MPP_1,
+                TEST_CASE_SVS_MPP_2,
+                TEST_CASE_SVS_MPP_3,
+                TEST_CASE_SVS_MPP_4,
+                TEST_CASE_TIFF_MPP_1,
+                TEST_CASE_TIFF_MPP_2,
+                TEST_CASE_TIFF_MPP_3,
+                TEST_CASE_TIFF_MPP_4,
+                TEST_CASE_SVS_MPP_SCALAR,
+            ]
+        )
+        @skip_if_quick
+        def test_get_wsi_at_mpp(self, file_path, func_kwargs, expected_shape, reader_kwargs=None):
+            # Tifffile backend cannot read MPP from the SVS file, so skip.
+            if self.backend == "tifffile" and file_path == WSI_APERIO_SVS_PATH:
+                self.skipTest("TiffFileWSIReader cannot extract MPP from SVS files.")
+
+            # Look up the expected shape for the current backend
+            if self.backend not in expected_shape:
+                self.skipTest(f"No expected shape defined for backend '{self.backend}' in this test case.")
+            expected_shape = expected_shape[self.backend]
+
+            reader_kwargs = reader_kwargs or {}
+            reader = WSIReader(self.backend, **reader_kwargs)
+            with reader.read(file_path) as wsi:
+                wsi_arr = reader.get_wsi_at_mpp(wsi, **func_kwargs)
+
+            self.assertTupleEqual(wsi_arr.shape, expected_shape)
 
         @parameterized.expand(
             [
