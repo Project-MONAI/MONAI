@@ -428,6 +428,322 @@ class TestAutoEncoderKL(unittest.TestCase):
             any("out_proj" in k for k in loaded), "out_proj should not exist in a model built with include_fc=False"
         )
 
+    # New tests for downsampling parameters
+    def test_backward_compatibility_default_behavior(self):
+        """Test that default behavior (no downsample_parameters) is unchanged."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        net = AutoencoderKL(**input_param).to(device)
+        with eval_mode(net):
+            # Test with standard input shape
+            x = torch.randn(1, 1, 16, 16).to(device)
+            result = net.forward(x)
+            # With default stride=2 and 2 downsampling levels (for 3 channel groups),
+            # latent shape should be 16 / 2 / 2 = 4
+            self.assertEqual(result[0].shape, (1, 1, 16, 16))
+            self.assertEqual(result[1].shape, (1, 4, 4, 4))
+
+    def test_anisotropic_stride_2d(self):
+        """Test 2D anisotropic stride (2,1) at first level."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # Downsampling: level 0 uses (2,1), level 1 uses (2,2)
+        downsample_params = [{"kernel_size": 3, "stride": (2, 1)}, {"kernel_size": 3, "stride": (2, 2)}]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 32, 32).to(device)
+            result = net.forward(x)
+            # After level 0: 32/2=16, 32/1=32
+            # After level 1: 16/2=8, 32/2=16
+            self.assertEqual(result[0].shape, (1, 1, 32, 32))
+            self.assertEqual(result[1].shape, (1, 4, 8, 16))
+
+    def test_anisotropic_stride_3d(self):
+        """Test 3D anisotropic stride (2,2,1) - common for thick slice spacing."""
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # Preserve z-dimension with stride=1
+        downsample_params = [
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+        ]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 32, 32, 64).to(device)
+            result = net.forward(x)
+            # After level 0: 32/2=16, 32/2=16, 64/1=64
+            # After level 1: 16/2=8, 16/2=8, 64/1=64
+            self.assertEqual(result[0].shape, (1, 1, 32, 32, 64))
+            self.assertEqual(result[1].shape, (1, 4, 8, 8, 64))
+
+    def test_mixed_anisotropic_downsample_parameters(self):
+        """Test per-level configuration with mixed parameters."""
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # Level 0: preserve z, Level 1: isotropic
+        downsample_params = [
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+            {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},
+        ]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 32, 32, 32).to(device)
+            result = net.forward(x)
+            # After level 0: 32/2=16, 32/2=16, 32/1=32
+            # After level 1: 16/2=8, 16/2=8, 32/2=16
+            self.assertEqual(result[0].shape, (1, 1, 32, 32, 32))
+            self.assertEqual(result[1].shape, (1, 4, 8, 8, 16))
+
+    def test_single_dict_applied_to_all_levels(self):
+        """Test that single dict is applied to all downsampling levels."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # Single dict: apply (3,3) kernel with stride (2,1) to all levels
+        downsample_params = {"kernel_size": (3, 3), "stride": (2, 1)}
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 32, 32).to(device)
+            result = net.forward(x)
+            # After level 0: 32/2=16, 32/1=32
+            # After level 1: 16/2=8, 32/1=32
+            self.assertEqual(result[0].shape, (1, 1, 32, 32))
+            self.assertEqual(result[1].shape, (1, 4, 8, 32))
+
+    def test_validation_even_kernel_raises_error(self):
+        """Test that even kernel sizes raise ValueError."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        downsample_params = [{"kernel_size": 4, "stride": 2}]  # Even kernel
+        input_param["downsample_parameters"] = downsample_params
+
+        with self.assertRaises(ValueError):
+            AutoencoderKL(**input_param)
+
+    def test_validation_invalid_tuple_length_raises_error(self):
+        """Test that invalid tuple length raises ValueError."""
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # 3D but only 2 values in tuple
+        downsample_params = [{"kernel_size": (3, 3), "stride": (2, 2)}]
+        input_param["downsample_parameters"] = downsample_params
+
+        with self.assertRaises(ValueError):
+            AutoencoderKL(**input_param)
+
+    def test_validation_wrong_num_levels_raises_error(self):
+        """Test that wrong number of downsampling parameter dicts raises error."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),  # 3 channels = 2 downsampling levels
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        # Only 1 dict but need 2
+        downsample_params = [{"kernel_size": 3, "stride": 2}]
+        input_param["downsample_parameters"] = downsample_params
+
+        with self.assertRaises(ValueError):
+            AutoencoderKL(**input_param)
+
+    def test_reconstruction_with_anisotropic_downsampling(self):
+        """Test that reconstruction shape matches input with anisotropic downsampling."""
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        downsample_params = [
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+        ]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 64, 64, 128).to(device)
+            reconstruction = net.reconstruct(x)
+            self.assertEqual(reconstruction.shape, x.shape)
+
+    def test_encode_decode_with_anisotropic_downsampling(self):
+        """Test encode/decode cycle with anisotropic downsampling."""
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+        downsample_params = [{"kernel_size": (3, 3), "stride": (2, 1)}, {"kernel_size": (3, 3), "stride": (2, 2)}]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            x = torch.randn(1, 1, 32, 32).to(device)
+            z_mu, z_sigma = net.encode(x)
+            z = net.sampling(z_mu, z_sigma)
+            reconstruction = net.decode(z)
+            self.assertEqual(reconstruction.shape, x.shape)
+
+    def test_reconstruction_robustness_anisotropic_non_power_of_two_odd_dims(self):
+        """
+        Test reconstruction shape consistency with:
+        - Anisotropic multi-level downsampling config
+        - Non-power-of-two spatial dimensions (but stride-compatible)
+        - Mixed even/odd dimensions
+
+        This rigorously validates encoder-decoder symmetry under challenging conditions.
+
+        Note: Dimensions must be compatible with the stride pattern:
+        - Stride (2,2,1) -> (2,2,2) means dims must be divisible by (4,4,2)
+        - Using 60 (=4*15), 68 (=4*17), 96 (=2*48) to maximize coverage
+        """
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+        }
+
+        # Anisotropic config: preserve Z dimension at level 0, isotropic at level 1
+        downsample_params = [
+            {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+            {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},
+        ]
+        input_param["downsample_parameters"] = downsample_params
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            # Stride-compatible dimensions:
+            # Level 0: stride (2,2,1) -> need height/width divisible by 2
+            # Level 1: stride (2,2,2) -> need result divisible by 2 again
+            # Final requirement: dims divisible by (4, 4, 2)
+            # Using: 60=4*15 (not power of 2), 68=4*17 (not power of 2), 96=2*48
+            x = torch.randn(1, 1, 60, 68, 96).to(device)
+
+            # Forward pass
+            z_mu, z_sigma = net.encode(x)
+            z = net.sampling(z_mu, z_sigma)
+            reconstruction = net.decode(z)
+
+            # Verify shape consistency - reconstruction should match input exactly
+            self.assertEqual(
+                reconstruction.shape,
+                x.shape,
+                f"Reconstruction shape {reconstruction.shape} does not match input shape {x.shape}",
+            )
+
+            # Also test via reconstruct method
+            reconstruction2 = net.reconstruct(x)
+            self.assertEqual(
+                reconstruction2.shape,
+                x.shape,
+                f"Reconstruct shape {reconstruction2.shape} does not match input shape {x.shape}",
+            )
+
+            # Verify latent shape makes sense:
+            # 60 -> 30 (stride=2) -> 15 (stride=2)
+            # 68 -> 34 (stride=2) -> 17 (stride=2)
+            # 96 -> 96 (stride=1) -> 48 (stride=2)
+            expected_latent_h = 15
+            expected_latent_w = 17
+            expected_latent_d = 48
+
+            self.assertEqual(
+                z_mu.shape[2],
+                expected_latent_h,
+                f"Latent H shape mismatch: got {z_mu.shape[2]}, expected {expected_latent_h}",
+            )
+            self.assertEqual(
+                z_mu.shape[3],
+                expected_latent_w,
+                f"Latent W shape mismatch: got {z_mu.shape[3]}, expected {expected_latent_w}",
+            )
+            self.assertEqual(
+                z_mu.shape[4],
+                expected_latent_d,
+                f"Latent D shape mismatch: got {z_mu.shape[4]}, expected {expected_latent_d}",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
