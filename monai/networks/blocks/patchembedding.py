@@ -34,12 +34,26 @@ class _RearrangeFn(nn.Module):
     """Thin wrapper around einops.rearrange function, used as a fallback when the
     Rearrange layer rejects axis-size kwargs in some einops builds."""
 
-    def __init__(self, pattern: str, axes_lengths: dict) -> None:
+    def __init__(self, pattern: str, axes_lengths: dict[str, int]) -> None:
+        """Initialize the functional-rearrange fallback module.
+
+        Args:
+            pattern: Einops rearrangement pattern.
+            axes_lengths: Named axis lengths consumed by ``einops.rearrange``.
+        """
         super().__init__()
         self.pattern = pattern
         self.axes_lengths = axes_lengths
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Rearrange an input tensor using the stored einops pattern.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Rearranged tensor produced by ``einops.rearrange``.
+        """
         out: torch.Tensor = einops_rearrange(x, self.pattern, **self.axes_lengths)
         return out
 
