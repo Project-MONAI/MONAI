@@ -440,6 +440,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
@@ -462,6 +464,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # Downsampling: level 0 uses (2,1), level 1 uses (2,2)
         downsample_params = [{"kernel_size": 3, "stride": (2, 1)}, {"kernel_size": 3, "stride": (2, 2)}]
@@ -487,6 +491,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # Preserve z-dimension with stride=1
         downsample_params = [
@@ -515,6 +521,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # Level 0: preserve z, Level 1: isotropic
         downsample_params = [
@@ -543,6 +551,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # Single dict: apply (3,3) kernel with stride (2,1) to all levels
         downsample_params = {"kernel_size": (3, 3), "stride": (2, 1)}
@@ -568,8 +578,11 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
-        downsample_params = [{"kernel_size": 4, "stride": 2}]  # Even kernel
+
+        downsample_params = [{"kernel_size": 4, "stride": 2}, {"kernel_size": 3, "stride": 2}]  # Even kernel
         input_param["downsample_parameters"] = downsample_params
 
         with self.assertRaises(ValueError):
@@ -586,9 +599,14 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # 3D but only 2 values in tuple
-        downsample_params = [{"kernel_size": (3, 3), "stride": (2, 2)}]
+        downsample_params = [
+            {"kernel_size": (3, 3), "stride": (2, 2)},  # Invalid: 2 values for 3D
+            {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},
+        ]
         input_param["downsample_parameters"] = downsample_params
 
         with self.assertRaises(ValueError):
@@ -605,6 +623,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         # Only 1 dict but need 2
         downsample_params = [{"kernel_size": 3, "stride": 2}]
@@ -624,6 +644,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         downsample_params = [
             {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
@@ -648,6 +670,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
         downsample_params = [{"kernel_size": (3, 3), "stride": (2, 1)}, {"kernel_size": (3, 3), "stride": (2, 2)}]
         input_param["downsample_parameters"] = downsample_params
@@ -682,6 +706,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             "attention_levels": (False, False, False),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
         }
 
         # Anisotropic config: preserve Z dimension at level 0, isotropic at level 1

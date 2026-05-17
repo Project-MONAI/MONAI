@@ -30,7 +30,7 @@ def _validate_kernel_stride_parameters(
     stride: int | tuple[int, ...] | None,
     spatial_dims: int,
     param_name: str = "parameter",
-) -> tuple[tuple[int, ...], tuple[int, ...]]:
+) -> tuple[tuple[int, ...] | None, tuple[int, ...] | None]:
     """
     Validate and normalize kernel_size and stride parameters.
 
@@ -84,15 +84,16 @@ def _validate_kernel_stride_parameters(
 
 def _compute_padding(kernel_size: tuple[int, ...]) -> tuple[int, ...]:
     """
-    Compute symmetric padding from kernel size.
+    Compute symmetric padding for odd kernel sizes.
 
-    For odd kernel sizes, padding = kernel_size // 2 on all sides.
+    Padding is derived as:
+        padding[d] = kernel_size[d] // 2
 
     Args:
-        kernel_size: tuple of odd integers
+        kernel_size: Kernel size for each spatial dimension.
 
     Returns:
-        Tuple of padding values (one per dimension)
+        Tuple of padding values for each spatial dimension.
     """
     padding = tuple(k // 2 for k in kernel_size)
     return padding
@@ -119,9 +120,9 @@ def _normalize_downsample_parameters(
     - "padding": int or tuple (auto-computed if omitted)
 
     Returns:
-    List of dicts with normalized keys:
-    - Each dict has "kernel_size", "stride", "padding" as tuples
-    - Length equals num_levels
+        List of dicts with normalized keys:
+        - Each dict has "kernel_size", "stride", "padding" as tuples
+        - Length equals num_levels
 
     Raises:
         ValueError: if parameters are invalid or inconsistent
@@ -195,6 +196,15 @@ class AsymmetricPad(nn.Module):
         self.pad = (0, 1) * spatial_dims
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Apply asymmetric padding to the input tensor.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Padded tensor.
+        """
         x = nn.functional.pad(x, self.pad, mode="constant", value=0.0)
         return x
 
@@ -246,6 +256,15 @@ class AEKLDownsample(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Apply convolutional downsampling.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Downsampled tensor.
+        """
         x = self.conv(x)
         return x
 
@@ -486,6 +505,15 @@ class Encoder(nn.Module):
         self.blocks = nn.ModuleList(blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward input through encoder blocks.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Encoded latent representation.
+        """
         for block in self.blocks:
             x = block(x)
         return x
@@ -682,6 +710,15 @@ class Decoder(nn.Module):
         self.blocks = nn.ModuleList(blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward latent representation through decoder blocks.
+
+        Args:
+            x: Latent tensor.
+
+        Returns:
+            Reconstructed image tensor.
+        """
         for block in self.blocks:
             x = block(x)
         return x
@@ -890,17 +927,47 @@ class AutoencoderKL(nn.Module):
         return dec
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Encode, sample, and reconstruct an input image.
+
+        Args:
+            x: Input tensor of shape BxCx[SPATIAL_DIMS].
+
+        Returns:
+            Tuple containing:
+                - reconstructed image
+                - latent mean
+                - latent standard deviation
+        """
         z_mu, z_sigma = self.encode(x)
         z = self.sampling(z_mu, z_sigma)
         reconstruction = self.decode(z)
         return reconstruction, z_mu, z_sigma
 
     def encode_stage_2_inputs(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode an input image into latent space representation.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Sampled latent tensor.
+        """
         z_mu, z_sigma = self.encode(x)
         z = self.sampling(z_mu, z_sigma)
         return z
 
     def decode_stage_2_outputs(self, z: torch.Tensor) -> torch.Tensor:
+        """
+        Decode latent representation into image space.
+
+        Args:
+            z: Latent tensor.
+
+        Returns:
+            Decoded image tensor.
+        """
         image = self.decode(z)
         return image
 
