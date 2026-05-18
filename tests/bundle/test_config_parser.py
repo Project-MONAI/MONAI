@@ -367,6 +367,15 @@ class TestConfigParser(unittest.TestCase):
         with self.assertRaises(AttributeError):
             _ = parser.A.nonexistent
 
+        # item assignment/deletion writes through to the underlying container,
+        # preserving the pre-proxy behaviour where ``parser.x`` was the raw dict/list.
+        parser.A.B["C"] = 99
+        self.assertEqual(parser.A.B._raw["C"], 99)
+        parser.A.B.D[0] = 11
+        self.assertEqual(parser.A.B.D._raw, [11, 20])
+        del parser.A.B["C"]
+        self.assertNotIn("C", parser.A.B._raw)
+
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)

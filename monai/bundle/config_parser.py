@@ -85,6 +85,14 @@ class _ConfigProxy:
             # indexing semantics apply (IndexError, negative indices, dict KeyError).
             return self._value[key]
 
+    def __setitem__(self, key: str | int, value: Any) -> None:
+        # writes go to the underlying dict/list, preserving the pre-proxy behaviour
+        # where ``parser.foo`` returned the raw container.
+        self._value[key] = value
+
+    def __delitem__(self, key: str | int) -> None:
+        del self._value[key]
+
     def __len__(self) -> int:
         return len(self._value)
 
