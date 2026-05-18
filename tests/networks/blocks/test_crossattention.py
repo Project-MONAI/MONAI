@@ -30,7 +30,7 @@ TEST_CASE_CABLOCK = [
     [
         {
             **{k: v for k, v in params.items() if k not in ["rel_pos_embedding_val"]},
-            "rel_pos_embedding": params["rel_pos_embedding_val"] if not params["use_flash_attention"] else None,
+            "rel_pos_embedding": params["rel_pos_embedding_val"],
         },
         (2, 512, params["hidden_size"]),
         (2, 512, params["hidden_size"]),
@@ -69,16 +69,53 @@ class TestResBlock(unittest.TestCase):
                 hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_rel_pos_embedding_with_flash_attention(self):
-        with self.assertRaises(ValueError):
-            CrossAttentionBlock(
-                hidden_size=128,
-                num_heads=3,
-                dropout_rate=0.1,
-                use_flash_attention=True,
-                save_attn=False,
-                rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
-            )
+        # rel_pos_embedding combined with use_flash_attention now dispatches
+        # via SDPA with an additive bias. Must match the explicit path.
+        for input_size in [(16, 32), (8, 8, 8)]:
+            input_param = {
+                "hidden_size": 128,
+                "num_heads": 4,
+                "dropout_rate": 0.0,
+                "rel_pos_embedding": RelPosEmbedding.DECOMPOSED,
+                "input_size": input_size,
+            }
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = CrossAttentionBlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = CrossAttentionBlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            seq_len = int(np.prod(input_size))
+            test_data = torch.randn(2, seq_len, 128).to(device)
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data)
+                out_ref = block_ref(test_data)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_causal_rel_pos_with_flash_attention(self):
+        # Exercise the merged causal-bias branch: causal=True together with
+        # rel_pos_embedding builds an additive bias and disables is_causal.
+        for input_size in [(16, 32), (8, 8, 8)]:
+            seq_len = int(np.prod(input_size))
+            input_param = {
+                "hidden_size": 128,
+                "num_heads": 4,
+                "dropout_rate": 0.0,
+                "rel_pos_embedding": RelPosEmbedding.DECOMPOSED,
+                "input_size": input_size,
+                "causal": True,
+                "sequence_length": seq_len,
+            }
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = CrossAttentionBlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = CrossAttentionBlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            test_data = torch.randn(2, seq_len, 128).to(device)
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data)
+                out_ref = block_ref(test_data)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
 
     @skipUnless(has_einops, "Requires einops")
     def test_attention_dim_not_multiple_of_heads(self):
