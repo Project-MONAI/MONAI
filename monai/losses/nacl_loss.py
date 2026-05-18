@@ -52,9 +52,15 @@ class NACLLoss(_Loss):
             classes: number of classes
             dim: dimension of data (supports 2d and 3d)
             kernel_size: size of the spatial kernel
-            distance_type: l1/l2 distance between spatial kernel and predicted logits
-            alpha: weightage between cross entropy and logit constraint
-            sigma: sigma of gaussian
+            kernel_ops: type of spatial kernel, either ``"mean"`` or ``"gaussian"``. Defaults to ``"mean"``.
+            distance_type: l1/l2 distance between spatial kernel and predicted logits. Defaults to ``"l1"``.
+            alpha: weightage between cross entropy and logit constraint. Defaults to 0.1.
+            sigma: sigma of gaussian filter, used when ``kernel_ops="gaussian"``. Defaults to 1.0.
+
+        Raises:
+            ValueError: if ``kernel_ops`` is not ``"mean"`` or ``"gaussian"``.
+            ValueError: if ``dim`` is not 2 or 3.
+            ValueError: if ``distance_type`` is not ``"l1"`` or ``"l2"``.
         """
 
         super().__init__()

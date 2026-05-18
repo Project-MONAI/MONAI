@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.auto3dseg import algo_from_pickle, algo_to_pickle
+from monai.auto3dseg import algo_from_json, algo_to_json
 from monai.utils.enums import AlgoKeys
 
 __all__ = ["import_bundle_algo_history", "export_bundle_algo_history", "get_name_from_algo_id"]
@@ -42,11 +42,18 @@ def import_bundle_algo_history(
         if not os.path.isdir(write_path):
             continue
 
-        obj_filename = os.path.join(write_path, "algo_object.pkl")
-        if not os.path.isfile(obj_filename):  # saved mode pkl
+        # Prefer JSON format, fall back to legacy pickle
+        json_filename = os.path.join(write_path, "algo_object.json")
+        pkl_filename = os.path.join(write_path, "algo_object.pkl")
+
+        if os.path.isfile(json_filename):
+            obj_filename = json_filename
+        elif os.path.isfile(pkl_filename):
+            obj_filename = pkl_filename
+        else:
             continue
 
-        algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+        algo, algo_meta_data = algo_from_json(obj_filename, template_path=template_path)
 
         best_metric = algo_meta_data.get(AlgoKeys.SCORE, None)
         if best_metric is None:
@@ -57,7 +64,7 @@ def import_bundle_algo_history(
 
         is_trained = best_metric is not None
 
-        if (only_trained and is_trained) or not only_trained:
+        if is_trained or not only_trained:
             history.append(
                 {AlgoKeys.ID: name, AlgoKeys.ALGO: algo, AlgoKeys.SCORE: best_metric, AlgoKeys.IS_TRAINED: is_trained}
             )
@@ -67,14 +74,14 @@ def import_bundle_algo_history(
 
 def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
     """
-    Save all the BundleAlgo in the history to algo_object.pkl in each individual folder
+    Save all the BundleAlgo in the history to algo_object.json in each individual folder.
 
     Args:
         history: a List of Bundle. Typically, the history can be obtained from BundleGen get_history method
     """
     for algo_dict in history:
         algo = algo_dict[AlgoKeys.ALGO]
-        algo_to_pickle(algo, template_path=algo.template_path)
+        algo_to_json(algo, template_path=algo.template_path)
 
 
 def get_name_from_algo_id(id: str) -> str:
