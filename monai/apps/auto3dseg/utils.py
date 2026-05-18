@@ -59,7 +59,7 @@ def import_bundle_algo_history(
         if best_metric is None:
             try:
                 best_metric = algo.get_score()
-            except BaseException:
+            except Exception:
                 pass
 
         is_trained = best_metric is not None
