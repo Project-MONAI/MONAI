@@ -113,6 +113,15 @@ class _ConfigProxy:
     def _child_id(self, key: str | int) -> str:
         return f"{self._id}{ID_SEP_KEY}{key}"
 
+    def _backing_id(self) -> str:
+        """Return the real config id this proxy writes to, resolving a single ``$@ref`` hop if needed."""
+        raw = self._parser[self._id]
+        if isinstance(raw, str):
+            refs = ReferenceResolver.match_refs_pattern(raw)
+            if refs:
+                return next(iter(refs))
+        return self._id
+
     def _chain(self, key: str) -> Any:
         """
         Resolve ``key`` as a nested config id.
@@ -156,12 +165,13 @@ class _ConfigProxy:
             return self._value[key]
 
     def __setitem__(self, key: str | int, value: Any) -> None:
-        # write through to the config source and reset the resolver so the change is
-        # visible from both ``parser.<id>`` and ``get_parsed_content``.
-        self._parser[self._child_id(key)] = value
+        # Resolve a potential $@ref so we write to the real backing config node.
+        backing = self._backing_id()
+        self._parser[f"{backing}{ID_SEP_KEY}{key}"] = value
 
     def __delitem__(self, key: str | int) -> None:
-        node = self._parser[self._id]
+        backing = self._backing_id()
+        node = self._parser[backing]
         del node[key if isinstance(node, dict) else int(key)]
         self._parser.ref_resolver.reset()
 

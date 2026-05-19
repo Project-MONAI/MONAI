@@ -455,7 +455,7 @@ class TestConfigProxy(unittest.TestCase):
         a = self.parser.A
         self.assertEqual(copy.copy(a), {"B": {"C": 1, "D": [10, 20]}})
         self.assertEqual(copy.deepcopy(a), {"B": {"C": 1, "D": [10, 20]}})
-        self.assertEqual(pickle.loads(pickle.dumps(a)), {"B": {"C": 1, "D": [10, 20]}})
+        self.assertEqual(pickle.loads(pickle.dumps(a)), {"B": {"C": 1, "D": [10, 20]}})  # trusted in-process roundtrip
 
     def test_config_key_shadows_container_method(self):
         # a config key named like a dict method shadows it on attribute access;
@@ -464,6 +464,18 @@ class TestConfigProxy(unittest.TestCase):
         self.assertEqual(parser.sec.keys, "image")
         self.assertEqual(parser.sec["keys"], "image")
         self.assertEqual(list(parser.sec._raw.keys()), ["keys"])
+
+    def test_ref_backed_proxy_write_through(self):
+        # Writes/deletes on a proxy reached via $@ref must update the real backing config
+        # node (i.e. "target"), not crash on the raw ref string (regression for the @ref
+        # write crash: parser.alias["x"] = ... raised ValueError before this fix).
+        parser = ConfigParser(config={"target": {"x": 1, "y": 2}, "alias": "$@target"}, globals={"monai": "monai"})
+        parser.alias["x"] = 99
+        # The change must be visible via both the backing id and a fresh alias proxy.
+        self.assertEqual(parser.get_parsed_content("target::x"), 99)
+        self.assertEqual(parser.alias["x"], 99)
+        del parser.alias["y"]
+        self.assertNotIn("y", parser.get_parsed_content("target"))
 
     def test_missing_raises(self):
         with self.assertRaises(IndexError):
