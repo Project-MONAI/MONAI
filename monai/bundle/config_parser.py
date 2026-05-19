@@ -114,13 +114,21 @@ class _ConfigProxy:
         return f"{self._id}{ID_SEP_KEY}{key}"
 
     def _backing_id(self) -> str:
-        """Return the real config id this proxy writes to, resolving a single ``$@ref`` hop if needed."""
-        raw = self._parser[self._id]
-        if isinstance(raw, str):
+        """Return the real config id this proxy writes to, resolving all ``$@ref`` hops transitively."""
+        current = self._id
+        seen: set[str] = set()
+        while True:
+            if current in seen:
+                break
+            seen.add(current)
+            raw = self._parser[current]
+            if not isinstance(raw, str):
+                break
             refs = ReferenceResolver.match_refs_pattern(raw)
-            if refs:
-                return next(iter(refs))
-        return self._id
+            if not refs:
+                break
+            current = next(iter(refs))
+        return current
 
     def _chain(self, key: str) -> Any:
         """
@@ -179,9 +187,13 @@ class _ConfigProxy:
         if key in _ConfigProxy._INTERNAL:
             object.__setattr__(self, key, value)
             return
+        if key == "_raw":
+            raise AttributeError("_raw is read-only")
         self[key] = value
 
     def __delattr__(self, key: str) -> None:
+        if key == "_raw":
+            raise AttributeError("_raw is read-only")
         del self[key]
 
     def __len__(self) -> int:

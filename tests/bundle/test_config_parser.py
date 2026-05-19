@@ -477,6 +477,22 @@ class TestConfigProxy(unittest.TestCase):
         del parser.alias["y"]
         self.assertNotIn("y", parser.get_parsed_content("target"))
 
+    def test_chained_ref_backed_proxy_write_through(self):
+        # _backing_id() must follow the full ref chain, not just one hop.
+        parser = ConfigParser(
+            config={"target": {"x": 1, "y": 2}, "mid": "$@target", "alias": "$@mid"}, globals={"monai": "monai"}
+        )
+        parser.alias["x"] = 99
+        self.assertEqual(parser.get_parsed_content("target::x"), 99)
+        del parser.alias["y"]
+        self.assertNotIn("y", parser.get_parsed_content("target"))
+
+    def test_raw_is_read_only(self):
+        with self.assertRaises(AttributeError):
+            self.parser.A._raw = {"something": "else"}
+        with self.assertRaises(AttributeError):
+            del self.parser.A._raw
+
     def test_missing_raises(self):
         with self.assertRaises(IndexError):
             _ = self.parser.A.B.D[5]
