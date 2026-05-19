@@ -227,7 +227,7 @@ class _ConfigProxy:
 
     @property
     def _raw(self) -> Any:
-        """The underlying ``dict``/``list`` (read-only view; mutate via the proxy or the parser)."""
+        """The underlying ``dict``/``list`` container (the reference is read-only; the container contents are not copied)."""
         return self._value
 
 
