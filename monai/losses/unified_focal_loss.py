@@ -224,6 +224,13 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if len(y_pred.shape) != 4 and len(y_pred.shape) != 5:
             raise ValueError(f"input shape must be 4 or 5, but got {y_pred.shape}")
 
+        # Apply activation BEFORE one_hot encoding, since one_hot uses
+        # values as scatter indices and raw logits would cause index errors.
+        if self.use_softmax:
+            y_pred = torch.softmax(y_pred, dim=1)
+        elif self.use_sigmoid:
+            y_pred = torch.sigmoid(y_pred)
+
         if y_pred.shape[1] == 1:
             y_pred = one_hot(y_pred, num_classes=self.num_classes)
             y_true = one_hot(y_true, num_classes=self.num_classes)
@@ -237,11 +244,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
-
-        if self.use_softmax:
-            y_pred = torch.softmax(y_pred, dim=1)
-        elif self.use_sigmoid:
-            y_pred = torch.sigmoid(y_pred)
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
