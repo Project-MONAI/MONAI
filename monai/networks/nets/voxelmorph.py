@@ -405,6 +405,12 @@ class VoxelMorph(nn.Module):
         fixed = torch.randn(1, 1, 160, 192, 224)
         warped, ddf = net(moving, fixed)
 
+        # Example with optional moving_seg and fixed_keypoints
+        moving_seg = torch.randint(0, 4, (1, 1, 160, 192, 224)).float()
+        moving_seg = one_hot(moving_seg, num_classes=4)
+        fixed_keypoints = torch.tensor([[[80, 96, 112], [40, 48, 56]]]).float()
+        warped_img, warped_seg, warped_keypoints, ddf = net( moving, fixed, moving_seg=moving_seg, fixed_keypoints=fixed_keypoints )
+
     """
 
     def __init__(
@@ -440,12 +446,36 @@ class VoxelMorph(nn.Module):
             self.dvf2ddf = DVF2DDF(num_steps=self.integration_steps, mode="bilinear", padding_mode="zeros")
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
-    def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        moving: torch.Tensor,
+        fixed: torch.Tensor,
+        moving_seg: torch.Tensor | None = None,
+        fixed_keypoints: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, ...]:
         if moving.shape != fixed.shape:
             raise ValueError(
                 "The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
                 f" Got {moving.shape} and {fixed.shape} instead."
             )
+
+        if moving_seg is not None:
+            if moving_seg.shape[0] != moving.shape[0]:
+                raise ValueError(
+                    f"Batch dimension mismatch: moving_seg={moving_seg.shape[0]}, moving={moving.shape[0]}"
+                )
+            if moving_seg.shape[2:] != moving.shape[2:]:
+                raise ValueError(
+                    "The spatial shape of the moving segmentation must match the spatial shape of the moving image. "
+                    f"Got {moving_seg.shape[2:]} vs {moving.shape[2:]}."
+                )
+
+        if fixed_keypoints is not None:
+            if fixed_keypoints.shape[-1] != self.spatial_dims:
+                raise ValueError(
+                    "The last dimension of the fixed keypoints should be equal to the number of spatial dimensions."
+                    f" Got {fixed_keypoints.shape[-1]} and {self.spatial_dims} instead."
+                )
 
         x = self.backbone(torch.cat([moving, fixed], dim=1))
 
@@ -470,7 +500,14 @@ class VoxelMorph(nn.Module):
         if self.half_res:
             x = F.interpolate(x * 0.5, scale_factor=2.0, mode="trilinear", align_corners=True)
 
-        return self.warp(moving, x), x
+        if moving_seg is None and fixed_keypoints is None:
+            return self.warp(moving, x), x
+        elif moving_seg is None and fixed_keypoints is not None:
+            return *self.warp(moving, x, fixed_keypoints), x
+        elif moving_seg is not None and fixed_keypoints is None:
+            return self.warp(moving, x), self.warp(moving_seg, x), x
+        else:
+            return self.warp(moving, x), *self.warp(moving_seg, x, fixed_keypoints), x
 
 
 voxelmorph = VoxelMorph

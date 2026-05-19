@@ -171,6 +171,18 @@ CASES = [
     TEST_CASE_9,
 ]
 
+TEST_CASE_SEG_0 = [
+    {"spatial_dims": 3},
+    (1, 1, 96, 96, 48),  # moving image
+    (1, 1, 96, 96, 48),  # fixed image
+    (1, 2, 96, 96, 48),  # moving label
+    (1, 1, 96, 96, 48),  # expected warped moving image
+    (1, 2, 96, 96, 48),  # expected warped moving label
+    (1, 3, 96, 96, 48),  # expected ddf
+]
+
+CASES_SEG = [TEST_CASE_SEG_0]
+
 ILL_CASE_0 = [  # spatial_dims = 1
     {
         "spatial_dims": 1,
@@ -243,6 +255,15 @@ ILL_CASES_IN_SHAPE_1 = [  # spatial_dims = 2, ddf has 3 channels
 
 ILL_CASES_IN_SHAPE = [ILL_CASES_IN_SHAPE_0, ILL_CASES_IN_SHAPE_1]
 
+ILL_CASE_SEG_SHAPE_0 = [  # moving_seg and moving image shape not match
+    {"spatial_dims": 3},
+    (1, 1, 96, 96, 48),
+    (1, 1, 96, 96, 48),
+    (1, 2, 80, 96, 48),
+]
+
+ILL_CASES_SEG_SHAPE = [ILL_CASE_SEG_SHAPE_0]
+
 
 class TestVOXELMORPH(unittest.TestCase):
     @parameterized.expand(CASES)
@@ -251,6 +272,28 @@ class TestVOXELMORPH(unittest.TestCase):
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(CASES_SEG)
+    def test_shape_seg(
+        self,
+        input_param,
+        moving_shape,
+        fixed_shape,
+        moving_seg_shape,
+        expected_warped_moving_shape,
+        expected_warped_moving_seg_shape,
+        expected_ddf_shape,
+    ):
+        net = VoxelMorph(**input_param).to(device)
+        with eval_mode(net):
+            warped_moving, warped_moving_seg, ddf = net.forward(
+                torch.randn(moving_shape).to(device),
+                torch.randn(fixed_shape).to(device),
+                torch.randn(moving_seg_shape).to(device),
+            )
+            self.assertEqual(warped_moving.shape, expected_warped_moving_shape)
+            self.assertEqual(warped_moving_seg.shape, expected_warped_moving_seg_shape)
+            self.assertEqual(ddf.shape, expected_ddf_shape)
 
     def test_script(self):
         net = VoxelMorphUNet(
@@ -274,6 +317,17 @@ class TestVOXELMORPH(unittest.TestCase):
             net = VoxelMorph(**input_param).to(device)
             with eval_mode(net):
                 _ = net.forward(torch.randn(moving_shape).to(device), torch.randn(fixed_shape).to(device))
+
+    @parameterized.expand(ILL_CASES_SEG_SHAPE)
+    def test_ill_input_seg_shape(self, input_param, moving_shape, fixed_shape, moving_seg_shape):
+        with self.assertRaises((ValueError, RuntimeError)):
+            net = VoxelMorph(**input_param).to(device)
+            with eval_mode(net):
+                _ = net.forward(
+                    torch.randn(moving_shape).to(device),
+                    torch.randn(fixed_shape).to(device),
+                    torch.randn(moving_seg_shape).to(device),
+                )
 
 
 if __name__ == "__main__":

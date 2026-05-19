@@ -117,18 +117,29 @@ class Warp(nn.Module):
         self.ref_grid.requires_grad = False
         return self.ref_grid
 
-    def forward(self, image: torch.Tensor, ddf: torch.Tensor):
+    def forward(
+        self, image: torch.Tensor, ddf: torch.Tensor, keypoints: torch.Tensor | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             image: Tensor in shape (batch, num_channels, H, W[, D])
             ddf: Tensor in the same spatial size as image, in shape (batch, ``spatial_dims``, H, W[, D])
+            keypoints: Tensor in shape (batch, N, ``spatial_dims``), optional
 
         Returns:
             warped_image in the same shape as image (batch, num_channels, H, W[, D])
+            warped_keypoints in the same shape as keypoints (batch, N, ``spatial_dims``), if keypoints is not None
         """
+        batch_size = image.shape[0]
         spatial_dims = len(image.shape) - 2
         if spatial_dims not in (2, 3):
             raise NotImplementedError(f"got unsupported spatial_dims={spatial_dims}, currently support 2 or 3.")
+        if keypoints is not None:
+            if keypoints.shape[-1] != spatial_dims:
+                raise ValueError(
+                    f"Given input {spatial_dims}-d image, the last dimension of the input keypoints must be {spatial_dims}, "
+                    f"got {keypoints.shape}."
+                )
         ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
         if ddf.shape != ddf_shape:
             raise ValueError(
@@ -143,12 +154,33 @@ class Warp(nn.Module):
                 grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
             index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
-            return F.grid_sample(
+            warped_image = F.grid_sample(
                 image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
             )
-
-        # using csrc resampling
-        return grid_pull(image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode)
+        else:
+            # using csrc resampling
+            warped_image = grid_pull(
+                image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode
+            )
+        if keypoints is not None:
+            with torch.no_grad():
+                offset = torch.as_tensor(image.shape[2:]).to(keypoints) / 2.0
+                offset = offset.unsqueeze(0).unsqueeze(0)
+                normalized_keypoints = torch.flip((keypoints - offset) / offset, (-1,))
+            ddf_keypoints = (
+                F.grid_sample(
+                    ddf,
+                    normalized_keypoints.view(batch_size, -1, 1, 1, spatial_dims),
+                    mode=self._interp_mode,
+                    padding_mode=f"{self._padding_mode}",
+                    align_corners=True,
+                )
+                .view(batch_size, 3, -1)
+                .permute((0, 2, 1))
+            )
+            warped_keypoints = keypoints + ddf_keypoints
+            return warped_image, warped_keypoints
+        return warped_image
 
 
 class DVF2DDF(nn.Module):
