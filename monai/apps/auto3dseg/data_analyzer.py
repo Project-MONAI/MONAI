@@ -341,7 +341,7 @@ class DataAnalyzer:
                     _label_argmax = True  # track if label is argmaxed
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
-            except BaseException as err:
+            except Exception as err:
                 if "image_meta_dict" in batch_data.keys():
                     filename = batch_data["image_meta_dict"][ImageMetaKey.FILENAME_OR_OBJ]
                 else:
@@ -357,7 +357,7 @@ class DataAnalyzer:
                                 label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
                             batch_data[self.label_key] = label.to("cpu")
                         d = summarizer(batch_data)
-                    except BaseException as err:
+                    except Exception as err:
                         logger.info(f"Unable to process data {filename} on {device}. {err}")
                         continue
                 else:

@@ -545,7 +545,7 @@ class SlidingWindowInferer(Inferer):
                 )
             if cache_roi_weight_map and self.roi_weight_map is None:
                 warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
-        except BaseException as e:
+        except Exception as e:
             raise RuntimeError(
                 f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
                 "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
