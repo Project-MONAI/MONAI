@@ -173,9 +173,12 @@ class _ConfigProxy:
             return self._value[key]
 
     def __setitem__(self, key: str | int, value: Any) -> None:
-        # Resolve a potential $@ref so we write to the real backing config node.
+        # Write directly to the backing container so literal dict keys are preserved,
+        # matching the semantics of __delitem__ and __getitem__.
         backing = self._backing_id()
-        self._parser[f"{backing}{ID_SEP_KEY}{key}"] = value
+        node = self._parser[backing]
+        node[key if isinstance(node, dict) else int(key)] = value
+        self._parser.ref_resolver.reset()
 
     def __delitem__(self, key: str | int) -> None:
         backing = self._backing_id()
