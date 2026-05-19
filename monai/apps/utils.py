@@ -56,6 +56,7 @@ __all__ = [
 class HashMismatchError(RuntimeError):
     """Raised when the hash of a downloaded file does not match the expected value."""
 
+
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
 
