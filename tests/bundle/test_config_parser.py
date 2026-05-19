@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+import copy
 import os
+import pickle
 import tempfile
 import unittest
 import warnings
@@ -326,56 +328,6 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
-    def test_nested_dot_notation(self):
-        config = {
-            "A": {"B": {"C": 1, "D": [10, 20]}},
-            "training": {"trainer": {"max_epochs": 100, "lr": 0.001}},
-            "transforms": [{"keys": "image"}, {"keys": "label"}],
-            "my_dims": 2,
-            "dims_1": "$@my_dims + 1",
-        }
-        parser = ConfigParser(config=config, globals={"monai": "monai"})
-
-        self.assertEqual(parser.A.B.C, 1)
-        self.assertEqual(parser.training.trainer.max_epochs, 100)
-        self.assertEqual(parser.training.trainer.lr, 0.001)
-        self.assertEqual(parser.dims_1, 3)
-
-        self.assertEqual(parser.A.B.D[0], 10)
-        self.assertEqual(parser.A.B.D[1], 20)
-
-        self.assertEqual(parser.transforms[0].keys, "image")
-        self.assertEqual(parser.transforms[1].keys, "label")
-
-        self.assertEqual(parser.A._raw, {"B": {"C": 1, "D": [10, 20]}})
-
-        # container protocol delegates to the underlying dict/list
-        self.assertEqual(len(parser.A.B.D), 2)
-        self.assertEqual(list(parser.A.B.D), [10, 20])
-        self.assertIn("B", parser.A)
-        self.assertTrue(parser.A.B.D)
-        self.assertFalse(ConfigParser(config={"e": []}, globals={"monai": "monai"}).e)
-
-        # bracket access falls back to native container semantics when there is no
-        # config key of that name: negative indexing, IndexError, and dict KeyError.
-        self.assertEqual(parser.A.B.D[-1], 20)
-        with self.assertRaises(IndexError):
-            _ = parser.A.B.D[5]
-        with self.assertRaises(KeyError):
-            _ = parser.A.B["nonexistent"]
-
-        with self.assertRaises(AttributeError):
-            _ = parser.A.nonexistent
-
-        # item assignment/deletion writes through to the underlying container,
-        # preserving the pre-proxy behaviour where ``parser.x`` was the raw dict/list.
-        parser.A.B["C"] = 99
-        self.assertEqual(parser.A.B._raw["C"], 99)
-        parser.A.B.D[0] = 11
-        self.assertEqual(parser.A.B.D._raw, [11, 20])
-        del parser.A.B["C"]
-        self.assertNotIn("C", parser.A.B._raw)
-
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)
@@ -436,6 +388,90 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertEqual(parser["key1"], expected_overridden_val)
             self.assertEqual(parser["key2"], expected_merged_vals)
+
+
+class TestConfigProxy(unittest.TestCase):
+    """Nested dot-/bracket-notation access on ConfigParser (issue #6837)."""
+
+    def setUp(self):
+        self.config = {
+            "A": {"B": {"C": 1, "D": [10, 20]}},
+            "training": {"trainer": {"max_epochs": 100, "lr": 0.001}},
+            "transforms": [{"keys": "image"}, {"keys": "label"}],
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+        }
+        self.parser = ConfigParser(config=self.config, globals={"monai": "monai"})
+
+    def test_nested_attribute_access(self):
+        self.assertEqual(self.parser.A.B.C, 1)
+        self.assertEqual(self.parser.training.trainer.max_epochs, 100)
+        self.assertEqual(self.parser.training.trainer.lr, 0.001)
+        self.assertEqual(self.parser.dims_1, 3)
+
+    def test_nested_index_access(self):
+        self.assertEqual(self.parser.A.B.D[0], 10)
+        self.assertEqual(self.parser.A.B.D[1], 20)
+        self.assertEqual(self.parser.transforms[0].keys, "image")
+        self.assertEqual(self.parser.transforms[1].keys, "label")
+
+    def test_raw_and_container_protocol(self):
+        self.assertEqual(self.parser.A._raw, {"B": {"C": 1, "D": [10, 20]}})
+        self.assertEqual(len(self.parser.A.B.D), 2)
+        self.assertEqual(list(self.parser.A.B.D), [10, 20])
+        self.assertIn("B", self.parser.A)
+        self.assertTrue(self.parser.A.B.D)
+        self.assertFalse(ConfigParser(config={"e": []}, globals={"monai": "monai"}).e)
+
+    def test_native_index_fallback(self):
+        # bracket access falls back to native container semantics when there is no
+        # config key of that name: negative indexing still works.
+        self.assertEqual(self.parser.A.B.D[-1], 20)
+
+    def test_attribute_write_through(self):
+        # attribute assignment updates the config source and is visible from both
+        # ``parser.<id>`` and ``get_parsed_content``.
+        self.parser.A.X = [2, 3]
+        self.assertEqual(self.parser.A.X, [2, 3])
+        self.assertIn("X", self.parser.get_parsed_content("A"))
+        self.assertEqual(self.parser.get_parsed_content("A::X"), [2, 3])
+
+    def test_item_write_through(self):
+        self.parser.A.B["C"] = 99
+        self.assertEqual(self.parser.A.B.C, 99)
+        self.assertEqual(self.parser.get_parsed_content("A::B::C"), 99)
+        self.parser.A.B.D[0] = 11
+        self.assertEqual(self.parser.A.B.D._raw, [11, 20])
+        self.assertEqual(self.parser.get_parsed_content("A::B::D"), [11, 20])
+
+    def test_delete_write_through(self):
+        del self.parser.A.B["C"]
+        self.assertNotIn("C", self.parser.get_parsed_content("A::B"))
+        del self.parser.training.trainer
+        self.assertNotIn("trainer", self.parser.get_parsed_content("training"))
+
+    def test_copy_and_pickle_yield_raw_container(self):
+        # proxies copy/pickle as their underlying container (pre-proxy behaviour).
+        a = self.parser.A
+        self.assertEqual(copy.copy(a), {"B": {"C": 1, "D": [10, 20]}})
+        self.assertEqual(copy.deepcopy(a), {"B": {"C": 1, "D": [10, 20]}})
+        self.assertEqual(pickle.loads(pickle.dumps(a)), {"B": {"C": 1, "D": [10, 20]}})
+
+    def test_config_key_shadows_container_method(self):
+        # a config key named like a dict method shadows it on attribute access;
+        # use bracket notation / ._raw to reach the real container.
+        parser = ConfigParser(config={"sec": {"keys": "image"}}, globals={"monai": "monai"})
+        self.assertEqual(parser.sec.keys, "image")
+        self.assertEqual(parser.sec["keys"], "image")
+        self.assertEqual(list(parser.sec._raw.keys()), ["keys"])
+
+    def test_missing_raises(self):
+        with self.assertRaises(IndexError):
+            _ = self.parser.A.B.D[5]
+        with self.assertRaises(KeyError):
+            _ = self.parser.A.B["nonexistent"]
+        with self.assertRaises(AttributeError):
+            _ = self.parser.A.nonexistent
 
 
 if __name__ == "__main__":
