@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import SoftclDiceLoss, SoftDiceclDiceLoss
+from tests.test_utils import skip_if_no_cuda
 
 # Reusable test tensors
 ONES_2D = {"input": torch.ones((2, 3, 8, 8)), "target": torch.ones((2, 3, 8, 8))}
