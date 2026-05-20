@@ -207,8 +207,8 @@ class nnUNetV2Runner:  # noqa: N801
         try:
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-            self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
-        except BaseException:
+            self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
+        except Exception:
             logger.warning(
                 f"Dataset with name/ID: {self.dataset_name_or_id} cannot be found in the record. "
                 "Please ignore the message above if you are running the pipeline from a fresh start. "
@@ -286,7 +286,7 @@ class nnUNetV2Runner:  # noqa: N801
                 num_input_channels=num_input_channels,
                 output_datafolder=raw_data_foldername,
             )
-        except BaseException as err:
+        except Exception as err:
             logger.warning(f"Input config may be incorrect. Detail info: error/exception message is:\n {err}")
             return
 

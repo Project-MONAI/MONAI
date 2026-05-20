@@ -26,7 +26,7 @@ from monai.apps.auto3dseg.ensemble_builder import EnsembleRunner
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
-from monai.auto3dseg.utils import algo_to_pickle
+from monai.auto3dseg.utils import algo_to_json
 from monai.bundle import ConfigParser
 from monai.transforms import SaveImage
 from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
@@ -560,7 +560,7 @@ class AutoRunner:
             cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
                 Default using env "CMD_PREFIX" or None, examples are:
 
-                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.9 ",
+                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.10",
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or
@@ -740,7 +740,7 @@ class AutoRunner:
             acc = algo.get_score()
 
             algo_meta_data = {str(AlgoKeys.SCORE): acc}
-            algo_to_pickle(algo, template_path=algo.template_path, **algo_meta_data)
+            algo_to_json(algo, template_path=algo.template_path, **algo_meta_data)
 
     def _train_algo_in_nni(self, history: list[dict[str, Any]]) -> None:
         """

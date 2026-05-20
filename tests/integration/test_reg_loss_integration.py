@@ -26,6 +26,7 @@ TEST_CASES = [
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "rectangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 5, "kernel_type": "triangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 3, "kernel_type": "gaussian"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "gaussian"}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"kernel_type": "b-spline", "num_bins": 10}, ["pred", "target"]],
 ]
@@ -97,6 +98,24 @@ class TestRegLossIntegration(unittest.TestCase):
             loss_val.backward()
             optimizer.step()
         self.assertGreater(init_loss, loss_val, "loss did not decrease")
+
+    def test_lncc_gaussian_kernel_gt3_identical_images(self):
+        """
+        Regression test for make_gaussian_kernel truncated parameter bug.
+        LNCC on identical inputs must be close to -1.0 for gaussian kernel_size > 3.
+        """
+        for kernel_size in [5, 7]:
+            with self.subTest(kernel_size=kernel_size):
+                loss_fn = LocalNormalizedCrossCorrelationLoss(
+                    spatial_dims=2, kernel_size=kernel_size, kernel_type="gaussian"
+                ).to(self.device)
+                x = torch.rand(2, 1, 32, 32, device=self.device)
+                y = x.clone()
+                loss = loss_fn(x, y)
+                self.assertTrue(
+                    torch.allclose(loss, torch.tensor(-1.0, device=self.device, dtype=loss.dtype), atol=1e-3),
+                    f"LNCC of identical images should be -1.0, got {loss.item():.6f} (kernel_size={kernel_size})",
+                )
 
 
 if __name__ == "__main__":

@@ -13,10 +13,16 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction
+from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
+from monai.utils.module import optional_import
 
 from .metric import CumulativeIterationMetric
+
+scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
+cupy, has_cupy = optional_import("cupy")
+cupy_ndimage, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
+
 
 __all__ = ["DiceMetric", "compute_dice", "DiceHelper"]
 
@@ -40,6 +46,18 @@ class DiceMetric(CumulativeIterationMetric):
     is by convention assumed to be background. If the non-background segmentations are small compared to the total
     image size they can get overwhelmed by the signal from the background. This assumes the shape of both prediction
     and ground truth is BCHW[D].
+
+    The `per_component=True` approach computes the Dice metric on a per-connected component basis in the ground truth segmentation,
+    ensuring equal weighting for each component regardless of its size. This method eliminates biases in traditional metrics,
+    providing a more balanced evaluation, particularly in scenarios where object size does not correlate with clinical relevance.
+    This provides a more granular evaluation of segmentation quality, especially useful when dealing with fragmented or
+    disconnected objects in the foreground.
+    Note:
+    - The input prediction (`y_pred`) and ground truth (`y`) must both have 2 channels (foreground/background),
+    with binary segmentation (0 for background, 1 for foreground). That is, this assumes the shape of both prediction
+    and ground truth is B2HW[D].
+    - This method cannot be used with multiclass segmentation.
+    For more information, refer to the original paper: https://arxiv.org/abs/2410.18684
 
     The typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
@@ -95,6 +113,9 @@ class DiceMetric(CumulativeIterationMetric):
             If `True`, use "label_{index}" as the key corresponding to C channels; if ``include_background`` is True,
             the index begins at "0", otherwise at "1". It can also take a list of label names.
             The outcome will then be returned as a dictionary.
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires binary
+            segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     """
 
@@ -106,6 +127,7 @@ class DiceMetric(CumulativeIterationMetric):
         ignore_empty: bool = True,
         num_classes: int | None = None,
         return_with_label: bool | list[str] = False,
+        per_component: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -114,6 +136,7 @@ class DiceMetric(CumulativeIterationMetric):
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
         self.return_with_label = return_with_label
+        self.per_component = per_component
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
@@ -121,6 +144,7 @@ class DiceMetric(CumulativeIterationMetric):
             apply_argmax=False,
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
+            per_component=self.per_component,
         )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
@@ -175,6 +199,7 @@ def compute_dice(
     include_background: bool = True,
     ignore_empty: bool = True,
     num_classes: int | None = None,
+    per_component: bool = False,
 ) -> torch.Tensor:
     """
     Computes Dice score metric for a batch of predictions. This performs the same computation as
@@ -192,6 +217,9 @@ def compute_dice(
         num_classes: number of input channels (always including the background). When this is ``None``,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires binary
+            segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -204,6 +232,7 @@ def compute_dice(
         apply_argmax=False,
         ignore_empty=ignore_empty,
         num_classes=num_classes,
+        per_component=per_component,
     )(y_pred=y_pred, y=y)
 
 
@@ -246,6 +275,9 @@ class DiceHelper:
         num_classes: number of input channels (always including the background). When this is ``None``,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
+        per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
+            computed for each connected component in the ground truth, and then averaged. This requires binary
+            segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
     """
 
     @deprecated_arg("softmax", "1.5", "1.7", "Use `apply_argmax` instead.", new_name="apply_argmax")
@@ -262,6 +294,7 @@ class DiceHelper:
         num_classes: int | None = None,
         sigmoid: bool | None = None,
         softmax: bool | None = None,
+        per_component: bool = False,
     ) -> None:
         # handling deprecated arguments
         if sigmoid is not None:
@@ -277,6 +310,50 @@ class DiceHelper:
         self.activate = activate
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
+        self.per_component = per_component
+
+    def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Compute per-component Dice for a single batch item.
+
+        Args:
+            y_pred (torch.Tensor): Predictions with shape (1, 2, D, H, W) or (1, 2, H, W).
+            y (torch.Tensor): Ground truth with shape (1, 2, D, H, W) or (1, 2, H, W).
+
+        Returns:
+            torch.Tensor: Mean Dice over connected components.
+        """
+        if y_pred.ndim == y.ndim:
+            y_pred_idx = torch.argmax(y_pred, dim=1)
+            y_idx = torch.argmax(y, dim=1)
+        else:
+            y_pred_idx = y_pred
+            y_idx = y
+        if y_idx[0].sum() == 0:
+            if self.ignore_empty:
+                data = torch.tensor(float("nan"), device=y_idx.device)
+            elif y_pred_idx.sum() == 0:
+                data = torch.tensor(1.0, device=y_idx.device)
+            else:
+                data = torch.tensor(0.0, device=y_idx.device)
+        else:
+            cc_assignment = compute_voronoi_regions_fast(y_idx[0])
+            if cc_assignment.device != y_idx.device:
+                cc_assignment = cc_assignment.to(y_idx.device)
+            uniq, inv = torch.unique(cc_assignment.view(-1), return_inverse=True)
+            nof_components = uniq.numel()
+            code = (y_idx.view(-1) << 1) | y_pred_idx.view(-1)
+            idx = (inv << 2) | code
+            hist = torch.bincount(idx, minlength=nof_components * 4).reshape(-1, 4)
+            _, fp, fn, tp = hist[:, 0], hist[:, 1], hist[:, 2], hist[:, 3]
+            denom = 2 * tp + fp + fn
+            dice_scores = torch.where(
+                denom > 0, (2 * tp).float() / denom.float(), torch.tensor(1.0, device=denom.device)
+            )
+            data = dice_scores.unsqueeze(-1)
+            data = torch.nan_to_num(data)
+        data = data.reshape(-1, 1)
+        return torch.stack([data.mean()])
 
     def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -305,6 +382,9 @@ class DiceHelper:
             y_pred: input predictions with shape (batch_size, num_classes or 1, spatial_dims...).
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
+
+        Raises:
+            ValueError: when the shapes of `y_pred` and `y` are not compatible for the per-component computation.
         """
         _apply_argmax, _threshold = self.apply_argmax, self.threshold
         if self.num_classes is None:
@@ -322,15 +402,31 @@ class DiceHelper:
                 y_pred = torch.sigmoid(y_pred)
             y_pred = y_pred > 0.5
 
-        first_ch = 0 if self.include_background else 1
+        if self.per_component:
+            if y_pred.ndim not in (4, 5) or y.ndim not in (4, 5) or y_pred.shape[1] != 2 or y.shape[1] != 2:
+                same_rank = y_pred.ndim == y.ndim and y_pred.ndim in (4, 5)
+                binary_channels = y_pred.shape[1] == 2 and y.shape[1] == 2
+                same_shape = y_pred.shape == y.shape
+                if not (same_rank and binary_channels and same_shape):
+                    raise ValueError(
+                        "per_component requires matching 4D/5D binary tensors "
+                        "(B, 2, H, W) or (B, 2, D, H, W). "
+                        f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
+                    )
+
+        first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
         for b in range(y_pred.shape[0]):
+            if self.per_component:
+                data.append(self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0)).reshape(-1))
+                continue
             c_list = []
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
                 c_list.append(self.compute_channel(x_pred, x))
             data.append(torch.stack(c_list))
+
         data = torch.stack(data, dim=0).contiguous()  # type: ignore
 
         f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
