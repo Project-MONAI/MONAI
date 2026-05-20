@@ -57,11 +57,16 @@ __all__ = [
 
 
 @overload
-def ignore_background(y_pred: NdarrayTensor) -> tuple[NdarrayTensor, None]: ...
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]: ...
+
+
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: None = ...) -> tuple[NdarrayTensor, None]: ...
+
 
 def ignore_background(
-    y_pred: NdarrayTensor, y: NdarrayTensor
-) -> tuple[NdarrayTensor, NdarrayTensor]:
+    y_pred: NdarrayTensor, y: NdarrayTensor | None = None
+) -> tuple[NdarrayTensor, NdarrayTensor | None]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
