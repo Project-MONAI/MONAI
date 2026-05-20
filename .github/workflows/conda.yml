@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.10", "3.11"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 46 # equal to max + 3*std over the last 600 successful runs
     env:
@@ -37,7 +37,7 @@ jobs:
       run: |
         find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         rm -rf /usr/share/dotnet/
-    - uses: conda-incubator/setup-miniconda@v3
+    - uses: conda-incubator/setup-miniconda@v4
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}

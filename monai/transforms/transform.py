@@ -143,10 +143,13 @@ def apply_transform(
     try:
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
         if isinstance(data, (list, tuple)) and map_items_ > 0 and not isinstance(transform, ReduceTrait):
-            return [
-                apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
-                for item in data
-            ]
+            # If the transform is a Compose with its own map_items, let it handle list/tuple
+            # expansion internally so that nested Compose map_items settings are respected.
+            if not isinstance(transform, transforms.compose.Compose):
+                return [
+                    apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
+                    for item in data
+                ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint

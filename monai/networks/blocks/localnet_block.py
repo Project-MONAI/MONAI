@@ -72,10 +72,23 @@ def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> 
 
 
 class ResidualBlock(nn.Module):
+    """
+    A residual block with two convolutional layers and a skip connection.
+    """
 
     def __init__(
         self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels. Must equal ``out_channels``.
+            out_channels: number of output channels. Must equal ``in_channels``.
+            kernel_size: convolution kernel size.
+
+        Raises:
+            ValueError: if ``in_channels != out_channels``.
+        """
         super().__init__()
         if in_channels != out_channels:
             raise ValueError(
@@ -96,8 +109,20 @@ class ResidualBlock(nn.Module):
 
 
 class LocalNetResidualBlock(nn.Module):
+    """
+    A residual block used in LocalNet that adds a mid-level feature to the convolution output.
+    """
 
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels. Must equal ``out_channels``.
+            out_channels: number of output channels. Must equal ``in_channels``.
+
+        Raises:
+            ValueError: if ``in_channels != out_channels``.
+        """
         super().__init__()
         if in_channels != out_channels:
             raise ValueError(
@@ -270,11 +295,15 @@ class LocalNetFeatureExtractorBlock(nn.Module):
     ) -> None:
         """
         Args:
-        spatial_dims: number of spatial dimensions.
-        in_channels: number of input channels.
-        out_channels: number of output channels.
-        act: activation type and arguments. Defaults to ReLU.
-        kernel_initializer: kernel initializer. Defaults to None.
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            act: activation type and arguments. Defaults to ReLU.
+            initializer: kernel initializer, either ``"kaiming_uniform"`` or ``"zeros"``. Defaults to
+                ``"kaiming_uniform"``. Note: ``"kaiming_uniform"`` uses ``nn.init.kaiming_normal_`` internally.
+
+        Raises:
+            ValueError: if ``initializer`` is not ``"kaiming_uniform"`` or ``"zeros"``.
         """
         super().__init__()
         self.conv_block = get_conv_block(
