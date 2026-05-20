@@ -55,7 +55,6 @@ __all__ = [
 ]
 
 
-
 @overload
 def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]: ...
 
