@@ -145,5 +145,28 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
             GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
 
 
+class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
+    def test_gaussian_kernel_registers_buffers(self):
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        # preterm and bin_centers must be registered buffers so .to() moves them
+        self.assertIn("preterm", loss._buffers)
+        self.assertIn("bin_centers", loss._buffers)
+        self.assertFalse(loss.preterm.requires_grad)
+        self.assertFalse(loss.bin_centers.requires_grad)
+        self.assertEqual(loss.bin_centers.ndim, 3)
+
+    def test_bspline_kernel_has_no_gaussian_buffers(self):
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+        self.assertNotIn("preterm", loss._buffers)
+        self.assertNotIn("bin_centers", loss._buffers)
+
+    def test_gaussian_kernel_forward_correct(self):
+        pred = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        target = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        result = loss(pred, target)
+        self.assertEqual(result.shape, torch.Size([]))
+
+
 if __name__ == "__main__":
     unittest.main()
