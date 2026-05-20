@@ -79,9 +79,8 @@ class TestSoftclDiceLoss(unittest.TestCase):
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
+    @skip_if_no_cuda
     def test_cuda(self):
-        if not torch.cuda.is_available():
-            return
         loss = SoftclDiceLoss()
         result = loss(ONES_2D["input"].cuda(), ONES_2D["target"].cuda())
         np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
