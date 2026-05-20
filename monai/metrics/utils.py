@@ -73,7 +73,7 @@ def ignore_background(
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
-        y: ground truth, the first dim is batch.
+        y: optional ground truth, the first dim is batch.
 
     """
 
