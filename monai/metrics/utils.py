@@ -15,7 +15,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from functools import cache, partial
 from types import ModuleType
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 import torch
