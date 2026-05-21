@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "pytype", "mypy"]
+        opt: ["codeformat", "mypy"]  #  "pytype" omitted for being essentially deprecated, see #8865
     steps:
     - name: Clean unused tools
       run: |
@@ -171,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macOS-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest]  # macOS-latest omitted for now for being very slow, see #8864
     timeout-minutes: 120
     env:
       QUICKTEST: True

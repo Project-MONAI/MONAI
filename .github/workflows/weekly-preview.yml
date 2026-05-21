@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "pytype", "mypy"]
+        opt: ["codeformat", "mypy"]
     steps:
     - name: Clean unused tools
       run: |
@@ -33,8 +33,7 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have 2 cores, so parallelize pytype
-        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
+        $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
   packaging:
     if: github.repository == 'Project-MONAI/MONAI'
