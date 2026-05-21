@@ -565,6 +565,15 @@ class MONAIEnvVars:
     def testing_algo_template() -> str | None:
         return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
 
+    @staticmethod
+    def allow_pickle() -> bool:
+        """If true, Auto3DSeg algo (de)serialization may use pickle. Default False.
+
+        Pickle can execute arbitrary code on load and should only be enabled for files
+        from trusted sources. Prefer ``algo_to_json`` / ``algo_from_json``.
+        """
+        return str2bool(os.environ.get("MONAI_ALLOW_PICKLE", "0"))
+
 
 class ImageMetaKey:
     """
