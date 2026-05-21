@@ -249,7 +249,7 @@ class TestResNet(unittest.TestCase):
         if os.path.exists(self.tmp_ckpt_filename):
             try:
                 os.remove(self.tmp_ckpt_filename)
-            except BaseException:
+            except Exception:
                 pass
 
     @parameterized.expand(TEST_CASES)
