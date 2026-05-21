@@ -82,7 +82,7 @@ class PerceptualLoss(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        network_type: str = PerceptualNetworkType.alex,
+        network_type: str = PerceptualNetworkType | PerceptualNetworkType.alex,
         is_fake_3d: bool = True,
         fake_3d_ratio: float = 0.5,
         cache_dir: str | None = None,
@@ -94,7 +94,7 @@ class PerceptualLoss(nn.Module):
         super().__init__()
 
         if spatial_dims not in [2, 3]:
-            raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.")
+            raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.", stacklevel=2)
 
         network_type = network_type.lower()
         
@@ -102,7 +102,8 @@ class PerceptualLoss(nn.Module):
         if "medicalnet_" in network_type:
             if spatial_dims == 2 or is_fake_3d:
                 raise ValueError(
-                    "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False."
+                    "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False.",
+                    stacklevel=2,
                 )
             if not channel_wise:
                 warnings.warn(
@@ -111,12 +112,12 @@ class PerceptualLoss(nn.Module):
 
         # Channel-wise only for MedicalNet
         elif channel_wise:
-            raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
+            raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.", stacklevel=2)
 
         if network_type.lower() not in list(PerceptualNetworkType):
             raise ValueError(
-                "Unrecognised criterion entered for Perceptual Loss. Must be one in: %s"
-                % ", ".join(PerceptualNetworkType)
+                f"Unrecognised criterion entered for Perceptual Loss. Must be one in: {', '.join(PerceptualNetworkType)}",
+                stacklevel=2,
             )
         if cache_dir:
             torch.hub.set_dir(cache_dir)
@@ -195,7 +196,7 @@ class PerceptualLoss(nn.Module):
             target: the shape should be BNHW[D].
         """
         if target.shape != input.shape:
-            raise ValueError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            raise ValueError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})", stacklevel=2)
 
         if self.spatial_dims == 3 and self.is_fake_3d:
             # Compute 2.5D approach
@@ -226,7 +227,8 @@ class MedicalNetPerceptualSimilarity(nn.Module):
             Specifies the network architecture to use. Defaults to ``"medicalnet_resnet10_23datasets"``.
         verbose: if false, mute messages from torch Hub load function.
         channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
-                Defaults to ``False``.
+            Defaults to ``False``.
+        cache_dir: path to cache directory to save the pretrained network weights.
     """
 
     def __init__(
@@ -238,7 +240,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2)
 
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
@@ -326,12 +328,13 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         net: {``"radimagenet_resnet50"``}
             Specifies the network architecture to use. Defaults to ``"radimagenet_resnet50"``.
         verbose: if false, mute messages from torch Hub load function.
+        cache_dir: path to cache directory to save the pretrained network weights.
     """
 
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2)
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
         )
@@ -401,7 +404,8 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         supported_networks = ["resnet50"]
         if net not in supported_networks:
             raise NotImplementedError(
-                f"'net' {net} is not supported, please select a network from {supported_networks}."
+                f"'net' {net} is not supported, please select a network from {supported_networks}.",
+                stacklevel=2,
             )
 
         if pretrained_path is None:
