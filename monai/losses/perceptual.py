@@ -97,7 +97,7 @@ class PerceptualLoss(nn.Module):
             raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.", stacklevel=2)
 
         network_type = network_type.lower()
-        
+
         # Strict validation for MedicalNet
         if "medicalnet_" in network_type:
             if spatial_dims == 2 or is_fake_3d:
