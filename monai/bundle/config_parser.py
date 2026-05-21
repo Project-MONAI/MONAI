@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
+from copy import copy as _copy
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -33,6 +34,204 @@ else:
 __all__ = ["ConfigParser"]
 
 _default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
+
+
+def _identity(value: Any) -> Any:
+    """Module-level reconstructor used by ``_ConfigProxy.__reduce__`` so proxies pickle as their raw value."""
+    return value
+
+
+def _wrap_parsed(parser: ConfigParser, id: str, value: Any) -> Any:
+    """
+    Wrap a parsed dict/list in a :class:`_ConfigProxy` so nested access keeps chaining; pass scalars through.
+
+    Args:
+        parser: the owning :class:`ConfigParser`, used to resolve chained ids.
+        id: the ``::``-separated id that produced ``value``.
+        value: the parsed content to wrap.
+
+    Returns:
+        A :class:`_ConfigProxy` wrapping ``value`` if it is a ``dict`` or ``list``,
+        otherwise ``value`` unchanged.
+    """
+    if isinstance(value, (dict, list)):
+        return _ConfigProxy(parser, id, value)
+    return value
+
+
+class _ConfigProxy:
+    """
+    Proxy that enables dot-notation and bracket-notation access to nested config structures.
+
+    When :meth:`ConfigParser.__getattr__` resolves to a ``dict`` or ``list``, the result is
+    wrapped in this proxy so that further attribute and index access chains through the
+    config hierarchy using :meth:`ConfigParser.get_parsed_content`. For example::
+
+        parser.training.trainer.max_epochs
+        # equivalent to
+        parser.get_parsed_content("training::trainer::max_epochs")
+
+        parser.transforms[0].keys                 # list indexing chains too
+        parser.A.B["C"] = 99                      # writes update the config source
+        del parser.A.B["C"]                       # deletes update the config source
+
+    Type caveat:
+        Accessing a ``dict``/``list`` member through a :class:`ConfigParser` now returns a
+        ``_ConfigProxy``, not the raw container, so ``type(parser.A)`` is ``_ConfigProxy``
+        and ``isinstance(parser.A, dict)`` is ``False``. Code that needs the real container
+        should use ``parser.A._raw`` (read-only view) or ``parser.get_parsed_content("A")``.
+
+    Precedence and fallback:
+        Config keys take precedence over ``dict``/``list`` attributes and methods. If a
+        config key is not found, the proxy falls back to the underlying ``dict``/``list``
+        so that container methods (``.keys()``, ``.items()`` ...) and native indexing
+        semantics (``IndexError``, negative indices, dict ``KeyError``) still work. A
+        config key that collides with a container method name (e.g. ``"keys"``) shadows
+        that method on attribute access; access it via bracket notation,
+        :meth:`ConfigParser.get_parsed_content`, or ``._raw``.
+
+    Writes:
+        ``__setitem__``/``__setattr__``/``__delitem__``/``__delattr__`` write through to
+        the config *source* (via :class:`ConfigParser`) and reset the reference resolver,
+        so the change is visible from both ``parser.<id>`` and
+        ``parser.get_parsed_content("<id>")``.
+    """
+
+    _INTERNAL = ("_parser", "_id", "_value")
+
+    def __init__(self, parser: ConfigParser, id: str, value: Any):
+        """
+        Args:
+            parser: the owning :class:`ConfigParser`.
+            id: the ``::``-separated id this proxy represents.
+            value: the parsed ``dict``/``list`` content this proxy wraps.
+        """
+        self._parser = parser
+        self._id = id
+        self._value = value
+
+    def _child_id(self, key: str | int) -> str:
+        return f"{self._id}{ID_SEP_KEY}{key}"
+
+    def _backing_id(self) -> str:
+        """Return the real config id this proxy writes to, resolving all ``$@ref`` hops transitively."""
+        current = self._id
+        seen: set[str] = set()
+        while True:
+            if current in seen:
+                break
+            seen.add(current)
+            raw = self._parser[current]
+            if not isinstance(raw, str):
+                break
+            refs = ReferenceResolver.match_refs_pattern(raw)
+            if not refs:
+                break
+            current = next(iter(refs))
+        return current
+
+    def _chain(self, key: str) -> Any:
+        """
+        Resolve ``key`` as a nested config id.
+
+        Args:
+            key: the child key/index.
+
+        Returns:
+            The parsed child content, wrapped via :func:`_wrap_parsed`.
+
+        Raises:
+            KeyError: if there is no config item at the chained id.
+        """
+        new_id = self._child_id(key)
+        return _wrap_parsed(self._parser, new_id, self._parser.get_parsed_content(new_id))
+
+    def __getattr__(self, key: str) -> Any:
+        """
+        Resolve ``key`` as a nested config attribute, falling back to the underlying container.
+
+        Dunder names are never treated as config keys, so the proxy stays well-behaved
+        with ``copy``/``pickle``/``hasattr`` and other stdlib introspection.
+
+        Raises:
+            AttributeError: if ``key`` is neither a config key nor an attribute of the
+                underlying ``dict``/``list``.
+        """
+        if key.startswith("__") and key.endswith("__"):
+            raise AttributeError(key)
+        try:
+            return self._chain(key)
+        except KeyError:
+            return getattr(self._value, key)
+
+    def __getitem__(self, key: str | int) -> Any:
+        try:
+            return self._chain(str(key))
+        except KeyError:
+            # no config key of that name: defer to the underlying dict/list so normal
+            # indexing semantics apply (IndexError, negative indices, dict KeyError).
+            return self._value[key]
+
+    def __setitem__(self, key: str | int, value: Any) -> None:
+        # Write directly to the backing container so literal dict keys are preserved,
+        # matching the semantics of __delitem__ and __getitem__.
+        backing = self._backing_id()
+        node = self._parser[backing]
+        node[key if isinstance(node, dict) else int(key)] = value
+        self._parser.ref_resolver.reset()
+
+    def __delitem__(self, key: str | int) -> None:
+        backing = self._backing_id()
+        node = self._parser[backing]
+        del node[key if isinstance(node, dict) else int(key)]
+        self._parser.ref_resolver.reset()
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key in _ConfigProxy._INTERNAL:
+            object.__setattr__(self, key, value)
+            return
+        if key == "_raw":
+            raise AttributeError("_raw is read-only")
+        self[key] = value
+
+    def __delattr__(self, key: str) -> None:
+        if key == "_raw":
+            raise AttributeError("_raw is read-only")
+        del self[key]
+
+    def __len__(self) -> int:
+        return len(self._value)
+
+    def __iter__(self) -> Any:
+        return iter(self._value)
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._value
+
+    def __bool__(self) -> bool:
+        return bool(self._value)
+
+    def __repr__(self) -> str:
+        return repr(self._value)
+
+    def __eq__(self, other: object) -> Any:
+        if isinstance(other, _ConfigProxy):
+            other = other._value
+        return self._value == other
+
+    def __copy__(self) -> Any:
+        return _copy(self._value)
+
+    def __deepcopy__(self, memo: Any) -> Any:
+        return deepcopy(self._value, memo)
+
+    def __reduce__(self) -> Any:
+        return (_identity, (self._value,))
+
+    @property
+    def _raw(self) -> Any:
+        """The underlying ``dict``/``list`` container (the reference is read-only; the container contents are not copied)."""
+        return self._value
 
 
 class ConfigParser:
@@ -127,14 +326,23 @@ class ConfigParser:
         """
         Get the parsed result of ``ConfigItem`` with the specified ``id``
         with default arguments (e.g. ``lazy=True``, ``instantiate=True`` and ``eval_expr=True``).
+        When the result is a dict or list, it is wrapped in a ``_ConfigProxy`` so that
+        nested attributes and indices chain through the config hierarchy.
+        For example, ``parser.training.trainer.max_epochs`` is equivalent to
+        ``parser.get_parsed_content("training::trainer::max_epochs")``.
 
         Args:
             id: id of the ``ConfigItem``.
 
+        Returns:
+            The parsed content (instance, evaluated expression, or config value). When it
+            is a ``dict`` or ``list`` it is wrapped in a :class:`_ConfigProxy` so nested
+            attributes/indices chain through the config hierarchy.
+
         See also:
              :py:meth:`get_parsed_content`
         """
-        return self.get_parsed_content(id)
+        return _wrap_parsed(self, id, self.get_parsed_content(id))
 
     def __getitem__(self, id: str | int) -> Any:
         """
