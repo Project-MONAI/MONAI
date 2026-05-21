@@ -89,7 +89,7 @@ Join the conversation on Twitter/X [@ProjectMONAI](https://twitter.com/ProjectMO
 Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github.com/Project-MONAI/MONAI/discussions).
 
 ## Links
- 
+
 - Website: <https://project-monai.github.io/>
 - API documentation (milestone): <https://monai.readthedocs.io/>
 - API documentation (latest dev): <https://monai.readthedocs.io/en/latest/>
