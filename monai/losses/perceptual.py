@@ -202,7 +202,9 @@ class PerceptualLoss(nn.Module):
             target: the shape should be BNHW[D].
         """
         if target.shape != input.shape:
-            raise ValueError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})", stacklevel=2)
+            raise ValueError(
+                f"ground truth has differing shape ({target.shape}) from input ({input.shape})", stacklevel=2
+            )
 
         if self.spatial_dims == 3 and self.is_fake_3d:
             # Compute 2.5D approach
@@ -246,7 +248,9 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2)
+            raise ValueError(
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2
+            )
 
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
@@ -340,7 +344,9 @@ class RadImageNetPerceptualSimilarity(nn.Module):
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2)
+            raise ValueError(
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2
+            )
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
         )
@@ -410,8 +416,7 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         supported_networks = ["resnet50"]
         if net not in supported_networks:
             raise NotImplementedError(
-                f"'net' {net} is not supported, please select a network from {supported_networks}.",
-                stacklevel=2,
+                f"'net' {net} is not supported, please select a network from {supported_networks}.", stacklevel=2
             )
 
         if pretrained_path is None:
