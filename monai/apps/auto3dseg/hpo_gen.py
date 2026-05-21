@@ -19,7 +19,7 @@ from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
-from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
+from monai.auto3dseg import Algo, AlgoGen, algo_from_json, algo_to_json
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import optional_import
@@ -36,7 +36,7 @@ class HPOGen(AlgoGen):
     """
     The base class for hyperparameter optimization (HPO) interfaces to generate algos in the Auto3Dseg pipeline.
     The auto-generated algos are saved at their ``output_path`` on the disk. The files in the ``output_path``
-    may contain scripts that define the algo, configuration files, and pickle files that save the internal states
+    may contain scripts that define the algo, configuration files, and JSON files that save the internal states
     of the algo before/after the training. Compared to the BundleGen class, HPOGen generates Algo on-the-fly, so
     training and algo generation may be executed alternatively and take a long time to finish the generation process.
 
@@ -72,7 +72,7 @@ class NNIGen(HPOGen):
 
     Args:
         algo: an Algo object (e.g. BundleAlgo) with defined methods: ``get_output_path`` and train
-            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+            and supports saving to and loading via ``algo_from_json`` and ``algo_to_json``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Examples::
@@ -81,16 +81,16 @@ class NNIGen(HPOGen):
         ├── algorithm_templates
         │   └── unet
         ├── unet_0
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   └── scripts
         ├── unet_0_learning_rate_0.01
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   ├── model_fold0
         │   └── scripts
         └── unet_0_learning_rate_0.1
-            ├── algo_object.pkl
+            ├── algo_object.json
             ├── configs
             ├── model_fold0
             └── scripts
@@ -129,10 +129,10 @@ class NNIGen(HPOGen):
             else:
                 self.algo = algo
 
-            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+            self.obj_filename = algo_to_json(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
-        """Return the filename of the dumped pickle algo object."""
+        """Return the filename of the dumped algo object."""
         return self.obj_filename
 
     def print_bundle_algo_instruction(self):
@@ -190,7 +190,7 @@ class NNIGen(HPOGen):
         task_id = self.get_task_id()
         task_prefix = os.path.basename(self.algo.get_output_path())
         write_path = os.path.join(output_folder, task_prefix + task_id)
-        self.obj_filename = os.path.join(write_path, "algo_object.pkl")
+        self.obj_filename = os.path.join(write_path, "algo_object.json")
 
         if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(
@@ -214,7 +214,7 @@ class NNIGen(HPOGen):
         The python interface for NNI to run.
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -222,7 +222,7 @@ class NNIGen(HPOGen):
         if not os.path.isfile(obj_filename):
             raise ValueError(f"{obj_filename} is not found")
 
-        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+        self.algo, algo_meta_data = algo_from_json(obj_filename, template_path=template_path)
 
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
@@ -235,7 +235,7 @@ class NNIGen(HPOGen):
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
 
-        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
+        algo_to_json(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)
 
 
@@ -250,7 +250,7 @@ class OptunaGen(HPOGen):
 
     Args:
         algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
-            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+            and supports saving to and loading via ``algo_from_json`` and ``algo_to_json``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Examples::
@@ -259,16 +259,16 @@ class OptunaGen(HPOGen):
         ├── algorithm_templates
         │   └── unet
         ├── unet_0
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   └── scripts
         ├── unet_0_learning_rate_0.01
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   ├── model_fold0
         │   └── scripts
         └── unet_0_learning_rate_0.1
-            ├── algo_object.pkl
+            ├── algo_object.json
             ├── configs
             ├── model_fold0
             └── scripts
@@ -296,10 +296,10 @@ class OptunaGen(HPOGen):
             else:
                 self.algo = algo
 
-            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+            self.obj_filename = algo_to_json(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
-        """Return the dumped pickle object of algo."""
+        """Return the dumped object of algo."""
         return self.obj_filename
 
     def get_hyperparameters(self):
@@ -329,7 +329,7 @@ class OptunaGen(HPOGen):
         Callable that Optuna will use to optimize the hyper-parameters
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -364,7 +364,7 @@ class OptunaGen(HPOGen):
         task_id = self.get_task_id()
         task_prefix = os.path.basename(self.algo.get_output_path())
         write_path = os.path.join(output_folder, task_prefix + task_id)
-        self.obj_filename = os.path.join(write_path, "algo_object.pkl")
+        self.obj_filename = os.path.join(write_path, "algo_object.json")
 
         if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
@@ -377,7 +377,7 @@ class OptunaGen(HPOGen):
         The python interface for NNI to run.
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -385,7 +385,7 @@ class OptunaGen(HPOGen):
         if not os.path.isfile(obj_filename):
             raise ValueError(f"{obj_filename} is not found")
 
-        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+        self.algo, algo_meta_data = algo_from_json(obj_filename, template_path=template_path)
 
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
@@ -397,5 +397,5 @@ class OptunaGen(HPOGen):
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
-        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
+        algo_to_json(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)

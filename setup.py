@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import warnings
+from typing import Any, cast
 
 from packaging import version
 from setuptools import find_packages, setup
@@ -146,6 +147,6 @@ setup(
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
-    package_data={"monai": ["py.typed", *jit_extension_source]},  # type: ignore[arg-type]
+    package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
     ext_modules=get_extensions(),
 )

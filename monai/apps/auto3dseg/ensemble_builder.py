@@ -216,7 +216,7 @@ class AlgoEnsemble(ABC):
             if "image_save_func" in param:
                 try:
                     ensemble_preds = self.ensemble_pred(preds, sigmoid=sigmoid)
-                except BaseException:
+                except Exception:
                     ensemble_preds = self.ensemble_pred([_.to("cpu") for _ in preds], sigmoid=sigmoid)
                 res = img_saver(ensemble_preds)
                 # res is the path to the saved results
