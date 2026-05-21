@@ -200,9 +200,7 @@ class PerceptualLoss(nn.Module):
             target: the shape should be BNHW[D].
         """
         if target.shape != input.shape:
-            raise ValueError(
-                f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
-            )
+            raise ValueError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         if self.spatial_dims == 3 and self.is_fake_3d:
             # Compute 2.5D approach
@@ -246,9 +244,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     ) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
-            )
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
 
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
@@ -342,9 +338,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
     def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, cache_dir: str | None = None) -> None:
         super().__init__()
         if net not in HF_MONAI_MODELS:
-            raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
-            )
+            raise ValueError(f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.")
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
         )
