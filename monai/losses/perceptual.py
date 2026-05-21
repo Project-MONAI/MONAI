@@ -100,7 +100,7 @@ class PerceptualLoss(nn.Module):
         super().__init__()
 
         if spatial_dims not in [2, 3]:
-            raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.", stacklevel=2)
+            raise NotImplementedError("Perceptual loss is implemented only in 2D and 3D.")
 
         network_type = network_type.lower()
 
@@ -108,8 +108,7 @@ class PerceptualLoss(nn.Module):
         if "medicalnet_" in network_type:
             if spatial_dims == 2 or is_fake_3d:
                 raise ValueError(
-                    "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False.",
-                    stacklevel=2,
+                    "MedicalNet networks are only compatible with ``spatial_dims=3``. Argument is_fake_3d must be set to False."
                 )
             if not channel_wise:
                 warnings.warn(
@@ -118,12 +117,11 @@ class PerceptualLoss(nn.Module):
 
         # Channel-wise only for MedicalNet
         elif channel_wise:
-            raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.", stacklevel=2)
+            raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
 
         if network_type.lower() not in list(PerceptualNetworkType):
             raise ValueError(
-                f"Unrecognised criterion entered for Perceptual Loss. Must be one in: {', '.join(PerceptualNetworkType)}",
-                stacklevel=2,
+                f"Unrecognised criterion entered for Perceptual Loss. Must be one in: {', '.join(PerceptualNetworkType)}"
             )
         if cache_dir:
             torch.hub.set_dir(cache_dir)
@@ -203,7 +201,7 @@ class PerceptualLoss(nn.Module):
         """
         if target.shape != input.shape:
             raise ValueError(
-                f"ground truth has differing shape ({target.shape}) from input ({input.shape})", stacklevel=2
+                f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
             )
 
         if self.spatial_dims == 3 and self.is_fake_3d:
@@ -249,7 +247,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         super().__init__()
         if net not in HF_MONAI_MODELS:
             raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
             )
 
         self.model = torch.hub.load(
@@ -345,7 +343,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         super().__init__()
         if net not in HF_MONAI_MODELS:
             raise ValueError(
-                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}.", stacklevel=2
+                f"Invalid download model name '{net}'. Must be one of: {', '.join(HF_MONAI_MODELS)}."
             )
         self.model = torch.hub.load(
             "Project-MONAI/perceptual-models:main", model=net, verbose=verbose, cache_dir=cache_dir, trust_repo=True
@@ -416,7 +414,7 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         supported_networks = ["resnet50"]
         if net not in supported_networks:
             raise NotImplementedError(
-                f"'net' {net} is not supported, please select a network from {supported_networks}.", stacklevel=2
+                f"'net' {net} is not supported, please select a network from {supported_networks}."
             )
 
         if pretrained_path is None:
