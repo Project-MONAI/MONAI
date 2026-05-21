@@ -82,7 +82,7 @@ class PerceptualLoss(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        network_type: str = PerceptualNetworkType | PerceptualNetworkType.alex,
+        network_type: str = PerceptualNetworkType.alex,
         is_fake_3d: bool = True,
         fake_3d_ratio: float = 0.5,
         cache_dir: str | None = None,
