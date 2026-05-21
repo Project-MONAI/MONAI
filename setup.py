@@ -107,20 +107,13 @@ def get_extensions():
         _torch_cuda_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST", "")
         _max_cc = 0
         if _torch_cuda_arch_list:
-            for _arch in _torch_cuda_arch_list.replace(";", " ").split():
-                _arch = _arch.strip()
-                if not _arch:
-                    continue
-                if "+" in _arch:
-                    _arch = _arch.split("+")[0]
-                _parts = _arch.split(".")
-                if len(_parts) == 2:
-                    try:
-                        _cc = int(_parts[0]) * 100 + int(_parts[1])
-                        if _cc > _max_cc:
-                            _max_cc = _cc
-                    except ValueError:
-                        pass
+            for _maj, _min in re.findall(r"([0-9]+)\.([0-9]+)", _torch_cuda_arch_list):
+                try:
+                    _cc = int(_maj) * 100 + int(_min)
+                    if _cc > _max_cc:
+                        _max_cc = _cc
+                except ValueError:
+                    pass
         if _max_cc > 0:
             define_macros += [("MONAI_MAX_COMPUTE_CAPABILITY", _max_cc)]
         extra_compile_args = {"cxx": [], "nvcc": []}
