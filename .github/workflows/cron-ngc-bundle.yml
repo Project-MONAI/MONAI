@@ -39,4 +39,4 @@ jobs:
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
         # run tests
-        python -m tests.ngc_bundle_download
+        PYTHONPATH=. python -m unittest tests.bundle.test_bundle_download.TestNgcBundleDownload
