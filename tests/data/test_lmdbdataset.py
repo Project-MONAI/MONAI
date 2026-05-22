@@ -21,7 +21,6 @@ from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing, pickle_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.test_utils import skip_if_windows
 
 TEST_CASE_1 = [
     Compose(
@@ -89,7 +88,6 @@ class _InplaceXform(Transform):
         return data
 
 
-@skip_if_windows
 class TestLMDBDataset(unittest.TestCase):
     @parameterized.expand([(pickle_hashing,), (json_hashing,)])
     def test_cache(self, hash_func):
@@ -182,6 +180,8 @@ class TestLMDBDataset(unittest.TestCase):
             else:
                 with self.assertRaises(RuntimeError):
                     dataset_postcached.set_data(data=test_data_new)  # filename list updated, files do not exist
+
+            dataset_postcached.close()  # open environments are fragile, cleanup is needed for tests
 
 
 if __name__ == "__main__":
