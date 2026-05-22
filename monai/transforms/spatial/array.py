@@ -34,6 +34,7 @@ from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
+    _compiled_unsupported,
     affine_func,
     convert_box_to_points,
     convert_points_to_box,
@@ -2105,14 +2106,15 @@ class Resample(Transform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
+        _use_compiled = USE_COMPILED and not _compiled_unsupported(img_t.device)
         backend, _interp_mode, _padding_mode, _ = resolves_modes(
             self.mode if mode is None else mode,
             self.padding_mode if padding_mode is None else padding_mode,
             backend=None,
-            use_compiled=USE_COMPILED,
+            use_compiled=_use_compiled,
         )
 
-        if USE_COMPILED or backend == TransformBackends.NUMPY:
+        if _use_compiled or backend == TransformBackends.NUMPY:
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
             if isinstance(grid, torch.Tensor) and grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
@@ -2123,7 +2125,7 @@ class Resample(Transform):
                     grid_t[i] = ((_dim - 1) / _dim) * grid_t[i] + t if _align_corners else grid_t[i] + t
                 elif _align_corners:
                     grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
-            if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+            if _use_compiled and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
                 out = grid_pull(
                     img_t.unsqueeze(0),
@@ -2141,6 +2143,20 @@ class Resample(Transform):
                     [_map_coord(c, grid_np, order=_interp_mode, mode=_padding_mode) for c in img_np]
                 )
                 out = convert_to_dst_type(out, img_t)[0]
+            else:
+                # Fallback to PyTorch grid_sample when compiled extension is unsupported.
+                # Convert grid coordinates from compiled convention [0, size-1] to PyTorch [-1, 1]
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    _dim = max(2, dim)
+                    grid_t[i] = (grid_t[i] * 2.0 / _dim) - 1.0
+                grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
+                out = torch.nn.functional.grid_sample(
+                    img_t.unsqueeze(0),
+                    grid_t.unsqueeze(0),
+                    mode=_interp_mode,
+                    padding_mode=_padding_mode,
+                    align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
+                )[0]
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
             grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
