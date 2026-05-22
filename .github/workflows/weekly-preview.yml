@@ -1,5 +1,8 @@
 name: weekly-preview
 
+permissions:
+  contents: read
+
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
@@ -20,6 +23,8 @@ jobs:
         sudo docker system prune -f
 
     - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
@@ -43,6 +48,7 @@ jobs:
       with:
         ref: dev
         fetch-depth: 0
+        persist-credentials: false
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
