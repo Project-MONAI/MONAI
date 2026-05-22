@@ -722,7 +722,7 @@ class LMDBDataset(PersistentDataset):
         out["filename"] = f"{self.db_file.absolute()}"
         self.close()
         return out
-    
+
     def close(self):
         """Close the read environment and set it to None, if it exists."""
         if self._read_env:
