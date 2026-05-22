@@ -9,6 +9,9 @@ on:
       - releasing/*
       - feature/*
       - dev
+  pull_request:
+    branches:
+      - dev  # temporary for testing in the PR
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
