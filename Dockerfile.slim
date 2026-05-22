@@ -18,7 +18,7 @@ ARG IMAGE=debian:12-slim
 
 FROM ${IMAGE} AS build
 
-ARG TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 8.9 9.0+PTX"
+ARG TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6 8.9 9.0+PTX 12.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
@@ -28,7 +28,7 @@ RUN apt update && apt upgrade -y && \
     wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
     apt update && \
-    ${APT_INSTALL} cuda-toolkit-12 && \
+    ${APT_INSTALL} cuda-toolkit-12-9 && \
     rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
     python -m pip install --upgrade --no-cache-dir --no-build-isolation pip
 
@@ -53,7 +53,8 @@ COPY tests ./tests
 COPY monai ./monai
 
 # install full deps
-RUN python -m pip install --no-cache-dir --no-build-isolation -r requirements-dev.txt
+RUN python -m pip install --no-cache-dir --no-build-isolation -U wheel wheel-stub
+RUN python -m pip install --no-cache-dir --no-build-isolation "torch>=2.8.0,<2.11" -r requirements-dev.txt
 
 # compile ext
 RUN CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 python setup.py develop
