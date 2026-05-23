@@ -211,11 +211,23 @@ class _RecordShapeHook(nn.Module):
     """Helper module to record spatial shapes during encoding for decoder restoration."""
 
     def __init__(self, shape_list: list[tuple[int, ...]]) -> None:
+        """
+        Args:
+            shape_list: List to append shapes to during forward pass.
+        """
         super().__init__()
         self.shape_list = shape_list
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Record spatial dimensions and pass through."""
+        """
+        Record spatial dimensions and pass through.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            Input tensor unchanged.
+        """
         self.shape_list.append(tuple(x.shape[2:]))
         return x
 
@@ -961,6 +973,9 @@ class AutoencoderKL(nn.Module):
             x: BxCx[SPATIAL DIMS] tensor
 
         """
+        # Clear shape list before encoding to avoid unbounded growth across forward passes
+        self.encoder.downsample_shapes.clear()
+
         if self.use_checkpoint:
             h = torch.utils.checkpoint.checkpoint(self.encoder, x, use_reentrant=False)
         else:
