@@ -237,6 +237,16 @@ class _ShapeRestoringUpsample(nn.Module):
         downsample_shapes_ref: list,
         scale_factor: tuple[int, ...] | None = None,
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            post_conv: convolution module to apply after upsampling.
+            shape_index: index into downsample_shapes_ref list.
+            downsample_shapes_ref: reference to shared list of shapes from encoder.
+            scale_factor: fallback upsampling scale factor if shape_index is out of range.
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels

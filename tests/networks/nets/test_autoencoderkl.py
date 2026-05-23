@@ -801,7 +801,7 @@ class TestAutoEncoderKL(unittest.TestCase):
         x = torch.randn(1, 1, 65, 67, 17).to(device)
 
         with eval_mode(net):
-            reconstruction, z_mu, z_sigma = net(x)
+            reconstruction, _z_mu, _z_sigma = net(x)
 
         # This is the key assertion proving shape restoration works
         self.assertEqual(
@@ -948,7 +948,7 @@ class TestAutoEncoderKL(unittest.TestCase):
         with eval_mode(net):
             # Test with odd dimensions - crucial for verifying legacy asymmetric padding
             x = torch.randn(1, 1, 17, 19).to(device)
-            reconstruction, z_mu, z_sigma = net(x)
+            reconstruction, _z_mu, _z_sigma = net(x)
 
             # Reconstruction should match input shape exactly
             self.assertEqual(
