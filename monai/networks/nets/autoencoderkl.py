@@ -30,7 +30,7 @@ def _validate_kernel_stride_parameters(
     stride: int | tuple[int, ...] | None,
     spatial_dims: int,
     param_name: str = "parameter",
-) -> tuple[tuple[int, ...] | None, tuple[int, ...] | None]:
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """
     Validate and normalize kernel_size and stride parameters.
 
@@ -46,8 +46,6 @@ def _validate_kernel_stride_parameters(
     Raises:
         ValueError: if parameters are invalid
     """
-    if kernel_size is None or stride is None:
-        return None, None
 
     # Normalize kernel_size to tuple
     if isinstance(kernel_size, int):
@@ -132,7 +130,7 @@ def _normalize_downsample_parameters(
         default_ks_tuple, default_s_tuple = _validate_kernel_stride_parameters(
             default_kernel_size, default_stride, spatial_dims
         )
-        default_padding = _compute_padding(default_ks_tuple)
+        default_padding: tuple[int, ...] = _compute_padding(default_ks_tuple)
         return [
             {"kernel_size": default_ks_tuple, "stride": default_s_tuple, "padding": default_padding}
             for _ in range(num_levels)
@@ -163,7 +161,7 @@ def _normalize_downsample_parameters(
 
         # Compute padding if not provided
         if padding is None:
-            padding_tuple = _compute_padding(ks_tuple)
+            padding_tuple: tuple[int, ...] = _compute_padding(ks_tuple)
         else:
             # Normalize provided padding
             if isinstance(padding, int):
@@ -209,6 +207,62 @@ class AsymmetricPad(nn.Module):
         return x
 
 
+class _RecordShapeHook(nn.Module):
+    """Helper module to record spatial shapes during encoding for decoder restoration."""
+
+    def __init__(self, shape_list: list[tuple[int, ...]]) -> None:
+        super().__init__()
+        self.shape_list = shape_list
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Record spatial dimensions and pass through."""
+        self.shape_list.append(tuple(x.shape[2:]))
+        return x
+
+
+class _ShapeRestoringUpsample(nn.Module):
+    """Upsample to exact target size (recorded by encoder) instead of using scale_factor.
+
+    This handles arbitrary input dimensions (odd, non-power-of-2, anisotropic) by restoring
+    to the exact pre-downsampling shape recorded during encoding.
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        post_conv: nn.Module,
+        shape_index: int,
+        downsample_shapes_ref: list,
+        scale_factor: tuple[int, ...] | None = None,
+    ) -> None:
+        super().__init__()
+        self.spatial_dims = spatial_dims
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.post_conv = post_conv
+        self.shape_index = shape_index
+        self.downsample_shapes_ref = downsample_shapes_ref  # Reference to the shared list, NOT a module
+        self.scale_factor = scale_factor
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample to exact target size, then apply post-convolution."""
+        # Get target shape from downsample_shapes (in reverse order)
+        if self.downsample_shapes_ref and self.shape_index < len(self.downsample_shapes_ref):
+            # Shapes are stored in order, but we're using them in reverse
+            target_shape_index = len(self.downsample_shapes_ref) - 1 - self.shape_index
+            target_shape = self.downsample_shapes_ref[target_shape_index]
+            x = F.interpolate(x, size=target_shape, mode="nearest")
+        elif self.scale_factor is not None:
+            # Fallback for standalone decode (no encoder run): use scale_factor
+            sf = tuple(float(s) for s in self.scale_factor)
+            x = F.interpolate(x, scale_factor=sf, mode="nearest")
+
+        x = self.post_conv(x)
+        return x
+
+
 class AEKLDownsample(nn.Module):
     """
     Convolution-based downsampling layer.
@@ -219,6 +273,8 @@ class AEKLDownsample(nn.Module):
         kernel_size: kernel size for the convolution. Can be int or tuple. Default: 3.
         stride: stride for the convolution. Can be int or tuple. Default: 2.
         padding: padding for the convolution. If None, computed from kernel_size. Default: None.
+        use_legacy_padding: if True and padding is None, use asymmetric padding (0,1) for each dimension
+            to match the original MONAI Generative implementation. Default: False.
     """
 
     def __init__(
@@ -228,6 +284,7 @@ class AEKLDownsample(nn.Module):
         kernel_size: int | tuple[int, ...] = 3,
         stride: int | tuple[int, ...] = 2,
         padding: int | tuple[int, ...] | None = None,
+        use_legacy_padding: bool = False,
     ) -> None:
         super().__init__()
 
@@ -236,22 +293,28 @@ class AEKLDownsample(nn.Module):
             kernel_size, stride, spatial_dims, "AEKLDownsample"
         )
 
-        # Compute padding if not provided
-        if padding is None:
-            padding_tuple = _compute_padding(kernel_size_tuple)
+        self.use_legacy_padding = use_legacy_padding and (padding is None)
+        if self.use_legacy_padding:
+            # Legacy behavior: asymmetric padding (0, 1) per dimension + conv with padding=0
+            self.pad = (0, 1) * spatial_dims
+            padding_tuple = (0,) * spatial_dims
         else:
-            if isinstance(padding, int):
-                padding_tuple = (padding,) * spatial_dims
+            # New behavior: compute symmetric padding if not provided
+            if padding is None:
+                padding_tuple: tuple[int, ...] = _compute_padding(kernel_size_tuple)
             else:
-                padding_tuple = tuple(padding)
+                if isinstance(padding, int):
+                    padding_tuple = (padding,) * spatial_dims
+                else:
+                    padding_tuple = tuple(padding)
 
         self.conv = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
-            strides=stride_tuple,
-            kernel_size=kernel_size_tuple,
-            padding=padding_tuple,
+            strides=tuple(stride_tuple),
+            kernel_size=tuple(kernel_size_tuple),
+            padding=tuple(padding_tuple),
             conv_only=True,
         )
 
@@ -265,6 +328,8 @@ class AEKLDownsample(nn.Module):
         Returns:
             Downsampled tensor.
         """
+        if self.use_legacy_padding:
+            x = F.pad(x, self.pad, mode="constant", value=0.0)
         x = self.conv(x)
         return x
 
@@ -375,7 +440,7 @@ class Encoder(nn.Module):
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
-        downsample_parameters: list[dict] | None = None,
+        downsample_parameters: list[dict] | dict | None = None,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -389,12 +454,15 @@ class Encoder(nn.Module):
 
         # Normalize downsampling parameters
         num_downsample_levels = len(channels) - 1
+        use_legacy_padding = downsample_parameters is None  # Track if using legacy defaults
         normalized_downsample_params = _normalize_downsample_parameters(
             downsample_parameters, num_downsample_levels, spatial_dims
         )
 
         # Store for decoder to use
         self.downsample_parameters = normalized_downsample_params
+        self.use_legacy_padding = use_legacy_padding
+        self.downsample_shapes: list[tuple[int, ...]] = []  # Track shapes before each downsample
 
         blocks: list[nn.Module] = []
         # Initial convolution
@@ -443,6 +511,8 @@ class Encoder(nn.Module):
                     )
 
             if not is_final_block:
+                # Record shape before downsampling (for decoder to restore exact size)
+                blocks.append(_RecordShapeHook(self.downsample_shapes))
                 # Use downsampling parameters for this level
                 downsample_params = normalized_downsample_params[downsample_idx]
                 blocks.append(
@@ -452,6 +522,7 @@ class Encoder(nn.Module):
                         kernel_size=downsample_params["kernel_size"],
                         stride=downsample_params["stride"],
                         padding=downsample_params["padding"],
+                        use_legacy_padding=use_legacy_padding,
                     )
                 )
                 downsample_idx += 1
@@ -556,7 +627,7 @@ class Decoder(nn.Module):
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
-        downsample_parameters: list[dict] | None = None,
+        downsample_parameters: list[dict] | dict | None = None,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -570,9 +641,14 @@ class Decoder(nn.Module):
 
         # Normalize downsampling parameters to get strides for upsampling
         num_downsample_levels = len(channels) - 1
+        use_legacy_padding = downsample_parameters is None  # Track if using legacy defaults
         normalized_downsample_params = _normalize_downsample_parameters(
             downsample_parameters, num_downsample_levels, spatial_dims
         )
+
+        # Will be populated by encoder with shapes before each downsample
+        self.downsample_shapes: list[tuple[int, ...]] = []
+        self.use_legacy_padding = use_legacy_padding
 
         reversed_block_out_channels = list(reversed(channels))
 
@@ -661,10 +737,6 @@ class Decoder(nn.Module):
                     )
 
             if not is_final_block:
-                # Use stride from encoder downsample as scale_factor for upsampling
-                # reversed_downsample_params[i] corresponds to the downsampling level we need to upsample
-                upsampling_stride = reversed_downsample_params[i]["stride"]
-
                 if use_convtranspose:
                     blocks.append(
                         Upsample(
@@ -672,6 +744,8 @@ class Decoder(nn.Module):
                         )
                     )
                 else:
+                    # For nontrainable upsampling: use exact target size from encoder
+                    # This handles arbitrary input dimensions (odd, non-power-of-2, etc.)
                     post_conv = Convolution(
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
@@ -681,16 +755,17 @@ class Decoder(nn.Module):
                         padding=1,
                         conv_only=True,
                     )
+                    # pass scale_factor from reversed_downsample_params as fallback
+                    sf = tuple(reversed_downsample_params[i]["stride"])
                     blocks.append(
-                        Upsample(
+                        _ShapeRestoringUpsample(
                             spatial_dims=spatial_dims,
-                            mode="nontrainable",
                             in_channels=block_in_ch,
                             out_channels=block_in_ch,
-                            interp_mode="nearest",
-                            scale_factor=tuple(float(s) for s in upsampling_stride),
                             post_conv=post_conv,
-                            align_corners=None,
+                            shape_index=i,  # index into reversed downsample_shapes
+                            downsample_shapes_ref=self.downsample_shapes,  # will be updated by AutoencoderKL
+                            scale_factor=sf,
                         )
                     )
 
@@ -827,6 +902,17 @@ class AutoencoderKL(nn.Module):
             use_flash_attention=use_flash_attention,
             downsample_parameters=encoder_downsample_params,
         )
+
+        # Link encoder shapes to decoder for exact size restoration
+        # This must be done AFTER decoder creation so that _ShapeRestoringUpsample blocks
+        # reference the shared list (not the empty list created during decoder init)
+        self.decoder.downsample_shapes = self.encoder.downsample_shapes
+
+        # Update all _ShapeRestoringUpsample blocks to reference the shared list
+        for block in self.decoder.blocks:
+            if isinstance(block, _ShapeRestoringUpsample):
+                block.downsample_shapes_ref = self.encoder.downsample_shapes
+
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,
             in_channels=latent_channels,
@@ -1006,12 +1092,18 @@ class AutoencoderKL(nn.Module):
         # fix the attention blocks
         attention_blocks = [k.replace(".attn.to_q.weight", "") for k in new_state_dict if "attn.to_q.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn.to_q.weight"] = old_state_dict.pop(f"{block}.to_q.weight")
-            new_state_dict[f"{block}.attn.to_k.weight"] = old_state_dict.pop(f"{block}.to_k.weight")
-            new_state_dict[f"{block}.attn.to_v.weight"] = old_state_dict.pop(f"{block}.to_v.weight")
-            new_state_dict[f"{block}.attn.to_q.bias"] = old_state_dict.pop(f"{block}.to_q.bias")
-            new_state_dict[f"{block}.attn.to_k.bias"] = old_state_dict.pop(f"{block}.to_k.bias")
-            new_state_dict[f"{block}.attn.to_v.bias"] = old_state_dict.pop(f"{block}.to_v.bias")
+            if f"{block}.to_q.weight" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_q.weight"] = old_state_dict.pop(f"{block}.to_q.weight")
+            if f"{block}.to_k.weight" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_k.weight"] = old_state_dict.pop(f"{block}.to_k.weight")
+            if f"{block}.to_v.weight" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_v.weight"] = old_state_dict.pop(f"{block}.to_v.weight")
+            if f"{block}.to_q.bias" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_q.bias"] = old_state_dict.pop(f"{block}.to_q.bias")
+            if f"{block}.to_k.bias" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_k.bias"] = old_state_dict.pop(f"{block}.to_k.bias")
+            if f"{block}.to_v.bias" in old_state_dict:
+                new_state_dict[f"{block}.attn.to_v.bias"] = old_state_dict.pop(f"{block}.to_v.bias")
 
             out_w = f"{block}.attn.out_proj.weight"
             out_b = f"{block}.attn.out_proj.bias"
@@ -1051,7 +1143,8 @@ class AutoencoderKL(nn.Module):
         for k in new_state_dict:
             if "postconv" in k:
                 old_name = k.replace("postconv", "conv")
-                new_state_dict[k] = old_state_dict.pop(old_name)
+                if old_name in old_state_dict:
+                    new_state_dict[k] = old_state_dict.pop(old_name)
         if verbose:
             # print all remaining keys in old_state_dict
             print("remaining keys in old_state_dict:", old_state_dict.keys())

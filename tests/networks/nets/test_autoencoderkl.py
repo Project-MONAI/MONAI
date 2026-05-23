@@ -770,6 +770,198 @@ class TestAutoEncoderKL(unittest.TestCase):
                 f"Latent D shape mismatch: got {z_mu.shape[4]}, expected {expected_latent_d}",
             )
 
+    def test_exact_reconstruction_odd_dimensions(self):
+        """
+        Critical test: Verify exact reconstruction for truly odd/non-divisible dimensions.
 
-if __name__ == "__main__":
-    unittest.main()
+        This directly demonstrates the shape restoration architecture upgrade.
+        Before: would fail or produce mismatched shapes
+        After: exact reconstruction guaranteed
+        """
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            "downsample_parameters": [
+                {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+                {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},
+            ],
+        }
+
+        net = AutoencoderKL(**input_param).to(device)
+
+        # Truly odd dimensions that would fail with naive stride-based approach
+        x = torch.randn(1, 1, 65, 67, 17).to(device)
+
+        with eval_mode(net):
+            reconstruction, z_mu, z_sigma = net(x)
+
+        # This is the key assertion proving shape restoration works
+        self.assertEqual(
+            reconstruction.shape, x.shape, f"Reconstruction shape {reconstruction.shape} != input shape {x.shape}"
+        )
+
+    def test_multi_level_anisotropic_non_divisible_dimensions(self):
+        """
+        Test multi-level anisotropic downsampling with non-divisible dimensions.
+
+        Validates that shape restoration handles:
+        - Different stride per level
+        - Odd dimensions on multiple axes
+        - Complex spatial transforms
+        """
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            "downsample_parameters": [
+                {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},  # Preserve Z
+                {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},  # Isotropic
+            ],
+        }
+
+        net = AutoencoderKL(**input_param).to(device)
+
+        # Non-divisible dimensions that would fail with scale_factor approach
+        x = torch.randn(1, 1, 61, 73, 19).to(device)
+
+        with eval_mode(net):
+            reconstruction = net.reconstruct(x)
+
+        self.assertEqual(reconstruction.shape, x.shape)
+
+    def test_convtranspose_path_unchanged(self):
+        """
+        Verify ConvTranspose upsampling path remains untouched by shape restoration.
+
+        Shape restoration only affects nontrainable upsampling path.
+        ConvTranspose should maintain original behavior.
+        """
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            "use_convtranspose": True,  # Use trainable upsampling
+            "downsample_parameters": [{"kernel_size": 3, "stride": 2}, {"kernel_size": 3, "stride": 2}],
+        }
+
+        net = AutoencoderKL(**input_param).to(device)
+
+        # Standard power-of-2 size
+        x = torch.randn(1, 1, 64, 64).to(device)
+
+        with eval_mode(net):
+            reconstruction = net.reconstruct(x)
+
+        # Should not crash and shape should be preserved
+        self.assertEqual(reconstruction.shape, x.shape)
+
+    def test_multiple_forward_passes_different_odd_shapes(self):
+        """
+        Test multiple forward passes with different odd-dimensional inputs.
+
+        Validates that shape state is properly maintained/reset between passes.
+        Catches potential stale-state bugs in shape recording.
+        """
+        input_param = {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            "downsample_parameters": [
+                {"kernel_size": (3, 3, 1), "stride": (2, 2, 1)},
+                {"kernel_size": (3, 3, 3), "stride": (2, 2, 2)},
+            ],
+        }
+
+        net = AutoencoderKL(**input_param).to(device)
+
+        # First odd shape
+        x1 = torch.randn(1, 1, 65, 67, 17).to(device)
+
+        with eval_mode(net):
+            reconstruction1 = net.reconstruct(x1)
+
+        self.assertEqual(reconstruction1.shape, x1.shape)
+
+        # Different odd shape
+        x2 = torch.randn(1, 1, 71, 79, 23).to(device)
+
+        with eval_mode(net):
+            reconstruction2 = net.reconstruct(x2)
+
+        self.assertEqual(reconstruction2.shape, x2.shape)
+
+        # Verify they're actually different shapes
+        self.assertNotEqual(x1.shape, x2.shape)
+
+    def test_legacy_default_behavior_with_odd_dimensions(self):
+        """
+        Test that legacy default behavior (downsample_parameters=None) preserves asymmetric padding
+        and produces correct reconstruction even with odd dimensions.
+
+        This ensures checkpoint compatibility: models using default parameters continue to work
+        identically after the padding changes.
+        """
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            # Explicitly no downsample_parameters - should use legacy defaults
+        }
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            # Test with odd dimensions - crucial for verifying legacy asymmetric padding
+            x = torch.randn(1, 1, 17, 19).to(device)
+            reconstruction, z_mu, z_sigma = net(x)
+
+            # Reconstruction should match input shape exactly
+            self.assertEqual(
+                reconstruction.shape,
+                x.shape,
+                f"Legacy default behavior with odd dims: reconstruction {reconstruction.shape} != input {x.shape}",
+            )
+
+            # Also test with even dimensions to ensure no regression
+            x_even = torch.randn(1, 1, 16, 20).to(device)
+            reconstruction_even, _, _ = net(x_even)
+            self.assertEqual(
+                reconstruction_even.shape,
+                x_even.shape,
+                f"Legacy default behavior with even dims: reconstruction {reconstruction_even.shape} != input {x_even.shape}",
+            )
