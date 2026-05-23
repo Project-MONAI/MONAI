@@ -109,10 +109,12 @@ jobs:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
         NGC_ORG: ${{ secrets.NGC_ORG }}
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
+        TRANSFORMERS_VERBOSITY: error  # stifle huggingface transformers warnings about aliases
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
+        ./runtests.sh --clean
         BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
