@@ -964,6 +964,7 @@ class AutoencoderKL(nn.Module):
         )
         self.latent_channels = latent_channels
         self.use_checkpoint = use_checkpoint
+        self._has_fresh_downsample_shapes = False
 
     def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -974,7 +975,10 @@ class AutoencoderKL(nn.Module):
 
         """
         # Clear shape list before encoding to avoid unbounded growth across forward passes
-        self.encoder.downsample_shapes.clear()
+        # Only clear if encoder supports shape tracking (e.g., Encoder class, not MaisiEncoder)
+        if hasattr(self.encoder, "downsample_shapes"):
+            self.encoder.downsample_shapes.clear()
+            self._has_fresh_downsample_shapes = True
 
         if self.use_checkpoint:
             h = torch.utils.checkpoint.checkpoint(self.encoder, x, use_reentrant=False)
@@ -1029,12 +1033,21 @@ class AutoencoderKL(nn.Module):
         Returns:
             decoded image tensor
         """
+        # Clear stale encoder shapes if decode is called standalone (without preceding encode)
+        # This ensures _ShapeRestoringUpsample blocks use scale_factor fallback for mismatched shapes
+        if not self._has_fresh_downsample_shapes and hasattr(self.encoder, "downsample_shapes"):
+            self.encoder.downsample_shapes.clear()
+
         z = self.post_quant_conv(z)
         dec: torch.Tensor
-        if self.use_checkpoint:
-            dec = torch.utils.checkpoint.checkpoint(self.decoder, z, use_reentrant=False)
-        else:
-            dec = self.decoder(z)
+        try:
+            if self.use_checkpoint:
+                dec = torch.utils.checkpoint.checkpoint(self.decoder, z, use_reentrant=False)
+            else:
+                dec = self.decoder(z)
+        finally:
+            # Mark shapes as stale after decoding
+            self._has_fresh_downsample_shapes = False
         return dec
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

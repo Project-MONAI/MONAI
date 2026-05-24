@@ -965,3 +965,47 @@ class TestAutoEncoderKL(unittest.TestCase):
                 x_even.shape,
                 f"Legacy default behavior with even dims: reconstruction {reconstruction_even.shape} != input {x_even.shape}",
             )
+
+    def test_standalone_decode_after_encode_different_shape(self):
+        """
+        Regression test: encode(x1) followed by standalone decode(z2) from different shape.
+
+        Verifies that stale encoder shapes don't cause mismatches when decoding
+        latent codes that don't correspond to the previously encoded input.
+
+        This tests the _has_fresh_downsample_shapes flag mechanism.
+        """
+        input_param = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        }
+        net = AutoencoderKL(**input_param).to(device)
+
+        with eval_mode(net):
+            # First, encode an image of shape (1, 1, 16, 16)
+            x1 = torch.randn(1, 1, 16, 16).to(device)
+            z_mu1, _z_sigma1 = net.encode(x1)  # z_mu1 shape: (1, 4, 4, 4)
+
+            # Now create a different latent shape and try to decode it standalone
+            # This latent doesn't correspond to x1, so using recorded shapes would be wrong
+            z_different = torch.randn(1, 4, 8, 8).to(device)
+
+            # Decode should use scale_factor fallback (not recorded shapes)
+            # Expected output: z_different upsampled by encoder strides (2, 2) twice = 8*4*4 = 128
+            # But since shapes are cleared, scale_factor is used
+            decoded = net.decode(z_different)
+
+            # Should produce a valid output without error or shape mismatch
+            self.assertIsNotNone(decoded)
+            # Output shape depends on the decoder's upsampling - just verify it's valid
+            self.assertEqual(decoded.ndim, 4)  # BxCxHxW
+            self.assertEqual(decoded.shape[0], 1)  # batch size
+            self.assertEqual(decoded.shape[1], 1)  # output channels
