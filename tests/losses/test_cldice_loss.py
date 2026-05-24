@@ -1,3 +1,6 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #     http://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
@@ -15,36 +18,133 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import SoftclDiceLoss, SoftDiceclDiceLoss
+from tests.test_utils import skip_if_no_cuda
 
-TEST_CASES = [
-    [{"y_pred": torch.ones((7, 3, 11, 10)), "y_true": torch.ones((7, 3, 11, 10))}, 0.0],
-    [{"y_pred": torch.ones((2, 3, 13, 14, 5)), "y_true": torch.ones((2, 3, 13, 14, 5))}, 0.0],
+# Reusable test tensors
+ONES_2D = {"input": torch.ones((2, 3, 8, 8)), "target": torch.ones((2, 3, 8, 8))}
+ONES_3D = {"input": torch.ones((2, 3, 8, 8, 8)), "target": torch.ones((2, 3, 8, 8, 8))}
+
+# Partial overlap: two 2x2 squares shifted by 1 pixel
+PARTIAL_OVERLAP = {
+    "input": torch.tensor(
+        [[[[1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]]
+    ),
+    "target": torch.tensor(
+        [[[[0.0, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]]
+    ),
+}
+
+# Test cases: [loss_params, input_data, expected_value]
+CLDICE_CASES = [
+    [{}, ONES_2D, 0.0],
+    [{}, ONES_3D, 0.0],
+    [
+        {"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
+        {
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[0.5, 0.5], [0.5, 0.5]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
+        },
+        0.192777,
+    ],
+    [
+        {"softmax": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
+        {
+            "input": torch.tensor([[[[2.0, 0.0], [0.0, 2.0]], [[-2.0, 0.0], [0.0, -2.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]]]),
+        },
+        0.148760,
+    ],
+    [
+        {"to_onehot_y": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
+        {
+            "input": torch.tensor([[[[0.9, 0.1], [0.1, 0.9]], [[0.1, 0.9], [0.9, 0.1]]]]),
+            "target": torch.tensor([[[[0, 1], [1, 0]]]]),
+        },
+        0.052631,
+    ],
+]
+
+COMBINED_CASES = [
+    [{"alpha": 0.5}, ONES_2D, 0.0],
+    [{"alpha": 0.5, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.624995],
+    [{"alpha": 0.0, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.250000],  # pure Dice
+    [{"alpha": 1.0, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.999990],  # pure clDice
 ]
 
 
-class TestclDiceLoss(unittest.TestCase):
-
-    @parameterized.expand(TEST_CASES)
-    def test_result(self, y_pred_data, expected_val):
-        loss = SoftclDiceLoss()
-        loss_dice = SoftDiceclDiceLoss()
-        result = loss(**y_pred_data)
-        result_dice = loss_dice(**y_pred_data)
+class TestSoftclDiceLoss(unittest.TestCase):
+    @parameterized.expand(CLDICE_CASES)
+    def test_result(self, loss_params, input_data, expected_val):
+        loss = SoftclDiceLoss(**loss_params)
+        result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
-        np.testing.assert_allclose(result_dice.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
-    def test_with_cuda(self):
+    @skip_if_no_cuda
+    def test_cuda(self):
         loss = SoftclDiceLoss()
-        loss_dice = SoftDiceclDiceLoss()
-        i = torch.ones((100, 3, 256, 256))
-        j = torch.ones((100, 3, 256, 256))
-        if torch.cuda.is_available():
-            i = i.cuda()
-            j = j.cuda()
-        output = loss(i, j)
-        output_dice = loss_dice(i, j)
-        np.testing.assert_allclose(output.detach().cpu().numpy(), 0.0, atol=1e-4, rtol=1e-4)
-        np.testing.assert_allclose(output_dice.detach().cpu().numpy(), 0.0, atol=1e-4, rtol=1e-4)
+        result = loss(ONES_2D["input"].cuda(), ONES_2D["target"].cuda())
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+
+    def test_reduction_shapes(self):
+        input_tensor = torch.ones((4, 2, 8, 8))
+        target = torch.ones((4, 2, 8, 8))
+
+        self.assertEqual(SoftclDiceLoss(reduction="mean")(input_tensor, target).shape, torch.Size([]))
+        self.assertEqual(SoftclDiceLoss(reduction="sum")(input_tensor, target).shape, torch.Size([]))
+        self.assertEqual(SoftclDiceLoss(reduction="none")(input_tensor, target).shape, torch.Size([4]))
+
+    def test_ill_shape(self):
+        loss = SoftclDiceLoss()
+        with self.assertRaisesRegex(AssertionError, "ground truth has different shape"):
+            loss(torch.ones((1, 3, 8, 8)), torch.ones((1, 4, 8, 8)))
+
+    def test_invalid_activation_combination(self):
+        with self.assertRaises(ValueError):
+            SoftclDiceLoss(sigmoid=True, softmax=True)
+
+    def test_invalid_other_act(self):
+        with self.assertRaises(TypeError):
+            SoftclDiceLoss(other_act="invalid")
+
+    def test_invalid_iter_type(self):
+        with self.assertRaises(TypeError):
+            SoftclDiceLoss(iter_=3.0)
+
+    def test_invalid_iter_value(self):
+        with self.assertRaises(ValueError):
+            SoftclDiceLoss(iter_=-1)
+
+
+class TestSoftDiceclDiceLoss(unittest.TestCase):
+    @parameterized.expand(COMBINED_CASES)
+    def test_result(self, loss_params, input_data, expected_val):
+        loss = SoftDiceclDiceLoss(**loss_params)
+        result = loss(**input_data)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
+
+    @skip_if_no_cuda
+    def test_cuda(self):
+        loss = SoftDiceclDiceLoss()
+        result = loss(ONES_2D["input"].cuda(), ONES_2D["target"].cuda())
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+
+    def test_dimension_mismatch(self):
+        loss = SoftDiceclDiceLoss()
+        with self.assertRaises(ValueError):
+            loss(torch.ones(2, 3, 8, 8), torch.ones(2, 3, 8))
+
+    def test_channel_mismatch(self):
+        loss = SoftDiceclDiceLoss()
+        with self.assertRaises(ValueError):
+            loss(torch.ones(2, 3, 8, 8), torch.ones(2, 2, 8, 8))
+
+    def test_invalid_alpha(self):
+        with self.assertRaises(ValueError):
+            SoftDiceclDiceLoss(alpha=1.5)
+
+    def test_invalid_alpha_negative(self):
+        with self.assertRaises(ValueError):
+            SoftDiceclDiceLoss(alpha=-0.5)
 
 
 if __name__ == "__main__":

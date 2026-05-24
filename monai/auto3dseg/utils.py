@@ -11,11 +11,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import pickle
 import subprocess
 import sys
+import warnings
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast
@@ -30,6 +32,8 @@ from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import, run_cmd
+from monai.utils.deprecate_utils import deprecated
+from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
     "get_foreground_image",
@@ -39,9 +43,24 @@ __all__ = [
     "concat_multikeys_to_dict",
     "datafold_read",
     "verify_report_format",
+    "algo_to_json",
+    "algo_from_json",
     "algo_to_pickle",
     "algo_from_pickle",
 ]
+
+_PICKLE_DISABLED_MSG = (
+    "Pickle serialization for Auto3DSeg is disabled by default for security reasons. "
+    "Set the environment variable MONAI_ALLOW_PICKLE=1 to enable. Pickle can execute "
+    "arbitrary code on load — only enable for files from trusted sources. "
+    "Prefer algo_to_json / algo_from_json."
+)
+
+
+def _require_pickle_allowed() -> None:
+    if not MONAIEnvVars.allow_pickle():
+        raise RuntimeError(_PICKLE_DISABLED_MSG)
+
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
@@ -274,48 +293,80 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
     return True
 
 
-def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
+def _make_json_serializable(value: Any) -> Any:
     """
-    Export the Algo object to pickle file.
+    Convert a value to a JSON-serializable type.
+
+    Handles numpy arrays, Path objects, torch tensors, and other common types.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_make_json_serializable(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _make_json_serializable(v) for k, v in value.items()}
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu().numpy().tolist()
+    # Fallback to string representation
+    return str(value)
+
+
+def _add_path_with_parent(paths: list[str], path: PathLike | None) -> None:
+    """Add a path and its parent directory to the list if the path is a valid directory."""
+    if path and os.path.isdir(str(path)):
+        abs_path = os.path.abspath(str(path))
+        paths.append(abs_path)
+        paths.append(os.path.abspath(os.path.join(abs_path, "..")))
+
+
+def algo_to_json(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
+    """
+    Export the Algo object to a JSON file (pickle-free serialization).
 
     Args:
-        algo: Algo-like object.
-        template_path: a str path that is needed to be added to the sys.path to instantiate the class.
-        algo_meta_data: additional keyword to save into the dictionary, for example, model training info
-            such as acc/best_metrics
+        algo: Algo-like object (typically BundleAlgo or subclass).
+        template_path: path needed for sys.path setup when loading custom Algo classes.
+        algo_meta_data: additional metadata to save (e.g., best_metric, score).
 
     Returns:
-        filename of the pickled Algo object
+        Filename of the saved Algo object (algo_object.json).
     """
-    data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
-    pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
-    for k, v in algo_meta_data.items():
-        data.update({k: v})
-    data_bytes = pickle.dumps(data)
-    with open(pkl_filename, "wb") as f_pi:
-        f_pi.write(data_bytes)
-    return pkl_filename
+    state = {str(k): _make_json_serializable(v) for k, v in algo.state_dict().items()}
+
+    # Build target string for dynamic class instantiation
+    cls = algo.__class__
+    target = f"{cls.__module__}.{cls.__name__}"
+
+    algo_meta_data = {str(k): _make_json_serializable(v) for k, v in algo_meta_data.items()}
+    data: dict[str, Any] = {
+        "_target_": target,
+        "_state_": state,
+        "template_path": str(template_path) if template_path else (str(getattr(algo, "template_path", "")) or None),
+        **algo_meta_data,
+    }
+
+    json_filename = os.path.join(algo.get_output_path(), "algo_object.json")
+    with open(json_filename, "w", encoding="utf-8") as f:
+        json.dump(data, f, separators=(",", ":"))
+
+    return json_filename
 
 
-def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
+def _load_legacy_pickle(pkl_filename: str, template_path: PathLike | None = None) -> Any:
     """
-    Import the Algo object from a pickle file.
+    Load an Algo object from a legacy pickle file.
 
-    Args:
-        pkl_filename: the name of the pickle file.
-        template_path: a folder containing files to instantiate the Algo. Besides the `template_path`,
-        this function will also attempt to use the `template_path` saved in the pickle file and a directory
-        named `algorithm_templates` in the parent folder of the folder containing the pickle file.
-
-    Returns:
-        algo: the Algo object saved in the pickle file.
-        algo_meta_data: additional keyword saved in the pickle file, for example, acc/best_metrics.
-
-    Raises:
-        ValueError if the pkl_filename does not contain a dict, or the dict does not contain `algo_bytes`.
-        ModuleNotFoundError if it is unable to instantiate the Algo class.
-
+    This is an internal function to support backward compatibility with pickle files.
+    Gated behind ``MONAI_ALLOW_PICKLE=1`` because unpickling executes arbitrary code.
     """
+    _require_pickle_allowed()
+
     with open(pkl_filename, "rb") as f_pi:
         data_bytes = f_pi.read()
     data = pickle.loads(data_bytes)
@@ -330,49 +381,147 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
     algo_template_path = data.pop("template_path", None)
 
     template_paths_candidates: list[str] = []
-
-    if os.path.isdir(str(template_path)):
-        template_paths_candidates.append(os.path.abspath(str(template_path)))
-        template_paths_candidates.append(os.path.abspath(os.path.join(str(template_path), "..")))
-
-    if os.path.isdir(str(algo_template_path)):
-        template_paths_candidates.append(os.path.abspath(algo_template_path))
-        template_paths_candidates.append(os.path.abspath(os.path.join(algo_template_path, "..")))
+    _add_path_with_parent(template_paths_candidates, template_path)
+    _add_path_with_parent(template_paths_candidates, algo_template_path)
 
     pkl_dir = os.path.dirname(pkl_filename)
-    algo_template_path_fuzzy = os.path.join(pkl_dir, "..", "algorithm_templates")
-
-    if os.path.isdir(algo_template_path_fuzzy):
-        template_paths_candidates.append(os.path.abspath(algo_template_path_fuzzy))
+    fuzzy_path = os.path.join(pkl_dir, "..", "algorithm_templates")
+    if os.path.isdir(fuzzy_path):
+        template_paths_candidates.append(os.path.abspath(fuzzy_path))
 
     if len(template_paths_candidates) == 0:
-        # no template_path provided or needed
         algo = pickle.loads(algo_bytes)
         algo.template_path = None
     else:
         for i, p in enumerate(template_paths_candidates):
+            path_added = False
             try:
-                sys.path.append(p)
+                if p not in sys.path:
+                    sys.path.insert(0, p)
+                    path_added = True
                 algo = pickle.loads(algo_bytes)
                 break
             except ModuleNotFoundError as not_found_err:
                 logging.debug(f"Folder {p} doesn't contain the Algo templates for Algo instantiation.")
-                sys.path.pop()
                 if i == len(template_paths_candidates) - 1:
                     raise ValueError(
                         f"Failed to instantiate {pkl_filename} with {template_paths_candidates}"
                     ) from not_found_err
+            finally:
+                if path_added and p in sys.path:
+                    sys.path.remove(p)
         algo.template_path = p
 
     if os.path.abspath(pkl_dir) != os.path.abspath(algo.get_output_path()):
         logging.debug(f"{algo.get_output_path()} is changed. Now override the Algo output_path with: {pkl_dir}.")
         algo.output_path = pkl_dir
 
-    algo_meta_data = {}
-    for k, v in data.items():
-        algo_meta_data.update({k: v})
-
+    algo_meta_data = dict(data)
     return algo, algo_meta_data
+
+
+def algo_from_json(filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
+    """
+    Import the Algo object from a JSON file (pickle-free serialization).
+
+    Args:
+        filename: the name of the saved file (algo_object.json or legacy algo_object.pkl).
+        template_path: a folder containing files to instantiate the Algo. Besides the `template_path`,
+            this function will also attempt to use the `template_path` saved in the file and a directory
+            named `algorithm_templates` in the parent folder of the folder containing the file.
+        kwargs: additional keyword arguments (reserved for future use).
+
+    Returns:
+        algo: the Algo object saved in the file.
+        algo_meta_data: additional keyword saved in the file, for example, acc/best_metrics.
+
+    Raises:
+        ValueError: if the file format is invalid or the Algo class cannot be instantiated.
+        ModuleNotFoundError: if it is unable to instantiate the Algo class.
+    """
+    abs_filename = os.path.abspath(filename)
+    file_dir = os.path.dirname(abs_filename)
+
+    # Check if this is a legacy pickle file
+    if filename.endswith(".pkl"):
+        warnings.warn(
+            "Loading from pickle format (.pkl) is deprecated and will be removed in a future release. "
+            "Please re-save your algo using algo_to_json() to convert to the new JSON format.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return _load_legacy_pickle(filename, template_path)
+
+    with open(filename, encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"The data object type is {type(data)}, type dict is expected.")
+
+    file_template_path = data.pop("template_path", None)
+
+    if "_target_" not in data:
+        raise ValueError(f"Invalid file format: missing '_target_' key in {filename}.")
+
+    target = data.pop("_target_")
+    state = data.pop("_state_", {})
+
+    # Build template path candidates for sys.path setup
+    template_paths: list[str] = []
+    _add_path_with_parent(template_paths, str(template_path) if template_path else None)
+    # Handle string "None" from corrupted files
+    if file_template_path and file_template_path != "None":
+        _add_path_with_parent(template_paths, file_template_path)
+    fuzzy_path = os.path.join(file_dir, "..", "algorithm_templates")
+    if os.path.isdir(fuzzy_path):
+        template_paths.append(os.path.abspath(fuzzy_path))
+
+    # Try each template path to instantiate the class
+    paths_to_try: list[str | None] = list(template_paths) if template_paths else [None]
+    algo = None
+    used_template_path: str | None = None
+    last_error: ModuleNotFoundError | None = None
+    for path in paths_to_try:
+        path_added = False
+        try:
+            if path and path not in sys.path:
+                sys.path.insert(0, path)
+                path_added = True
+
+            algo_config: dict[str, Any] = {"_target_": target}
+            state_template_path = state.get("template_path")
+            if state_template_path:
+                algo_config["template_path"] = state_template_path
+
+            parser = ConfigParser(algo_config)
+            algo = parser.get_parsed_content()
+            used_template_path = path
+            break
+        except ModuleNotFoundError as e:
+            last_error = e
+            logging.debug(f"Failed to instantiate {target} with path {path}: {e}")
+            continue
+        finally:
+            if path_added and path in sys.path:
+                sys.path.remove(path)
+
+    if algo is None:
+        raise ValueError(
+            f"Failed to instantiate Algo from target '{target}' with paths {template_paths}"
+        ) from last_error
+
+    # Restore the state
+    algo.load_state_dict(state)
+
+    # Use the path that successfully imported the class, not the original saved path
+    # (the original path may no longer exist if the workdir was moved)
+    algo.template_path = used_template_path
+
+    if file_dir != os.path.abspath(algo.get_output_path()):
+        logging.debug(f"{algo.get_output_path()} is changed. Now override the Algo output_path with: {file_dir}.")
+        algo.output_path = file_dir
+
+    return algo, dict(data)
 
 
 def list_to_python_fire_arg_str(args: list) -> str:
@@ -523,3 +672,41 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
         cmd_list += [f"-{arg}", str(params.pop(arg))]
     cmd_list.extend(["-c", cmd])
     return run_cmd(cmd_list, run_cmd_verbose=True, **params)
+
+
+@deprecated(since="1.6", msg_suffix="Use algo_to_json instead. Pickle is unsafe; see MONAI_ALLOW_PICKLE.")
+def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
+    """Export the Algo object to a pickle file. **Unsafe**; prefer ``algo_to_json``.
+
+    Pickle can execute arbitrary code on load. This function is disabled unless the
+    environment variable ``MONAI_ALLOW_PICKLE=1`` is set, and emits a ``UserWarning``
+    even when enabled. Use ``algo_to_json`` for safe, pickle-free serialization.
+
+    Args:
+        algo: Algo-like object.
+        template_path: a str path that is needed to be added to ``sys.path`` to
+            instantiate the class on load.
+        algo_meta_data: additional keywords to save (e.g., acc/best_metrics).
+
+    Returns:
+        Filename of the pickled Algo object.
+    """
+    _require_pickle_allowed()
+    data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
+    pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
+    for k, v in algo_meta_data.items():
+        data.update({k: v})
+    data_bytes = pickle.dumps(data)
+    with open(pkl_filename, "wb") as f_pi:
+        f_pi.write(data_bytes)
+    return pkl_filename
+
+
+@deprecated(since="1.6", msg_suffix="Use algo_from_json instead. Pickle is unsafe; see MONAI_ALLOW_PICKLE.")
+def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
+    """Import the Algo object from a pickle file. **Unsafe**; prefer ``algo_from_json``.
+
+    Disabled unless ``MONAI_ALLOW_PICKLE=1`` is set. See ``_load_legacy_pickle`` for
+    template-path resolution details.
+    """
+    return _load_legacy_pickle(pkl_filename, template_path)

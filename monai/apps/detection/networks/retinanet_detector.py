@@ -342,8 +342,7 @@ class RetinaNetDetector(nn.Module):
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
-                "Require fg_iou_thresh >= bg_iou_thresh. "
-                f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
+                f"Required condition fg_iou_thresh >= bg_iou_thresh not met ({fg_iou_thresh=}, {bg_iou_thresh=})."
             )
         self.proposal_matcher = Matcher(
             fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
@@ -519,7 +518,7 @@ class RetinaNetDetector(nn.Module):
         else:
             if self.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
+                    "`self.inferer` is not defined. Please refer to function self.set_sliding_window_inferer(*)."
                 )
             head_outputs = predict_with_inferer(
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer

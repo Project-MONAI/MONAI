@@ -609,7 +609,7 @@ class LMDBDataset(PersistentDataset):
         # the cache is created without multi-threading
         self._read_env: Any | None = None
         # this runs on the primary thread/process
-        self._fill_cache_start_reader(show_progress=self.progress)
+        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def set_data(self, data: Sequence):
@@ -637,6 +637,12 @@ class LMDBDataset(PersistentDataset):
         Args:
             show_progress: whether to show the progress bar if possible.
         """
+        # Close any open read environment before attempting write-mode access
+        # to prevent "environment already open" errors when multiple LMDBDataset
+        # instances target the same db file
+        if self._read_env is not None:
+            self._read_env.close()
+            self._read_env = None
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
@@ -664,7 +670,7 @@ class LMDBDataset(PersistentDataset):
                         size = env.info()["map_size"]
                         new_size = size * 2
                         warnings.warn(
-                            f"Resizing the cache database from {int(size) >> 20}MB" f" to {int(new_size) >> 20}MB."
+                            f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB."
                         )
                         env.set_mapsize(new_size)
                     except lmdb.MapResizedError:
