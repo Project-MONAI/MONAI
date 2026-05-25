@@ -78,15 +78,16 @@ class TransformerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(hidden_size)
         self.with_cross_attention = with_cross_attention
 
-        self.norm_cross_attn = nn.LayerNorm(hidden_size)
-        self.cross_attn = CrossAttentionBlock(
-            hidden_size=hidden_size,
-            num_heads=num_heads,
-            dropout_rate=dropout_rate,
-            qkv_bias=qkv_bias,
-            causal=False,
-            use_flash_attention=use_flash_attention,
-        )
+        if self.with_cross_attention:
+            self.norm_cross_attn = nn.LayerNorm(hidden_size)
+            self.cross_attn = CrossAttentionBlock(
+                hidden_size=hidden_size,
+                num_heads=num_heads,
+                dropout_rate=dropout_rate,
+                qkv_bias=qkv_bias,
+                causal=False,
+                use_flash_attention=use_flash_attention,
+            )
 
     def forward(
         self, x: torch.Tensor, context: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None
