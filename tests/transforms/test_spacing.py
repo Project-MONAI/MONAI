@@ -290,6 +290,30 @@ class TestSpacingCase(unittest.TestCase):
         l2_norm_affine = ((affine - img.affine) ** 2).sum() ** 0.5
         self.assertLess(l2_norm_affine, 5e-2)
 
+    def test_recompute_affine_preserves_orientation_and_origin(self):
+        img = MetaTensor(
+            torch.zeros((1, 10, 9, 8), dtype=torch.float32),
+            affine=torch.tensor(
+                [
+                    [0.0, 0.0, -2.0, 12.0],
+                    [1.0, 0.0, 0.0, -4.0],
+                    [0.0, 3.0, 0.0, 7.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        res = Spacing(pixdim=[1.1, 1.2, 0.9], diagonal=False, recompute_affine=True)(img)
+        expected = torch.tensor(
+            [
+                [0.0, 0.0, -0.423529, 12.0],
+                [1.222222, 0.0, 0.0, -4.0],
+                [0.0, 0.514286, 0.0, 7.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=torch.float64,
+        )
+        assert_allclose(res.affine, expected, rtol=1e-5, atol=1e-5)
+
     @parameterized.expand(TEST_INVERSE)
     def test_inverse_mn_mx(self, device, recompute, align, scale_extent):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
@@ -310,7 +334,7 @@ class TestSpacingCase(unittest.TestCase):
         img_out = tr(img)
         if isinstance(img_out, MetaTensor):
             assert_allclose(
-                img_out.pixdim, [1.0, 1.125, 0.888889] if recompute else [1.0, 1.2, 0.9], type_test=False, rtol=1e-4
+                img_out.pixdim, [1.0, 1.35, 0.8] if recompute else [1.0, 1.2, 0.9], type_test=False, rtol=1e-4
             )
         img_out = tr.inverse(img_out)
         self.assertEqual(img_out.applied_operations, [])
