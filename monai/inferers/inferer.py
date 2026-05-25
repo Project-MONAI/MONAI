@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 import warnings
 from abc import ABC, abstractmethod
@@ -861,6 +862,42 @@ class DiffusionInferer(Inferer):
 
         self.scheduler = scheduler
 
+    @staticmethod
+    def _scheduler_step_supports_kwarg(scheduler: Scheduler, kwarg: str) -> bool:
+        try:
+            return kwarg in inspect.signature(scheduler.step).parameters
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _get_previous_sample_from_step_output(step_output: Any) -> torch.Tensor:
+        if isinstance(step_output, tuple):
+            return step_output[0]
+        if isinstance(step_output, Mapping):
+            return step_output["prev_sample"]
+        if hasattr(step_output, "prev_sample"):
+            return step_output.prev_sample
+        raise TypeError("Unsupported scheduler.step output. Expected a tuple or an object with `prev_sample`.")
+
+    def _scheduler_step(
+        self,
+        scheduler: Scheduler,
+        model_output: torch.Tensor,
+        timestep: int | torch.Tensor,
+        sample: torch.Tensor,
+        next_timestep: int | torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        step_kwargs = {}
+        if self._scheduler_step_supports_kwarg(scheduler, "return_dict"):
+            step_kwargs["return_dict"] = False
+
+        if isinstance(scheduler, RFlowScheduler):
+            step_output = scheduler.step(model_output, timestep, sample, next_timestep, **step_kwargs)  # type: ignore
+        else:
+            step_output = scheduler.step(model_output, timestep, sample, **step_kwargs)  # type: ignore
+
+        return self._get_previous_sample_from_step_output(step_output)
+
     def __call__(  # type: ignore[override]
         self,
         inputs: torch.Tensor,
@@ -940,7 +977,12 @@ class DiffusionInferer(Inferer):
             scheduler = self.scheduler
         image = input_noise
 
-        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
+        all_next_timesteps = torch.cat(
+            (
+                scheduler.timesteps[1:],
+                torch.tensor([0], dtype=scheduler.timesteps.dtype, device=scheduler.timesteps.device),
+            )
+        )
         if verbose and has_tqdm:
             progress_bar = tqdm(
                 zip(scheduler.timesteps, all_next_timesteps),
@@ -984,10 +1026,9 @@ class DiffusionInferer(Inferer):
                 model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
 
             # 2. compute previous image: x_t -> x_t-1
-            if not isinstance(scheduler, RFlowScheduler):
-                image, _ = scheduler.step(model_output, t, image)  # type: ignore
-            else:
-                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
+            image = self._scheduler_step(
+                scheduler=scheduler, model_output=model_output, timestep=t, sample=image, next_timestep=next_t
+            )
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
 
@@ -1046,7 +1087,7 @@ class DiffusionInferer(Inferer):
         total_kl = torch.zeros(inputs.shape[0]).to(inputs.device)
         for t in progress_bar:
             timesteps = torch.full(inputs.shape[:1], t, device=inputs.device).long()
-            noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
+            noisy_image = scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
             diffusion_model = (
                 partial(diffusion_model, seg=seg)
                 if isinstance(diffusion_model, SPADEDiffusionModelUNet)
@@ -1509,7 +1550,12 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             scheduler = self.scheduler
         image = input_noise
 
-        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
+        all_next_timesteps = torch.cat(
+            (
+                scheduler.timesteps[1:],
+                torch.tensor([0], dtype=scheduler.timesteps.dtype, device=scheduler.timesteps.device),
+            )
+        )
         if verbose and has_tqdm:
             progress_bar = tqdm(
                 zip(scheduler.timesteps, all_next_timesteps),
@@ -1583,10 +1629,9 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                 model_output = model_output_uncond + cfg * (model_output_cond - model_output_uncond)
 
             # 3. compute previous image: x_t -> x_t-1
-            if not isinstance(scheduler, RFlowScheduler):
-                image, _ = scheduler.step(model_output, t, image)  # type: ignore
-            else:
-                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
+            image = self._scheduler_step(
+                scheduler=scheduler, model_output=model_output, timestep=t, sample=image, next_timestep=next_t
+            )
 
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
@@ -1647,7 +1692,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         total_kl = torch.zeros(inputs.shape[0]).to(inputs.device)
         for t in progress_bar:
             timesteps = torch.full(inputs.shape[:1], t, device=inputs.device).long()
-            noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
+            noisy_image = scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
 
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):

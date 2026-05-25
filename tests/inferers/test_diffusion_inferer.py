@@ -55,6 +55,31 @@ TEST_CASES = [
 ]
 
 
+class DiffusersLikeSchedulerOutput:
+    def __init__(self, prev_sample: torch.Tensor, pred_original_sample: torch.Tensor) -> None:
+        self.prev_sample = prev_sample
+        self.pred_original_sample = pred_original_sample
+
+
+class DiffusersStyleDDPMScheduler(DDPMScheduler):
+    def step(
+        self,
+        model_output: torch.Tensor,
+        timestep: int,
+        sample: torch.Tensor,
+        generator: torch.Generator | None = None,
+        return_dict: bool = True,
+    ):
+        prev_sample, pred_original_sample = super().step(
+            model_output=model_output, timestep=timestep, sample=sample, generator=generator
+        )
+        if return_dict:
+            return DiffusersLikeSchedulerOutput(
+                prev_sample=prev_sample, pred_original_sample=pred_original_sample
+            )
+        return prev_sample, pred_original_sample
+
+
 class TestDiffusionSamplingInferer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
@@ -124,6 +149,23 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         sample, intermediates = inferer.sample(
             input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
+        self.assertEqual(len(intermediates), 10)
+
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_diffusers_style_ddpm_sampler(self, model_params, input_shape):
+        model = DiffusionModelUNet(**model_params)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        noise = torch.randn(input_shape).to(device)
+        scheduler = DiffusersStyleDDPMScheduler(num_train_timesteps=1000)
+        inferer = DiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+        )
+        self.assertEqual(sample.shape, noise.shape)
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
