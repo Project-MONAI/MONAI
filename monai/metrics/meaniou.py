@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import create_ignore_mask, do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -45,6 +45,10 @@ class MeanIoU(CumulativeIterationMetric):
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     """
 
@@ -54,12 +58,14 @@ class MeanIoU(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -78,7 +84,11 @@ class MeanIoU(CumulativeIterationMetric):
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute IoU (BxC) for each channel for each batch
         return compute_iou(
-            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            ignore_empty=self.ignore_empty,
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -103,7 +113,11 @@ class MeanIoU(CumulativeIterationMetric):
 
 
 def compute_iou(
-    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    ignore_empty: bool = True,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """Computes Intersection over Union (IoU) score metric from a batch of predictions.
 
@@ -118,6 +132,10 @@ def compute_iou(
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     Returns:
         IoU scores per batch and per class, (shape [batch_size, num_classes]).
@@ -127,11 +145,30 @@ def compute_iou(
 
     """
 
+    original_y = y
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+
+    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
+        ignore_channel = ignore_index if include_background else ignore_index - 1
+        if 0 <= ignore_channel < y_pred.shape[1]:
+            y_pred = y_pred.clone()
+            y = y.clone()
+            y_pred[:, ignore_channel] = 0
+            y[:, ignore_channel] = 0
+        mask = None
+    else:
+        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+        if mask is not None and not include_background and mask.shape[1] != y_pred.shape[1] and mask.shape[1] > y_pred.shape[1]:
+            mask = mask[:, 1:]
+    if mask is not None:
+        if mask.shape != y_pred.shape:
+            mask = mask.expand_as(y_pred)
+        y_pred = y_pred * mask
+        y = y * mask
 
     # reducing only spatial dimensions (not batch nor channels)
     n_len = len(y_pred.shape)

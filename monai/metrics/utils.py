@@ -30,6 +30,7 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     deprecated_arg,
+    ensure_tuple,
     ensure_tuple_rep,
     look_up_option,
     optional_import,
@@ -46,6 +47,7 @@ cupy_ndimage, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
 
 __all__ = [
     "ignore_background",
+    "create_ignore_mask",
     "do_metric_reduction",
     "get_mask_edges",
     "get_surface_distance",
@@ -72,7 +74,7 @@ def ignore_background(
 
     Args:
         y_pred: predictions. As for classification tasks,
-            `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
+            `y_pred` should have the shape [BN] where N is larger than 1. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
         y: optional ground truth, the first dim is batch.
 
@@ -82,6 +84,47 @@ def ignore_background(
         y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
+
+
+def create_ignore_mask(y: torch.Tensor, ignore_index: int | None) -> torch.Tensor | None:
+    """
+    Create a spatial mask for ignore_index functionality.
+
+    Handles three cases:
+
+    1. ignore_index is None: returns None (no masking)
+    2. Label-encoded input (y.shape[1] == 1): direct comparison
+    3. One-hot encoded input (y.shape[1] > 1):
+       - Valid class index (0 <= ignore_index < num_classes): mask that channel
+       - Sentinel value (ignore_index < 0 or ignore_index >= num_classes): mask all-zero pixels
+
+    Args:
+        y: Target tensor with shape (B, C, H, W, [D]).
+           C=1 for label-encoded, C>1 for one-hot encoded.
+        ignore_index: Class index or sentinel value to ignore, or None. For label-encoded inputs,
+            the ignore_index is compared directly against the labels. Note the asymmetry for negative
+            values (e.g., -1): they are only meaningful class labels for label-encoded targets. For
+            one-hot inputs, negative values fall through to the sentinel path (masking all-zero pixels).
+
+    Returns:
+        Mask tensor of shape (B, 1, H, W, [D]) where 1=valid, 0=ignore.
+        Returns None if ignore_index is None.
+    """
+    if ignore_index is None:
+        return None
+
+    if y.shape[1] == 1:
+        # Label-encoded: direct comparison
+        return (y != ignore_index).float()
+
+    # One-hot encoded
+    num_classes = y.shape[1]
+    if 0 <= ignore_index < num_classes:
+        # Valid class index: exclude that channel
+        return 1.0 - y[:, ignore_index : ignore_index + 1]  # type: ignore[no-any-return]
+    else:
+        # Sentinel value: exclude where all channels are zero
+        return (y.sum(dim=1, keepdim=True) > 0).float()
 
 
 def do_metric_reduction(
@@ -185,7 +228,7 @@ def get_mask_edges(
             images. Defaults to ``True``.
         spacing: the input spacing. If not None, the subvoxel edges and areas will be computed.
             otherwise `scipy`'s binary erosion is used to calculate the edges.
-        always_return_as_numpy: whether to a numpy array regardless of the input type.
+        always_return_as_numpy: whether to return a numpy array regardless of the input type.
             If False, return the same type as inputs.
             The default value is changed from `True` to `False` in v1.5.0.
     """
@@ -292,6 +335,7 @@ def get_surface_distance(
             dis = np.inf * lib.ones_like(seg_gt, dtype=lib.float32)
             dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
+
         if distance_metric == "euclidean":
             # The euclidean surface distance only needs the distance from each `seg_pred`
             # edge voxel to the nearest `seg_gt` edge voxel. CPU and GPU favour different
@@ -319,8 +363,13 @@ def get_surface_distance(
             dis = distance_transform_cdt(convert_to_numpy(~seg_gt), metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
+
     dis = convert_to_dst_type(dis, seg_pred, dtype=lib.float32)[0]
-    return dis[seg_pred]  # type: ignore
+    if isinstance(seg_pred, torch.Tensor):
+        return dis[seg_pred.bool()]  # type: ignore[union-attr,no-any-return]
+    else:
+        # NumPy array
+        return dis[seg_pred.astype(bool)]  # type: ignore[union-attr,no-any-return]
 
 
 def get_edge_surface_distance(
@@ -331,6 +380,8 @@ def get_edge_surface_distance(
     use_subvoxels: bool = False,
     symmetric: bool = False,
     class_index: int = -1,
+    mask: torch.Tensor | None = None,
+    warn_empty: bool = True,
 ) -> tuple[
     tuple[torch.Tensor, torch.Tensor],
     tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor],
@@ -350,6 +401,8 @@ def get_edge_surface_distance(
             This will return the areas of the edges.
         symmetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
         class_index: The class-index used for context when warning about empty ground truth or prediction.
+        mask: Optional mask to restrict the edge computation to a spatial subset.
+        warn_empty: Whether to warn on empty predictions or ground truth after masking.
 
     Returns:
         (edges_pred, edges_gt), (distances_pred_to_gt, [distances_gt_to_pred]), (areas_pred, areas_gt) | tuple()
@@ -358,30 +411,63 @@ def get_edge_surface_distance(
     edges_spacing = None
     if use_subvoxels:
         edges_spacing = spacing if spacing is not None else ([1] * len(y_pred.shape))
-    edges_pred, edges_gt, *areas = get_mask_edges(
-        y_pred, y, crop=True, spacing=edges_spacing, always_return_as_numpy=False
-    )
-    if not edges_gt.any():
+    edge_results = get_mask_edges(y_pred, y, crop=(mask is None), spacing=edges_spacing, always_return_as_numpy=False)
+    edges_pred, edges_gt = edge_results[0], edge_results[1]
+    edges_pred_any = bool(edges_pred.any())
+    edges_gt_any = bool(edges_gt.any())
+    warn_empty_pred = warn_empty
+    warn_empty_gt = warn_empty
+    if mask is not None:
+        mask = torch.as_tensor(mask, device=edges_pred.device, dtype=torch.bool)
+        edges_pred = edges_pred & mask
+        edges_gt = edges_gt & mask
+        if edges_pred_any and not edges_pred.any():
+            warn_empty_pred = False
+        if edges_gt_any and not edges_gt.any():
+            warn_empty_gt = False
+        if not mask.any():
+            warn_empty_pred = False
+            warn_empty_gt = False
+
+    if warn_empty_gt and not edges_gt.any():
         warnings.warn(
             f"the ground truth of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
             " this may result in nan/inf distance.",
             stacklevel=2,
         )
-    if not edges_pred.any():
+    if warn_empty_pred and not edges_pred.any():
         warnings.warn(
             f"the prediction of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
             " this may result in nan/inf distance.",
             stacklevel=2,
         )
-    distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
+    distances_raw: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
     if symmetric:
-        distances = (
+        distances_raw = (
             get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),
             get_surface_distance(edges_gt, edges_pred, distance_metric, spacing),
         )  # type: ignore
     else:
-        distances = (get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),)  # type: ignore
-    return convert_to_tensor(((edges_pred, edges_gt), distances, tuple(areas)), device=y_pred.device)  # type: ignore[no-any-return]
+        distances_raw = (get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),)  # type: ignore
+
+    distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor] = ensure_tuple(distances_raw)
+
+    areas = ensure_tuple(edge_results[2:]) if use_subvoxels else ()
+
+    # Ensure areas is always a tuple of 2 when use_subvoxels=True
+    if use_subvoxels:
+        if len(areas) == 1:
+            areas = (areas[0], areas[0])
+        elif len(areas) != 2:
+            # Unexpected length, create empty tensors
+            areas = (torch.tensor([], device=y_pred.device), torch.tensor([], device=y_pred.device))
+
+    out = convert_to_tensor(((edges_pred, edges_gt), distances, tuple(areas)), device=y_pred.device)  # type: ignore[no-any-return]
+
+    if out is None:
+        out = torch.empty((0,), device=y_pred.device)
+
+    return out  # type: ignore[return-value,no-any-return]
 
 
 def is_binary_tensor(input: torch.Tensor, name: str) -> None:

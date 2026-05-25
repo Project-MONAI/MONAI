@@ -18,6 +18,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
+from monai.metrics.utils import create_ignore_mask
+from monai.losses.utils import mask_loss_inputs
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -73,6 +75,7 @@ class FocalLoss(_Loss):
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
         use_softmax: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
@@ -99,6 +102,10 @@ class FocalLoss(_Loss):
 
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
+            ignore_index: single integer class index (or sentinel value) to ignore from the loss computation.
+                Voxels with this label are excluded from the loss, which is useful for padding, unlabeled regions,
+                or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+                ignore_index to keep loss values comparable.
 
         Example:
             >>> import torch
@@ -124,6 +131,7 @@ class FocalLoss(_Loss):
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
+        self.ignore_index = ignore_index
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -144,10 +152,15 @@ class FocalLoss(_Loss):
         """
         n_pred_ch = input.shape[1]
 
+        original_target = target
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
+                if self.ignore_index is not None:
+                    if self.ignore_index < 0 or self.ignore_index >= n_pred_ch:
+                        target = torch.where(target == self.ignore_index, torch.zeros_like(target), target)
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
@@ -158,8 +171,16 @@ class FocalLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
+        mask = None
+        if self.ignore_index is not None:
+            mask = create_ignore_mask(original_target, self.ignore_index)
+            if mask is not None and mask.shape[1] != input.shape[1] and mask.shape[1] > input.shape[1]:
+                mask = mask[:, 1:]
+
         if target.shape != input.shape:
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+
+        input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         loss: torch.Tensor | None = None
         input = input.float()
@@ -176,24 +197,32 @@ class FocalLoss(_Loss):
         else:
             loss = sigmoid_focal_loss(input, target, self.gamma, alpha_arg)
 
-        num_of_classes = target.shape[1]
-        if self.class_weight is not None and num_of_classes != 1:
-            # make sure the lengths of weights are equal to the number of classes
-            if self.class_weight.ndim == 0:
-                self.class_weight = torch.as_tensor([self.class_weight] * num_of_classes)
-            else:
-                if self.class_weight.shape[0] != num_of_classes:
+        if mask is not None:
+            loss = loss * mask
+
+        if self.class_weight is not None:
+            cw = torch.as_tensor(self.class_weight, device=loss.device, dtype=loss.dtype)
+            num_classes = loss.shape[1]
+
+            if cw.ndim > 0:
+                if num_classes == 1:
+                    raise ValueError("Per-class class_weight is not supported for single-channel outputs.")
+                if cw.numel() != num_classes:
                     raise ValueError(
-                        "The length of the `weight` sequence should be the same as the number of classes. "
-                        "If `include_background=False`, the weight should not include the background category class 0."
+                        f"The number of class_weight ({cw.numel()}) must match the number of "
+                        f"output channels ({num_classes})."
                     )
-            if self.class_weight.min() < 0:
-                raise ValueError("the value/values of the `weight` should be no less than 0.")
-            # apply class_weight to loss
-            self.class_weight = self.class_weight.to(loss)
-            broadcast_dims = [-1] + [1] * len(target.shape[2:])
-            self.class_weight = self.class_weight.view(broadcast_dims)
-            loss = self.class_weight * loss
+                if (cw < 0).any():
+                    raise ValueError("class_weight values must be non-negative.")
+            else:
+                if cw < 0:
+                    raise ValueError("class_weight values must be non-negative.")
+
+            if cw.ndim == 0:
+                loss = loss * cw
+            else:
+                broadcast_shape = [1, num_classes] + [1] * (loss.ndim - 2)
+                loss = loss * cw.view(broadcast_shape)
 
         if self.reduction == LossReduction.SUM.value:
             # Previously there was a mean over the last dimension, which did not
@@ -204,12 +233,23 @@ class FocalLoss(_Loss):
             if average_spatial_dims:
                 loss = loss.mean(dim=list(range(2, len(target.shape))))
             loss = loss.sum()
+
         elif self.reduction == LossReduction.MEAN.value:
-            loss = loss.mean()
+            if mask is not None:
+                # Ensure we only sum the loss where the mask is 1
+                # Then divide by the actual number of 1s in the mask
+                loss = (loss * mask).sum() / mask.sum().clamp(min=torch.finfo(mask.dtype).eps)
+            else:
+                loss = loss.mean()
+
         elif self.reduction == LossReduction.NONE.value:
             pass
+
         else:
-            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+            raise ValueError(
+                f"Unsupported reduction: {self.reduction}, available options are [\"mean\", \"sum\", \"none\"]."
+            )
+
         return loss
 
 

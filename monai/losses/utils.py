@@ -14,6 +14,8 @@ from __future__ import annotations
 import torch
 import torch.linalg as LA
 
+from monai.metrics.utils import create_ignore_mask
+
 
 def compute_tp_fp_fn(
     input: torch.Tensor,
@@ -66,3 +68,17 @@ def compute_tp_fp_fn(
         fn = ground_o - tp
 
     return tp, fp, fn
+
+
+def mask_loss_inputs(
+    input: torch.Tensor,
+    target: torch.Tensor,
+    ignore_index: int | None,
+    mask: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Apply ignore_index masking to loss inputs."""
+    if mask is None and ignore_index is not None:
+        mask = create_ignore_mask(target, ignore_index)
+    if mask is None:
+        return input, target
+    return input * mask, target * mask

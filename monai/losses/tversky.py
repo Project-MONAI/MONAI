@@ -17,7 +17,8 @@ from collections.abc import Callable
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.losses.utils import compute_tp_fp_fn
+from monai.losses.utils import compute_tp_fp_fn, mask_loss_inputs
+from monai.metrics.utils import create_ignore_mask
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -51,6 +52,7 @@ class TverskyLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         soft_label: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
@@ -77,6 +79,10 @@ class TverskyLoss(_Loss):
                 before any `reduction`.
             soft_label: whether the target contains non-binary values (soft labels) or not.
                 If True a soft label formulation of the loss will be used.
+            ignore_index: single integer class index (or sentinel value) to ignore from the loss computation.
+                Voxels with this label are excluded from the loss, which is useful for padding, unlabeled regions,
+                or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+                ignore_index to keep loss values comparable.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -101,6 +107,7 @@ class TverskyLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.soft_label = soft_label
+        self.ignore_index = ignore_index
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -125,11 +132,22 @@ class TverskyLoss(_Loss):
         if self.other_act is not None:
             input = self.other_act(input)
 
+        original_target = target
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
+                if self.ignore_index is not None:
+                    if self.ignore_index < 0 or self.ignore_index >= n_pred_ch:
+                        target = torch.where(target == self.ignore_index, torch.zeros_like(target), target)
                 target = one_hot(target, num_classes=n_pred_ch)
+
+        if self.ignore_index is not None:
+            mask = create_ignore_mask(original_target, self.ignore_index)
+            if mask is not None and mask.shape[1] != input.shape[1] and mask.shape[1] > input.shape[1]:
+                mask = mask[:, 1:]
+            input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         if not self.include_background:
             if n_pred_ch == 1:

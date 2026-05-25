@@ -17,8 +17,14 @@ from typing import Any
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
-from monai.utils import MetricReduction
+from monai.metrics.utils import (
+    create_ignore_mask,
+    do_metric_reduction,
+    get_edge_surface_distance,
+    ignore_background,
+    prepare_spacing,
+)
+from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
 
@@ -57,6 +63,10 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             If set to ``True``, the function `aggregate` will return both the aggregated NSD and the `not_nans` count.
             If set to ``False``, `aggregate` will only return the aggregated NSD.
         use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
     """
 
     def __init__(
@@ -67,6 +77,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         use_subvoxels: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.class_thresholds = class_thresholds
@@ -75,6 +86,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.use_subvoxels = use_subvoxels
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         r"""
@@ -94,6 +106,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
                 else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
                 for all images in batch. Defaults to ``None``.
                 use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+                ignore_index: class index to ignore from the metric computation.
 
 
         Returns:
@@ -108,6 +121,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
             spacing=kwargs.get("spacing"),
             use_subvoxels=self.use_subvoxels,
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -142,6 +156,7 @@ def compute_surface_dice(
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
     use_subvoxels: bool = False,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     r"""
     This function computes the (Normalized) Surface Dice (NSD) between the two tensors `y_pred` (referred to as
@@ -199,6 +214,10 @@ def compute_surface_dice(
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
         use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     Raises:
         ValueError: If `y_pred` and/or `y` are not PyTorch tensors.
@@ -213,6 +232,11 @@ def compute_surface_dice(
         Pytorch Tensor of shape [B,C], containing the NSD values :math:`\operatorname {NSD}_{b,c}` for each batch index
         :math:`b` and class :math:`c`.
     """
+    # Apply ignore_index masking using centralized helper
+    mask = create_ignore_mask(y, ignore_index)
+    if mask is not None:
+        y_pred = y_pred * mask
+        y = y * mask
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
@@ -247,6 +271,7 @@ def compute_surface_dice(
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
+        warn_empty = ignore_index is None or c != ignore_index
         (edges_pred, edges_gt), (distances_pred_gt, distances_gt_pred), areas = get_edge_surface_distance(  # type: ignore
             y_pred[b, c],
             y[b, c],
@@ -255,6 +280,7 @@ def compute_surface_dice(
             use_subvoxels=use_subvoxels,
             symmetric=True,
             class_index=c,
+            warn_empty=warn_empty,
         )
         boundary_correct: int | torch.Tensor | float
         boundary_complete: int | torch.Tensor | float
@@ -264,12 +290,18 @@ def compute_surface_dice(
                 distances_gt_pred <= class_thresholds[c]
             )
         else:
-            areas_pred, areas_gt = areas  # type: ignore
+            areas = ensure_tuple(areas)
+            if len(areas) == 2:
+                areas_pred, areas_gt = areas
+            elif len(areas) == 1:
+                areas_pred = areas_gt = areas[0]
+            else:
+                areas_pred = areas_gt = torch.tensor([], device=y_pred.device)
             areas_gt, areas_pred = areas_gt[edges_gt], areas_pred[edges_pred]
             boundary_complete = areas_gt.sum() + areas_pred.sum()
             gt_true = areas_gt[distances_gt_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
             pred_true = areas_pred[distances_pred_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
-            boundary_correct = gt_true + pred_true
+            boundary_correct = gt_true + pred_true  # type: ignore[assignment,operator]
         if boundary_complete == 0:
             # the class is neither present in the prediction, nor in the reference segmentation
             nsd[b, c] = torch.tensor(np.nan)

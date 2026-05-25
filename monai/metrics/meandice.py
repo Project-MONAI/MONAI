@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import compute_voronoi_regions_fast, do_metric_reduction
+from monai.metrics.utils import compute_voronoi_regions_fast, create_ignore_mask, do_metric_reduction
 from monai.utils import MetricReduction, deprecated_arg
 from monai.utils.module import optional_import
 
@@ -116,6 +116,10 @@ class DiceMetric(CumulativeIterationMetric):
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
             computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     """
 
@@ -128,6 +132,7 @@ class DiceMetric(CumulativeIterationMetric):
         num_classes: int | None = None,
         return_with_label: bool | list[str] = False,
         per_component: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -137,6 +142,7 @@ class DiceMetric(CumulativeIterationMetric):
         self.num_classes = num_classes
         self.return_with_label = return_with_label
         self.per_component = per_component
+        self.ignore_index = ignore_index
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
@@ -145,6 +151,7 @@ class DiceMetric(CumulativeIterationMetric):
             ignore_empty=self.ignore_empty,
             num_classes=self.num_classes,
             per_component=self.per_component,
+            ignore_index=self.ignore_index,
         )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
@@ -200,6 +207,7 @@ def compute_dice(
     ignore_empty: bool = True,
     num_classes: int | None = None,
     per_component: bool = False,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """
     Computes Dice score metric for a batch of predictions. This performs the same computation as
@@ -220,6 +228,10 @@ def compute_dice(
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
             computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -233,6 +245,7 @@ def compute_dice(
         ignore_empty=ignore_empty,
         num_classes=num_classes,
         per_component=per_component,
+        ignore_index=ignore_index,
     )(y_pred=y_pred, y=y)
 
 
@@ -295,6 +308,7 @@ class DiceHelper:
         sigmoid: bool | None = None,
         softmax: bool | None = None,
         per_component: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         # handling deprecated arguments
         if sigmoid is not None:
@@ -311,6 +325,7 @@ class DiceHelper:
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
         self.per_component = per_component
+        self.ignore_index = ignore_index
 
     def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -355,7 +370,7 @@ class DiceHelper:
         data = data.reshape(-1, 1)
         return torch.stack([data.mean()])
 
-    def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Compute the dice metric for binary inputs which have only spatial dimensions. This method is called separately
         for each batch item and for each channel of those items.
@@ -363,7 +378,12 @@ class DiceHelper:
         Args:
             y_pred: input predictions with shape HW[D].
             y: ground truth with shape HW[D].
+            mask: binary mask where 0 indicates voxels to ignore.
         """
+        if mask is not None:
+            y_pred = y_pred * mask.to(dtype=y_pred.dtype)
+            y = y * mask
+
         y_o = torch.sum(y)
         if y_o > 0:
             return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / (y_o + torch.sum(y_pred))
@@ -414,7 +434,10 @@ class DiceHelper:
                         f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
                     )
 
-        first_ch = 0 if self.include_background and not self.per_component else 1
+        # Create global mask for ignored voxels if ignore_index is set
+        mask = create_ignore_mask(y, self.ignore_index)
+
+        first_ch = 0 if self.include_background else 1
         data = []
         for b in range(y_pred.shape[0]):
             if self.per_component:
@@ -424,7 +447,11 @@ class DiceHelper:
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
-                c_list.append(self.compute_channel(x_pred, x))
+
+                # Extract the spatial mask for the current batch item
+                b_mask = mask[b, 0] if mask is not None else None
+
+                c_list.append(self.compute_channel(x_pred, x, mask=b_mask))
             data.append(torch.stack(c_list))
 
         data = torch.stack(data, dim=0).contiguous()  # type: ignore
