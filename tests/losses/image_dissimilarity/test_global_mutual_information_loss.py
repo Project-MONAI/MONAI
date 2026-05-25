@@ -147,8 +147,8 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
 
 class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
     def test_gaussian_kernel_registers_buffers(self):
+        """preterm and bin_centers are registered as non-persistent buffers for gaussian kernel."""
         loss = GlobalMutualInformationLoss(kernel_type="gaussian")
-        # preterm and bin_centers must be registered buffers so .to() moves them
         self.assertIn("preterm", loss._buffers)
         self.assertIn("bin_centers", loss._buffers)
         self.assertFalse(loss.preterm.requires_grad)
@@ -156,16 +156,33 @@ class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
         self.assertEqual(loss.bin_centers.ndim, 3)
 
     def test_bspline_kernel_has_no_gaussian_buffers(self):
+        """b-spline kernel does not register gaussian-specific buffers."""
         loss = GlobalMutualInformationLoss(kernel_type="b-spline")
-        self.assertNotIn("preterm", loss._buffers)
-        self.assertNotIn("bin_centers", loss._buffers)
+        self.assertIsNone(loss.preterm)
+        self.assertIsNone(loss.bin_centers)
 
     def test_gaussian_kernel_forward_correct(self):
+        """Gaussian kernel forward pass returns a scalar loss."""
         pred = torch.rand(2, 1, 8, 8, dtype=torch.float32)
         target = torch.rand(2, 1, 8, 8, dtype=torch.float32)
         loss = GlobalMutualInformationLoss(kernel_type="gaussian")
         result = loss(pred, target)
         self.assertEqual(result.shape, torch.Size([]))
+
+    def test_gaussian_buffers_move_with_module(self):
+        """Buffers move to the correct device when the module is moved with .to()."""
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        self.assertEqual(loss.preterm.device.type, "cpu")
+        self.assertEqual(loss.bin_centers.device.type, "cpu")
+        if not torch.cuda.is_available():
+            return
+        loss = loss.cuda()
+        self.assertEqual(loss.preterm.device.type, "cuda")
+        self.assertEqual(loss.bin_centers.device.type, "cuda")
+        pred = torch.rand(2, 1, 8, 8, device="cuda")
+        target = torch.rand(2, 1, 8, 8, device="cuda")
+        result = loss(pred, target)
+        self.assertEqual(result.device.type, "cuda")
 
 
 if __name__ == "__main__":

@@ -233,8 +233,8 @@ class GlobalMutualInformationLoss(_Loss):
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         self.kernel_type = kernel_type
-        self.preterm: torch.Tensor
-        self.bin_centers: torch.Tensor
+        self.register_buffer("preterm", None, persistent=False)
+        self.register_buffer("bin_centers", None, persistent=False)
         if self.kernel_type == "gaussian":
             self.register_buffer("preterm", 1 / (2 * sigma**2), persistent=False)
             self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
