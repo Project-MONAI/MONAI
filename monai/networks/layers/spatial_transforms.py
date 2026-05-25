@@ -582,11 +582,24 @@ class AffineTransform(nn.Module):
             )
 
         grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
+        grid_valid = None
+        if self.padding_mode == GridSamplePadMode.ZEROS and any(src_dim == 1 for src_dim in src_size[2:]):
+            # For finite singleton-axis slabs, sample edge values inside the image extent
+            # and zero out coordinates outside that extent.
+            for dim in range(sr):
+                coord = grid[..., dim]
+                valid = coord.abs() <= 1
+                grid_valid = valid if grid_valid is None else grid_valid & valid
+            sample_padding_mode = GridSamplePadMode.BORDER
+        else:
+            sample_padding_mode = self.padding_mode
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
             mode=self.mode,
-            padding_mode=self.padding_mode,
+            padding_mode=sample_padding_mode,
             align_corners=self.align_corners,
         )
+        if grid_valid is not None:
+            dst = dst * grid_valid.to(dtype=dst.dtype).unsqueeze(1)
         return dst

@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-from monai.transforms import SpatialResample
+from monai.transforms import ResampleToMatch, SpatialResample
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product
@@ -229,6 +229,41 @@ class TestSpatialResample(unittest.TestCase):
             result = SpatialResample()(img)
             assert_allclose(result, img, type_test=False)
         set_track_meta(True)
+
+    def test_oblique_singleton_axis_resample_to_match(self):
+        angle = np.deg2rad(37.0)
+        c, s = np.cos(angle), np.sin(angle)
+        direction = np.asarray([[c, -s], [s, c]], dtype=np.float32)
+
+        src_affine = np.eye(3, dtype=np.float32)
+        src_affine[:2, 0] = direction[:, 1] * 3.0
+        src_affine[:2, 1] = direction[:, 0]
+        src_affine[:2, 2] = (2.3, 2.3)
+        src = MetaTensor(torch.full((1, 1, 5), 100.0), affine=torch.as_tensor(src_affine))
+
+        dst_affine = torch.as_tensor([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+        dst = MetaTensor(torch.zeros(1, 10, 10), affine=dst_affine)
+
+        out = ResampleToMatch(mode="bilinear", padding_mode="zeros")(src, dst)
+        expected = torch.as_tensor(
+            [
+                [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 100, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 100, 100, 100, 0, 0, 0, 0, 0],
+                    [0, 0, 100, 100, 100, 100, 0, 0, 0, 0],
+                    [0, 0, 0, 100, 100, 100, 100, 0, 0, 0],
+                    [0, 0, 0, 0, 100, 100, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 100, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                ]
+            ],
+            dtype=torch.float32,
+        )
+        assert_allclose(out, expected)
+        assert_allclose(out.affine, dst_affine)
 
 
 if __name__ == "__main__":
