@@ -114,7 +114,7 @@ jobs:
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         BUILD_MONAI=0 python -m pip install --no-build-isolation -e .
-        ./runtests.sh --coverage --quick --unittests
+        ./runtests.sh --coverage --unittests --disttests
 
         # TODO: update installation process to allow testing with and without compiled libraries as intended here
         #BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
