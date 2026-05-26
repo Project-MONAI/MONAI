@@ -54,6 +54,26 @@ class TestTransformerBlock(unittest.TestCase):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
 
     @skipUnless(has_einops, "Requires einops")
+    def test_no_cross_attention_params_when_disabled(self):
+        """When with_cross_attention=False, no cross-attention parameters should be registered."""
+        block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=False)
+        param_names = {n for n, _ in block.named_parameters()}
+        self.assertFalse(
+            any("cross_attn" in n or "norm_cross_attn" in n for n in param_names),
+            f"Unexpected cross-attention parameters found: {[n for n in param_names if 'cross' in n]}",
+        )
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_cross_attention_params_when_enabled(self):
+        """When with_cross_attention=True, cross-attention parameters should be registered."""
+        block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=True)
+        param_names = {n for n, _ in block.named_parameters()}
+        self.assertTrue(
+            any("cross_attn" in n for n in param_names),
+            "Expected cross-attention parameters not found when with_cross_attention=True",
+        )
+
+    @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):
         # input format
         hidden_size = 128
