@@ -2,9 +2,6 @@
 name: cron-ngc-bundle
 
 on:
-  pull_request:
-    branches:
-      - dev  # temporary for testing in the PR
   schedule:
     - cron: "0 2 * * *"  # at 02:00 UTC
   # Allows you to run this workflow manually from the Actions tab

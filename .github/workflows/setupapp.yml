@@ -3,15 +3,15 @@ name: deploy
 
 on:
   # full tests for all the important branches
-  push:
-    branches:
-      - main
-      - releasing/*
-      - feature/*
-      - dev
-  pull_request:
-    branches:
-      - dev  # temporary for testing in the PR
+  # push:
+  #   branches:
+  #     - main
+  #     - releasing/*
+  #     - feature/*
+  #     - dev
+
+    # Allows you to run this workflow manually from the Actions tab
+    workflow_dispatch:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -23,6 +23,8 @@ jobs:
   #   - docker-py3-pip- (shared)
   #   - ubuntu 37 38 39 310-pip-
   #   - os-latest-pip (shared)
+
+  # TODO: coverage should be re-enable at a future time in PRs as well as longer running jobs, ideally with GPU support
 
   # coverage-py3:
   #   # if: github.repository == 'Project-MONAI/MONAI'
@@ -81,51 +83,52 @@ jobs:
   #       fail_ci_if_error: false
   #       files: ./coverage.xml
 
-  test-py3x:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: pip
-    - name: Install CPU PyTorch
-      run: |
-        python -m pip install --upgrade pip wheel wheel-stub
-        python -m pip install torch==2.8.0 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-    - name: Install the dependencies
-      run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
-        python -m pip install --no-build-isolation -r requirements-min.txt  # necessary only here for some reason?
-        python -m pip install --no-build-isolation -r requirements-dev.txt
-    - name: Run quick tests CPU ubuntu
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
-        NGC_ORG: ${{ secrets.NGC_ORG }}
-        NGC_TEAM: ${{ secrets.NGC_TEAM }}
-        TRANSFORMERS_VERBOSITY: error  # stifle huggingface transformers warnings about aliases
-      run: |
-        python -m pip list
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=0 python -m pip install --no-build-isolation -e .
-        ./runtests.sh --coverage --quick --unittests --disttests
+  
+  # test-py3x:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       python-version: ['3.10', '3.11', '3.12']
+  #   steps:
+  #   - uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
+  #   - name: Set up Python ${{ matrix.python-version }}
+  #     uses: actions/setup-python@v6
+  #     with:
+  #       python-version: ${{ matrix.python-version }}
+  #       cache: pip
+  #   - name: Install CPU PyTorch
+  #     run: |
+  #       python -m pip install --upgrade pip wheel wheel-stub
+  #       python -m pip install torch==2.8.0 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+  #   - name: Install the dependencies
+  #     run: |
+  #       find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+  #       python -m pip install --no-build-isolation -r requirements-min.txt  # necessary only here for some reason?
+  #       python -m pip install --no-build-isolation -r requirements-dev.txt
+  #   - name: Run quick tests CPU ubuntu
+  #     env:
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
+  #       TRANSFORMERS_VERBOSITY: error  # stifle huggingface transformers warnings about aliases
+  #     run: |
+  #       python -m pip list
+  #       python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+  #       BUILD_MONAI=0 python -m pip install --no-build-isolation -e .
+  #       ./runtests.sh --coverage --quick --unittests --disttests
 
-        # TODO: update installation process to allow testing with and without compiled libraries as intended here
-        #BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
-        #./runtests.sh --clean
-        #BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
-        coverage xml --ignore-errors
-    - name: Upload coverage
-      uses: codecov/codecov-action@v6
-      with:
-        fail_ci_if_error: false
-        files: ./coverage.xml
+  #       # TODO: update installation process to allow testing with and without compiled libraries as intended here
+  #       #BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
+  #       #./runtests.sh --clean
+  #       #BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
+  #       coverage xml --ignore-errors
+  #   - name: Upload coverage
+  #     uses: codecov/codecov-action@v6
+  #     with:
+  #       fail_ci_if_error: false
+  #       files: ./coverage.xml
 
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
