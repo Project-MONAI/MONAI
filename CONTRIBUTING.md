@@ -424,6 +424,15 @@ Do **not** use `[skip ci]` for commits that change:
 - Dependencies (`requirements*.txt`, `setup.cfg`, `setup.py`)
 - Anything that could affect correctness or compatibility
 
+### Quick example
+
+```bash
+git commit -s -m 'fix typo in README [skip ci]'
+```
+
+This commit will be recorded in the repository history but will not
+consume CI minutes.
+
 ## The code reviewing process
 
 
