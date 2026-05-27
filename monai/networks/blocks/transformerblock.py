@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+from typing import Optional
 
 from monai.networks.blocks import CrossAttentionBlock, MLPBlock, SABlock
 
@@ -89,7 +90,7 @@ class TransformerBlock(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, context: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None
+        self, x: torch.Tensor, context: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         if self.with_cross_attention:
