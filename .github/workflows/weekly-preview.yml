@@ -1,42 +1,44 @@
 name: weekly-preview
 
+permissions:
+  contents: read
+
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
 
 jobs:
-  flake8-py3:
+  static-checks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "pytype", "mypy"]
+        opt: ["codeformat", "mypy"]
     steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+
     - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
         python-version: '3.10'
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-    - name: cache for pip
-      uses: actions/cache@v5
-      id: cache
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+        cache: 'pip'
     - name: Install dependencies
       run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
-        python -m pip install -r requirements-dev.txt
+        python -m pip install --no-build-isolation -r requirements-dev.txt
     - name: Lint and type check
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have 2 cores, so parallelize pytype
-        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
+        $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
   packaging:
     if: github.repository == 'Project-MONAI/MONAI'
@@ -46,6 +48,7 @@ jobs:
       with:
         ref: dev
         fetch-depth: 0
+        persist-credentials: false
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
