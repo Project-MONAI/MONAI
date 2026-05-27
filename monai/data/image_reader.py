@@ -1232,13 +1232,18 @@ class NumpyReader(ImageReader):
             stack the loaded items together to construct a new first dimension.
         channel_dim: if not None, explicitly specify the channel dim, otherwise, treat the array as no channel.
         allow_pickle: if True, allows loading pickled contents from NPY/NPZ files. Note that the default value of False
-            prevents the risk of remote code execution, set this to True only for loading known trusted data.
+            prevents the risk of remote code execution, set this to True only for loading known trusted data. If this
+            argument is False and pickled data is loaded, a ValueError will be raised.
         kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
             https://numpy.org/doc/stable/reference/generated/numpy.load.html
     """
 
     def __init__(
-        self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, allow_pickle=False, **kwargs
+        self,
+        npz_keys: KeysCollection | None = None,
+        channel_dim: str | int | None = None,
+        allow_pickle: bool = False,
+        **kwargs,
     ):
         super().__init__()
         if npz_keys is not None:
@@ -1271,6 +1276,8 @@ class NumpyReader(ImageReader):
                 More details about available args:
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
+        Raises:
+            ValueError: when `self.allow_pickle` is False but loaded data contains pickled objects.
         """
         img_: list[Nifti1Image] = []
 
