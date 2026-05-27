@@ -303,6 +303,13 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
+> **Tip:** If you need to add a DCO remediation commit (e.g., after a force-push
+> or rebase), include `[skip ci]` in the commit message so the remediation
+> does not trigger unnecessary CI pipelines:
+> ```bash
+> git commit -s --allow-empty -m 'DCO Remediation Commit for... [skip ci]'
+> ```
+
 #### Utility functions
 
 MONAI provides a set of generic utility functions and frequently used routines.
