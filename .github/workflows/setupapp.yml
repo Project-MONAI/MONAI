@@ -3,12 +3,15 @@ name: deploy
 
 on:
   # full tests for all the important branches
-  push:
-    branches:
-      - main
-      - releasing/*
-      - feature/*
-      - dev
+  # push:
+  #   branches:
+  #     - main
+  #     - releasing/*
+  #     - feature/*
+  #     - dev
+
+    # Allows you to run this workflow manually from the Actions tab
+    workflow_dispatch:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -20,98 +23,112 @@ jobs:
   #   - docker-py3-pip- (shared)
   #   - ubuntu 37 38 39 310-pip-
   #   - os-latest-pip (shared)
-  coverage-py3:
-    # if: github.repository == 'Project-MONAI/MONAI'
-    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
-    container:
-      image: nvcr.io/nvidia/pytorch:22.04-py3
-      options: --gpus all
-    runs-on: [self-hosted, linux, x64, integration]
-    steps:
-    - uses: actions/checkout@v6
-    - name: cache weekly timestamp
-      id: pip-cache
-      run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-    - name: cache for pip
-      if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-      uses: actions/cache@v5
-      id: cache
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.cache/torch
-        key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the dependencies
-      run: |
-        which python
-        python -m pip install --upgrade pip wheel
-        python -m pip install --upgrade torch torchvision
-        python -m pip install -r requirements-dev.txt
-    - name: Run unit tests report coverage
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
-        NGC_ORG: ${{ secrets.NGC_ORG }}
-        NGC_TEAM: ${{ secrets.NGC_TEAM }}
-      run: |
-        python -m pip list
-        git config --global --add safe.directory /__w/MONAI/MONAI
-        git clean -ffdx
-        df -h
-        # python -m pip cache info
-        nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
-        echo $CUDA_VISIBLE_DEVICES
-        trap 'if pgrep python; then pkill python; fi;' ERR
-        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
-        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
-        BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml --ignore-errors
-        if pgrep python; then pkill python; fi
-      shell: bash
-    - name: Upload coverage
-      uses: codecov/codecov-action@v6
-      with:
-        fail_ci_if_error: false
-        files: ./coverage.xml
 
-  test-py3x:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: pip
-    - name: Install the dependencies
-      run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
-        python -m pip install --upgrade pip wheel
-        python -m pip install --no-build-isolation -r requirements-dev.txt
-    - name: Run quick tests CPU ubuntu
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
-        NGC_ORG: ${{ secrets.NGC_ORG }}
-        NGC_TEAM: ${{ secrets.NGC_TEAM }}
-      run: |
-        python -m pip list
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
-        BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
-        coverage xml --ignore-errors
-    - name: Upload coverage
-      uses: codecov/codecov-action@v6
-      with:
-        fail_ci_if_error: false
-        files: ./coverage.xml
+  # TODO: coverage should be re-enable at a future time in PRs as well as longer running jobs, ideally with GPU support
+
+  # coverage-py3:
+  #   # if: github.repository == 'Project-MONAI/MONAI'
+  #   if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
+  #   container:
+  #     image: nvcr.io/nvidia/pytorch:22.04-py3
+  #     options: --gpus all
+  #   runs-on: [self-hosted, linux, x64, integration]
+  #   steps:
+  #   - uses: actions/checkout@v6
+  #   - name: cache weekly timestamp
+  #     id: pip-cache
+  #     run: |
+  #       echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+  #   - name: cache for pip
+  #     if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+  #     uses: actions/cache@v5
+  #     id: cache
+  #     with:
+  #       path: |
+  #         ~/.cache/pip
+  #         ~/.cache/torch
+  #       key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
+  #   - name: Install the dependencies
+  #     run: |
+  #       which python
+  #       python -m pip install --upgrade pip wheel wheel-stub
+  #       python -m pip install --upgrade torch torchvision
+  #       python -m pip install -r requirements-dev.txt
+  #   - name: Run unit tests report coverage
+  #     env:
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
+  #     run: |
+  #       python -m pip list
+  #       git config --global --add safe.directory /__w/MONAI/MONAI
+  #       git clean -ffdx
+  #       df -h
+  #       # python -m pip cache info
+  #       nvidia-smi
+  #       export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
+  #       echo $CUDA_VISIBLE_DEVICES
+  #       trap 'if pgrep python; then pkill python; fi;' ERR
+  #       python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
+  #       python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+  #       python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+  #       BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
+  #       BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
+  #       coverage xml --ignore-errors
+  #       if pgrep python; then pkill python; fi
+  #     shell: bash
+  #   - name: Upload coverage
+  #     uses: codecov/codecov-action@v6
+  #     with:
+  #       fail_ci_if_error: false
+  #       files: ./coverage.xml
+
+
+  # test-py3x:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       python-version: ['3.10', '3.11', '3.12']
+  #   steps:
+  #   - uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
+  #   - name: Set up Python ${{ matrix.python-version }}
+  #     uses: actions/setup-python@v6
+  #     with:
+  #       python-version: ${{ matrix.python-version }}
+  #       cache: pip
+  #   - name: Install CPU PyTorch
+  #     run: |
+  #       python -m pip install --upgrade pip wheel wheel-stub
+  #       python -m pip install torch==2.8.0 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+  #   - name: Install the dependencies
+  #     run: |
+  #       find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+  #       python -m pip install --no-build-isolation -r requirements-min.txt  # necessary only here for some reason?
+  #       python -m pip install --no-build-isolation -r requirements-dev.txt
+  #   - name: Run quick tests CPU ubuntu
+  #     env:
+  #       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+  #       NGC_ORG: ${{ secrets.NGC_ORG }}
+  #       NGC_TEAM: ${{ secrets.NGC_TEAM }}
+  #       TRANSFORMERS_VERBOSITY: error  # stifle huggingface transformers warnings about aliases
+  #     run: |
+  #       python -m pip list
+  #       python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+  #       BUILD_MONAI=0 python -m pip install --no-build-isolation -e .
+  #       ./runtests.sh --coverage --quick --unittests --disttests
+
+  #       # TODO: update installation process to allow testing with and without compiled libraries as intended here
+  #       #BUILD_MONAI=0 ./runtests.sh --build --coverage --quick --unittests
+  #       #./runtests.sh --clean
+  #       #BUILD_MONAI=1 ./runtests.sh --build --coverage --quick --min
+  #       coverage xml --ignore-errors
+  #   - name: Upload coverage
+  #     uses: codecov/codecov-action@v6
+  #     with:
+  #       fail_ci_if_error: false
+  #       files: ./coverage.xml
 
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
@@ -120,18 +137,9 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: '3.10'
-    - name: cache weekly timestamp
-      id: pip-cache
+    - name: Install CPU PyTorch
       run: |
-        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
-    - name: cache for pip
-      uses: actions/cache@v5
-      id: cache
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.cache/torch
-        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+        python -m pip install torch==2.8.0 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install the default branch no build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |

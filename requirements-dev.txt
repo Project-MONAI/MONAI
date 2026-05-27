@@ -17,7 +17,6 @@ pyflakes
 black>=26.3.1
 isort>=5.1, <6, !=6.0.0
 ruff>=0.14.11,<0.15
-pytype>=2020.6.1, <=2024.4.11; platform_system != "Windows"
 pybind11
 types-setuptools
 mypy>=1.5.0, <1.12.0
@@ -63,3 +62,4 @@ pyamg>=5.0.0, <5.3.0
 git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
 onnx_graphsurgeon
 polygraphy
+pytest  # FIXME: added to get around cupy 14.1.0 creating the requirement through polygraphy and trt_compiler somehow

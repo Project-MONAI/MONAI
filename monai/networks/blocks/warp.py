@@ -20,6 +20,7 @@ from torch.nn import functional as F
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
 from monai.networks.utils import meshgrid_ij
+from monai.transforms.spatial.functional import _compiled_unsupported
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
 _C, _ = optional_import("monai._C")
@@ -63,6 +64,18 @@ class Warp(nn.Module):
         super().__init__()
         # resolves _interp_mode for different methods
 
+        # Native string modes are always stored for the PyTorch fallback path.
+        # When USE_COMPILED=True but the device is unsupported at runtime (e.g. Blackwell GPU),
+        # forward() falls back to F.grid_sample which requires string, not integer, modes.
+        self._interp_mode_native = (
+            GridSampleMode(mode).value if mode in (m.value for m in GridSampleMode) else GridSampleMode.BILINEAR.value
+        )
+        self._padding_mode_native = (
+            GridSamplePadMode(padding_mode).value
+            if padding_mode in (p.value for p in GridSamplePadMode)
+            else GridSamplePadMode.BORDER.value
+        )
+
         if USE_COMPILED:
             if mode in (inter.value for inter in GridSampleMode):
                 mode = GridSampleMode(mode)
@@ -77,7 +90,7 @@ class Warp(nn.Module):
             self._interp_mode = mode
         else:
             warnings.warn("monai.networks.blocks.Warp: Using PyTorch native grid_sample.")
-            self._interp_mode = GridSampleMode(mode).value
+            self._interp_mode = self._interp_mode_native
 
         # resolves _padding_mode for different methods
         if USE_COMPILED:
@@ -93,7 +106,7 @@ class Warp(nn.Module):
                     padding_mode = 0  # default to nearest
             self._padding_mode = padding_mode
         else:
-            self._padding_mode = GridSamplePadMode(padding_mode).value
+            self._padding_mode = self._padding_mode_native
 
         self.ref_grid = None
         self.jitter = jitter
@@ -138,13 +151,15 @@ class Warp(nn.Module):
         grid = self.get_reference_grid(ddf, jitter=self.jitter) + ddf
         grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
-        if not USE_COMPILED:  # pytorch native grid_sample
+        _use_compiled = USE_COMPILED and not _compiled_unsupported(image.device)
+
+        if not _use_compiled:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
                 grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
             index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(
-                image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
+                image, grid, mode=self._interp_mode_native, padding_mode=self._padding_mode_native, align_corners=True
             )
 
         # using csrc resampling
