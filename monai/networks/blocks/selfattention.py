@@ -14,7 +14,6 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
 from monai.utils import optional_import
@@ -159,7 +158,7 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
+    def forward(self, x, attn_mask: torch.Tensor | None = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
