@@ -129,9 +129,7 @@ def compute_variance(
     y_pred = y_pred.float()
 
     if not include_background:
-        y = y_pred
-        # TODO If this utils is made to be optional for 'y' it would be nice
-        y_pred, y = ignore_background(y_pred=y_pred, y=y)
+        y_pred, _ = ignore_background(y_pred=y_pred)
 
     # Set any values below 0 to threshold
     y_pred[y_pred <= 0] = threshold

@@ -65,7 +65,7 @@ def _image3_animated_gif(
     img_str = b""
     for b_data in PIL.GifImagePlugin.getheader(ims[0])[0]:
         img_str += b_data
-    img_str += b"\x21\xff\x0b\x4e\x45\x54\x53\x43\x41\x50" b"\x45\x32\x2e\x30\x03\x01\x00\x00\x00"
+    img_str += b"\x21\xff\x0b\x4e\x45\x54\x53\x43\x41\x50\x45\x32\x2e\x30\x03\x01\x00\x00\x00"
     for i in ims:
         for b_data in PIL.GifImagePlugin.getdata(i):
             img_str += b_data
@@ -204,8 +204,17 @@ def plot_2d_or_3d_image(
         if d_chans == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
             # move the expected frame dim to the end as `T` dim for video
             d = np.moveaxis(d, frame_dim, -1)
-            writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
-            return
+            try:
+                writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
+                return
+            except TypeError as e:
+                # Fallback for numpy 2.x incompatibility in tensorboardX
+                # (https://github.com/lanpa/tensorboardX/issues/XXX)
+                # tensorboardX uses np.reshape(..., newshape=...) which is not supported in numpy 2.0+
+                if "newshape" in str(e):
+                    pass  # Fall through to animated GIF approach
+                else:
+                    raise
         # scale data to 0 - 255 for visualization
         max_channels = min(max_channels, d_chans)
         d = np.stack([rescale_array(i, 0, 255) for i in d[:max_channels]], axis=0)

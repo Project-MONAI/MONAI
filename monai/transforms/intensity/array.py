@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any
+from typing import Any, cast
 from warnings import warn
 
 import numpy as np
@@ -1872,7 +1872,7 @@ class RandHistogramShift(RandomizableTransform):
         ns = torch if isinstance(x, torch.Tensor) else np
         if isinstance(x, np.ndarray):
             # approx 2x faster than code below for ndarray
-            return np.interp(x, xp, fp)
+            return cast(np.ndarray, np.interp(x, xp, fp))
 
         m = (fp[1:] - fp[:-1]) / (xp[1:] - xp[:-1])
         b = fp[:-1] - (m * xp[:-1])
