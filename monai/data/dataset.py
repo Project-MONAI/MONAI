@@ -609,24 +609,26 @@ class LMDBDataset(PersistentDataset):
         # the cache is created without multi-threading
         self._read_env: Any | None = None
         # this runs on the primary thread/process
-        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
-        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+        read_env = self._fill_cache_start_reader(show_progress=self.progress)
+        read_env.close()
 
     def set_data(self, data: Sequence):
         """
         Set the input data and delete all the out-dated cache content.
-
         """
+        self.close()
         super().set_data(data=data)
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
     def _safe_serialize(self, val):
+        """Serialize the tensor/array `val` using the pickle protocol, and return its bytes object."""
         out = BytesIO()
         torch.save(convert_to_tensor(val), out, pickle_protocol=self.pickle_protocol)
         out.seek(0)
         return out.read()
 
     def _safe_deserialize(self, val):
+        """Load the object from the given bytes data, this must be loadable as weights only using `torch.load`."""
         return torch.load(BytesIO(val), map_location="cpu", weights_only=True)
 
     def _fill_cache_start_reader(self, show_progress=True):
@@ -693,10 +695,7 @@ class LMDBDataset(PersistentDataset):
         return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
     def _cachecheck(self, item_transformed):
-        """
-        if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
-
-        """
+        """If the item is not found in the lmdb file, resolves to the persistent cache default behaviour."""
         if self._read_env is None:
             # this runs on multiple processes, each one should have its own env.
             self._read_env = self._fill_cache_start_reader(show_progress=False)
@@ -721,7 +720,14 @@ class LMDBDataset(PersistentDataset):
         out = dict(self._read_env.info())
         out["size"] = len(self.data)
         out["filename"] = f"{self.db_file.absolute()}"
+        self.close()
         return out
+
+    def close(self):
+        """Close the read environment and set it to None, if it exists."""
+        if self._read_env:
+            self._read_env.close()
+            self._read_env = None
 
 
 class CacheDataset(Dataset):
