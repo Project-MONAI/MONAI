@@ -18,8 +18,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.metrics.utils import create_ignore_mask
 from monai.losses.utils import mask_loss_inputs
+from monai.metrics.utils import create_ignore_mask
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
