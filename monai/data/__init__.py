@@ -118,7 +118,7 @@ from .utils import (
 from .wsi_datasets import MaskedPatchWSIDataset, PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, TiffFileWSIReader, WSIReader
 
-with contextlib.suppress(BaseException):
+with contextlib.suppress(Exception):
     from multiprocessing.reduction import ForkingPickler
 
     def _rebuild_meta(cls, storage, dtype, metadata):

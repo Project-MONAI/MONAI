@@ -116,6 +116,16 @@ class TestPerceptualLoss(unittest.TestCase):
         with self.assertRaises(ValueError):
             PerceptualLoss(spatial_dims=2, network_type=network_type)
 
+    @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
+    def test_channel_wise_with_non_medicalnet(self, network_type):
+        with self.assertRaises(ValueError):
+            PerceptualLoss(spatial_dims=2, network_type=network_type, channel_wise=True)
+
+    @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
+    def test_non_medicalnet_3d_without_fake_3d(self, network_type):
+        with self.assertRaises(ValueError):
+            PerceptualLoss(spatial_dims=3, network_type=network_type, is_fake_3d=False)
+
 
 if __name__ == "__main__":
     unittest.main()
