@@ -246,9 +246,7 @@ class FocalLoss(_Loss):
             pass
 
         else:
-            raise ValueError(
-                f"Unsupported reduction: {self.reduction}, available options are [\"mean\", \"sum\", \"none\"]."
-            )
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return loss
 

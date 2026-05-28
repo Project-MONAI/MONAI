@@ -71,10 +71,7 @@ def compute_tp_fp_fn(
 
 
 def mask_loss_inputs(
-    input: torch.Tensor,
-    target: torch.Tensor,
-    ignore_index: int | None,
-    mask: torch.Tensor | None = None,
+    input: torch.Tensor, target: torch.Tensor, ignore_index: int | None, mask: torch.Tensor | None = None
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply ignore_index masking to loss inputs."""
     if mask is None and ignore_index is not None:

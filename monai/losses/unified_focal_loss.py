@@ -69,9 +69,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
-                if self.ignore_index is not None and (
-                    self.ignore_index < 0 or self.ignore_index >= n_pred_ch
-                ):
+                if self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= n_pred_ch):
                     # Replace sentinel ignore_index with a valid class before one_hot
                     y_true = torch.where(y_true == self.ignore_index, torch.tensor(0, device=y_true.device), y_true)
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
@@ -148,9 +146,7 @@ class AsymmetricFocalLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
-                if self.ignore_index is not None and (
-                    self.ignore_index < 0 or self.ignore_index >= n_pred_ch
-                ):
+                if self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= n_pred_ch):
                     # Replace sentinel ignore_index with a valid class before one_hot
                     y_true = torch.where(y_true == self.ignore_index, torch.tensor(0, device=y_true.device), y_true)
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
@@ -278,14 +274,10 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if not (self.to_onehot_y and orig_pred_ch != 1):
             if not (orig_pred_ch == 1 and y_true.shape[1] == 1):
                 if y_true.shape != y_pred.shape:
-                    raise ValueError(
-                        f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})"
-                    )
+                    raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
         if self.to_onehot_y and orig_pred_ch != 1:
-            if self.ignore_index is not None and (
-                self.ignore_index < 0 or self.ignore_index >= self.num_classes
-            ):
+            if self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= self.num_classes):
                 # Replace sentinel ignore_index with a valid class before one_hot
                 y_true = torch.where(y_true == self.ignore_index, torch.tensor(0, device=y_true.device), y_true)
             y_true = one_hot(y_true, num_classes=self.num_classes)
@@ -296,9 +288,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         mask = create_ignore_mask(original_y_true, self.ignore_index)
 
-        use_mask = self.ignore_index is not None and (
-            self.ignore_index < 0 or self.ignore_index >= self.num_classes
-        )
+        use_mask = self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= self.num_classes)
         if use_mask:
             y_pred_masked, y_true_masked = mask_loss_inputs(y_pred, y_true, self.ignore_index, mask=mask)
         else:

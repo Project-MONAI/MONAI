@@ -162,7 +162,12 @@ def compute_iou(
         mask = None
     else:
         mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
-        if mask is not None and not include_background and mask.shape[1] != y_pred.shape[1] and mask.shape[1] > y_pred.shape[1]:
+        if (
+            mask is not None
+            and not include_background
+            and mask.shape[1] != y_pred.shape[1]
+            and mask.shape[1] > y_pred.shape[1]
+        ):
             mask = mask[:, 1:]
     if mask is not None:
         if mask.shape != y_pred.shape:

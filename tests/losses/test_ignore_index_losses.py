@@ -76,7 +76,9 @@ class TestIgnoreIndexLosses(unittest.TestCase):
         output = loss_func(input_data, target)
         self.assertFalse(torch.isnan(output))
 
-    @parameterized.expand([(loss_class, kwargs, ignore_index) for loss_class, kwargs in CLASS_INDEX_TEST_CASES for ignore_index in (0, 1)])
+    @parameterized.expand(
+        [(loss_class, kwargs, ignore_index) for loss_class, kwargs in CLASS_INDEX_TEST_CASES for ignore_index in (0, 1)]
+    )
     def test_loss_ignore_class_index(self, loss_class, kwargs, ignore_index):
         loss_func = loss_class(ignore_index=ignore_index, **kwargs)
 
