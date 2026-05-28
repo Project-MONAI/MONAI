@@ -261,7 +261,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         # Preserve original target before any channel conversions so sentinel ignore
         # values (e.g., 255) are detected correctly on label-encoded inputs.
-        original_y_true = y_true if self.ignore_index is not None else None
+        original_y_true = y_true
 
         # Transform binary inputs to 2-channel space
         if y_pred.shape[1] == 1:
