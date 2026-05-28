@@ -15,7 +15,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from functools import cache, partial
 from types import ModuleType
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 import torch
@@ -55,7 +55,17 @@ __all__ = [
 ]
 
 
-def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]: ...
+
+
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: None = ...) -> tuple[NdarrayTensor, None]: ...
+
+
+def ignore_background(
+    y_pred: NdarrayTensor, y: NdarrayTensor | None = None
+) -> tuple[NdarrayTensor, NdarrayTensor | None]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -63,11 +73,12 @@ def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayT
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
-        y: ground truth, the first dim is batch.
+        y: optional ground truth, the first dim is batch.
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    if y is not None:
+        y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
