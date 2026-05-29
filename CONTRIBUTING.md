@@ -412,27 +412,10 @@ the entire PR's pull_request-triggered workflows are skipped.
 
 ### Which workflows are affected
 
-The skip instruction applies only to workflows using `on: push` or
-`on: pull_request` events. In this repository, that includes:
-
-- **premerge** (multi-OS lint, tests, packaging, docs build)
-- **premerge-min** (minimal dependency matrix)
-- **premerge-gpu** (GPU tests)
-- **CodeQL analysis**
-- **Docker build**
-- **Release packaging**
-- **Setup/install tests**
-
-The following workflows use different event types (`issue_comment`,
-`repository_dispatch`, `schedule`, `workflow_dispatch`) and are **not**
-affected by `[skip ci]`:
-
-- **Blossom-CI** (triggered by `/build` comment — maintainers only)
-- **ChatOps** (triggered by `/black` or `/integration-test` comment)
-- **Integration tests** (triggered by `/integration-test` comment)
-- **Cron jobs** (scheduled, not per-commit)
-- **Weekly preview** (scheduled, not per-commit)
-- **Conda build** (scheduled, not per-commit)
+The skip instruction applies only to workflows triggered by `on: push` or
+`on: pull_request` events. All other workflows — those using `issue_comment`,
+`repository_dispatch`, `schedule`, or `workflow_dispatch` — use different
+event types and are **not** affected by `[skip ci]`.
 
 ### Important caveat
 
