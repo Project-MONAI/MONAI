@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
 from monai.utils import optional_import

@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 from monai.networks.blocks import CrossAttentionBlock, MLPBlock, SABlock
 
@@ -23,6 +24,11 @@ class TransformerBlock(nn.Module):
     A transformer block, based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
+
+    # Treat ``with_cross_attention`` as a TorchScript constant so the cross-attention branch in
+    # ``forward`` is pruned when it is False. Otherwise scripting tries to compile the
+    # ``self.cross_attn(..., context=context)`` call against ``nn.Identity`` and fails.
+    __constants__ = ["with_cross_attention"]
 
     def __init__(
         self,
