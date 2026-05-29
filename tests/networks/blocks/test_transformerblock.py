@@ -55,7 +55,7 @@ class TestTransformerBlock(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_no_cross_attention_params_when_disabled(self):
-        """When with_cross_attention=False, no cross-attention parameters should be registered."""
+        """Verify with_cross_attention=False registers no cross_attn or norm_cross_attn parameters."""
         block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=False)
         param_names = {n for n, _ in block.named_parameters()}
         self.assertFalse(
@@ -65,12 +65,16 @@ class TestTransformerBlock(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_cross_attention_params_when_enabled(self):
-        """When with_cross_attention=True, cross-attention parameters should be registered."""
+        """Verify with_cross_attention=True registers both cross_attn and norm_cross_attn parameters."""
         block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=True)
         param_names = {n for n, _ in block.named_parameters()}
         self.assertTrue(
-            any("cross_attn" in n for n in param_names),
-            "Expected cross-attention parameters not found when with_cross_attention=True",
+            any(n.startswith("cross_attn.") for n in param_names),
+            "Expected cross_attn parameters not found when with_cross_attention=True",
+        )
+        self.assertTrue(
+            any(n.startswith("norm_cross_attn.") for n in param_names),
+            "Expected norm_cross_attn parameters not found when with_cross_attention=True",
         )
 
     @skipUnless(has_einops, "Requires einops")
