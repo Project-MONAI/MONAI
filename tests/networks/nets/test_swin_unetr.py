@@ -21,7 +21,16 @@ from parameterized import parameterized
 
 from monai.apps import download_url
 from monai.networks import eval_mode
-from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
+from monai.networks.blocks.hyena import HyenaTransformerBlock, is_nvsubquadratic_available
+from monai.networks.nets.swin_unetr import (
+    BasicLayer,
+    PatchMerging,
+    PatchMergingV2,
+    SwinTransformer,
+    SwinTransformerBlock,
+    SwinUNETR,
+    filter_swinunetr,
+)
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
 from tests.test_utils import (
@@ -34,6 +43,8 @@ from tests.test_utils import (
 )
 
 einops, has_einops = optional_import("einops")
+HAS_NVSUBQ = is_nvsubquadratic_available()
+HAS_CUDA = torch.cuda.is_available()
 
 test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 checkpoint_vals = [True, False]
@@ -124,6 +135,188 @@ class TestSWINUNETR(unittest.TestCase):
                 dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
                 assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)
                 self.assertTrue(len(loaded) == 157 and len(not_loaded) == 2)
+
+
+# Backward-compat regression hash for SwinUNETR(use_hyena=False), feature_size=12, img_size=64^3.
+# Captured before the HyenaND port; this is the contract the default code path must preserve.
+HYENA_BACKCOMPAT_GOLDEN_HASH = "57930f609bdfa23b0b6921bd3dab206718255fa204045b0694c9246cd774baec"
+
+
+def _build_hyena_unetr(use_hyena=False, hyena_stages=None, feature_size=12, out_channels=14):
+    return SwinUNETR(
+        in_channels=1,
+        out_channels=out_channels,
+        feature_size=feature_size,
+        use_hyena=use_hyena,
+        hyena_stages=hyena_stages,
+    )
+
+
+def _block_type_at_stage(model, stage_idx):
+    layer_attr = ["layers1", "layers2", "layers3", "layers4"][stage_idx]
+    return type(getattr(model.swinViT, layer_attr)[0].blocks[0])
+
+
+HYENA_VARIANT_CASES = [
+    ("AAAA", False, None),
+    ("HHHH", True, None),
+    ("HAHA", True, (True, False, True, False)),
+    ("HHAA", True, (True, True, False, False)),
+]
+
+
+class TestSwinUNETRHyenaBackCompat(unittest.TestCase):
+    """The non-Hyena code path must remain numerically bit-identical."""
+
+    @skip_if_no_cuda
+    def test_default_path_unchanged(self):
+        """SwinUNETR with no hyena kwargs produces the pre-port golden output."""
+        import hashlib
+
+        torch.manual_seed(0)
+        torch.cuda.manual_seed_all(0)
+        net = SwinUNETR(in_channels=1, out_channels=14, feature_size=12).cuda().eval()
+        torch.manual_seed(1)
+        x = torch.randn(1, 1, 64, 64, 64, device="cuda")
+        with torch.no_grad():
+            out = net(x)
+        h = hashlib.sha256(out.flatten()[:64].cpu().numpy().tobytes()).hexdigest()
+        self.assertEqual(
+            h,
+            HYENA_BACKCOMPAT_GOLDEN_HASH,
+            "Default SwinUNETR forward output drifted; HyenaND port changed the non-Hyena path.",
+        )
+
+
+class TestSwinUNETRHyenaStages(unittest.TestCase):
+    """``hyena_stages`` must place :class:`HyenaTransformerBlock` at flagged stages and
+    :class:`SwinTransformerBlock` everywhere else.  Construction-only; no CUDA required."""
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_haha_pattern(self):
+        m = _build_hyena_unetr(use_hyena=True, hyena_stages=(True, False, True, False))
+        self.assertIs(_block_type_at_stage(m, 0), HyenaTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 1), SwinTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 2), HyenaTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 3), SwinTransformerBlock)
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_hhaa_pattern(self):
+        m = _build_hyena_unetr(use_hyena=True, hyena_stages=(True, True, False, False))
+        self.assertIs(_block_type_at_stage(m, 0), HyenaTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 1), HyenaTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 2), SwinTransformerBlock)
+        self.assertIs(_block_type_at_stage(m, 3), SwinTransformerBlock)
+
+    def test_aaaa_pattern_default(self):
+        m = _build_hyena_unetr(use_hyena=False)
+        for i in range(4):
+            self.assertIs(_block_type_at_stage(m, i), SwinTransformerBlock)
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_hhhh_pattern_default(self):
+        m = _build_hyena_unetr(use_hyena=True)
+        for i in range(4):
+            self.assertIs(_block_type_at_stage(m, i), HyenaTransformerBlock)
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_wrong_length_hyena_stages_raises(self):
+        with self.assertRaisesRegex(ValueError, "hyena_stages must have length"):
+            _build_hyena_unetr(use_hyena=True, hyena_stages=(True, True))
+
+
+class TestSwinUNETRHyenaForward(unittest.TestCase):
+    """Forward shape across the four paper variants. CUDA required."""
+
+    @parameterized.expand(HYENA_VARIANT_CASES)
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    @skip_if_no_cuda
+    def test_forward_shape(self, _name, use_hyena, hyena_stages):
+        m = _build_hyena_unetr(use_hyena=use_hyena, hyena_stages=hyena_stages).cuda()
+        x = torch.randn(1, 1, 64, 64, 64, device="cuda")
+        with torch.no_grad():
+            out = m(x)
+        self.assertEqual(out.shape, (1, 14, 64, 64, 64))
+
+
+class TestSwinUNETRHyenaGradient(unittest.TestCase):
+    """Backward through the HHAA variant must produce grads on at least 90 percent of params."""
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    @skip_if_no_cuda
+    def test_hhaa_backward(self):
+        m = _build_hyena_unetr(use_hyena=True, hyena_stages=(True, True, False, False)).cuda()
+        x = torch.randn(1, 1, 64, 64, 64, device="cuda")
+        m(x).sum().backward()
+        total = list(m.parameters())
+        with_grad = [p for p in total if p.grad is not None]
+        coverage = len(with_grad) / len(total)
+        self.assertGreater(coverage, 0.9, f"only {coverage:.1%} of params received gradients")
+
+
+class TestSwinTransformerRoPEDivisibility(unittest.TestCase):
+    """3D Hyena requires embed_dim * 2^layer % 6 == 0; 2D requires % 4."""
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_3d_rejects_non_divisible_embed_dim(self):
+        with self.assertRaisesRegex(ValueError, "divisible by 6"):
+            SwinTransformer(
+                in_chans=1,
+                embed_dim=14,
+                window_size=(2, 2, 2),
+                patch_size=(2, 2, 2),
+                depths=(2, 2, 2, 2),
+                num_heads=(3, 6, 12, 24),
+                spatial_dims=3,
+                use_hyena=True,
+            )
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_2d_rejects_non_divisible_embed_dim(self):
+        with self.assertRaisesRegex(ValueError, "divisible by 4"):
+            SwinTransformer(
+                in_chans=1,
+                embed_dim=14,
+                window_size=(2, 2),
+                patch_size=(2, 2),
+                depths=(2, 2, 2, 2),
+                num_heads=(3, 6, 12, 24),
+                spatial_dims=2,
+                use_hyena=True,
+            )
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    def test_per_stage_skips_check_for_attention_stages(self):
+        """Per-stage False suppresses the check for that stage; remaining Hyena stages still fire."""
+        with self.assertRaisesRegex(ValueError, "divisible by 6"):
+            SwinTransformer(
+                in_chans=1,
+                embed_dim=14,
+                window_size=(2, 2, 2),
+                patch_size=(2, 2, 2),
+                depths=(2, 2, 2, 2),
+                num_heads=(3, 6, 12, 24),
+                spatial_dims=3,
+                use_hyena=True,
+                hyena_stages=(False, True, False, False),
+            )
+
+
+class TestSwinUNETRHyenaSlidingWindow(unittest.TestCase):
+    """The production inference path: sliding-window inference over HHAA must succeed."""
+
+    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
+    @skip_if_no_cuda
+    def test_swi_hhaa(self):
+        from monai.inferers import sliding_window_inference
+
+        m = _build_hyena_unetr(use_hyena=True, hyena_stages=(True, True, False, False)).cuda().eval()
+        x = torch.randn(1, 1, 96, 96, 96, device="cuda")
+        with torch.no_grad():
+            out = sliding_window_inference(
+                inputs=x, roi_size=(64, 64, 64), sw_batch_size=2, predictor=m, overlap=0.25
+            )
+        self.assertEqual(out.shape, (1, 14, 96, 96, 96))
 
 
 if __name__ == "__main__":
