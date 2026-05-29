@@ -181,7 +181,7 @@ class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
         self.assertEqual(loss.preterm.device.type, "cpu")
         self.assertEqual(loss.bin_centers.device.type, "cpu")
         if not torch.cuda.is_available():
-            return
+            self.skipTest("CUDA not available")
         loss = loss.cuda()
         self.assertEqual(loss.preterm.device.type, "cuda")
         self.assertEqual(loss.bin_centers.device.type, "cuda")
