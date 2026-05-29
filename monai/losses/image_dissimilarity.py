@@ -233,6 +233,10 @@ class GlobalMutualInformationLoss(_Loss):
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         self.kernel_type = kernel_type
+        # declared as buffers so they move with the module (e.g. ``.to(device)``); only populated for the
+        # gaussian kernel, hence the ``Tensor`` annotation reflects the type at the use sites in that path.
+        self.preterm: torch.Tensor
+        self.bin_centers: torch.Tensor
         self.register_buffer("preterm", None, persistent=False)
         self.register_buffer("bin_centers", None, persistent=False)
         if self.kernel_type == "gaussian":
