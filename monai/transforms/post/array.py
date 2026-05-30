@@ -39,14 +39,18 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import (
+    OptionalImportError,
     TransformBackends,
     convert_data_type,
     convert_to_tensor,
     ensure_tuple,
     get_equivalent_dtype,
     look_up_option,
+    optional_import,
 )
 from monai.utils.type_conversion import convert_to_dst_type
+
+rankseg_module, has_rankseg = optional_import("rankseg")
 
 __all__ = [
     "Activations",
@@ -142,6 +146,7 @@ class AsDiscrete(Transform):
     Convert the input tensor/array into discrete values, possible operations are:
 
         -  `argmax`.
+        -  `rankseg`.
         -  threshold input value to binary values.
         -  convert input value to One-Hot format (set ``to_one_hot=N``, `N` is the number of classes).
         -  round the value to the closest integer.
@@ -155,6 +160,9 @@ class AsDiscrete(Transform):
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
+        rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
+            RankSEG expects channel-first probability maps and returns a label map.
+            Defaults to ``False``.
         kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
             currently ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
             These default to ``0``, ``True``, ``torch.float`` respectively.
@@ -183,9 +191,14 @@ class AsDiscrete(Transform):
         to_onehot: int | None = None,
         threshold: float | None = None,
         rounding: str | None = None,
+        rankseg: bool = False,
         **kwargs,
     ) -> None:
+        if argmax and rankseg:
+            raise ValueError("`rankseg=True` is incompatible with `argmax=True`.")
         self.argmax = argmax
+        self.rankseg = rankseg
+        self._rankseg_decoder = None
         if isinstance(to_onehot, bool):  # for backward compatibility
             raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
@@ -200,6 +213,7 @@ class AsDiscrete(Transform):
         to_onehot: int | None = None,
         threshold: float | None = None,
         rounding: str | None = None,
+        rankseg: bool | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -211,6 +225,9 @@ class AsDiscrete(Transform):
                 Defaults to ``self.to_onehot``.
             threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 Defaults to ``self.threshold``.
+            rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
+                RankSEG expects channel-first probability maps and returns a label map.
+                Defaults to ``self.rankseg``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
@@ -220,8 +237,21 @@ class AsDiscrete(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         argmax = self.argmax if argmax is None else argmax
+        rankseg = self.rankseg if rankseg is None else rankseg
+
+        if argmax and rankseg:
+            raise ValueError("`rankseg=True` is incompatible with `argmax=True`.")
+
         if argmax:
             img_t = torch.argmax(img_t, dim=self.kwargs.get("dim", 0), keepdim=self.kwargs.get("keepdim", True))
+
+        if rankseg:
+            if not has_rankseg:
+                raise OptionalImportError("`rankseg=True` requires the `rankseg` package, but it is not installed.")
+            if self._rankseg_decoder is None:
+                self._rankseg_decoder = rankseg_module.RankSEG()
+            # RankSEG expects a batch dimension.
+            img_t = self._rankseg_decoder.predict(img_t.unsqueeze(0)).squeeze(0)
 
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:

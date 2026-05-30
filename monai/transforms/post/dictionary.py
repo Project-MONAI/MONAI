@@ -166,6 +166,7 @@ class AsDiscreted(MapTransform):
         to_onehot: Sequence[int | None] | int | None = None,
         threshold: Sequence[float | None] | float | None = None,
         rounding: Sequence[str | None] | str | None = None,
+        rankseg: Sequence[bool] | bool = False,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -182,6 +183,9 @@ class AsDiscreted(MapTransform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
+            rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
+                RankSEG expects channel-first probability maps and returns a label map. It also can be
+                a sequence of bool, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
             kwargs: additional parameters to ``AsDiscrete``.
                 ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
@@ -203,15 +207,18 @@ class AsDiscreted(MapTransform):
             self.threshold.append(flag)
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
+        self.rankseg = ensure_tuple_rep(rankseg, len(self.keys))
         self.converter = AsDiscrete()
         self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, argmax, to_onehot, threshold, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.threshold, self.rounding
+        for key, argmax, to_onehot, threshold, rounding, rankseg in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.threshold, self.rounding, self.rankseg
         ):
-            d[key] = self.converter(d[key], argmax, to_onehot, threshold, rounding)
+            d[key] = self.converter(
+                d[key], argmax=argmax, to_onehot=to_onehot, threshold=threshold, rounding=rounding, rankseg=rankseg
+            )
         return d
 
 
