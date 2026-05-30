@@ -416,8 +416,7 @@ class BaseWSIReader(ImageReader):
             # Check if there are three color channels for RGB
             elif mode in "RGB" and patch.shape[self.channel_dim] != 3:
                 raise ValueError(
-                    f"The image is expected to have three color channels in '{mode}' mode but has "
-                    f"{patch.shape[self.channel_dim]}. "
+                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[self.channel_dim]}. "
                 )
             # Get patch-related metadata
             metadata: dict = self._get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
