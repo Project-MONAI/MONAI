@@ -24,6 +24,7 @@ from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
 _, has_einops = optional_import("einops")
+DiffusersDDPMScheduler, has_diffusers = optional_import("diffusers", name="DDPMScheduler")
 
 TEST_CASES = [
     [
@@ -53,31 +54,6 @@ TEST_CASES = [
         (2, 1, 8, 8, 8),
     ],
 ]
-
-
-class DiffusersLikeSchedulerOutput:
-    def __init__(self, prev_sample: torch.Tensor, pred_original_sample: torch.Tensor) -> None:
-        self.prev_sample = prev_sample
-        self.pred_original_sample = pred_original_sample
-
-
-class DiffusersStyleDDPMScheduler(DDPMScheduler):
-    def step(
-        self,
-        model_output: torch.Tensor,
-        timestep: int,
-        sample: torch.Tensor,
-        generator: torch.Generator | None = None,
-        return_dict: bool = True,
-    ):
-        prev_sample, pred_original_sample = super().step(
-            model_output=model_output, timestep=timestep, sample=sample, generator=generator
-        )
-        if return_dict:
-            return DiffusersLikeSchedulerOutput(
-                prev_sample=prev_sample, pred_original_sample=pred_original_sample
-            )
-        return prev_sample, pred_original_sample
 
 
 class TestDiffusionSamplingInferer(unittest.TestCase):
@@ -151,22 +127,62 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         )
         self.assertEqual(len(intermediates), 10)
 
-    @parameterized.expand(TEST_CASES)
-    @skipUnless(has_einops, "Requires einops")
-    def test_diffusers_style_ddpm_sampler(self, model_params, input_shape):
-        model = DiffusionModelUNet(**model_params)
+    @skipUnless(has_einops and has_diffusers, "Requires einops and diffusers")
+    def test_diffusers_ddpm_call(self):
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model = DiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=[32, 64],
+            attention_levels=[False, True],
+            num_res_blocks=1,
+            num_head_channels=32,
+        )
         model.to(device)
         model.eval()
-        noise = torch.randn(input_shape).to(device)
-        scheduler = DiffusersStyleDDPMScheduler(num_train_timesteps=1000)
+        scheduler = DiffusersDDPMScheduler(num_train_timesteps=1000, beta_schedule="linear", prediction_type="epsilon")
+        scheduler.set_timesteps(num_inference_steps=50)
+        inferer = DiffusionInferer(scheduler=scheduler)
+
+        batch_size = 2
+        image_size = 32
+        inputs = torch.randn(batch_size, 1, image_size, image_size).to(device)
+        noise = torch.randn_like(inputs)
+        timesteps = torch.randint(0, scheduler.config.num_train_timesteps, (batch_size,)).long().to(device)
+        with torch.no_grad():
+            prediction = inferer(inputs=inputs, diffusion_model=model, noise=noise, timesteps=timesteps)
+
+        self.assertEqual(prediction.shape, inputs.shape)
+        scheduler.set_timesteps(num_inference_steps=2)
+        sample = inferer.sample(input_noise=noise, diffusion_model=model, scheduler=scheduler, verbose=False)
+        self.assertEqual(sample.shape, inputs.shape)
+
+    @skipUnless(has_einops and has_diffusers, "Requires einops and diffusers")
+    def test_diffusers_ddpm_get_likelihood(self):
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model = DiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=[8],
+            norm_num_groups=8,
+            attention_levels=[True],
+            num_res_blocks=1,
+            num_head_channels=8,
+        )
+        model.to(device)
+        model.eval()
+        inputs = torch.randn(2, 1, 8, 8).to(device)
+        scheduler = DiffusersDDPMScheduler(num_train_timesteps=10, beta_schedule="linear", prediction_type="epsilon")
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
-        sample, intermediates = inferer.sample(
-            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+        likelihood, intermediates = inferer.get_likelihood(
+            inputs=inputs, diffusion_model=model, scheduler=scheduler, save_intermediates=True
         )
-        self.assertEqual(sample.shape, noise.shape)
         self.assertEqual(len(intermediates), 10)
+        self.assertEqual(intermediates[0].shape, inputs.shape)
+        self.assertEqual(likelihood.shape[0], inputs.shape[0])
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
