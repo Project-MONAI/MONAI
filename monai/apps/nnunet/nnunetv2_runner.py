@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import shlex
 import subprocess
 from typing import Any
@@ -33,6 +34,8 @@ nib, _ = optional_import("nibabel")
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["nnUNetV2Runner"]
+
+DATASET_ID_FORMAT = r"Dataset[0-9]{3}|[0-9]+"  # regex format for a valid nnUnet dataset name
 
 
 class nnUNetV2Runner:  # noqa: N801
@@ -195,6 +198,13 @@ class nnUNetV2Runner:  # noqa: N801
 
         # dataset_name_or_id has to be a string
         self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
+        self.dataset_name: str | None = None
+
+        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
+        if re.fullmatch(DATASET_ID_FORMAT, self.dataset_name_or_id) is None:
+            raise ValueError(
+                f"Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID."
+            )
 
         try:
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
@@ -239,7 +249,7 @@ class nnUNetV2Runner:  # noqa: N801
 
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-            self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
+            self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
 
             datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
 
@@ -548,7 +558,7 @@ class nnUNetV2Runner:  # noqa: N801
         Raises:
             ValueError: If gpu_id is an empty tuple or list.
         """
-        env = os.environ.copy()
+        env: dict[str, str] = os.environ.copy()
         device_setting: str = "0"
         num_gpus = 1
         if isinstance(gpu_id, str):
@@ -574,22 +584,25 @@ class nnUNetV2Runner:  # noqa: N801
 
         cmd = [
             "nnUNetv2_train",
-            f"{self.dataset_name_or_id}",
-            f"{config}",
-            f"{fold}",
+            self.dataset_name_or_id,
+            config,
+            fold,
             "-tr",
-            f"{self.trainer_class_name}",
+            self.trainer_class_name,
             "-num_gpus",
-            f"{num_gpus}",
+            num_gpus,
         ]
+
         if self.export_validation_probabilities:
             cmd.append("--npz")
+
         for _key, _value in kwargs.items():
-            if _key == "p" or _key == "pretrained_weights":
-                cmd.extend([f"-{_key}", f"{_value}"])
-            else:
-                cmd.extend([f"--{_key}", f"{_value}"])
-        return cmd, env
+            prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
+            cmd += [f"{prefix}{_key}", str(_value)]
+
+        cmd_str: list[str] = [str(c) for c in cmd]
+
+        return cmd_str, env
 
     def train(
         self,
@@ -641,7 +654,14 @@ class nnUNetV2Runner:  # noqa: N801
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -696,7 +716,14 @@ class nnUNetV2Runner:  # noqa: N801
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         all_cmds = self.train_parallel_cmd(configs=configs, gpu_id_for_all=gpu_id_for_all, **kwargs)
         for s, cmds in enumerate(all_cmds):
             for gpu_id, gpu_cmd in cmds.items():
@@ -908,7 +935,14 @@ class nnUNetV2Runner:  # noqa: N801
             run_postprocessing: whether to conduct post-processing
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``predict`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
