@@ -1285,7 +1285,16 @@ class NumpyReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=self.allow_pickle, **kwargs_)
+            try:
+                img = np.load(name, allow_pickle=self.allow_pickle, **kwargs_)
+            except ValueError as e:
+                # if a ValueError is raised, this is likely about pickle loading so raise an exception about this
+                raise ValueError(
+                    "MONAI default value for argument `allow_pickle` of `np.load` changed to `False`, "
+                    "explicitly pass `allow_pickle=True` as a constructor argument to NumpyReader "
+                    "to enable pickle loading."
+                ) from e
+
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
