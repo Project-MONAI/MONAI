@@ -18,10 +18,9 @@ from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
-from parameterized import parameterized
 
 from monai.data import AnnotationPatchWSIDataset
-from monai.utils import CommonKeys, ProbMapKeys, WSIPatchKeys, optional_import, set_determinism
+from monai.utils import CommonKeys, optional_import, set_determinism
 from tests.test_utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
