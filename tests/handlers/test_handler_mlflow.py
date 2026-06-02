@@ -249,6 +249,7 @@ class TestHandlerMLFlow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             cwd = os.getcwd()
             os.chdir(tempdir)
+            handler = None
             try:
                 handler = MLFlowHandler(iteration_log=False, epoch_log=False)
                 self.assertTrue(handler.client.tracking_uri.startswith("sqlite:///"))
@@ -257,6 +258,8 @@ class TestHandlerMLFlow(unittest.TestCase):
                 self.assertIsNotNone(handler.artifact_location)
                 self.assertTrue(handler.artifact_location.endswith("mlruns"))
             finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
                 os.chdir(cwd)
 
     def test_explicit_tracking_uri_is_preserved(self):
@@ -279,9 +282,12 @@ class TestHandlerMLFlow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
             handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
-            self.assertEqual(handler.client.tracking_uri, uri)
-            self.assertIsNotNone(handler.artifact_location)
-            self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            try:
+                self.assertEqual(handler.client.tracking_uri, uri)
+                self.assertIsNotNone(handler.artifact_location)
+                self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            finally:
+                handler.close()  # release the SQLite handle so Windows can delete the db
 
     def test_explicit_artifact_location_is_used(self):
         # an explicitly provided artifact_location should be kept even with the default SQLite
@@ -289,11 +295,14 @@ class TestHandlerMLFlow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             cwd = os.getcwd()
             os.chdir(tempdir)
+            handler = None
             try:
                 art = path_to_uri(os.path.join(tempdir, "artifacts"))
                 handler = MLFlowHandler(iteration_log=False, epoch_log=False, artifact_location=art)
                 self.assertEqual(handler.artifact_location, art)
             finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
                 os.chdir(cwd)
 
     def test_default_sqlite_run_flow(self):

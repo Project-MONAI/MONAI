@@ -380,14 +380,43 @@ class MLFlowHandler:
             for artifact in artifact_list:
                 self.client.log_artifact(self.cur_run.info.run_id, artifact)
 
+    def _dispose_sqlite_store(self) -> None:
+        """
+        Release MLflow's SQLAlchemy engine when a local SQLite tracking backend is used.
+
+        MLflow keeps the SQLite connection open for the lifetime of the client, which on
+        Windows prevents the database file from being deleted. MLflow exposes no public
+        client close/dispose API, so this reaches into its internals defensively to release
+        the engine. It is a no-op for non-SQLite backends.
+        """
+        tracking_uri = getattr(self.client, "tracking_uri", "")
+        if not isinstance(tracking_uri, str) or not tracking_uri.startswith("sqlite:"):
+            return
+        store = getattr(getattr(self.client, "_tracking_client", None), "store", None)
+        if store is None:
+            return
+        dispose = getattr(store, "_dispose_engine", None)
+        if callable(dispose):
+            dispose()
+        else:
+            engine = getattr(store, "engine", None)
+            if engine is not None:
+                engine.dispose()
+        read_engine = getattr(store, "read_engine", None)
+        if read_engine is not None:
+            read_engine.dispose()
+
     def close(self) -> None:
         """
-        Stop current running logger of MLFlow.
+        Stop current running logger of MLFlow and release local SQLite resources.
 
         """
-        if self.cur_run:
-            self.client.set_terminated(self.cur_run.info.run_id, self.run_finish_status)
-            self.cur_run = None
+        try:
+            if self.cur_run:
+                self.client.set_terminated(self.cur_run.info.run_id, self.run_finish_status)
+                self.cur_run = None
+        finally:
+            self._dispose_sqlite_store()
 
     def epoch_completed(self, engine: Engine) -> None:
         """
