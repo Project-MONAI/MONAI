@@ -22,7 +22,16 @@ import torch
 from torch.utils.data import Dataset
 
 from monai.apps.utils import get_logger
-from monai.utils import CommonKeys, IgniteInfo, ensure_tuple, flatten_dict, min_version, optional_import
+from monai.utils import (
+    CommonKeys,
+    IgniteInfo,
+    ensure_tuple,
+    flatten_dict,
+    min_version,
+    optional_import,
+    path_to_sqlite_uri,
+    path_to_uri,
+)
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
@@ -68,7 +77,14 @@ class MLFlowHandler:
         tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
             variable to have MLflow find a URI from there. in both cases, the URI can either be
             an HTTP/HTTPS URI for a remote server, a database connection string, or a local path
-            to log data to a directory. The URI defaults to path `mlruns`.
+            to log data to a directory. When no ``tracking_uri`` is provided and the
+            ``MLFLOW_TRACKING_URI`` environment variable is unset, the handler now
+            defaults to a local SQLite database backend at ``sqlite:///<cwd>/mlruns.db`` with
+            artifacts stored under ``<cwd>/mlruns``. The default was changed from the filesystem
+            (file store) backend because MLflow 3.13+ raises an exception for the file store unless
+            ``MLFLOW_ALLOW_FILE_STORE=true`` is set; SQLite is the backend MLflow recommends and it
+            does not raise. Any explicitly provided ``tracking_uri`` (including a local file path or
+            ``file://`` URI) is passed through unchanged.
             for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
         iteration_log: whether to log data to MLFlow when iteration completed, default to `True`.
             ``iteration_log`` can be also a function and it will be interpreted as an event filter
@@ -113,6 +129,10 @@ class MLFlowHandler:
         optimizer_param_names: parameter names in the optimizer that need to be recorded during running the
             workflow, default to `'lr'`.
         close_on_complete: whether to close the mlflow run in `complete` phase in workflow, default to False.
+        artifact_location: the location to store run artifacts in, passed to MLflow when the experiment is
+            created. When ``None`` and a local SQLite ``tracking_uri`` is used, it defaults to an
+            ``mlruns`` directory next to the database file; for other backends ``None`` lets MLflow
+            decide based on the ``tracking_uri``. Has no effect if the experiment already exists.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -141,6 +161,7 @@ class MLFlowHandler:
         artifacts: str | Sequence[Path] | None = None,
         optimizer_param_names: str | Sequence[str] = "lr",
         close_on_complete: bool = False,
+        artifact_location: str | None = None,
     ) -> None:
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
@@ -156,6 +177,24 @@ class MLFlowHandler:
         self.experiment_param = experiment_param
         self.artifacts = ensure_tuple(artifacts)
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
+        # When no tracking_uri is provided, default to a local SQLite backend instead of the
+        # filesystem (file store) backend. MLflow 3.13+ raises for the file store unless
+        # `MLFLOW_ALLOW_FILE_STORE=true` is set, while SQLite is the recommended backend and does
+        # not raise. Artifacts cannot live inside a database, so by default they are stored under
+        # the `./mlruns` directory (where the previous file store default kept them) via the
+        # experiment `artifact_location`. Any explicitly provided tracking_uri is left unchanged.
+        self.artifact_location = artifact_location
+        # Only fall back to the SQLite default when the caller gave no tracking_uri and the
+        # `MLFLOW_TRACKING_URI` environment variable is unset, so that env-var configuration keeps
+        # working. When it is set, `tracking_uri` stays None and MLflow resolves the env var.
+        if not tracking_uri and not os.environ.get("MLFLOW_TRACKING_URI"):
+            tracking_uri = path_to_sqlite_uri(os.path.join(os.getcwd(), "mlruns.db"))
+        # For a local SQLite backend, keep run artifacts in an `mlruns` directory next to the
+        # database file (mirroring the previous file-store layout) unless the caller set
+        # `artifact_location`. Other backends (e.g. a remote server) are left to MLflow to decide.
+        if self.artifact_location is None and tracking_uri and tracking_uri.startswith("sqlite:///"):
+            db_path = Path(tracking_uri[len("sqlite:///") :])
+            self.artifact_location = path_to_uri(db_path.parent / "mlruns")
         self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
@@ -245,7 +284,12 @@ class MLFlowHandler:
                 try:
                     experiment = self.client.get_experiment_by_name(self.experiment_name)
                     if not experiment:
-                        experiment_id = self.client.create_experiment(self.experiment_name)
+                        # pass an explicit artifact_location (set for the default SQLite backend, or
+                        # by the caller) so artifacts land in the intended directory; when it is
+                        # None MLflow decides based on the tracking_uri.
+                        experiment_id = self.client.create_experiment(
+                            self.experiment_name, artifact_location=self.artifact_location
+                        )
                         experiment = self.client.get_experiment(experiment_id)
                     break
                 except MlflowException as e:

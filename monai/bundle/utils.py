@@ -118,8 +118,10 @@ DEFAULT_MLFLOW_SETTINGS = {
     "configs": {
         # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
         "output_dir": "$@bundle_root + '/eval'",
-        # use URI to support linux, mac and windows os
-        "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
+        # MLflow 3.13+ rejects the filesystem (file store) tracking backend, so default tracking
+        # to a local SQLite database. The handler keeps run artifacts under "<output_dir>/mlruns"
+        # (next to the db). A URI is used so the path is valid on linux, mac and windows os.
+        "tracking_uri": "$monai.utils.path_to_sqlite_uri(@output_dir + '/mlruns.db')",
         "experiment_name": "monai_experiment",
         "run_name": None,
         # may fill it at runtime

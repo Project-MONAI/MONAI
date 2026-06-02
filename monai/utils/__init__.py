@@ -89,6 +89,7 @@ from .misc import (
     is_sqrt,
     issequenceiterable,
     list_to_dict,
+    path_to_sqlite_uri,
     path_to_uri,
     pprint_edges,
     progress_bar,

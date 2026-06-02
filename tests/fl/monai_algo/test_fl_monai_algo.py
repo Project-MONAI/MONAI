@@ -26,7 +26,7 @@ from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
-from monai.utils import path_to_uri
+from monai.utils import path_to_sqlite_uri
 from tests.test_utils import SkipIfNoModule
 
 _root_dir = Path(__file__).resolve().parents[2]
@@ -79,7 +79,7 @@ TEST_TRAIN_4 = [
                     "save_execute_config": f"{_data_dir}/config_executed.json",
                     "trainer": {
                         "_target_": "MLFlowHandler",
-                        "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
+                        "tracking_uri": path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_override.db")),
                         "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
                         "close_on_complete": True,
                     },
@@ -103,7 +103,7 @@ TEST_EVALUATE_1 = [
             workflow_type="train",
             logging_file=_logging_file,
             tracking="mlflow",
-            tracking_uri=path_to_uri(_data_dir) + "/mlflow_1",
+            tracking_uri=path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_1.db")),
             experiment_name="monai_eval1",
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -119,7 +119,7 @@ TEST_EVALUATE_2 = [
         ],
         "eval_kwargs": {
             "tracking": "mlflow",
-            "tracking_uri": path_to_uri(_data_dir) + "/mlflow_2",
+            "tracking_uri": path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_2.db")),
             "experiment_name": "monai_eval2",
         },
         "eval_workflow_name": "training",
@@ -202,8 +202,10 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "save_execute_config" in algo.train_workflow.parser:
-            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override"))
-            shutil.rmtree(f"{_data_dir}/mlflow_override")
+            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override.db"))
+            os.remove(f"{_data_dir}/mlflow_override.db")
+            if os.path.isdir(f"{_data_dir}/mlruns"):
+                shutil.rmtree(f"{_data_dir}/mlruns")
             self.assertTrue(os.path.exists(f"{_data_dir}/config_executed.json"))
             os.remove(f"{_data_dir}/config_executed.json")
 
@@ -227,7 +229,9 @@ class TestFLMonaiAlgo(unittest.TestCase):
         if "save_execute_config" in algo.eval_workflow.parser:
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/mlflow_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/mlflow_*")):
-                shutil.rmtree(f)
+                shutil.rmtree(f) if os.path.isdir(f) else os.remove(f)
+            if os.path.isdir(f"{_data_dir}/mlruns"):
+                shutil.rmtree(f"{_data_dir}/mlruns")
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/eval/config_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/eval/config_*")):
                 os.remove(f)
