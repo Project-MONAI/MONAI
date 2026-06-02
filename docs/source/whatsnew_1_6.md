@@ -24,7 +24,7 @@ For example, accessing a value from the parser with `parser["network_def.in_chan
 
 ## Auto3DSeg: JSON-Based Algo Serialization
 
-Auto3DSeg algorithm objects are now serialized using JSON instead of pickle. This removes a class of security risks associated with pickle deserialization and improves cross-environment portability of saved algorithm states. Using pickle for serialization can be re-enabled by setting the environment variable `MONAI_ALLOW_PICKLE` to `1` or the equivaent true value.
+Auto3DSeg algorithm objects are now serialized using JSON instead of pickle. This removes a class of security risks associated with pickle deserialization and improves cross-environment portability of saved algorithm states. Using pickle for serialization can be re-enabled by setting the environment variable `MONAI_ALLOW_PICKLE` to `1` or the equivalent true value.
 
 This was implemented to address [GHSA-qxq5-qhx6-94qw](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-qxq5-qhx6-94qw).
 
