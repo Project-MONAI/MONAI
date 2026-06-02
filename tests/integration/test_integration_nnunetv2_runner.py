@@ -11,13 +11,16 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 import unittest
+from textwrap import dedent
 
 import nibabel as nib
 import numpy as np
 
+import monai.apps.nnunet.nnunetv2_runner
 from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
@@ -26,6 +29,8 @@ from tests.test_utils import skip_if_downloading_fails, skip_if_no_cuda, skip_if
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nnunet = optional_import("nnunetv2")
+
+monai.apps.nnunet.nnunetv2_runner.logger.setLevel(logging.ERROR)  # suppress warning logging to clean up test output
 
 sim_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -86,6 +91,76 @@ class TestnnUNetV2Runner(unittest.TestCase):
             runner.train(configs="3d_fullres")
             runner.find_best_configuration(configs="3d_fullres")
             runner.predict_ensemble_postprocessing()
+
+    def tearDown(self) -> None:
+        self.test_dir.cleanup()
+
+
+@skip_if_quick
+@unittest.skipIf(not has_nnunet, "no nnunetv2")
+class TestnnUNetV2RunnerSecurity(unittest.TestCase):
+    def setUp(self) -> None:
+        self.test_dir = tempfile.TemporaryDirectory()
+        test_path = self.test_dir.name
+
+        self.good_yml1 = os.path.join(test_path, "good1.yml")
+        self.good_yml2 = os.path.join(test_path, "good2.yml")
+        self.inject_yml = os.path.join(test_path, "test.yml")
+
+        good_yml_content1 = """
+            dataset_name_or_id: Dataset123
+            dataroot: ./data
+            datalist: ./lists/task4.json
+            work_dir: ./work
+            nnunet_raw: ./nnUNet_raw
+            nnunet_preprocessed: ./nnUNet_preprocessed
+            nnunet_results: ./nnUNet_results
+        """
+
+        with open(self.good_yml1, "w") as o:
+            o.write(dedent(good_yml_content1))
+
+        good_yml_content2 = """
+            dataset_name_or_id: 123
+            dataroot: ./data
+            datalist: ./lists/task4.json
+            work_dir: ./work
+            nnunet_raw: ./nnUNet_raw
+            nnunet_preprocessed: ./nnUNet_preprocessed
+            nnunet_results: ./nnUNet_results
+        """
+
+        with open(self.good_yml2, "w") as o:
+            o.write(dedent(good_yml_content2))
+
+        # define a config file with code-injecting dataset name
+        injecting_yml_content = """
+            dataset_name_or_id: '4 & echo "This is exploited" > "./test.txt" & rem'
+            dataroot: ./data
+            datalist: ./lists/task4.json
+            work_dir: ./work
+            nnunet_raw: ./nnUNet_raw
+            nnunet_preprocessed: ./nnUNet_preprocessed
+            nnunet_results: ./nnUNet_results
+        """
+
+        with open(self.inject_yml, "w") as o:
+            o.write(dedent(injecting_yml_content))
+
+    def test_nnunetv2runner_good_dataset_name(self) -> None:
+        """
+        Test the dataset name given must conform to the nnUNet requirement of being an int or "Dataset###".
+        """
+        for ds in [self.good_yml1, self.good_yml2]:
+            with self.subTest(f"Testing {os.path.basename(ds)}"):
+                nnUNetV2Runner(input_config=ds, trainer_class_name="nnUNetTrainer")
+
+    def test_nnunetv2runner_bad_dataset_name(self) -> None:
+        """
+        Test the dataset name given must conform to the nnUNet requirement of being an int or "Dataset###".
+        """
+        with self.assertRaises(ValueError):
+            nnUNetV2Runner(input_config=self.inject_yml, trainer_class_name="nnUNetTrainer")
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
