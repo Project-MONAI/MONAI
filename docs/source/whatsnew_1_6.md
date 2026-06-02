@@ -14,7 +14,7 @@
 - `NumpyReader` has been updated with an `allow_pickle` boolean argument to enable/disable pickle loading from `.npy/.npz` files. This was previously hard-coded to be enabled, but is now defined by this argument and disabled by default. This addresses [GHSA-qxq5-qhx6-94qw](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-qxq5-qhx6-94qw).
 
 
-MONAI now tests for Python 3.10 onwards, having dropped version 3.9 which is not out of support. PyTorch 2.8 onwards is now supported only, older versions will likely continue to function.
+MONAI now tests for Python 3.10 onwards, having dropped version 3.9 which is now out of support. PyTorch 2.8 onwards is now supported only, older versions will likely continue to function.
 
 ## Nested Dot-Notation Access in ConfigParser
 
