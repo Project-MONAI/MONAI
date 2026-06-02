@@ -47,6 +47,12 @@ def _validate_kernel_stride_parameters(
         ValueError: if parameters are invalid
     """
 
+    # Check for None values
+    if kernel_size is None:
+        raise ValueError("kernel_size cannot be None")
+    if stride is None:
+        raise ValueError("stride cannot be None")
+
     # Normalize kernel_size to tuple
     if isinstance(kernel_size, int):
         kernel_size_tuple = (kernel_size,) * spatial_dims
@@ -316,6 +322,7 @@ class AEKLDownsample(nn.Module):
         )
 
         self.use_legacy_padding = use_legacy_padding and (padding is None)
+        padding_tuple: tuple[int, ...]
         if self.use_legacy_padding:
             # Legacy behavior: asymmetric padding (0, 1) per dimension + conv with padding=0
             self.pad = (0, 1) * spatial_dims
@@ -323,7 +330,7 @@ class AEKLDownsample(nn.Module):
         else:
             # New behavior: compute symmetric padding if not provided
             if padding is None:
-                padding_tuple: tuple[int, ...] = _compute_padding(kernel_size_tuple)
+                padding_tuple = _compute_padding(kernel_size_tuple)
             else:
                 if isinstance(padding, int):
                     padding_tuple = (padding,) * spatial_dims
@@ -889,7 +896,7 @@ class AutoencoderKL(nn.Module):
                 "`channels`."
             )
 
-        self.encoder: nn.Module = Encoder(
+        self.encoder: Encoder = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             channels=channels,
@@ -908,7 +915,7 @@ class AutoencoderKL(nn.Module):
         # Get downsampling parameters from encoder to ensure decoder uses the same strides
         encoder_downsample_params = self.encoder.downsample_parameters
 
-        self.decoder: nn.Module = Decoder(
+        self.decoder: Decoder = Decoder(
             spatial_dims=spatial_dims,
             channels=channels,
             in_channels=latent_channels,
