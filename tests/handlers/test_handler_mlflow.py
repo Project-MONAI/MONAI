@@ -313,7 +313,9 @@ class TestHandlerMLFlow(unittest.TestCase):
                     current_metric = engine.state.metrics.get("acc", 0.1)
                     engine.state.metrics["acc"] = current_metric + 0.1
 
-                handler = MLFlowHandler(iteration_log=False, epoch_log=True, close_on_complete=True)
+                # close_on_complete=False so cur_run stays available after the run for the metric
+                # check below; the run is closed explicitly afterwards.
+                handler = MLFlowHandler(iteration_log=False, epoch_log=True, close_on_complete=False)
                 handler.attach(engine)
                 engine.run(range(3), max_epochs=2)
                 cur_run = handler.client.get_run(handler.cur_run.info.run_id)
