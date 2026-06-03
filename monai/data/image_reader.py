@@ -1231,17 +1231,26 @@ class NumpyReader(ImageReader):
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
         channel_dim: if not None, explicitly specify the channel dim, otherwise, treat the array as no channel.
+        allow_pickle: if True, allows loading pickled contents from NPY/NPZ files. Note that the default value of False
+            prevents the risk of remote code execution, set this to True only for loading known trusted data. If this
+            argument is False and pickled data is loaded, a ValueError will be raised.
         kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
             https://numpy.org/doc/stable/reference/generated/numpy.load.html
-
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
+    def __init__(
+        self,
+        npz_keys: KeysCollection | None = None,
+        channel_dim: str | int | None = None,
+        allow_pickle: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
+        self.allow_pickle = allow_pickle
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1267,6 +1276,8 @@ class NumpyReader(ImageReader):
                 More details about available args:
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
+        Raises:
+            ValueError: when `self.allow_pickle` is False but loaded data contains pickled objects.
         """
         img_: list[Nifti1Image] = []
 
@@ -1274,7 +1285,16 @@ class NumpyReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **kwargs_)
+            try:
+                img = np.load(name, allow_pickle=self.allow_pickle, **kwargs_)
+            except ValueError as e:
+                # if a ValueError is raised, this is likely about pickle loading so raise an exception about this
+                raise ValueError(
+                    "MONAI default value for argument `allow_pickle` of `np.load` changed to `False`, "
+                    "explicitly pass `allow_pickle=True` as a constructor argument to NumpyReader "
+                    "to enable pickle loading."
+                ) from e
+
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
