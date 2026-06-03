@@ -17,7 +17,7 @@ import shutil
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 from ignite.engine import Engine, Events
@@ -288,6 +288,25 @@ class TestHandlerMLFlow(unittest.TestCase):
                 self.assertTrue(handler.artifact_location.endswith("mlruns"))
             finally:
                 handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_env_var_sqlite_tracking_uri_colocates_artifacts(self):
+        # a SQLite `MLFLOW_TRACKING_URI` env var should co-locate artifacts next to the db, the
+        # same as an explicit `tracking_uri` argument. The env var itself is left for MLflow to
+        # resolve, so the handler does not pass it to the client.
+        with tempfile.TemporaryDirectory() as tempdir:
+            uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
+            handler = None
+            with patch.dict(os.environ, {"MLFLOW_TRACKING_URI": uri}):
+                try:
+                    handler = MLFlowHandler(iteration_log=False, epoch_log=False)
+                    self.assertTrue(handler.client.tracking_uri.endswith("mlruns.db"))
+                    self.assertIsNotNone(handler.artifact_location)
+                    self.assertTrue(handler.artifact_location.endswith("mlruns"))
+                    # co-located with the db file (the `sub` dir), not a cwd-relative `./mlruns`
+                    self.assertIn("sub", handler.artifact_location)
+                finally:
+                    if handler is not None:
+                        handler.close()  # release the SQLite handle so Windows can delete the db
 
     def test_explicit_artifact_location_is_used(self):
         # an explicitly provided artifact_location should be kept even with the default SQLite

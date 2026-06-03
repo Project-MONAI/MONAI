@@ -130,9 +130,10 @@ class MLFlowHandler:
             workflow, default to `'lr'`.
         close_on_complete: whether to close the mlflow run in `complete` phase in workflow, default to False.
         artifact_location: the location to store run artifacts in, passed to MLflow when the experiment is
-            created. When ``None`` and a local SQLite ``tracking_uri`` is used, it defaults to an
-            ``mlruns`` directory next to the database file; for other backends ``None`` lets MLflow
-            decide based on the ``tracking_uri``. Has no effect if the experiment already exists.
+            created. When ``None`` and a local SQLite backend is used (from the ``tracking_uri`` argument
+            or the ``MLFLOW_TRACKING_URI`` environment variable), it defaults to an ``mlruns`` directory
+            next to the database file; for other backends ``None`` lets MLflow decide based on the
+            ``tracking_uri``. Has no effect if the experiment already exists.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -184,16 +185,23 @@ class MLFlowHandler:
         # the `./mlruns` directory (where the previous file store default kept them) via the
         # experiment `artifact_location`. Any explicitly provided tracking_uri is left unchanged.
         self.artifact_location = artifact_location
-        # Only fall back to the SQLite default when the caller gave no tracking_uri and the
-        # `MLFLOW_TRACKING_URI` environment variable is unset, so that env-var configuration keeps
-        # working. When it is set, `tracking_uri` stays None and MLflow resolves the env var.
-        if not tracking_uri and not os.environ.get("MLFLOW_TRACKING_URI"):
-            tracking_uri = path_to_sqlite_uri(os.path.join(os.getcwd(), "mlruns.db"))
+        # Resolve the effective tracking URI from the argument or the `MLFLOW_TRACKING_URI`
+        # environment variable, so both configure the artifact location the same way.
+        effective_tracking_uri = tracking_uri or os.environ.get("MLFLOW_TRACKING_URI")
+        # When neither is set, fall back to the local SQLite default described above.
+        if not effective_tracking_uri:
+            tracking_uri = effective_tracking_uri = path_to_sqlite_uri(os.path.join(os.getcwd(), "mlruns.db"))
         # For a local SQLite backend, keep run artifacts in an `mlruns` directory next to the
         # database file (mirroring the previous file-store layout) unless the caller set
         # `artifact_location`. Other backends (e.g. a remote server) are left to MLflow to decide.
-        if self.artifact_location is None and tracking_uri and tracking_uri.startswith("sqlite:///"):
-            db_path = Path(tracking_uri[len("sqlite:///") :])
+        # Only `tracking_uri` is passed to the client, so an `MLFLOW_TRACKING_URI` env var is
+        # still resolved by MLflow itself.
+        if (
+            self.artifact_location is None
+            and effective_tracking_uri
+            and effective_tracking_uri.startswith("sqlite:///")
+        ):
+            db_path = Path(effective_tracking_uri[len("sqlite:///") :])
             self.artifact_location = path_to_uri(db_path.parent / "mlruns")
         self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
