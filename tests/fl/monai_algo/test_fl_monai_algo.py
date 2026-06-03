@@ -179,6 +179,36 @@ TEST_GET_WEIGHTS_3 = [
 ]
 
 
+def _dispose_sqlite_engines():
+    """Dispose MLflow's open SQLAlchemy SQLite engines so the test ``.db`` files can be removed.
+
+    MLflow keeps a SQLite connection open for the lifetime of its client; on Windows that
+    locks the database file and breaks cleanup. ``MLFlowHandler.close()`` releases it, but a
+    workflow may finish without closing every handler, so dispose defensively here before
+    deleting the files. Scoped to the test's ``mlflow*.db`` backends so unrelated (e.g.
+    in-memory) sqlite engines elsewhere in the process are left untouched.
+    """
+    import gc
+
+    try:
+        from sqlalchemy.engine import Engine
+    except ImportError:
+        return
+    gc.collect()
+    for obj in gc.get_objects():
+        if not isinstance(obj, Engine):
+            continue
+        try:
+            url = obj.url
+            db = url.database if url.get_backend_name() == "sqlite" else None
+            # the test backends are all files named ``mlflow*.db``; match those only so
+            # unrelated (e.g. in-memory) sqlite engines in the process are left untouched.
+            if db and os.path.basename(db).startswith("mlflow"):
+                obj.dispose()
+        except Exception:
+            pass
+
+
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
@@ -202,6 +232,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "save_execute_config" in algo.train_workflow.parser:
+            _dispose_sqlite_engines()  # release SQLite handles so the db file can be removed on Windows
             self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override.db"))
             os.remove(f"{_data_dir}/mlflow_override.db")
             if os.path.isdir(f"{_data_dir}/mlruns"):
@@ -227,6 +258,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "save_execute_config" in algo.eval_workflow.parser:
+            _dispose_sqlite_engines()  # release SQLite handles so the db files can be removed on Windows
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/mlflow_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/mlflow_*")):
                 shutil.rmtree(f) if os.path.isdir(f) else os.remove(f)
