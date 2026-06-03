@@ -196,9 +196,11 @@ def _dispose_sqlite_engines():
         return
     gc.collect()
     for obj in gc.get_objects():
-        if not isinstance(obj, Engine):
-            continue
+        # gc.get_objects() can include dead weakref proxies, whose isinstance() raises
+        # ReferenceError, so guard the whole inspection (ReferenceError is an Exception).
         try:
+            if not isinstance(obj, Engine):
+                continue
             url = obj.url
             db = url.database if url.get_backend_name() == "sqlite" else None
             # the test backends are all files named ``mlflow*.db``; match those only so
