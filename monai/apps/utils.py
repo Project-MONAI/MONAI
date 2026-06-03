@@ -229,7 +229,7 @@ def download_url(
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
             raise ValueError(
-                f"{hash_type} hash check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
+                f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type}={hash_val}."
             )
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
