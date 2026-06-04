@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -896,7 +897,7 @@ class AutoencoderKL(nn.Module):
                 "`channels`."
             )
 
-        self.encoder: Encoder = Encoder(
+        self.encoder: nn.Module = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             channels=channels,
@@ -915,7 +916,7 @@ class AutoencoderKL(nn.Module):
         # Get downsampling parameters from encoder to ensure decoder uses the same strides
         encoder_downsample_params = self.encoder.downsample_parameters
 
-        self.decoder: Decoder = Decoder(
+        self.decoder: nn.Module = Decoder(
             spatial_dims=spatial_dims,
             channels=channels,
             in_channels=latent_channels,
@@ -984,7 +985,7 @@ class AutoencoderKL(nn.Module):
         # Clear shape list before encoding to avoid unbounded growth across forward passes
         # Only clear if encoder supports shape tracking (e.g., Encoder class, not MaisiEncoder)
         if hasattr(self.encoder, "downsample_shapes"):
-            self.encoder.downsample_shapes.clear()
+            cast(Encoder, self.encoder).downsample_shapes.clear()
             self._has_fresh_downsample_shapes = True
 
         if self.use_checkpoint:
@@ -1043,7 +1044,7 @@ class AutoencoderKL(nn.Module):
         # Clear stale encoder shapes if decode is called standalone (without preceding encode)
         # This ensures _ShapeRestoringUpsample blocks use scale_factor fallback for mismatched shapes
         if not self._has_fresh_downsample_shapes and hasattr(self.encoder, "downsample_shapes"):
-            self.encoder.downsample_shapes.clear()
+            cast(Encoder, self.encoder).downsample_shapes.clear()
 
         z = self.post_quant_conv(z)
         dec: torch.Tensor
