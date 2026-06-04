@@ -182,11 +182,6 @@ def skip_if_downloading_fails():
             raise unittest.SkipTest(f"Error while downloading: {rt_e}") from rt_e  # incomplete download
 
         raise rt_e
-    except ValueError as v_e:
-        if "hash check" in str(v_e):
-            raise unittest.SkipTest(f"Hash value error while downloading: {v_e}") from v_e
-
-        raise v_e
 
 
 def test_pretrained_networks(network, input_param, device):
