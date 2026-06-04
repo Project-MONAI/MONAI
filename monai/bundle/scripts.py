@@ -17,13 +17,13 @@ import os
 import re
 import urllib
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from functools import partial
 from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
-from typing import Any, Callable
+from typing import Any
 
 import torch
 from torch.cuda import is_available

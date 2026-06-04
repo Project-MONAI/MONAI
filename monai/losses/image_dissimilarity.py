@@ -111,14 +111,16 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
         _kernel = look_up_option(kernel_type, kernel_dict)
-        self.kernel = _kernel(self.kernel_size)
-        self.kernel.require_grads = False
-        self.kernel_vol = self.get_kernel_vol()
+        self.kernel: torch.Tensor
+        self.kernel_vol: torch.Tensor
+        self.register_buffer("kernel", _kernel(self.kernel_size), persistent=False)
+        self.register_buffer("kernel_vol", self.get_kernel_vol(), persistent=False)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def get_kernel_vol(self):
+    def get_kernel_vol(self) -> torch.Tensor:
+        assert self.kernel is not None
         vol = self.kernel
         for _ in range(self.ndim - 1):
             vol = torch.matmul(vol.unsqueeze(-1), self.kernel.unsqueeze(0))
@@ -138,6 +140,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
         t2, p2, tp = target * target, pred * pred, target * pred
+        assert self.kernel is not None
+        assert self.kernel_vol is not None
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         kernels = [kernel] * self.ndim
         # sum over kernel
@@ -229,9 +233,11 @@ class GlobalMutualInformationLoss(_Loss):
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         self.kernel_type = kernel_type
+        self.bin_centers: torch.Tensor | None
+        self.register_buffer("bin_centers", None, persistent=False)
         if self.kernel_type == "gaussian":
             self.preterm = 1 / (2 * sigma**2)
-            self.bin_centers = bin_centers[None, None, ...]
+            self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
@@ -310,6 +316,8 @@ class GlobalMutualInformationLoss(_Loss):
         """
         img = torch.clamp(img, 0, 1)
         img = img.reshape(img.shape[0], -1, 1)  # (batch, num_sample, 1)
+        if self.bin_centers is None:
+            raise ValueError("bin_centers must be defined for gaussian parzen windowing.")
         weight = torch.exp(
             -self.preterm.to(img) * (img - self.bin_centers.to(img)) ** 2
         )  # (batch, num_sample, num_bin)

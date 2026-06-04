@@ -120,7 +120,7 @@ def print_config(file=sys.stdout):
 def _dict_append(in_dict, key, fn):
     try:
         in_dict[key] = fn() if callable(fn) else fn
-    except BaseException:
+    except Exception:
         in_dict[key] = "UNKNOWN for given OS"
 
 
