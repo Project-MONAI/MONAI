@@ -379,6 +379,7 @@ class BundleAlgo(Algo):
             based on which path successfully imports the Algo class.
         """
         return {
+            "template_path": self.template_path,
             "data_stats_files": self.data_stats_files,
             "data_list_file": self.data_list_file,
             "mlflow_tracking_uri": self.mlflow_tracking_uri,
