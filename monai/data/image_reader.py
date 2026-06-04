@@ -1549,10 +1549,22 @@ class NrrdReader(ImageReader):
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"].copy()
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
-            if self.channel_dim is None:  # default to "no_channel" or -1
-                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
-                )
+            if self.channel_dim is None:  # default to "no_channel" or 0
+                # Use the NRRD 'kinds' field to detect non-spatial (channel) axes.
+                # Spatial kinds are 'domain' and 'space'; anything else (e.g. 'list',
+                # 'vector') marks a channel axis.
+                _SPATIAL_KINDS = {"domain", "space"}
+                ch_axes = [idx for idx, k in enumerate(header.get("kinds", [])) if k.lower() not in _SPATIAL_KINDS]
+                if ch_axes:
+                    ch_ax = ch_axes[0]
+                    header[MetaKeys.ORIGINAL_CHANNEL_DIM] = ch_ax
+                    sp_shape = list(header[MetaKeys.SPATIAL_SHAPE])
+                    sp_shape.pop(ch_ax)
+                    header[MetaKeys.SPATIAL_SHAPE] = np.array(sp_shape)
+                else:
+                    header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                        float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                    )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
@@ -1570,6 +1582,11 @@ class NrrdReader(ImageReader):
         """
         direction = header["space directions"]
         origin = header["space origin"]
+
+        # pynrrd represents non-spatial axes (e.g. 'list' kind in 4-D NRRD files) as rows
+        # where every element is NaN.  Filter them out so the affine only encodes spatial axes.
+        valid = ~np.all(np.isnan(direction.astype(float)), axis=1)
+        direction = direction[valid]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1
@@ -1609,4 +1626,6 @@ class NrrdReader(ImageReader):
         header["space directions"] = np.rot90(np.flip(header["space directions"], 0))
         header["space origin"] = header["space origin"][::-1]
         header["sizes"] = header["sizes"][::-1]
+        if "kinds" in header:
+            header["kinds"] = header["kinds"][::-1]
         return header
