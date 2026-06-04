@@ -72,12 +72,13 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: PathLike):
+    def __init__(self, template_path: PathLike | None = None):
         """
         Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_path: path to a folder that contains the algorithm templates.
+            template_path: path to a folder that contains the algorithm templates. If this is not provided, it's value
+                must be loaded with `load_state_dict`.
                 Please check https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         """
