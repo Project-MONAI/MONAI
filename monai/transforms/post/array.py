@@ -50,7 +50,7 @@ from monai.utils import (
 )
 from monai.utils.type_conversion import convert_to_dst_type
 
-rankseg_module, has_rankseg = optional_import("rankseg")
+rankseg_fn, has_rankseg = optional_import("rankseg.functional", name="rankseg")
 
 __all__ = [
     "Activations",
@@ -198,7 +198,6 @@ class AsDiscrete(Transform):
             raise ValueError("`rankseg=True` is incompatible with `argmax=True`.")
         self.argmax = argmax
         self.rankseg = rankseg
-        self._rankseg_decoder = None
         if isinstance(to_onehot, bool):  # for backward compatibility
             raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
@@ -248,10 +247,8 @@ class AsDiscrete(Transform):
         if rankseg:
             if not has_rankseg:
                 raise OptionalImportError("`rankseg=True` requires the `rankseg` package, but it is not installed.")
-            if self._rankseg_decoder is None:
-                self._rankseg_decoder = rankseg_module.RankSEG()
             # RankSEG expects a batch dimension.
-            img_t = self._rankseg_decoder.predict(img_t.unsqueeze(0)).squeeze(0)
+            img_t = rankseg_fn(img_t.unsqueeze(0)).squeeze(0)
 
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
