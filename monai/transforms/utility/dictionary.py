@@ -38,6 +38,7 @@ from monai.transforms.utility.array import (
     ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
+    ChannelWise,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
     CuCIM,
@@ -52,6 +53,7 @@ from monai.transforms.utility.array import (
     LabelToMask,
     Lambda,
     MapLabelValue,
+    RandChannelWise,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
@@ -88,6 +90,9 @@ __all__ = [
     "ConcatItemsD",
     "ConcatItemsDict",
     "ConcatItemsd",
+    "ChannelWiseD",
+    "ChannelWiseDict",
+    "ChannelWised",
     "ConvertToMultiChannelBasedOnBratsClassesD",
     "ConvertToMultiChannelBasedOnBratsClassesDict",
     "ConvertToMultiChannelBasedOnBratsClassesd",
@@ -131,6 +136,9 @@ __all__ = [
     "FlattenSubKeysd",
     "FlattenSubKeysD",
     "FlattenSubKeysDict",
+    "RandChannelWiseD",
+    "RandChannelWiseDict",
+    "RandChannelWised",
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
@@ -335,6 +343,70 @@ class RemoveRepeatedChanneld(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
+        return d
+
+
+class ChannelWised(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ChannelWise`.
+    """
+
+    backend = ChannelWise.backend
+
+    def __init__(self, keys: KeysCollection, transform: Callable, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            transform: a callable transform to apply to each channel.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ChannelWise(transform=transform)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RandChannelWised(MapTransform, RandomizableTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandChannelWise`.
+    """
+
+    backend = RandChannelWise.backend
+
+    def __init__(self, keys: KeysCollection, transform: Callable, prob: float = 1.0, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            transform: a callable transform to apply to each channel.
+            prob: probability of applying the transform to the entire image.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.converter = RandChannelWise(transform=transform, prob=1.0)
+
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandChannelWised:
+        super().set_random_state(seed, state)
+        if hasattr(self.converter, "set_random_state"):
+            self.converter.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+            
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key], randomize=False)
         return d
 
 
@@ -2032,6 +2104,8 @@ IdentityD = IdentityDict = Identityd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
+ChannelWiseD = ChannelWiseDict = ChannelWised
+RandChannelWiseD = RandChannelWiseDict = RandChannelWised
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitDimD = SplitDimDict = SplitDimd
 CastToTypeD = CastToTypeDict = CastToTyped

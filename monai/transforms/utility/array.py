@@ -81,6 +81,8 @@ __all__ = [
     "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
+    "ChannelWise",
+    "RandChannelWise",
     "SplitDim",
     "CastToType",
     "ToTensor",
@@ -286,6 +288,82 @@ class RemoveRepeatedChannel(Transform):
 
         out: NdarrayOrTensor = convert_to_tensor(img[:: self.repeats, :], track_meta=get_track_meta())
         return out
+
+
+class ChannelWise(Transform):
+    """
+    Apply a given transform to each channel of the input array independently and
+    concatenate the results back along the channel dimension.
+    
+    Args:
+        transform: a callable transform to apply to each channel.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, transform: Callable) -> None:
+        self.transform = transform
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        if img.shape[0] == 0:
+            return img
+            
+        results = []
+        for i in range(img.shape[0]):
+            res = self.transform(img[[i], ...])
+            results.append(res)
+            
+        if isinstance(img, torch.Tensor):
+            return torch.cat(results, dim=0)
+        return np.concatenate(results, axis=0)
+
+
+class RandChannelWise(RandomizableTransform):
+    """
+    Randomizable version of :py:class:`monai.transforms.ChannelWise`, the input
+    `transform` will be applied independently to each channel.
+
+    Args:
+        transform: a callable transform to apply to each channel.
+        prob: probability of applying the transform to the entire image.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, transform: Callable, prob: float = 1.0) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.transform = transform
+
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandChannelWise:
+        super().set_random_state(seed, state)
+        if hasattr(self.transform, "set_random_state"):
+            self.transform.set_random_state(seed, state)
+        return self
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        if randomize:
+            self.randomize(None)
+        if not self._do_transform:
+            return img
+            
+        if img.shape[0] == 0:
+            return img
+            
+        results = []
+        for i in range(img.shape[0]):
+            res = self.transform(img[[i], ...])
+            results.append(res)
+            
+        if isinstance(img, torch.Tensor):
+            return torch.cat(results, dim=0)
+        return np.concatenate(results, axis=0)
+
 
 
 class SplitDim(Transform, MultiSampleTrait):
