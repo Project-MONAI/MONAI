@@ -196,11 +196,7 @@ class TestControlNet(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "modality_tensor should be provided"):
             with eval_mode(net):
-                net.forward(
-                    torch.rand((1, 1, 16, 16)),
-                    torch.randint(0, 1000, (1,)).long(),
-                    torch.rand((1, 1, 32, 32)),
-                )
+                net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 1, 32, 32)))
 
 
 if __name__ == "__main__":
