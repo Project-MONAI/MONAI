@@ -12,10 +12,13 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
 from monai.transforms import AsDiscrete
+from monai.transforms.post import array as post_array
+from monai.utils import OptionalImportError
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
@@ -63,6 +66,25 @@ for p in TEST_NDARRAYS:
         [{"rounding": "torchrounding"}, p([[[0.123, 1.345], [2.567, 3.789]]]), p([[[0.0, 1.0], [3.0, 4.0]]]), (1, 2, 2)]
     )
 
+    TEST_CASES.append(
+        [
+            {"rankseg": False, "argmax": True},
+            p([[[0.45, 0.55]], [[0.55, 0.45]]]),
+            p([[[1.0, 0.0]]]),
+            (1, 1, 2),
+        ]
+    )
+
+    if post_array.has_rankseg:
+        TEST_CASES.append(
+            [
+                {"rankseg": True},
+                p([[[0.45, 0.55]], [[0.55, 0.45]]]),
+                p([[1.0, 1.0]]),
+                (1, 2),
+            ]
+        )
+
 
 class TestAsDiscrete(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
@@ -75,6 +97,18 @@ class TestAsDiscrete(unittest.TestCase):
         for p in TEST_NDARRAYS:
             out = AsDiscrete(argmax=True, dim=1, keepdim=False)(p([[[0.0, 1.0]], [[2.0, 3.0]]]))
             assert_allclose(out, p([[0.0, 0.0], [0.0, 0.0]]), type_test=False)
+
+    def test_rankseg_argmax_incompatible(self):
+        with self.assertRaises(ValueError):
+            AsDiscrete(argmax=True, rankseg=True)
+
+        with self.assertRaises(ValueError):
+            AsDiscrete(argmax=True)([[[0.45, 0.55]], [[0.55, 0.45]]], rankseg=True)
+
+    def test_rankseg_missing_dependency(self):
+        with mock.patch("monai.transforms.post.array.has_rankseg", False):
+            with self.assertRaises(OptionalImportError):
+                AsDiscrete(rankseg=True)([[[0.45, 0.55]], [[0.55, 0.45]]])
 
 
 if __name__ == "__main__":
