@@ -14,8 +14,10 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import NormalizeIntensityd
 from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -75,6 +77,17 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         normalized = normalizer(input_data)[key]
         expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
         assert_allclose(normalized, im_type(expected), type_test="tensor")
+
+    @parameterized.expand([["global", {}], ["channelwise", {"channel_wise": True}]])
+    def test_inverse(self, _, args):
+        set_track_meta(True)
+        key = "img"
+        normalizer = NormalizeIntensityd(keys=key, **args)
+        data = {key: MetaTensor(torch.randn(3, 6, 6) * 4 + 1)}
+        original = data[key].clone()
+        out = normalizer(dict(data))
+        inv = normalizer.inverse(out)
+        assert_allclose(inv[key], original, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

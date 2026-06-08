@@ -60,6 +60,7 @@ from monai.transforms.intensity.array import (
     StdShiftIntensity,
     ThresholdIntensity,
 )
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
@@ -791,11 +792,12 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         return d
 
 
-class NormalizeIntensityd(MapTransform):
+class NormalizeIntensityd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.NormalizeIntensity`.
     This transform can normalize only non-zero values or entire image, and can also calculate
-    mean and std on each channel separately.
+    mean and std on each channel separately. It is invertible via :meth:`inverse` (except when
+    ``nonzero=True``); see :py:class:`monai.transforms.NormalizeIntensity`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -828,6 +830,12 @@ class NormalizeIntensityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.normalizer.inverse(d[key])
         return d
 
 

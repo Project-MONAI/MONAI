@@ -17,6 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import NormalizeIntensity
 from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -137,6 +138,30 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         normalizer = NormalizeIntensity(nonzero=True, channel_wise=True, subtrahend=[1, 2], divisor=[1])
         with self.assertRaises(ValueError):
             normalizer(input_data)
+
+    @parameterized.expand(
+        [
+            ["global_computed", {}],
+            ["channelwise_computed", {"channel_wise": True}],
+            ["global_explicit", {"subtrahend": 2.0, "divisor": 3.0}],
+            ["channelwise_explicit", {"subtrahend": [1.0, 2.0, 3.0], "divisor": [2.0, 3.0, 4.0], "channel_wise": True}],
+        ]
+    )
+    def test_inverse(self, _, args):
+        set_track_meta(True)
+        img = MetaTensor(torch.randn(3, 6, 6) * 5 + 2)
+        normalizer = NormalizeIntensity(**args)
+        out = normalizer(img.clone())
+        inv = normalizer.inverse(out)
+        assert_allclose(inv, img, type_test=False, rtol=1e-4, atol=1e-4)
+
+    def test_inverse_nonzero_not_implemented(self):
+        set_track_meta(True)
+        img = MetaTensor(torch.randn(2, 5, 5))
+        normalizer = NormalizeIntensity(nonzero=True)
+        out = normalizer(img.clone())
+        with self.assertRaises(NotImplementedError):
+            normalizer.inverse(out)
 
 
 if __name__ == "__main__":
