@@ -247,8 +247,12 @@ class AsDiscrete(Transform):
         if rankseg:
             if not has_rankseg:
                 raise OptionalImportError("`rankseg=True` requires the `rankseg` package, but it is not installed.")
-            # RankSEG expects a batch dimension.
-            img_t = rankseg_fn(img_t.unsqueeze(0)).squeeze(0)
+            # Adjust shape to meet RankSEG's [B, C, *spatial] input requirement.
+            channel_dim = self.kwargs.get("dim", 0) % img_t.ndim
+            keepdim = self.kwargs.get("keepdim", True)
+            img_t = rankseg_fn(img_t.movedim(channel_dim, 0).unsqueeze(0)).squeeze(0)
+            if keepdim:
+                img_t = img_t.unsqueeze(channel_dim)
 
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
