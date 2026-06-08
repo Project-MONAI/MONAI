@@ -165,7 +165,7 @@ cd docs/
 make html
 ```
 
-The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
+The above commands build html documentation, they are used to automatically generate [monai.readthedocs.io](https://monai.readthedocs.io).
 
 The Python code docstring are written in
 [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) and
