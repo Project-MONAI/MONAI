@@ -20,8 +20,10 @@ from torch.nn.modules.loss import _Loss
 
 from monai.losses.dice import DiceLoss
 from monai.networks import one_hot
-from monai.utils import LossReduction
+from monai.utils import LossReduction, optional_import
 from monai.utils.deprecate_utils import deprecated_arg
+
+centerline_extraction_3d, _has_thinning = optional_import("centerline_extraction_3d_cuda")
 
 
 def soft_erode(img: torch.Tensor) -> torch.Tensor:  # type: ignore
@@ -129,6 +131,8 @@ class SoftclDiceLoss(_Loss):
         softmax: bool = False,
         other_act: Callable | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
+        use_hard_target: bool = False,
+        use_hard_prob: bool = False,
     ) -> None:
         """
         Args:
@@ -151,6 +155,10 @@ class SoftclDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            use_hard_target: if True, use the exact CUDA 3D binary thinning for the target skeleton instead of soft skeletonization.
+                Requires centerline_extraction_3d_cuda package and a CUDA 3D target. Defaults to False.
+            use_hard_prob: if True, use the CUDA 3D prob map thinning with backward for the prediction skeleton instead of soft skeletonization.
+                Requires centerline_extraction_3d_cuda package and a CUDA 3D input. Defaults to False.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -181,6 +189,8 @@ class SoftclDiceLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
+        self.use_hard_target = use_hard_target
+        self.use_hard_prob = use_hard_prob
 
     @deprecated_arg("y_pred", since="1.5", removed="1.8", new_name="input", msg_suffix="please use `input` instead.")
     @deprecated_arg("y_true", since="1.5", removed="1.8", new_name="target", msg_suffix="please use `target` instead.")
@@ -193,6 +203,8 @@ class SoftclDiceLoss(_Loss):
         Raises:
             AssertionError: When input and target (after one hot transform if set)
                 have different shapes.
+            ValueError: When `use_hard_prob` or `use_hard_target` is enabled but the tensor is not 5D CUDA
+                or `centerline_extraction_3d_cuda` is unavailable.
 
         """
         n_pred_ch = input.shape[1]
@@ -225,8 +237,33 @@ class SoftclDiceLoss(_Loss):
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
-        skel_pred = soft_skel(input, self.iter)
-        skel_true = soft_skel(target, self.iter)
+        if self.use_hard_prob:
+            if not (input.dim() == 5 and _has_thinning and input.is_cuda):
+                raise ValueError(
+                    "use_hard_prob=True but conditions not met. "
+                    "Requires 5D CUDA tensor and centerline_extraction_3d_cuda package."
+                )
+            pred_mask = (input >= 0.5).to(torch.uint8).contiguous()
+            skel_pred = torch.zeros_like(input)
+            for b in range(input.shape[0]):
+                for c in range(input.shape[1]):
+                    skel_pred[b, c] = centerline_extraction_3d.extract_centerline(pred_mask[b, c], input[b, c], 0)
+        else:
+            skel_pred = soft_skel(input, self.iter)
+
+        if self.use_hard_target:
+            if not (target.dim() == 5 and _has_thinning and target.is_cuda):
+                raise ValueError(
+                    "use_hard_target=True but conditions not met. "
+                    "Requires 5D CUDA tensor and centerline_extraction_3d_cuda package."
+                )
+            skel_true = (target > 0).to(torch.uint8).contiguous()
+            for b in range(target.shape[0]):
+                for c in range(target.shape[1]):
+                    centerline_extraction_3d.binary_thinning(skel_true[b, c], 0)
+            skel_true = skel_true.to(target.dtype)
+        else:
+            skel_true = soft_skel(target, self.iter)
 
         # Compute per-batch clDice by reducing over channel and spatial dimensions
         # reduce_axis includes all dimensions except batch (dim 0)
@@ -279,6 +316,8 @@ class SoftDiceclDiceLoss(_Loss):
         softmax: bool = False,
         other_act: Callable | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
+        use_hard_target: bool = False,
+        use_hard_prob: bool = False,
     ) -> None:
         """
         Args:
@@ -304,6 +343,10 @@ class SoftDiceclDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            use_hard_target: if True, use the exact CUDA 3D binary thinning for the target skeleton instead of soft skeletonization.
+                Requires MONAI C++ extensions and a 3D target. Defaults to False.
+            use_hard_prob: if True, use the CUDA 3D prob map thinning with backward for the prediction skeleton instead of soft skeletonization.
+                Requires centerline_extraction_3d_cuda package and a CUDA 3D input. Defaults to False.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -336,6 +379,8 @@ class SoftDiceclDiceLoss(_Loss):
             softmax=softmax,
             other_act=other_act,
             reduction=reduction,
+            use_hard_target=use_hard_target,
+            use_hard_prob=use_hard_prob,
         )
         self.alpha = alpha
         self.to_onehot_y = to_onehot_y
@@ -351,6 +396,8 @@ class SoftDiceclDiceLoss(_Loss):
         Raises:
             ValueError: When number of dimensions for input and target are different.
             ValueError: When number of channels for target is neither 1 nor the same as input.
+            ValueError: When `use_hard_prob` or `use_hard_target` is enabled but the tensor is not 5D CUDA
+                or `centerline_extraction_3d_cuda` is unavailable.
 
         """
         if input.dim() != target.dim():

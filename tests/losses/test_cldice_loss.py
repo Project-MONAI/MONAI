@@ -85,6 +85,39 @@ class TestSoftclDiceLoss(unittest.TestCase):
         result = loss(ONES_2D["input"].cuda(), ONES_2D["target"].cuda())
         np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
 
+    @skip_if_no_cuda
+    def test_hard_target(self):
+        """Test SoftclDiceLoss with use_hard_target=True using binary thinning on 3D CUDA tensors."""
+        # Skip if thinning not available
+        from monai.losses.cldice import _has_thinning
+
+        if not _has_thinning:
+            self.skipTest("centerline_extraction_3d_cuda not available")
+
+        loss = SoftclDiceLoss(use_hard_target=True)
+        # MUST BE 3D for hard target logic to trigger! (shape: B, N, H, W, D)
+        result = loss(ONES_3D["input"].cuda(), ONES_3D["target"].cuda())
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+
+    @skip_if_no_cuda
+    def test_hard_prob(self):
+        """Test SoftclDiceLoss with use_hard_prob=True using prob thinning on 3D CUDA tensors."""
+        # Skip if thinning not available
+        from monai.losses.cldice import _has_thinning
+
+        if not _has_thinning:
+            self.skipTest("centerline_extraction_3d_cuda not available")
+
+        loss = SoftclDiceLoss(use_hard_prob=True)
+        # MUST BE 3D for hard prob logic to trigger! (shape: B, N, H, W, D)
+        input_tensor = torch.ones_like(ONES_3D["input"]).cuda()
+        input_tensor.requires_grad = True
+        target = ONES_3D["target"].cuda()
+        result = loss(input_tensor, target)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+        result.backward()
+        self.assertIsNotNone(input_tensor.grad)
+
     def test_reduction_shapes(self):
         input_tensor = torch.ones((4, 2, 8, 8))
         target = torch.ones((4, 2, 8, 8))
@@ -127,6 +160,35 @@ class TestSoftDiceclDiceLoss(unittest.TestCase):
         loss = SoftDiceclDiceLoss()
         result = loss(ONES_2D["input"].cuda(), ONES_2D["target"].cuda())
         np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+
+    @skip_if_no_cuda
+    def test_hard_target(self):
+        """Test SoftDiceclDiceLoss with use_hard_target=True."""
+        from monai.losses.cldice import _has_thinning
+
+        if not _has_thinning:
+            self.skipTest("centerline_extraction_3d_cuda not available")
+
+        loss = SoftDiceclDiceLoss(use_hard_target=True)
+        result = loss(ONES_3D["input"].cuda(), ONES_3D["target"].cuda())
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+
+    @skip_if_no_cuda
+    def test_hard_prob(self):
+        """Test SoftDiceclDiceLoss with use_hard_prob=True."""
+        from monai.losses.cldice import _has_thinning
+
+        if not _has_thinning:
+            self.skipTest("centerline_extraction_3d_cuda not available")
+
+        loss = SoftDiceclDiceLoss(use_hard_prob=True)
+        input_tensor = torch.ones_like(ONES_3D["input"]).cuda()
+        input_tensor.requires_grad = True
+        target = ONES_3D["target"].cuda()
+        result = loss(input_tensor, target)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), 0.0, atol=1e-4)
+        result.backward()
+        self.assertIsNotNone(input_tensor.grad)
 
     def test_dimension_mismatch(self):
         loss = SoftDiceclDiceLoss()
