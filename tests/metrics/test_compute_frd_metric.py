@@ -39,10 +39,24 @@ class TestFrechetRadiomicsDistance(unittest.TestCase):
         np.testing.assert_allclose(frd_score.cpu().numpy(), fid_score.cpu().numpy(), atol=1e-6)
 
     def test_rejects_high_dimensional_input(self):
-        """FrechetRadiomicsDistance raises ValueError when inputs have ndimension() > 2."""
+        """Raises ValueError when inputs have more than 2 dimensions."""
         high_dim = torch.ones([3, 3, 144, 144])
         with self.assertRaises(ValueError):
             FrechetRadiomicsDistance()(high_dim, high_dim)
+
+    def test_rejects_1d_input(self):
+        """Raises ValueError when inputs are 1-D (single feature vector, not a batch)."""
+        with self.assertRaises(ValueError):
+            FrechetRadiomicsDistance()(torch.ones([10]), torch.ones([10]))
+
+    def test_rejects_too_few_samples(self):
+        """Raises ValueError when either input has fewer than 2 samples."""
+        valid = torch.Tensor([[1.0, 2.0], [3.0, 4.0]])
+        single = torch.Tensor([[1.0, 2.0]])
+        with self.assertRaises(ValueError):
+            FrechetRadiomicsDistance()(single, valid)
+        with self.assertRaises(ValueError):
+            FrechetRadiomicsDistance()(valid, single)
 
 
 if __name__ == "__main__":
