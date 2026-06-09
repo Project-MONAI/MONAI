@@ -160,8 +160,13 @@ class AsDiscrete(Transform):
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
-        rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
-            RankSEG expects channel-first probability maps and returns a label map.
+        rankseg: whether to apply RankSEG decoding. Requires installing the optional ``rankseg`` package.
+            RankSEG is applied to a channel-first probability map for one image; ``dim`` identifies the
+            class/channel dimension and is moved to the front before decoding. For the common MONAI
+            post-processing input shape ``(C, *spatial)``, use the default ``dim=0``.
+            The output is a label map. With the default ``keepdim=True``, the output shape is ``(1, *spatial)``;
+            with ``keepdim=False``, it is ``(*spatial)``. The ``dim`` and ``keepdim`` shape handling is aligned
+            with ``argmax``. This option is incompatible with ``argmax=True``.
             Defaults to ``False``.
         kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
             currently ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
@@ -180,6 +185,12 @@ class AsDiscrete(Transform):
         >>> transform = AsDiscrete(argmax=True, to_onehot=2, threshold=0.5)
         >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
         # [[[0.0, 0.0]], [[1.0, 1.0]]]
+
+        RankSEG decoding requires the optional ``rankseg`` package:
+
+        >>> transform = AsDiscrete(rankseg=True)
+        >>> print(transform(np.array([[[0.3, 0.6]], [[0.7, 0.4]]])))
+        # [[[1.0, 1.0]]]
 
     """
 
@@ -224,8 +235,9 @@ class AsDiscrete(Transform):
                 Defaults to ``self.to_onehot``.
             threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 Defaults to ``self.threshold``.
-            rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
-                RankSEG expects channel-first probability maps and returns a label map.
+            rankseg: whether to apply RankSEG decoding. Requires installing the optional ``rankseg`` package.
+                Applies RankSEG to a channel-first probability map by default and uses the same ``dim`` and
+                ``keepdim`` shape handling as ``argmax``. This option is incompatible with ``argmax=True``.
                 Defaults to ``self.rankseg``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].

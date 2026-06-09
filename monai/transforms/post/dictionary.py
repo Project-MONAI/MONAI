@@ -183,9 +183,10 @@ class AsDiscreted(MapTransform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
-            rankseg: whether to apply RankSEG decoding. Requires the optional ``rankseg`` package.
-                RankSEG expects channel-first probability maps and returns a label map. It also can be
-                a sequence of bool, each element corresponds to a key in ``keys``.
+            rankseg: whether to apply RankSEG decoding. Requires installing the optional ``rankseg`` package.
+                RankSEG expects channel-first probability maps for one image. It also can be a sequence of bool,
+                each element corresponds to a key in ``keys``. Uses the same ``dim`` and ``keepdim`` shape handling
+                as ``argmax``. This option is incompatible with ``argmax=True``.
             allow_missing_keys: don't raise exception if key is missing.
             kwargs: additional parameters to ``AsDiscrete``.
                 ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
