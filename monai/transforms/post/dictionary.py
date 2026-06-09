@@ -196,7 +196,7 @@ class AsDiscreted(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.rankseg = ensure_tuple_rep(rankseg, len(self.keys))
-        if any(argmax_ and rankseg_ for argmax_, rankseg_ in zip(self.argmax, self.rankseg)):
+        if any(argmax_ and rankseg_ for argmax_, rankseg_ in zip(self.argmax, self.rankseg, strict=True)):
             raise ValueError("`rankseg=True` is incompatible with `argmax=True`.")
         self.to_onehot = []
         for flag in ensure_tuple_rep(to_onehot, len(self.keys)):

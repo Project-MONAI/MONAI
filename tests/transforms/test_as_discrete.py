@@ -67,23 +67,11 @@ for p in TEST_NDARRAYS:
     )
 
     TEST_CASES.append(
-        [
-            {"rankseg": False, "argmax": True},
-            p([[[0.3, 0.6]], [[0.7, 0.4]]]),
-            p([[[1.0, 0.0]]]),
-            (1, 1, 2),
-        ]
+        [{"rankseg": False, "argmax": True}, p([[[0.3, 0.6]], [[0.7, 0.4]]]), p([[[1.0, 0.0]]]), (1, 1, 2)]
     )
 
     if post_array.has_rankseg:
-        TEST_CASES.append(
-            [
-                {"rankseg": True},
-                p([[[0.3, 0.6]], [[0.7, 0.4]]]),
-                p([[[1.0, 1.0]]]),
-                (1, 1, 2),
-            ]
-        )
+        TEST_CASES.append([{"rankseg": True}, p([[[0.3, 0.6]], [[0.7, 0.4]]]), p([[[1.0, 1.0]]]), (1, 1, 2)])
 
 
 class TestAsDiscrete(unittest.TestCase):
