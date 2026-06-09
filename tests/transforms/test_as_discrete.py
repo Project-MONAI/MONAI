@@ -69,7 +69,7 @@ for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
             {"rankseg": False, "argmax": True},
-            p([[[0.45, 0.55]], [[0.55, 0.45]]]),
+            p([[[0.3, 0.6]], [[0.7, 0.4]]]),
             p([[[1.0, 0.0]]]),
             (1, 1, 2),
         ]
@@ -79,7 +79,7 @@ for p in TEST_NDARRAYS:
         TEST_CASES.append(
             [
                 {"rankseg": True},
-                p([[[0.45, 0.55]], [[0.55, 0.45]]]),
+                p([[[0.3, 0.6]], [[0.7, 0.4]]]),
                 p([[[1.0, 1.0]]]),
                 (1, 1, 2),
             ]
@@ -103,12 +103,12 @@ class TestAsDiscrete(unittest.TestCase):
             AsDiscrete(argmax=True, rankseg=True)
 
         with self.assertRaises(ValueError):
-            AsDiscrete(argmax=True)([[[0.45, 0.55]], [[0.55, 0.45]]], rankseg=True)
+            AsDiscrete(argmax=True)([[[0.3, 0.6]], [[0.7, 0.4]]], rankseg=True)
 
     def test_rankseg_missing_dependency(self):
         with mock.patch("monai.transforms.post.array.has_rankseg", False):
             with self.assertRaises(OptionalImportError):
-                AsDiscrete(rankseg=True)([[[0.45, 0.55]], [[0.55, 0.45]]])
+                AsDiscrete(rankseg=True)([[[0.3, 0.6]], [[0.7, 0.4]]])
 
 
 if __name__ == "__main__":
