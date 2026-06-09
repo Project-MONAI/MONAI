@@ -39,7 +39,7 @@ class TestFrechetRadiomicsDistance(unittest.TestCase):
         np.testing.assert_allclose(frd_score.cpu().numpy(), fid_score.cpu().numpy(), atol=1e-6)
 
     def test_rejects_high_dimensional_input(self):
-        """Raises ValueError when inputs have more than 2 dimensions."""
+        """Raises ValueError when inputs have more than 2 dimensions. """
         high_dim = torch.ones([3, 3, 144, 144])
         with self.assertRaises(ValueError):
             FrechetRadiomicsDistance()(high_dim, high_dim)
