@@ -97,6 +97,24 @@ for p in TEST_NDARRAYS:
             ]
         )
 
+        TEST_CASES.append(
+            [
+                {"keys": "pred", "rankseg": True, "metric": "iou"},
+                {"pred": p([[[0.3, 0.6]], [[0.7, 0.4]]])},
+                {"pred": p([[[1.0, 1.0]]])},
+                (1, 1, 2),
+            ]
+        )
+
+        TEST_CASES.append(
+            [
+                {"keys": "pred", "rankseg": True},
+                {"pred": p([[[[0.3, 0.6]]], [[[0.7, 0.4]]]])},
+                {"pred": p([[[[1.0, 1.0]]]])},
+                (1, 1, 1, 2),
+            ]
+        )
+
 
 class TestAsDiscreted(unittest.TestCase):
     @parameterized.expand(TEST_CASES)

@@ -169,8 +169,8 @@ class AsDiscrete(Transform):
             with ``argmax``. This option is incompatible with ``argmax=True``.
             Defaults to ``False``.
         kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
-            currently ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
-            These default to ``0``, ``True``, ``torch.float`` respectively.
+            currently ``dim``, ``keepdim``, ``dtype``, and RankSEG ``metric`` are supported, unrecognized parameters
+            will be ignored. These default to ``0``, ``True``, ``torch.float``, and ``"dice"`` respectively.
 
     Example:
 
@@ -237,7 +237,8 @@ class AsDiscrete(Transform):
                 Defaults to ``self.threshold``.
             rankseg: whether to apply RankSEG decoding. Requires installing the optional ``rankseg`` package.
                 Applies RankSEG to a channel-first probability map by default and uses the same ``dim`` and
-                ``keepdim`` shape handling as ``argmax``. This option is incompatible with ``argmax=True``.
+                ``keepdim`` shape handling as ``argmax``. The RankSEG ``metric`` can be specified in ``kwargs``.
+                This option is incompatible with ``argmax=True``.
                 Defaults to ``self.rankseg``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
@@ -262,7 +263,9 @@ class AsDiscrete(Transform):
             # Adjust shape to meet RankSEG's [B, C, *spatial] input requirement.
             channel_dim = self.kwargs.get("dim", 0) % img_t.ndim
             keepdim = self.kwargs.get("keepdim", True)
-            img_t = rankseg_fn(img_t.movedim(channel_dim, 0).unsqueeze(0)).squeeze(0)
+            img_t = rankseg_fn(
+                img_t.movedim(channel_dim, 0).unsqueeze(0), metric=self.kwargs.get("metric", "dice")
+            ).squeeze(0)
             if keepdim:
                 img_t = img_t.unsqueeze(channel_dim)
 

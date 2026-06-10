@@ -189,8 +189,8 @@ class AsDiscreted(MapTransform):
                 as ``argmax``. This option is incompatible with ``argmax=True``.
             allow_missing_keys: don't raise exception if key is missing.
             kwargs: additional parameters to ``AsDiscrete``.
-                ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
-                These default to ``0``, ``True``, ``torch.float`` respectively.
+                ``dim``, ``keepdim``, ``dtype``, and RankSEG ``metric`` are supported, unrecognized parameters will
+                be ignored. These default to ``0``, ``True``, ``torch.float``, and ``"dice"`` respectively.
 
         """
         super().__init__(keys, allow_missing_keys)
