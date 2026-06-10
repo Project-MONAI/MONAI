@@ -270,7 +270,8 @@ def get_surface_distance(
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
 
-            - ``"euclidean"``, uses Exact Euclidean distance transform.
+            - ``"euclidean"``, the exact Euclidean distance (a KD-tree over the edge voxels on
+              CPU, or the cuCIM distance transform when the inputs are on a CUDA device).
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
