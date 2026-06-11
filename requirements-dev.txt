@@ -37,7 +37,7 @@ einops
 transformers>=4.53.0, <5.0  # 5.x references torch.float8_e8m0fnu absent in older PyTorch builds
 mlflow>=2.12.2, <3.0  # 3.x broken on Python 3.12 (relative import in mlflow.utils.uv_utils)
 clearml>=1.10.0rc0
-aim  # experiment tracking backend for spleen_segmentation_aim tutorial
+aim; platform_system == "Linux"  # experiment tracking backend for spleen_segmentation_aim tutorial
 lightning>=2.0  # PyTorch Lightning for lightning-based training tutorials
 matplotlib>=3.6.3
 tensorboardX
