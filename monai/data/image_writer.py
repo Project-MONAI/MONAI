@@ -107,16 +107,32 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         fmt = fmt[1:]
     avail_writers = []
     default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
+    import re
+    errors = []
     for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
-        except OptionalImportError:
+        except OptionalImportError as e:
+            errors.append(str(e))
             continue
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        required_pkgs = []
+        for err in errors:
+            match = re.search(r"required package `([^`]+)`", err)
+            if match:
+                pkg = match.group(1)
+                pkg = "pillow" if pkg == "PIL" else pkg
+                pkg = "pynrrd" if pkg == "nrrd" else pkg
+                if pkg not in required_pkgs:
+                    required_pkgs.append(pkg)
+        
+        msg = f"No ImageWriter backend found for {fmt}."
+        if required_pkgs:
+            msg += f" Please install: {' or '.join(required_pkgs)}."
+        raise OptionalImportError(msg)
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple

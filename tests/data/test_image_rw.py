@@ -139,8 +139,18 @@ class TestLoadSavePNG(unittest.TestCase):
 class TestRegRes(unittest.TestCase):
     def test_0_default(self):
         self.assertTrue(len(resolve_writer(".png")) > 0, "has png writer")
-        self.assertTrue(len(resolve_writer(".nrrd")) > 0, "has nrrd writer")
-        self.assertTrue(len(resolve_writer("unknown")) > 0, "has writer")
+        _, has_nibabel = optional_import("nibabel")
+        _, has_itk = optional_import("itk", allow_namespace_pkg=True)
+        if has_nibabel or has_itk:
+            self.assertTrue(len(resolve_writer(".nrrd")) > 0, "has nrrd writer")
+            self.assertTrue(len(resolve_writer("unknown")) > 0, "has writer")
+        else:
+            with self.assertRaises(OptionalImportError) as ctx:
+                resolve_writer(".nrrd")
+            self.assertIn("Please install: itk or nibabel.", str(ctx.exception))
+            with self.assertRaises(OptionalImportError) as ctx:
+                resolve_writer("unknown")
+            self.assertIn("Please install: itk or nibabel.", str(ctx.exception))
         register_writer("unknown1", lambda: (_ for _ in ()).throw(OptionalImportError))
         with self.assertRaises(OptionalImportError):
             resolve_writer("unknown1")
