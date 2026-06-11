@@ -26,12 +26,21 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
 
 WORKDIR /opt/monai
 
+# Patch NVIDIA's pip constraint file:
+#   - keep numpy==1.26.4 pin (PyTorch nv25.12 was compiled against NumPy 1.x)
+#   - add setuptools<71 (newer setuptools removed pkg_resources needed by legacy setup.py)
+#   - remove jupytext/isort pins so the tutorial runner can install its required versions
+RUN grep '^numpy==' /etc/pip/constraint.txt > /tmp/new_constraints.txt \
+  && printf 'setuptools<71\n' >> /tmp/new_constraints.txt \
+  && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
+
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
 RUN cp /tmp/requirements.txt /tmp/req.bak \
   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
   && python -m pip install --upgrade --no-cache-dir --no-build-isolation pip wheel wheel-stub \
-  && python -m pip install --no-cache-dir --no-build-isolation -r /tmp/requirements-dev.txt
+  && python -m pip install --no-cache-dir --no-build-isolation -r /tmp/requirements-dev.txt \
+  && python -m pip install --no-cache-dir --no-build-isolation papermill jupytext autopep8 autoflake ipywidgets
 
 # compile ext and remove temp files
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
