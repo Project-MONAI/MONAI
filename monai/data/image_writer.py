@@ -128,7 +128,7 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
                 pkg = "pynrrd" if pkg == "nrrd" else pkg
                 if pkg not in required_pkgs:
                     required_pkgs.append(pkg)
-        
+
         msg = f"No ImageWriter backend found for {fmt}."
         if required_pkgs:
             msg += f" Please install: {' or '.join(required_pkgs)}."
