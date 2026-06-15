@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import unittest
 from pathlib import Path
@@ -473,6 +474,16 @@ def setUpModule():
 class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
+
+        def tearDown(self):
+            # Force deterministic cleanup of any backend WSI handles that may have
+            # leaked through `LoadImage` (which calls `reader.read` and discards the
+            # returned object after `get_data`). Without this, the temp TIFFs used
+            # by these tests can survive past test teardown long enough for the
+            # interpreter to emit ResourceWarning ("unclosed file ..."). Running gc
+            # here invokes `TiffFile.__del__` / `OpenSlide.__del__` / `CuImage.__del__`,
+            # all of which close the underlying handle.
+            gc.collect()
 
         @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
