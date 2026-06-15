@@ -476,13 +476,18 @@ class WSIReaderTests:
         backend = None
 
         def tearDown(self):
-            # Force deterministic cleanup of any backend WSI handles that may have
-            # leaked through `LoadImage` (which calls `reader.read` and discards the
-            # returned object after `get_data`). Without this, the temp TIFFs used
-            # by these tests can survive past test teardown long enough for the
-            # interpreter to emit ResourceWarning ("unclosed file ..."). Running gc
-            # here invokes `TiffFile.__del__` / `OpenSlide.__del__` / `CuImage.__del__`,
-            # all of which close the underlying handle.
+            """Force deterministic cleanup of any backend WSI handles.
+
+            ``LoadImage`` calls ``reader.read`` and then discards the returned
+            object after ``get_data`` (see ``monai/transforms/io/array.py``);
+            for WSI readers that object is a ``TiffFile`` / ``OpenSlide`` /
+            ``CuImage`` instance that owns an open file descriptor. Without
+            forcing a collection here, the temp TIFFs used by these tests
+            stay open long enough for the interpreter to emit
+            ``ResourceWarning: unclosed file ...``. Running ``gc.collect``
+            invokes the corresponding ``__del__`` finalizers, which all close
+            the underlying handle.
+            """
             gc.collect()
 
         @parameterized.expand([TEST_CASE_WHOLE_0])
