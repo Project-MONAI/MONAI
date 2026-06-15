@@ -147,7 +147,12 @@ class BendingEnergyLoss(_Loss):
         if self.normalize:
             spatial_dims = torch.tensor(pred.shape, device=pred.device)[2:].reshape((1, -1) + (pred.ndim - 2) * (1,))
 
-        energy = torch.tensor(0)
+        # Initialize on pred.device so a GPU `pred` does not get added to a CPU
+        # accumulator, and as a float so an integer-dtype `pred` still produces a
+        # floating-point energy (the compact pure-derivative stencil has no
+        # division, so a Long input would otherwise propagate as Long and fail
+        # `torch.mean` at the reduction step).
+        energy = torch.tensor(0.0, device=pred.device)
         for dim_1 in range(2, pred.ndim):
             d2 = spatial_gradient_squared(pred, dim_1, dim_1)
             if self.normalize:
