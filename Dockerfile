@@ -27,11 +27,15 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
 WORKDIR /opt/monai
 
 # Patch NVIDIA's pip constraint file:
-#   - keep numpy==1.26.4 pin (PyTorch nv25.12 was compiled against NumPy 1.x)
+#   - keep the base image's numpy pin if it has one (nv25.03 pins numpy==1.26.4 as its
+#     torch was compiled against NumPy 1.x; nv25.12 ships an empty constraint.txt)
 #   - add setuptools<71 (newer setuptools removed pkg_resources needed by legacy setup.py)
+#   - pin urllib3>=2 so that notebook cells doing !pip install legacy packages (e.g.
+#     bentoml==0.13.1) cannot downgrade urllib3 to 1.x, which would break requests,
+#     huggingface_hub, gdown, transformers, mlflow, etc. for every subsequent notebook
 #   - remove jupytext/isort pins so the tutorial runner can install its required versions
-RUN grep '^numpy==' /etc/pip/constraint.txt > /tmp/new_constraints.txt \
-  && printf 'setuptools<71\n' >> /tmp/new_constraints.txt \
+RUN (grep '^numpy' /etc/pip/constraint.txt || true) > /tmp/new_constraints.txt \
+  && printf 'setuptools<71\nurllib3>=2\n' >> /tmp/new_constraints.txt \
   && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
 
 # install full deps
