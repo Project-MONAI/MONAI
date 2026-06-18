@@ -738,6 +738,14 @@ class PydicomReader(ImageReader):
         """
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
+            warnings.warn(
+                "PydicomReader: ImageOrientationPatient (00200037) or "
+                "ImagePositionPatient (00200032) not found in DICOM metadata. "
+                "The affine matrix will be set to identity, which may be incorrect. "
+                "This commonly occurs with multiframe DICOM files (e.g., Enhanced CT). "
+                "Consider using ITKReader for accurate spatial metadata.",
+                stacklevel=2,
+            )
             return affine
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
