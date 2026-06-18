@@ -735,6 +735,11 @@ class PydicomReader(ImageReader):
             metadata: metadata with dict type.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Warns:
+            UserWarning: when ImageOrientationPatient (00200037) or ImagePositionPatient
+                (00200032) is missing from metadata. The affine matrix is set to identity,
+                which may be incorrect. Common with multiframe DICOM files.
+
         """
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
