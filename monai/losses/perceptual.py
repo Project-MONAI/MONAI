@@ -112,7 +112,7 @@ class PerceptualLoss(nn.Module):
                 )
             if not channel_wise:
                 warnings.warn(
-                    "MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
+                    "MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
                 )
 
         # Channel-wise only for MedicalNet
