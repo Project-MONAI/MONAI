@@ -172,12 +172,11 @@ class VarFullyConnectedNet(nn.Module):
         return x
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-        std = torch.exp(0.5 * logvar)
+        if self.training:  # reparameterization trick only during training
+            std = torch.exp(0.5 * logvar)
+            return mu + torch.randn_like(std) * std
 
-        if self.training:  # multiply random noise with std only during training
-            std = torch.randn_like(std).mul(std)
-
-        return std.add_(mu)
+        return mu
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
