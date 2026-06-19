@@ -514,8 +514,7 @@ def compute_voronoi_regions_fast(labels: np.ndarray | torch.Tensor) -> torch.Ten
         if isinstance(labels, torch.Tensor):
             warnings.warn(
                 "Voronoi computation is running on CPU. "
-                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed."
-,
+                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed.",
                 stacklevel=2,
             )
             x = labels.cpu().numpy()
