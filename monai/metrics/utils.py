@@ -377,9 +377,7 @@ def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
     if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
-        warnings.warn(f"{name} should be a binarized tensor.",
-            stacklevel=2,
-        )
+        warnings.warn(f"{name} should be a binarized tensor.", stacklevel=2)
 
 
 def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
