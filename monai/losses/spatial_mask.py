@@ -66,5 +66,7 @@ class MaskedLoss(_Loss):
             if mask.shape[1] != 1:
                 raise ValueError(f"Mask ({mask.shape}) must have only one channel.")
             if input.shape[2:] != mask.shape[2:]:
-                warnings.warn(f"Spatial size of input ({input.shape}) is different from mask ({mask.shape}).", stacklevel=2)
+                warnings.warn(
+                    f"Spatial size of input ({input.shape}) is different from mask ({mask.shape}).", stacklevel=2
+                )
         return self.loss(input * mask, target * mask)
