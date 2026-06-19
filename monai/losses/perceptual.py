@@ -127,8 +127,9 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
             # raise a warning that this may change the default cache dir for all torch.hub calls
             warnings.warn(
-                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls."
-            , stacklevel=2)
+                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls.",
+                stacklevel=2,
+            )
 
         self.spatial_dims = spatial_dims
         self.perceptual_function: nn.Module
