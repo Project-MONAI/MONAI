@@ -137,6 +137,7 @@ from .profiling import (
     torch_profiler_time_cpu_gpu,
     torch_profiler_time_end_to_end,
 )
+from .safe_eval import SAFE_TYPES, safe_eval
 from .state_cacher import StateCacher
 from .tf32 import detect_default_tf32, has_ampere_or_later
 from .type_conversion import (
