@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import ast
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 __all__ = ["SAFE_TYPES", "safe_eval"]
 
@@ -43,7 +44,7 @@ def safe_eval(
     """
     Evaluate the Python expression `expr` using `eval`, but only if it is a safe expression in that its parsed AST
     contains nodes whose types are given in `allowed_types`. This ensures unsafe node types are excluded, if these
-    are present in the AST a ValueError is raised. The default set of such types in `SAFE_TYPES` ensures only 
+    are present in the AST a ValueError is raised. The default set of such types in `SAFE_TYPES` ensures only
     expressions with constants and names can be evaluated, so excludes attribute access, indexing, and calls. Code
     injection is infeasible through such expressions, so this is a safe and secure way of evaluating simple expressions.
 
