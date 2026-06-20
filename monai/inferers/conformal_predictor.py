@@ -32,6 +32,16 @@ def _quantile_threshold(scores: torch.Tensor, alpha: float) -> torch.Tensor:
     (Vovk et al. 2005; Angelopoulos & Bates 2021). ``scores`` is a 1-D tensor of
     non-conformity scores from the held-out calibration split; the returned scalar
     lives on the same device/dtype as ``scores``.
+
+    Args:
+        scores: 1-D tensor of non-conformity scores from the calibration split.
+        alpha: mis-coverage level in ``(0, 1)``.
+
+    Returns:
+        Scalar tensor ``qhat`` on the same device/dtype as ``scores``.
+
+    Raises:
+        ValueError: if ``scores`` is empty or ``alpha`` is not in ``(0, 1)``.
     """
     n = scores.numel()
     if n <= 0:
@@ -90,11 +100,15 @@ class ConformalCalibrator:
             probs: softmax probabilities ``(B, C, spatial...)`` in ``[0, 1]`` summing to 1 over C.
             labels: integer class indices ``(B, 1, spatial...)`` or ``(B, spatial...)`` with values
                 in ``[0, C)``. Shape must broadcast against ``probs`` spatial dims.
+
+        Raises:
+            ValueError: if ``probs`` has fewer than 2 dimensions.
         """
         if probs.ndim < 2:
             raise ValueError(f"probs must be (B, C, spatial...), got shape {tuple(probs.shape)}.")
+        c = probs.shape[1]
         # flatten to (N, C)
-        probs_flat = probs.reshape(probs.shape[0], probs.shape[1], -1).movedim(1, -1).reshape(-1, probs.shape[1])
+        probs_flat = probs.reshape(probs.shape[0], c, -1).movedim(1, -1).reshape(-1, c)
         labels_flat = labels.reshape(-1).long()
         if not self.include_background:
             # drop background-labeled voxels (class 0) from calibration so the threshold isn't
@@ -103,12 +117,26 @@ class ConformalCalibrator:
             keep = labels_flat != 0
             probs_flat = probs_flat[keep]
             labels_flat = labels_flat[keep]
-        labels_flat = labels_flat.clamp(min=0, max=probs_flat.shape[1] - 1)
+        # reject invalid labels (negative or >= C) outright rather than silently clamping them,
+        # which would corrupt the non-conformity scores.
+        valid = (labels_flat >= 0) & (labels_flat < c)
+        probs_flat = probs_flat[valid]
+        labels_flat = labels_flat[valid]
+        if labels_flat.numel() == 0:
+            return  # nothing to accumulate this batch (all labels invalid or all bg-excluded)
         true_p = probs_flat.gather(1, labels_flat.unsqueeze(1)).squeeze(1)
-        self._scores.append((1.0 - true_p).detach())
+        # move to CPU to avoid GPU OOM on large per-voxel calibration sets
+        self._scores.append((1.0 - true_p).detach().cpu())
 
     def calibrate(self) -> torch.Tensor:
-        """Return the split-conformal threshold ``qhat`` from all accumulated scores."""
+        """Return the split-conformal threshold ``qhat`` from all accumulated scores.
+
+        Returns:
+            Scalar tensor ``qhat`` on CPU.
+
+        Raises:
+            RuntimeError: if no calibration scores have been accumulated.
+        """
         if not self._scores:
             raise RuntimeError("No calibration scores accumulated; call accumulate(probs, labels) first.")
         all_scores = torch.cat(self._scores)
@@ -174,9 +202,19 @@ class ConformalPredictor(Inferer):
             self.set_threshold(qhat)
 
     def set_threshold(self, qhat: torch.Tensor) -> None:
-        """Set (or update) the calibrated threshold. Lets you keep one inferer and re-calibrate."""
+        """Set (or update) the calibrated threshold. Lets you keep one inferer and re-calibrate.
+
+        Args:
+            qhat: scalar ``torch.Tensor`` threshold.
+
+        Raises:
+            TypeError: if ``qhat`` is not a ``torch.Tensor``.
+            ValueError: if ``qhat`` is not a scalar (has more than one element).
+        """
         if not isinstance(qhat, torch.Tensor):
             raise TypeError(f"qhat must be a torch.Tensor, got {type(qhat)}.")
+        if qhat.numel() != 1:
+            raise ValueError(f"qhat must be a scalar tensor, got {qhat.numel()} elements.")
         self.qhat = qhat.detach().clone()
 
     def calibrate(
@@ -193,10 +231,14 @@ class ConformalPredictor(Inferer):
 
         Returns:
             The calibrated ``qhat`` (also stored and used by subsequent ``__call__`` invocations).
+
+        Raises:
+            TypeError: if the network returns a non-Tensor.
         """
         if device is None:
             param = next(network.parameters(), None)
             device = param.device if param is not None else torch.device("cpu")
+        was_training = getattr(network, "training", False)
         network.eval()
         cal = ConformalCalibrator(alpha=self.alpha, score=self.score, include_background=self.include_background)
         iterator = cal_loader
@@ -215,6 +257,8 @@ class ConformalPredictor(Inferer):
                 cal.accumulate(probs.to(device), batch["label"].to(device))
         qhat = cal.calibrate()
         self.set_threshold(qhat)
+        if was_training:
+            network.train()
         return qhat
 
     def __call__(
@@ -230,6 +274,10 @@ class ConformalPredictor(Inferer):
         Returns:
             sets: bool tensor ``(B, C, spatial...)``, ``True`` where class ``c`` is in the set.
             For the underlying softmax, call ``network(inputs).softmax(1)``.
+
+        Raises:
+            RuntimeError: if no threshold has been set.
+            TypeError: if the network returns a non-Tensor.
         """
         if self.qhat is None:
             raise RuntimeError("No threshold set; call set_threshold(qhat) or calibrate(...) first.")

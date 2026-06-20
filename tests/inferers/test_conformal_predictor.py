@@ -109,6 +109,25 @@ class TestConformalCalibrator(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ConformalCalibrator().calibrate()
 
+    def test_invalid_labels_are_dropped_not_clamped(self):
+        # labels -1 and 99 (out of range for C=3) must be dropped, not clamped to 0/2.
+        # If clamped, score for "label 99" would be 1 - softmax[2] = 0.9, corrupting qhat.
+        probs = torch.tensor([[[0.8, 0.8], [0.1, 0.1], [0.1, 0.1]]])  # (1, 3, 2)
+        labels = torch.tensor([[[-1, 99]]])  # both invalid
+        cal = ConformalCalibrator(alpha=0.1)
+        cal.accumulate(probs, labels)
+        with self.assertRaises(RuntimeError):
+            # all labels dropped -> no scores -> calibrate raises
+            cal.calibrate()
+
+    def test_mixed_valid_invalid_labels_keeps_valid(self):
+        # one valid label (class 0, score 0.2) + one invalid (class 99, dropped).
+        # qhat should reflect only the valid score.
+        probs = torch.tensor([[[0.8, 0.8], [0.1, 0.1], [0.1, 0.1]]])  # (1, 3, 2)
+        labels = torch.tensor([[[0, 99]]])  # voxel0 valid, voxel1 invalid
+        qhat = self._cal_batch(probs, labels)
+        assert_allclose(qhat, torch.tensor(0.2), atol=1e-6)
+
 
 class TestConformalPredictor(unittest.TestCase):
     def test_set_and_predict(self):
@@ -128,8 +147,8 @@ class TestConformalPredictor(unittest.TestCase):
         self.assertEqual(sets.shape, (1, 3, 2, 2))
         self.assertEqual(sets.dtype, torch.bool)
         self.assertTrue(sets[:, 0].all())
-        self.assertFalse(sets[:, 1].all())
-        self.assertFalse(sets[:, 2].all())
+        self.assertFalse(sets[:, 1].any())
+        self.assertFalse(sets[:, 2].any())
 
     def test_no_threshold_raises(self):
         inferer = ConformalPredictor()  # qhat None
@@ -168,6 +187,47 @@ class TestConformalPredictor(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             inferer(torch.zeros(1, 1), net)
+
+    def test_set_threshold_rejects_non_scalar(self):
+        inferer = ConformalPredictor()
+        with self.assertRaises(ValueError):
+            inferer.set_threshold(torch.tensor([0.1, 0.2]))
+
+    def test_set_threshold_rejects_non_tensor(self):
+        inferer = ConformalPredictor()
+        with self.assertRaises(TypeError):
+            inferer.set_threshold(0.5)  # type: ignore[arg-type]
+
+    def test_calibrate_restores_training_state(self):
+        class Net(torch.nn.Module):
+            def forward(self, x):
+                logits = torch.zeros(x.shape[0], 2)
+                logits[:, 0] = 2.1972
+                return logits
+
+        net = Net()
+        net.train()
+        self.assertTrue(net.training)
+        cal_loader = [{"image": torch.zeros(2, 1), "label": torch.zeros(2, 1, dtype=torch.long)} for _ in range(5)]
+        inferer = ConformalPredictor(alpha=0.1)
+        inferer.calibrate(net, cal_loader, device=torch.device("cpu"))
+        # training state must be restored to True
+        self.assertTrue(net.training)
+
+    def test_calibrate_preserves_eval_state(self):
+        class Net(torch.nn.Module):
+            def forward(self, x):
+                logits = torch.zeros(x.shape[0], 2)
+                logits[:, 0] = 2.1972
+                return logits
+
+        net = Net()
+        net.eval()
+        self.assertFalse(net.training)
+        cal_loader = [{"image": torch.zeros(2, 1), "label": torch.zeros(2, 1, dtype=torch.long)} for _ in range(5)]
+        inferer = ConformalPredictor(alpha=0.1)
+        inferer.calibrate(net, cal_loader, device=torch.device("cpu"))
+        self.assertFalse(net.training)
 
 
 if __name__ == "__main__":
