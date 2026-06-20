@@ -18,7 +18,7 @@ from typing import Any
 __all__ = ["SAFE_TYPES", "safe_eval"]
 
 # default set of safe AST node types
-SAFE_TYPES = (
+SAFE_TYPES: Sequence[ast.AST] = (
     ast.Expression,
     ast.Name,
     ast.Load,
@@ -42,7 +42,7 @@ def safe_eval(
     globals_vars: Mapping[str, Any] | None = None,
     locals_vars: Mapping[str, object] | None = None,
     allowed_types: Sequence[type] = SAFE_TYPES,
-):
+) -> Any:
     """
     Evaluate the Python expression `expr` using `eval`, but only if it is a safe expression in that its parsed AST
     contains nodes whose types are given in `allowed_types`. This ensures unsafe node types are excluded, if these
@@ -52,27 +52,22 @@ def safe_eval(
 
     Args:
         expr: expression to evaluate, this will be stripped before parsing to avoid indentation complaints
-        globals: global variable mapping
-        locals: local variable mapping
+        globals_vars: global variable mapping
+        locals_vars: local variable mapping
         allowed_types: sequence of allowed AST types which can be found in `expr` when parsed
 
     Raises:
         ValueError: raised when any node in the AST parsed from `expr` has a type not in `allowed_types`
 
     Returns:
-        The evaluated expression value, using `eval` with `globals` and `locals`
+        The evaluated expression value, using `eval` with `globals_vars` and `locals_vars`
     """
     parsed = ast.parse(expr.strip(), mode="eval")
 
-    def _disallowed_node(n):
-        return not any(isinstance(n, at) for at in allowed_types)
-
-    disallowed = list(filter(_disallowed_node, ast.walk(parsed)))
+    # collect nodes in the AST which aren't permitted and unparse them for inclusion in the exception message
+    disallowed = [ast.unparse(n) for n in ast.walk(parsed) if not isinstance(n, tuple(allowed_types))]
 
     if disallowed:
-        disallowed_strs = list(map(ast.unparse, disallowed))
-        raise ValueError(
-            f"Unsafe expression `{expr}` cannot be evaluated, contains disallowed components: {disallowed_strs}"
-        )
+        raise ValueError(f"Unsafe expression `{expr}` not evaluated, contains disallowed components: {disallowed}")
 
-    return eval(expr, globals_vars, locals_vars)
+    return eval(expr, dict(globals_vars), locals_vars)
