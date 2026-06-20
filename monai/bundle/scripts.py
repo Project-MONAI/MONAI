@@ -51,7 +51,7 @@ from monai.utils import (
     min_version,
     optional_import,
     pprint_edges,
-    safe_eval
+    safe_eval,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")

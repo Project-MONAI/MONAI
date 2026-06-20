@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
-from typing import Any
 from collections.abc import Mapping, Sequence
+from typing import Any
 
 __all__ = ["SAFE_TYPES", "safe_eval"]
 
@@ -37,8 +39,8 @@ SAFE_TYPES = (
 
 def safe_eval(
     expr: str,
-    globals: Mapping[str, Any] | None = None,
-    locals: Mapping[str, object] | None = None,
+    globals_vars: Mapping[str, Any] | None = None,
+    locals_vars: Mapping[str, object] | None = None,
     allowed_types: Sequence[type] = SAFE_TYPES,
 ):
     """
@@ -52,7 +54,7 @@ def safe_eval(
         expr: expression to evaluate, this will be stripped before parsing to avoid indentation complaints
         globals: global variable mapping
         locals: local variable mapping
-        allows_types: sequence of allowed AST types which can be found in `expr` when parsed
+        allowed_types: sequence of allowed AST types which can be found in `expr` when parsed
 
     Raises:
         ValueError: raised when any node in the AST parsed from `expr` has a type not in `allowed_types`
@@ -73,4 +75,4 @@ def safe_eval(
             f"Unsafe expression `{expr}` cannot be evaluated, contains disallowed components: {disallowed_strs}"
         )
 
-    return eval(expr, globals, locals)
+    return eval(expr, globals_vars, locals_vars)

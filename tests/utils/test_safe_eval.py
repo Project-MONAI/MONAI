@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
 import unittest
+
 from parameterized import parameterized
 
 from monai.utils import safe_eval
@@ -30,9 +33,9 @@ BAD_EXPRS = [("foo()",), ("foo.bar",), ("foo[123]",), ("(1,2)",), ("[3,4]",), ("
 
 class TestSafeEval(unittest.TestCase):
     @parameterized.expand(GOOD_EXPRS)
-    def test_good_exprs(self, expr, globals, locals, expected):
+    def test_good_exprs(self, expr, globals_vars, locals_vars, expected):
         """Test valid expressions with globals/locals evaluate to correct values."""
-        result = safe_eval(expr, globals, locals)
+        result = safe_eval(expr, globals_vars, locals_vars)
         self.assertEqual(result, expected)
 
     @parameterized.expand(BAD_EXPRS)
