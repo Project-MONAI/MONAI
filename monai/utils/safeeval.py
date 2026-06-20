@@ -41,7 +41,7 @@ def safe_eval(
     expr: str,
     globals_vars: Mapping[str, Any] | None = None,
     locals_vars: Mapping[str, object] | None = None,
-    allowed_types: Sequence[type] = SAFE_TYPES,
+    allowed_types: Sequence[ast.AST] = SAFE_TYPES,
 ) -> Any:
     """
     Evaluate the Python expression `expr` using `eval`, but only if it is a safe expression in that its parsed AST
