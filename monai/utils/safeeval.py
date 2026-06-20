@@ -18,7 +18,7 @@ from typing import Any
 __all__ = ["SAFE_TYPES", "safe_eval"]
 
 # default set of safe AST node types
-SAFE_TYPES: Sequence[ast.AST] = (
+SAFE_TYPES: Sequence[type] = (
     ast.Expression,
     ast.Name,
     ast.Load,
@@ -41,7 +41,7 @@ def safe_eval(
     expr: str,
     globals_vars: Mapping[str, Any] | None = None,
     locals_vars: Mapping[str, object] | None = None,
-    allowed_types: Sequence[ast.AST] = SAFE_TYPES,
+    allowed_types: Sequence[type] = SAFE_TYPES,
 ) -> Any:
     """
     Evaluate the Python expression `expr` using `eval`, but only if it is a safe expression in that its parsed AST
