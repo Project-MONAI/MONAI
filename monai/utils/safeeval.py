@@ -52,7 +52,7 @@ def safe_eval(
 
     Args:
         expr: expression to evaluate, this will be stripped before parsing to avoid indentation complaints
-        globals_vars: global variable mapping
+        globals_vars: global variable mapping, this will be treated as read-only for this function, unlike `eval`
         locals_vars: local variable mapping
         allowed_types: sequence of allowed AST types which can be found in `expr` when parsed
 
@@ -70,4 +70,4 @@ def safe_eval(
     if disallowed:
         raise ValueError(f"Unsafe expression `{expr}` not evaluated, contains disallowed components: {disallowed}")
 
-    return eval(expr, dict(globals_vars), locals_vars)
+    return eval(expr, dict(globals_vars) if globals_vars else None, locals_vars)
