@@ -188,6 +188,10 @@ class TestConformalRiskPredictor(unittest.TestCase):
         self.assertEqual(sets.shape, (1, 3, 3))
         self.assertEqual(mask.shape, (1, 1, 3))
         self.assertEqual(mask.dtype, torch.bool)
+        # contract: predictor returns the input probs unchanged
+        self.assertIsInstance(probs_out, torch.Tensor)
+        self.assertEqual(probs_out.shape, (1, 3, 3))
+        assert_allclose(probs_out, probs, atol=0.0)
         # voxel 0: only class 0 -> not ambiguous
         self.assertFalse(mask[0, 0, 0].item())
         # voxel 1: only class 0 -> not ambiguous

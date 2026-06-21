@@ -43,8 +43,8 @@ __all__ = [
     "ConformalRiskPredictor",
     "Coverage",
     "SetSize",
-    "compute_set_size",
     "compute_coverage",
+    "compute_set_size",
 ]
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
@@ -73,7 +73,10 @@ def _flatten_spatial(sets: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Te
     c = sets.shape[1]
     sets_flat = sets.movedim(1, -1).reshape(-1, c)
     labels_flat = labels.reshape(-1).long()
-    labels_flat = labels_flat.clamp(min=0, max=c - 1)
+    if (labels_flat < 0).any() or (labels_flat >= c).any():
+        raise ValueError(
+            f"labels must lie in [0, {c - 1}], got min={int(labels_flat.min())}, max={int(labels_flat.max())}."
+        )
     return sets_flat, labels_flat
 
 
@@ -192,8 +195,10 @@ class ConformalRiskCalibrator:
         self.include_background = include_background
         if lam_grid is None:
             lam_grid = torch.linspace(0.0, 1.0, 101)
-        if lam_grid.ndim != 1 or (lam_grid < 0).any() or (lam_grid > 1).any():
-            raise ValueError("lam_grid must be a 1-D tensor with values in [0, 1].")
+        if lam_grid.ndim != 1 or lam_grid.numel() == 0 or (lam_grid < 0).any() or (lam_grid > 1).any():
+            raise ValueError("lam_grid must be a non-empty 1-D tensor with values in [0, 1].")
+        if not bool((lam_grid[1:] >= lam_grid[:-1]).all()):
+            raise ValueError("lam_grid must be sorted in ascending order for the infimum search.")
         self.lam_grid = lam_grid.float()
         # Per-image score/label tensors, stored one entry per calibration image so spatial
         # size may vary across images and across accumulate() calls (variable-size volumes).
@@ -223,7 +228,11 @@ class ConformalRiskCalibrator:
         # (B, per_image, C): move class to last then flatten spatial
         scores = (1.0 - probs).movedim(1, -1).reshape(b, per_image, c).detach()
         # labels (B, 1, spatial...) or (B, spatial...) -> (B, per_image)
-        labels_flat = labels.reshape(b, per_image).long().clamp(min=0, max=c - 1).detach()
+        labels_flat = labels.reshape(b, per_image).long().detach()
+        if (labels_flat < 0).any() or (labels_flat >= c).any():
+            raise ValueError(
+                f"labels must lie in [0, {c - 1}], got min={int(labels_flat.min())}, max={int(labels_flat.max())}."
+            )
         for i in range(b):
             self._scores.append(scores[i])  # (per_image, C)
             self._labels.append(labels_flat[i])  # (per_image,)
@@ -250,16 +259,32 @@ class ConformalRiskCalibrator:
         # Sum each image's per-lambda loss; images vary in size so we loop per image but
         # vectorize over the whole lambda grid (n_lam acts as the batch dim into loss_fn).
         risk_sum = torch.zeros(n_lam, device=device, dtype=torch.float32)
-        for scores_i, labels_i in zip(self._scores, self._labels):
+        # ponytail: chunk over the lambda grid to bound peak memory; the full
+        # (n_lam, P_i, C) tensor would OOM on large 3D volumes. 1 << 12 lambdas
+        # at a time keeps the working set modest while preserving the cumulative
+        # sum; lower if calibration volumes are very large.
+        lam_chunk = 1 << 12
+        for scores_i, labels_i in zip(self._scores, self._labels, strict=True):
             if not self.include_background:
                 keep = labels_i != 0
                 if not bool(keep.any()):
                     continue  # all-background image: 0 loss, but still counted in n
                 scores_i, labels_i = scores_i[keep], labels_i[keep]
-            sets = scores_i.unsqueeze(0) <= lam_grid.view(-1, 1, 1)  # (n_lam, P_i, C)
-            sets_shaped = sets.movedim(-1, 1)  # (n_lam, C, P_i)
-            labels_rep = labels_i.view(1, 1, -1).expand(n_lam, 1, -1)  # (n_lam, 1, P_i)
-            risk_sum += self.loss_fn(sets_shaped, labels_rep).float()
+            p_i = scores_i.shape[0]
+            for start in range(0, n_lam, lam_chunk):
+                end = min(start + lam_chunk, n_lam)
+                lam_chunk_grid = lam_grid[start:end]  # (n_chunk,)
+                sets = scores_i.unsqueeze(0) <= lam_chunk_grid.view(-1, 1, 1)  # (n_chunk, P_i, C)
+                sets_shaped = sets.movedim(-1, 1)  # (n_chunk, C, P_i)
+                labels_rep = labels_i.view(1, 1, -1).expand(sets_shaped.shape[0], 1, p_i)  # (n_chunk, 1, P_i)
+                loss = self.loss_fn(sets_shaped, labels_rep).float()
+                if loss.shape != (sets_shaped.shape[0],):
+                    raise ValueError(
+                        f"loss_fn must return per-image loss of shape (n_chunk,), got {tuple(loss.shape)}."
+                    )
+                if bool(torch.isnan(loss).any()):
+                    raise ValueError("loss_fn returned NaN; check inputs or loss implementation.")
+                risk_sum[start:end] += loss
         emp_risk = risk_sum / n
         # Finite-sample-corrected selection. B = 1 is the loss upper bound (losses are in
         # [0, 1]); losses are non-increasing in lambda, so the leftmost lambda clearing the
@@ -275,6 +300,11 @@ class ConformalRiskCalibrator:
         return lam_hat.to(dtype).to(device)
 
     def reset(self) -> None:
+        """Reset internal calibration state.
+
+        Clears the per-image score/label buffers and the cached class count so
+        the calibrator can be reused on a fresh calibration split.
+        """
         self._scores, self._labels = [], []
         self._num_classes = None
 
@@ -317,9 +347,19 @@ class ConformalRiskPredictor:
         self.include_background = include_background
 
     def set_threshold(self, lam: torch.Tensor) -> None:
-        """Set (or update) the calibrated threshold."""
+        """Set (or update) the calibrated threshold.
+
+        Args:
+            lam: scalar tensor in ``[0, 1]``. A non-scalar would broadcast over
+                spatial dims at inference and silently produce wrong sets.
+        """
         if not isinstance(lam, torch.Tensor):
             raise TypeError(f"lam must be a torch.Tensor, got {type(lam)}.")
+        if lam.ndim != 0:
+            raise ValueError(f"lam must be a scalar tensor, got shape {tuple(lam.shape)}.")
+        lam_val = float(lam.detach().item())
+        if not 0.0 <= lam_val <= 1.0:
+            raise ValueError(f"lam must lie in [0, 1], got {lam_val}.")
         self.lam = lam.detach().clone()
 
     def __call__(self, probs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
