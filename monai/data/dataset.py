@@ -210,8 +210,12 @@ class PersistentDataset(Dataset):
 
         Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
         be converted to tensors, however any other object type returned by transforms will not be loadable since
-        `torch.load` will be used with `weights_only=True` to prevent loading of potentially malicious objects.
-        Legacy cache files may not be loadable and may need to be recomputed.
+        `torch.load` will be used with `weights_only=True` by default to prevent loading of potentially malicious
+        objects. Legacy cache files may not be loadable and may need to be recomputed. MetaTensor objects can be saved
+        and loaded with their metadata preserved if `track_meta` is True, however the objects stored in the metadata
+        must be acceptable as serialisable by `torch.load` by default or if they have been white-listed with
+        `torch.serialization.add_safe_globals`. Any other object type may be stored but will fail to load and force
+        a cache recompute.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
@@ -266,13 +270,12 @@ class PersistentDataset(Dataset):
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
-            track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
-                default to `False`. Cannot be used with `weights_only=True`.
+            track_meta: whether to track the meta information, defaults to False. If `True`, converts to `MetaTensor`.
             weights_only: keyword argument passed to `torch.load` when reading cached files.
-                default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
-                other safe objects. Setting this to `False` is required for loading `MetaTensor`
-                objects saved with `track_meta=True`, however this creates the possibility of remote
-                code execution through `torch.load` so be aware of the security implications of doing so.
+                default to `True`. When `True`, `torch.load` restricts loading to tensors and other safe objects.
+                Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
+                eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
+                they intend to load before doing so.
 
         Raises:
             ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
@@ -292,11 +295,6 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
-        if track_meta and weights_only:
-            raise ValueError(
-                "Invalid argument combination: `track_meta=True` cannot be used with `weights_only=True`. "
-                "To cache and reload MetaTensors, set `track_meta=True` and `weights_only=False`."
-            )
         self.track_meta = track_meta
         self.weights_only = weights_only
 
