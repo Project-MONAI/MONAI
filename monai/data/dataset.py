@@ -276,10 +276,6 @@ class PersistentDataset(Dataset):
                 Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
                 eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
                 they intend to load before doing so.
-
-        Raises:
-            ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
-                prevents cached MetaTensors from being reloaded and causes perpetual cache regeneration.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None

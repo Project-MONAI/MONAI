@@ -282,7 +282,7 @@ class TestDataset(unittest.TestCase):
             class _BadType:
                 def __reduce__(self):
                     # something more insecure than this could be done with os.system
-                    return (os.system, (f'echo "Code injected!" > {str(Path(tempdir)/"out.txt")}',))
+                    return (os.system, (f'echo "Code injected!" > {Path(tempdir)/"out.txt"!s}',))
 
             meta = {"test_meta": 123, "foo": "bar", "bad_item": _BadType()}
             imt = MetaTensor(torch.rand(1, 128, 128, 128), meta=dict(meta), affine=torch.rand(4, 4))
