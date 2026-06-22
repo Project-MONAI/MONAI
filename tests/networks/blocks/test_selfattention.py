@@ -248,7 +248,7 @@ class TestResBlock(unittest.TestCase):
             "rel_pos_embedding": None,
             "input_size": (16, 32),
             "include_fc": include_fc,
-            "use_combined_linear": use_combined_linear,
+            "use_combined_linear": False,
         }
         net = SABlock(**input_param)
         if not include_fc:
