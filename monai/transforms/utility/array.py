@@ -571,6 +571,13 @@ class ToPIL(Transform):
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
+
+    .. note::
+        This transform does not update the affine matrix in the metadata. As a result,
+        affine-dependent transforms applied after (e.g. :py:class:`monai.transforms.Spacing`)
+        may produce unexpected results, because the affine no longer corresponds to the
+        transposed data. To reorient medical images in an affine-aware way, use
+        :py:class:`monai.transforms.Orientation` instead.
     """
 
     backend = [TransformBackends.TORCH]
