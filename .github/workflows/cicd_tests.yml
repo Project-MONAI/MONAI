@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "mypy"]  #  "pytype" omitted for being essentially deprecated, see #8865
+        opt: ["codeformat", "mypy", "pyrefly"]
     steps:
     - name: Clean unused tools
       run: |
@@ -80,7 +80,7 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have multiple cores, so parallelize pytype
+        # Github actions have multiple cores, so parallelize pylint
         $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
 
   min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
@@ -259,7 +259,7 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        python -m pip install --user --upgrade pip setuptools wheel twine packaging
+        python -m pip install --user --upgrade pip "setuptools<70" wheel twine packaging
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
@@ -291,8 +291,8 @@ jobs:
     - name: Install wheel file
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
-        # install from wheel
-        python -m pip install monai*.whl --extra-index-url https://download.pytorch.org/whl/cpu
+        # install from wheel (use --no-build-isolation to keep system setuptools with pkg_resources)
+        python -m pip install monai*.whl --no-build-isolation --extra-index-url https://download.pytorch.org/whl/cpu
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
         python -m pip uninstall -y monai
@@ -302,6 +302,6 @@ jobs:
       run: |
         for name in *.tar.gz; do break; done
         echo $name
-        python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install ${name}[all] --no-build-isolation --extra-index-url https://download.pytorch.org/whl/cpu
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'

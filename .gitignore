@@ -107,15 +107,11 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# pytype cache
-.pytype/
-
-# mypy
-.mypy_cache/
+# pyrefly cache
+.pyrefly_cache/
 examples/scd_lvsegs.npz
 temp/
 .idea/
-.dmypy.json
 
 *~
 

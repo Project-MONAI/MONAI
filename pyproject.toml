@@ -20,11 +20,9 @@ exclude = '''
       \.eggs
     | \.git
     | \.hg
-    | \.mypy_cache
     | \.tox
     | \.venv
     | venv
-    | \.pytype
     | _build
     | buck-out
     | build
@@ -71,6 +69,7 @@ extend-ignore = [
   "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
 ]
 
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
   "B018",
@@ -85,34 +84,53 @@ extend-ignore = [
 [tool.ruff.lint.mccabe]
 max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
 
-[tool.pytype]
-# Space-separated list of files or directories to exclude.
-exclude = ["versioneer.py", "_version.py"]
-# Space-separated list of files or directories to process.
-inputs = ["monai"]
-# Keep going past errors to analyze as many files as possible.
-keep_going = true
-# Run N jobs in parallel.
-jobs = 8
-# All pytype output goes here.
-output = ".pytype"
-# Paths to source code directories, separated by ':'.
-pythonpath = "."
-# Check attribute values against their annotations.
-check_attribute_types = true
-# Check container mutations against their annotations.
-check_container_types = true
-# Check parameter defaults and assignments against their annotations.
-check_parameter_types = true
-# Check variable values against their annotations.
-check_variable_types = true
-# Comma or space separated list of error names to ignore.
-disable = ["pyi-error"]
-# Report errors.
-report_errors = true
-# Experimental: Infer precise return types even for invalid function calls.
-precise_return = true
-# Experimental: solve unknown types to label with structural types.
-protocols = true
-# Experimental: Only load submodules that are explicitly imported.
-strict_import = false
+[tool.pyrefly]
+# Check only the monai package (matching mypy's scope)
+project-includes = ["monai/"]
+
+# Exclude auto-generated and vendored files
+project-excludes = [
+    "**/venv/**",
+    "**/.venv/**",
+    "versioneer.py",
+    "monai/_version.py",
+]
+
+# Match CI environment
+python-version = "3.9"
+python-platform = "linux"
+
+# "legacy" preset matches mypy's laxness for a smooth migration
+preset = "legacy"
+
+# Match mypy's check_untyped_defs=True (set for [mypy-monai.*])
+# and disallow_untyped_decorators=True
+check-unannotated-defs = true
+
+[tool.pyrefly.errors]
+# Match mypy's ignore_missing_imports = True
+missing-import = "ignore"
+
+# Match mypy's warn_unused_ignores = False
+unused-ignore = "ignore"
+
+# Downgrade errors in unannotated/dynamic code to warnings
+# (pre-existing issues, not new — will fix incrementally)
+bad-assignment = "warn"
+bad-return = "warn"
+bad-argument-type = "warn"
+invalid-annotation = "warn"
+not-iterable = "warn"
+not-callable = "warn"
+bad-index = "warn"
+
+# Pre-existing errors in the codebase matched to mypy's baseline
+# (mypy didn't flag these, so suppress for a smooth migration)
+missing-attribute = "ignore"
+bad-override = "ignore"
+no-matching-overload = "ignore"
+unsupported-operation = "ignore"
+missing-module-attribute = "ignore"
+not-a-type = "ignore"
+invalid-yield = "ignore"
+deprecated = "ignore"
