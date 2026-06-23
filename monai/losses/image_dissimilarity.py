@@ -233,9 +233,11 @@ class GlobalMutualInformationLoss(_Loss):
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         self.kernel_type = kernel_type
+        self.bin_centers: torch.Tensor | None
+        self.register_buffer("bin_centers", None, persistent=False)
         if self.kernel_type == "gaussian":
             self.preterm = 1 / (2 * sigma**2)
-            self.bin_centers = bin_centers[None, None, ...]
+            self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
@@ -314,6 +316,8 @@ class GlobalMutualInformationLoss(_Loss):
         """
         img = torch.clamp(img, 0, 1)
         img = img.reshape(img.shape[0], -1, 1)  # (batch, num_sample, 1)
+        if self.bin_centers is None:
+            raise ValueError("bin_centers must be defined for gaussian parzen windowing.")
         weight = torch.exp(
             -self.preterm.to(img) * (img - self.bin_centers.to(img)) ** 2
         )  # (batch, num_sample, num_bin)
