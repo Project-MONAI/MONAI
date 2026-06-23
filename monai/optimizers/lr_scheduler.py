@@ -97,9 +97,11 @@ class WarmupCosineSchedule(LambdaLR):
 
     def lr_lambda(self, step):
         if step < self.warmup_steps:
+            # pyrefly: ignore [unnecessary-type-conversion]
             f = float(step) / float(max(1.0, self.warmup_steps))
             return self.warmup_multiplier + (1 - self.warmup_multiplier) * f
         progress = float(step - self.warmup_steps) / float(max(1, self.t_total - self.warmup_steps))
+        # pyrefly: ignore [unnecessary-type-conversion]
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(self.cycles) * 2.0 * progress)))
 
     def get_lr(self):

@@ -66,6 +66,7 @@ class MILModel(nn.Module):
             raise ValueError("Number of classes must be positive: " + str(num_classes))
 
         if mil_mode.lower() not in ["mean", "max", "att", "att_trans", "att_trans_pyramid"]:
+            # pyrefly: ignore [unnecessary-type-conversion]
             raise ValueError("Unsupported mil_mode: " + str(mil_mode))
 
         self.mil_mode = mil_mode.lower()
@@ -97,6 +98,7 @@ class MILModel(nn.Module):
             # assume torchvision model string is provided
             torch_model = getattr(models, backbone, None)
             if torch_model is None:
+                # pyrefly: ignore [unnecessary-type-conversion]
                 raise ValueError("Unknown torch vision model" + str(backbone))
             net = torch_model(weights="DEFAULT" if pretrained else None)
 
@@ -105,6 +107,7 @@ class MILModel(nn.Module):
                 net.fc = torch.nn.Identity()  # remove final linear layer
             else:
                 raise ValueError(
+                    # pyrefly: ignore [unnecessary-type-conversion]
                     "Unable to detect FC layer for the torchvision model " + str(backbone),
                     ". Please initialize the backbone model manually.",
                 )
@@ -121,6 +124,7 @@ class MILModel(nn.Module):
             raise ValueError("Unsupported backbone")
 
         if backbone is not None and mil_mode not in ["mean", "max", "att", "att_trans"]:
+            # pyrefly: ignore [unnecessary-type-conversion]
             raise ValueError("Custom backbone is not supported for the mode:" + str(mil_mode))
 
         if self.mil_mode in ["mean", "max"]:
@@ -160,10 +164,12 @@ class MILModel(nn.Module):
                 ]
             )
             self.transformer = transformer_list
+            # pyrefly: ignore [unsupported-operation]
             nfc = nfc + 256
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
         else:
+            # pyrefly: ignore [unnecessary-type-conversion]
             raise ValueError("Unsupported mil_mode: " + str(mil_mode))
 
         self.myfc = nn.Linear(nfc, num_classes)
@@ -220,6 +226,7 @@ class MILModel(nn.Module):
             x = self.myfc(x)
 
         else:
+            # pyrefly: ignore [unnecessary-type-conversion]
             raise ValueError("Wrong model mode" + str(self.mil_mode))
 
         return x

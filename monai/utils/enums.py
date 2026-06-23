@@ -324,15 +324,25 @@ class ForwardMode(StrEnum):
 class TraceKeys(StrEnum):
     """Extra metadata keys used for traceable transforms."""
 
+    # pyrefly: ignore [invalid-annotation]
     CLASS_NAME: str = "class"
+    # pyrefly: ignore [invalid-annotation]
     ID: str = "id"
+    # pyrefly: ignore [invalid-annotation]
     ORIG_SIZE: str = "orig_size"
+    # pyrefly: ignore [invalid-annotation]
     EXTRA_INFO: str = "extra_info"
+    # pyrefly: ignore [invalid-annotation]
     DO_TRANSFORM: str = "do_transforms"
+    # pyrefly: ignore [invalid-annotation]
     KEY_SUFFIX: str = "_transforms"
+    # pyrefly: ignore [invalid-annotation]
     NONE: str = "none"
+    # pyrefly: ignore [invalid-annotation]
     TRACING: str = "tracing"
+    # pyrefly: ignore [invalid-annotation]
     STATUSES: str = "statuses"
+    # pyrefly: ignore [invalid-annotation]
     LAZY: str = "lazy"
 
 
@@ -390,6 +400,7 @@ class PostFix(StrEnum):
 
     @staticmethod
     def transforms(key: str | None = None) -> str:
+        # pyrefly: ignore [unsupported-operation]
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 

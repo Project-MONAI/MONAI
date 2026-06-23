@@ -661,6 +661,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                     **kwargs,
                 )
             except RuntimeError as e:
+                # pyrefly: ignore [unnecessary-type-conversion]
                 if not gpu_stitching and not buffered_stitching or "OutOfMemoryError" not in str(type(e).__name__):
                     raise e
 
@@ -841,6 +842,7 @@ class SliceInferer(SlidingWindowInferer):
 
         if isinstance(out, Mapping):
             for k in out.keys():
+                # pyrefly: ignore [unsupported-operation]
                 out[k] = out[k].unsqueeze(dim=self.spatial_dim + 2)
             return out
 

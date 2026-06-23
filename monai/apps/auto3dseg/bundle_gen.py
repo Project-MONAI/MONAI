@@ -344,6 +344,7 @@ class BundleAlgo(Algo):
         config_dir = os.path.join(self.output_path, "configs")
         configs_path = [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
 
+        # pyrefly: ignore [implicit-import]
         spec = importlib.util.spec_from_file_location("InferClass", infer_py)
         infer_class = importlib.util.module_from_spec(spec)  # type: ignore
         sys.modules["InferClass"] = infer_class

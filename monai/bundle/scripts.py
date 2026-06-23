@@ -590,6 +590,7 @@ def download(
                 _download_from_monaihosting(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
+            # pyrefly: ignore [implicit-import]
             except urllib.error.HTTPError:
                 # if also cannot download from ngc monaihosting, download according to bundle_info
                 _download_from_bundle_info(
@@ -1952,8 +1953,10 @@ def create_workflow(
         _args, workflow_name=ConfigWorkflow, config_file=None
     )  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
+        # pyrefly: ignore [unnecessary-type-conversion]
         workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
         if not has_built_in:
+            # pyrefly: ignore [unnecessary-type-conversion]
             workflow_class = locate(str(workflow_name))  # search dotted path
         if workflow_class is None:
             raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
@@ -1966,6 +1969,7 @@ def create_workflow(
         )
 
     if config_file is not None:
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)

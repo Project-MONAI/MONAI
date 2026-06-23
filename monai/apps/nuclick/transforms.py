@@ -115,7 +115,9 @@ class ExtractPatchd(MapTransform):
         x, y = centroid
         m, n = size
 
+        # pyrefly: ignore [unnecessary-type-conversion]
         x_start = int(max(x - patch_size / 2, 0))
+        # pyrefly: ignore [unnecessary-type-conversion]
         y_start = int(max(y - patch_size / 2, 0))
         x_end = x_start + patch_size
         y_end = y_start + patch_size

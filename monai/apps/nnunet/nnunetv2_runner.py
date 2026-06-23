@@ -31,6 +31,7 @@ join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations"
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
 
+# pyrefly: ignore [implicit-import]
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["nnUNetV2Runner"]
@@ -274,6 +275,7 @@ class nnUNetV2Runner:  # noqa: N801
                 modality = [modality]
 
             create_new_dataset_json(
+                # pyrefly: ignore [bad-argument-type]
                 modality=modality,
                 num_foreground_classes=num_foreground_classes,
                 num_input_channels=num_input_channels,

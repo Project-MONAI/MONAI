@@ -24,9 +24,6 @@ from monai.utils import TraceKeys, first, is_immutable
 
 _TRACK_META = True
 
-# Default number of spatial dimensions for medical imaging (3D volumetric data)
-_DEFAULT_SPATIAL_NDIM = 3
-
 __all__ = ["get_track_meta", "set_track_meta", "MetaObj"]
 
 
@@ -87,7 +84,6 @@ class MetaObj:
         self._applied_operations: list = MetaObj.get_default_applied_operations()
         self._pending_operations: list = MetaObj.get_default_applied_operations()  # the same default as applied_ops
         self._is_batch: bool = False
-        self._spatial_ndim: int = 3  # default: 3 spatial dimensions
 
     @staticmethod
     def flatten_meta_objs(*args: Iterable):

@@ -273,6 +273,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
             number of negative samples
         """
         # always assume at least one pos sample was sampled
+        # pyrefly: ignore [unnecessary-type-conversion]
         num_neg = int(max(1, num_pos) * abs(1 - 1.0 / float(self.positive_fraction)))
         # protect against not enough negative examples and sample at least self.min_neg if possible
         num_neg = min(negative.numel(), max(num_neg, self.min_neg))

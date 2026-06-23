@@ -178,6 +178,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     """
     if not Affine.is_affine_shaped(matrix):
         raise NotImplementedError(f"Calling the dense grid resample API directly not implemented, {matrix.shape}.")
+    # pyrefly: ignore [implicit-import]
     if isinstance(data, monai.data.MetaTensor) and data.pending_operations:
         warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = kwargs or {}
@@ -191,7 +192,9 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         "align_corners": kwargs.get(LazyAttr.ALIGN_CORNERS, False),
     }
     ndim = len(matrix) - 1
+    # pyrefly: ignore [implicit-import]
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
+    # pyrefly: ignore [implicit-import]
     init_affine = monai.data.to_affine_nd(ndim, img.affine)
     spatial_size = kwargs.get(LazyAttr.SHAPE, None)
     out_spatial_size = img.peek_pending_shape() if spatial_size is None else spatial_size
@@ -228,11 +231,13 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             img.affine = call_kwargs["dst_affine"]
             img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
             return img
+        # pyrefly: ignore [bad-argument-type, implicit-import]
         img = monai.transforms.crop_or_pad_nd(img, matrix_np, out_spatial_size, mode=call_kwargs["padding_mode"])
         img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
         img.affine = call_kwargs["dst_affine"]
         return img
 
+    # pyrefly: ignore [bad-argument-type, implicit-import]
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`

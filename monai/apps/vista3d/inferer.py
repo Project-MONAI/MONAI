@@ -89,8 +89,11 @@ def point_based_window_inferer(
                     unravel_slice = (
                         slice(None),
                         slice(None),
+                        # pyrefly: ignore [unnecessary-type-conversion]
                         slice(int(lx), int(rx)),
+                        # pyrefly: ignore [unnecessary-type-conversion]
                         slice(int(ly), int(ry)),
+                        # pyrefly: ignore [unnecessary-type-conversion]
                         slice(int(lz), int(rz)),
                     )
                     batch_image = image[unravel_slice]
@@ -151,6 +154,7 @@ def _get_window_idx_c(p: int, roi: int, s: int) -> tuple[int, int]:
     elif p + roi // 2 > s:
         left, right = s - roi, s
     else:
+        # pyrefly: ignore [unnecessary-type-conversion]
         left, right = int(p) - roi // 2, int(p) + roi // 2
     return left, right
 

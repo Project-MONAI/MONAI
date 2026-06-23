@@ -636,13 +636,6 @@ class ToPILd(MapTransform):
 class Transposed(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
-
-    .. note::
-        This transform does not update the affine matrix in the metadata. As a result,
-        affine-dependent transforms applied after (e.g. :py:class:`monai.transforms.Spacingd`)
-        may produce unexpected results, because the affine no longer corresponds to the
-        transposed data. To reorient medical images in an affine-aware way, use
-        :py:class:`monai.transforms.Orientationd` instead.
     """
 
     backend = Transpose.backend
@@ -759,6 +752,7 @@ class FlattenSubKeysd(MapTransform):
             sub_keys = d[key].keys() if self.sub_keys is None else self.sub_keys
 
             # move all the sub-keys to the top level
+            # pyrefly: ignore [not-iterable]
             for sk in sub_keys:
                 # set the top-level key for the sub-key
                 sk_top = f"{self.prefix}_{sk}" if self.prefix else sk

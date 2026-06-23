@@ -532,10 +532,12 @@ class OneOf(Compose):
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
+        # pyrefly: ignore [implicit-import]
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"index": index})
         elif isinstance(data, Mapping):
             for key in data:  # dictionary not change size during iteration
+                # pyrefly: ignore [implicit-import]
                 if isinstance(data[key], monai.data.MetaTensor):
                     self.push_transform(data[key], extra_info={"index": index})
         return data
@@ -545,10 +547,12 @@ class OneOf(Compose):
             return data
 
         index = None
+        # pyrefly: ignore [implicit-import]
         if isinstance(data, monai.data.MetaTensor):
             index = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["index"]
         elif isinstance(data, Mapping):
             for key in data:
+                # pyrefly: ignore [implicit-import]
                 if isinstance(data[key], monai.data.MetaTensor):
                     index = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
         else:
@@ -627,10 +631,12 @@ class RandomOrder(Compose):
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
+        # pyrefly: ignore [implicit-import]
         if isinstance(input_, monai.data.MetaTensor):
             self.push_transform(input_, extra_info={"applied_order": applied_order})
         elif isinstance(input_, Mapping):
             for key in input_:  # dictionary not change size during iteration
+                # pyrefly: ignore [implicit-import]
                 if isinstance(input_[key], monai.data.MetaTensor):
                     self.push_transform(input_[key], extra_info={"applied_order": applied_order})
         return input_
@@ -640,10 +646,12 @@ class RandomOrder(Compose):
             return data
 
         applied_order = None
+        # pyrefly: ignore [implicit-import]
         if isinstance(data, monai.data.MetaTensor):
             applied_order = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["applied_order"]
         elif isinstance(data, Mapping):
             for key in data:
+                # pyrefly: ignore [implicit-import]
                 if isinstance(data[key], monai.data.MetaTensor):
                     applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
         else:
@@ -790,10 +798,12 @@ class SomeOf(Compose):
             threading=threading,
             log_stats=self.log_stats,
         )
+        # pyrefly: ignore [implicit-import]
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
         elif isinstance(data, Mapping):
             for key in data:  # dictionary not change size during iteration
+                # pyrefly: ignore [implicit-import]
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     self.push_transform(data, key, extra_info={"applied_order": applied_order})
 
@@ -805,10 +815,12 @@ class SomeOf(Compose):
             return data
 
         applied_order = None
+        # pyrefly: ignore [implicit-import]
         if isinstance(data, monai.data.MetaTensor):
             applied_order = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["applied_order"]
         elif isinstance(data, Mapping):
             for key in data:
+                # pyrefly: ignore [implicit-import]
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
         else:

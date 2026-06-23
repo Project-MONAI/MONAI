@@ -545,6 +545,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
 
     """
 
+    # pyrefly: ignore [unnecessary-type-conversion]
     lhs, rhs = str(lhs), str(rhs)
     pkging, has_ver = optional_import("packaging.version")
     if has_ver:
@@ -572,6 +573,7 @@ def version_geq(lhs: str, rhs: str) -> bool:
         rhs: version name to compare with `lhs`, return True if earlier or equal to `lhs`.
 
     """
+    # pyrefly: ignore [unnecessary-type-conversion]
     lhs, rhs = str(lhs), str(rhs)
     pkging, has_ver = optional_import("packaging.version")
 
@@ -623,6 +625,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         c_major, c_minor = get_torch_version_tuple()
         c_patch = "0"
     c_mn = int(c_major), int(c_minor)
+    # pyrefly: ignore [unnecessary-type-conversion]
     mn = int(major), int(minor)
     if c_mn != mn:
         return c_mn > mn
@@ -634,6 +637,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
             c_p = int(p_reg.group())
     except (AttributeError, TypeError, ValueError):
         is_prerelease = True
+    # pyrefly: ignore [unnecessary-type-conversion]
     patch = int(patch)
     if c_p != patch:
         return c_p > patch
@@ -679,5 +683,6 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
         parts += ["0"]
     c_major, c_minor = parts[:2]
     c_mn = int(c_major), int(c_minor)
+    # pyrefly: ignore [unnecessary-type-conversion]
     mn = int(major), int(minor)
     return c_mn > mn

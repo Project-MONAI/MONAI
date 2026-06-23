@@ -28,6 +28,7 @@ def get_rel_pos(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor
         Extracted positional embeddings according to relative positions.
     """
     rel_pos_resized: torch.Tensor = torch.Tensor()
+    # pyrefly: ignore [unnecessary-type-conversion]
     max_rel_dist = int(2 * max(q_size, k_size) - 1)
     # Interpolate rel pos if needed.
     if rel_pos.shape[0] != max_rel_dist:

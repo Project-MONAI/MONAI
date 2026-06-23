@@ -124,6 +124,7 @@ def write_metrics_reports(
             if class_labels is None:
                 class_labels = ["class" + str(i) for i in range(v.shape[1])]
             else:
+                # pyrefly: ignore [unnecessary-type-conversion]
                 class_labels = [str(i) for i in class_labels]  # ensure to have a list of str
 
             class_labels += ["mean"]

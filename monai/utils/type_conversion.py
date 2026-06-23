@@ -46,6 +46,7 @@ UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64,
 
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
+    # pyrefly: ignore [unnecessary-type-conversion]
     return np.empty([], dtype=str(dtype).split(".")[-1]).dtype
 
 
@@ -149,8 +150,11 @@ def convert_to_tensor(
 
             # if input data is not Tensor, convert it to Tensor first
             tensor = torch.as_tensor(tensor, **kwargs)
+        # pyrefly: ignore [implicit-import]
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
+            # pyrefly: ignore [implicit-import]
             return monai.data.MetaTensor(tensor)
+        # pyrefly: ignore [implicit-import]
         if not track_meta and isinstance(tensor, monai.data.MetaTensor):
             return tensor.as_tensor()
         return tensor
@@ -320,7 +324,9 @@ def convert_data_type(
 
     """
     orig_type: type
+    # pyrefly: ignore [implicit-import]
     if isinstance(data, monai.data.MetaTensor):
+        # pyrefly: ignore [implicit-import]
         orig_type = monai.data.MetaTensor
     elif isinstance(data, torch.Tensor):
         orig_type = torch.Tensor
@@ -333,11 +339,14 @@ def convert_data_type(
 
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
+    # pyrefly: ignore [bad-assignment]
     output_type = output_type or orig_type
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
     data_: NdarrayTensor
+    # pyrefly: ignore [bad-argument-type]
     if issubclass(output_type, torch.Tensor):
+        # pyrefly: ignore [implicit-import]
         track_meta = issubclass(output_type, monai.data.MetaTensor)
         data_ = convert_to_tensor(
             data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta, safe=safe
@@ -386,8 +395,11 @@ def convert_to_dst_type(
 
     copy_meta = False
     output_type: Any
+    # pyrefly: ignore [implicit-import]
     if isinstance(dst, monai.data.MetaTensor):
+        # pyrefly: ignore [implicit-import]
         output_type = monai.data.MetaTensor
+        # pyrefly: ignore [implicit-import]
         if not isinstance(src, monai.data.MetaTensor):
             copy_meta = True  # converting a non-meta tensor to a meta tensor, probably take the metadata as well.
     elif isinstance(dst, torch.Tensor):
@@ -400,6 +412,7 @@ def convert_to_dst_type(
     output, _type, _device = convert_data_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence, safe=safe
     )
+    # pyrefly: ignore [implicit-import]
     if copy_meta and isinstance(output, monai.data.MetaTensor):
         output.copy_meta_from(dst)
     return output, _type, _device

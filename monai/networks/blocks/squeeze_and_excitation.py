@@ -58,6 +58,7 @@ class ChannelSELayer(nn.Module):
         pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
         self.avg_pool = pool_type(1)  # spatial size (1, 1, ...)
 
+        # pyrefly: ignore [unnecessary-type-conversion]
         channels = int(in_channels // r)
         if channels <= 0:
             raise ValueError(f"r must be positive and smaller than in_channels, got r={r} in_channels={in_channels}.")

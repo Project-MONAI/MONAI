@@ -119,7 +119,9 @@ class DiceLoss(_Loss):
         self.other_act = other_act
         self.squared_pred = squared_pred
         self.jaccard = jaccard
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         weight = torch.as_tensor(weight) if weight is not None else None
@@ -378,7 +380,9 @@ class GeneralizedDiceLoss(_Loss):
 
         self.w_type = look_up_option(w_type, Weight)
 
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.soft_label = soft_label
@@ -555,7 +559,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             self.m = self.m / torch.max(self.m)
         self.alpha_mode = weighting_mode
         self.num_classes = self.m.size(0)
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

@@ -30,7 +30,7 @@ import torch.nn as nn
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, get_spatial_ndim
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
@@ -314,28 +314,23 @@ class SplitDim(Transform, MultiSampleTrait):
         """
         Apply the transform to `img`.
         """
-        dim = self.dim if self.dim >= 0 else self.dim + img.ndim
-        n_out = img.shape[dim]
+        n_out = img.shape[self.dim]
         if isinstance(img, torch.Tensor):
-            outputs = list(torch.split(img, 1, dim))
+            outputs = list(torch.split(img, 1, self.dim))
         else:
-            outputs = np.split(img, n_out, dim)
+            outputs = np.split(img, n_out, self.dim)
         for idx, item in enumerate(outputs):
             if not self.keepdim:
-                outputs[idx] = item.squeeze(dim)
+                outputs[idx] = item.squeeze(self.dim)
             if self.update_meta and isinstance(img, MetaTensor):
-                out = outputs[idx]
-                if not isinstance(out, MetaTensor):
-                    out = MetaTensor(out, meta=img.meta)
-                    outputs[idx] = out
-                if dim == 0:  # don't update affine if channel dim
-                    if not self.keepdim:
-                        out.spatial_ndim = _normalize_spatial_ndim(out.spatial_ndim, out.ndim)
+                if not isinstance(item, MetaTensor):
+                    item = MetaTensor(item, meta=img.meta)
+                if self.dim == 0:  # don't update affine if channel dim
                     continue
-                ndim = len(out.affine)
-                shift = torch.eye(ndim, device=out.affine.device, dtype=out.affine.dtype)
-                shift[dim - 1, -1] = idx
-                out.affine = out.affine @ shift
+                ndim = len(item.affine)
+                shift = torch.eye(ndim, device=item.affine.device, dtype=item.affine.dtype)
+                shift[self.dim - 1, -1] = idx
+                item.affine = item.affine @ shift
         return outputs
 
 
@@ -415,6 +410,7 @@ class ToTensor(Transform):
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, img: NdarrayOrTensor):
@@ -476,6 +472,7 @@ class EnsureType(Transform):
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        # pyrefly: ignore [unnecessary-type-conversion]
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, data: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None):
@@ -576,13 +573,6 @@ class ToPIL(Transform):
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
-
-    .. note::
-        This transform does not update the affine matrix in the metadata. As a result,
-        affine-dependent transforms applied after (e.g. :py:class:`monai.transforms.Spacing`)
-        may produce unexpected results, because the affine no longer corresponds to the
-        transposed data. To reorient medical images in an affine-aware way, use
-        :py:class:`monai.transforms.Orientation` instead.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1533,9 +1523,8 @@ class AddCoordinateChannels(Transform):
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
-        _sp = get_spatial_ndim(img)
-        if max(self.spatial_dims) > _sp - 1 or min(self.spatial_dims) < 0:
-            raise ValueError(f"`spatial_dims` values must be within [0, {_sp - 1}]")
+        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
 
         spatial_size = img.shape[1:]
         coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
@@ -1703,7 +1692,7 @@ class ImageFilter(Transform):
             applied_operations = img.applied_operations
 
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
-        ndim = get_spatial_ndim(img)
+        ndim = img_.ndim - 1  # assumes channel first format
 
         if isinstance(self.filter, str):
             self.filter = self._get_filter_from_string(self.filter, self.filter_size, ndim)  # type: ignore

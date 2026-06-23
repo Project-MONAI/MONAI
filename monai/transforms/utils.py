@@ -186,6 +186,7 @@ def rand_choice(prob: float = 0.5) -> bool:
     """
     Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance.
     """
+    # pyrefly: ignore [unnecessary-type-conversion]
     return bool(random.random() <= prob)
 
 
@@ -202,6 +203,7 @@ def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bo
     """
     Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
     """
+    # pyrefly: ignore [unnecessary-type-conversion]
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
@@ -369,6 +371,7 @@ def check_non_lazy_pending_ops(
         name: an optional name to be included in the error message.
         raise_error: whether to raise an error, default to False, a warning message will be issued instead.
     """
+    # pyrefly: ignore [implicit-import]
     if isinstance(input_array, monai.data.MetaTensor) and input_array.pending_operations:
         msg = (
             "The input image is a MetaTensor and has pending operations,\n"
@@ -427,6 +430,7 @@ def map_and_generate_sampling_centers(
 
     if label_spatial_shape is not None:
         _shape = label_spatial_shape
+    # pyrefly: ignore [implicit-import]
     elif isinstance(label, monai.data.MetaTensor):
         _shape = label.peek_pending_shape()
     else:
@@ -531,6 +535,7 @@ def map_classes_to_indices(
         if img_flat is not None:
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+        # pyrefly: ignore [implicit-import]
         output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
         cls_indices: NdarrayOrTensor = convert_data_type(
             nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
@@ -633,6 +638,7 @@ def correct_crop_centers(
     valid_centers = []
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
+        # pyrefly: ignore [unnecessary-type-conversion]
         valid_centers.append(int(center_i))
     return ensure_tuple(valid_centers)
 
@@ -800,6 +806,7 @@ def _create_grid_numpy(
     compute a `spatial_size` mesh with the numpy API.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
+    # pyrefly: ignore [unnecessary-type-conversion]
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
     coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=get_equivalent_dtype(dtype, np.ndarray))
     if not homogeneous:
@@ -822,6 +829,7 @@ def _create_grid_torch(
         torch.linspace(
             -(d - 1.0) / 2.0 * s,
             (d - 1.0) / 2.0 * s,
+            # pyrefly: ignore [unnecessary-type-conversion]
             int(d),
             device=device,
             dtype=get_equivalent_dtype(dtype, torch.Tensor),
@@ -1060,6 +1068,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    # pyrefly: ignore [unnecessary-type-conversion]
     spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
@@ -1244,10 +1253,14 @@ def keep_merge_components_with_points(
     features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
 
     outs = np.zeros_like(img_pos_)
+    # pyrefly: ignore [missing-attribute]
     for bs in range(point_coords.shape[0]):
+        # pyrefly: ignore [bad-index]
         for i, p in enumerate(point_coords[bs]):
+            # pyrefly: ignore [bad-index]
             if point_labels[bs, i] in pos_val:
                 features = features_pos
+            # pyrefly: ignore [bad-index]
             elif point_labels[bs, i] in neg_val:
                 features = features_neg
             else:
@@ -1382,6 +1395,7 @@ def sample_points_from_label(
     _point_label = []
     for id in label_set:
         if id in unique_labels:
+            # pyrefly: ignore [unnecessary-type-conversion]
             plabels = labels == int(id)
             nlabels = ~plabels
             _plabels = get_largest_connected_component_mask(erode(plabels.unsqueeze(0).unsqueeze(0))[0, 0])
@@ -1455,8 +1469,11 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     if by_measure:
+        # pyrefly: ignore [missing-attribute]
         sr = len(img.shape[1:])
+        # pyrefly: ignore [implicit-import]
         if isinstance(img, monai.data.MetaTensor):
+            # pyrefly: ignore [missing-attribute]
             _pixdim = img.pixdim
         elif pixdim is not None:
             _pixdim = ensure_tuple_rep(pixdim, sr)
@@ -1806,6 +1823,7 @@ def reset_ops_id(data):
     """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
+    # pyrefly: ignore [implicit-import]
     if isinstance(data, monai.data.MetaTensor):
         data.applied_operations = reset_ops_id(data.applied_operations)
         return data
@@ -1972,6 +1990,7 @@ def get_transform_backends():
     """
     backends = {}
     unique_transforms = []
+    # pyrefly: ignore [implicit-import]
     for n, obj in getmembers(monai.transforms):
         # skip aliases
         if obj in unique_transforms:
@@ -2163,15 +2182,20 @@ def sync_meta_info(key, data_dict, t: bool = True):
     # update meta dicts
     meta_dict_key = PostFix.meta(key)
     if meta_dict_key not in d:
+        # pyrefly: ignore [implicit-import]
         d[meta_dict_key] = monai.data.MetaTensor.get_default_meta()
+    # pyrefly: ignore [implicit-import]
     if not isinstance(d[key], monai.data.MetaTensor):
+        # pyrefly: ignore [implicit-import]
         d[key] = monai.data.MetaTensor(data_dict[key])
         d[key].meta = d[meta_dict_key]
     d[meta_dict_key].update(d[key].meta)  # prefer metatensor's data
 
     # update xform info
+    # pyrefly: ignore [implicit-import]
     xform_key = monai.transforms.TraceableTransform.trace_key(key)
     if xform_key not in d:
+        # pyrefly: ignore [implicit-import]
         d[xform_key] = monai.data.MetaTensor.get_default_applied_operations()
     from_meta, from_dict = d[key].applied_operations, d[xform_key]
     if not from_meta:  # avoid []
@@ -2428,6 +2452,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
             _, reasons = has_status_keys(d, status_key, default_message)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
+    # pyrefly: ignore [implicit-import]
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
             status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))

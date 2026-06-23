@@ -447,6 +447,7 @@ def get_spatial_dims(
         raise ValueError("At least one of the inputs needs to be non-empty.")
 
     if len(spatial_dims_list) == 1:
+        # pyrefly: ignore [unnecessary-type-conversion]
         spatial_dims = int(spatial_dims_list[0])
         spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
         return int(spatial_dims)
