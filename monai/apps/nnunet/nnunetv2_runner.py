@@ -596,9 +596,17 @@ class nnUNetV2Runner:  # noqa: N801
         if self.export_validation_probabilities:
             cmd.append("--npz")
 
+        store_true_flags = {"c", "val", "use_compressed", "disable_checkpointing"}
         for _key, _value in kwargs.items():
             prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
-            cmd += [f"{prefix}{_key}", str(_value)]
+            if _key in store_true_flags:
+                if _value:
+                    cmd.append(f"{prefix}{_key}")
+            elif _key in {"p", "pretrained_weights"}:
+                if _value:
+                    cmd += [f"{prefix}{_key}", str(_value)]
+            else:
+                cmd += [f"{prefix}{_key}", str(_value)]
 
         cmd_str: list[str] = [str(c) for c in cmd]
 
