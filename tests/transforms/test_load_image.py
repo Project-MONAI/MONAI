@@ -509,5 +509,24 @@ class TestLoadImageMeta(unittest.TestCase):
             set_track_meta(_previous_meta)
 
 
+class TestLoadImageReaderNotInstalled(unittest.TestCase):
+    """Tests that LoadImage raises when a user-specified reader's package is not installed."""
+
+    def test_raises_when_user_specified_reader_not_installed(self):
+        """Test LoadImage raises OptionalImportError for a missing user-specified reader.
+
+        Raises:
+            OptionalImportError: when the package required by the specified reader is not installed.
+        """
+        from unittest.mock import patch
+
+        from monai.utils import OptionalImportError
+
+        # Patch ITKReader.__init__ to simulate the package not being installed
+        with patch("monai.data.image_reader.ITKReader.__init__", side_effect=OptionalImportError("itk not installed")):
+            with self.assertRaisesRegex(OptionalImportError, "itk not installed|required package for reader ITKReader"):
+                LoadImage(reader="ITKReader")
+
+
 if __name__ == "__main__":
     unittest.main()
