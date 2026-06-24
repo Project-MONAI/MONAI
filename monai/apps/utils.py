@@ -133,13 +133,16 @@ def safe_extract_member(member, extract_to):
         member_path = str(member)
 
     if hasattr(member, "issym") and member.issym():
+        logger.warning(f"Unsafe path guard: Symbolic link blocked: {member_path}")
         raise ValueError(f"Symbolic link detected in archive: {member_path}")
     if hasattr(member, "islnk") and member.islnk():
+        logger.warning(f"Unsafe path guard: Hard link blocked: {member_path}")
         raise ValueError(f"Hard link detected in archive: {member_path}")
 
     member_path = os.path.normpath(member_path)
 
     if os.path.isabs(member_path) or ".." in member_path.split(os.sep):
+        logger.warning(f"Unsafe path guard: Absolute/relative path traversal blocked: {member_path}")
         raise ValueError(f"Unsafe path detected in archive: {member_path}")
 
     full_path = os.path.join(extract_to, member_path)
@@ -149,6 +152,7 @@ def safe_extract_member(member, extract_to):
     target_real = os.path.realpath(full_path)
     # Ensure the resolved path stays within the extraction root
     if os.path.commonpath([extract_root, target_real]) != extract_root:
+        logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked: {member_path}")
         raise ValueError(f"Unsafe path: path traversal {member_path}")
 
     return full_path
