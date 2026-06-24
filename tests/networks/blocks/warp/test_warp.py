@@ -138,6 +138,20 @@ class TestWarp(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
+    def test_singleton_spatial_dim(self):
+        # a single-slice volume / single-row image has a spatial dim of size 1; the grid
+        # normalization must not divide by zero (regression for native grid_sample path).
+        # "zeros" padding maps an out-of-range (here NaN, pre-fix) coordinate to 0, so it exposes
+        # the bug; "border"/"reflection" would clamp onto the lone voxel and mask it.
+        for shape, ndim in [((1, 1, 1, 4, 4), 3), ((1, 1, 1, 5), 2), ((1, 1, 5, 1), 2)]:
+            image = torch.rand(*shape)
+            ddf = torch.zeros(shape[0], ndim, *shape[2:])
+            warp_layer = Warp(mode="bilinear", padding_mode="zeros")
+            result = warp_layer(image, ddf)
+            self.assertFalse(torch.isnan(result).any(), f"NaN in warp output for shape {shape}")
+            # a zero displacement field must reproduce the input image
+            np.testing.assert_allclose(result.cpu().numpy(), image.cpu().numpy(), rtol=1e-4, atol=1e-4)
+
     def test_grad(self):
         for b in GridSampleMode:
             for p in GridSamplePadMode:
