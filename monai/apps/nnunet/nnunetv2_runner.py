@@ -766,7 +766,7 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-        self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
+        self.train_single_model(config=config, fold=fold, val=True, **kwargs)
 
     def validate(
         self, configs: tuple = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES), **kwargs: Any
