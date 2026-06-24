@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from monai.apps.nnunet.nnunetv2_runner import nnUNetV2Runner
 
@@ -60,6 +61,17 @@ class TestTrainSingleModelCommand(unittest.TestCase):
         cmd, _ = runner.train_single_model_command("3d_fullres", 0, 0, {"npz": "something"})
         self.assertIn("--npz", cmd)
         self.assertIn("something", cmd)
+
+
+class TestValidateSingleModelCommand(unittest.TestCase):
+    def test_validate_emits_bare_val_flag(self):
+        runner = _make_runner()
+        with mock.patch("monai.apps.nnunet.nnunetv2_runner.run_cmd") as run_cmd:
+            runner.validate_single_model("3d_fullres", 0)
+        cmd = run_cmd.call_args.args[0]
+        self.assertIn("--val", cmd)
+        self.assertNotIn("--only_run_validation", cmd)
+        self.assertNotIn("True", cmd)
 
 
 if __name__ == "__main__":
