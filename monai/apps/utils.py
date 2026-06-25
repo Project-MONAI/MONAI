@@ -48,6 +48,10 @@ DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
 
 
+class HashCheckError(ValueError):
+    pass
+
+
 def get_logger(
     module_name: str = "monai.apps",
     fmt: str = DEFAULT_FMT,
@@ -228,9 +232,7 @@ def download_url(
     filepath = Path(filepath)
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
-            raise ValueError(
-                f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type}={hash_val}."
-            )
+            raise HashCheckError(f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type=}.")
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
     try:
@@ -260,9 +262,9 @@ def download_url(
                     f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
                 )
             if not check_hash(tmp_name, hash_val, hash_type):
-                raise ValueError(
-                    f"{hash_type} hash check of downloaded file failed: URL={url}, "
-                    f"filepath={filepath}, expected {hash_type}={hash_val}, "
+                raise HashCheckError(
+                    f"{hash_type} hash check of downloaded file failed: {url=}, "
+                    f"{filepath=}, expected {hash_type}={hash_val}, "
                     f"The file may be corrupted or tampered with. "
                     "Please retry the download or verify the source."
                 )
@@ -332,9 +334,8 @@ def extractall(
     """
     filepath = Path(filepath)
     if hash_val and not check_hash(filepath, hash_val, hash_type):
-        raise ValueError(
-            f"{hash_type} hash check of compressed file failed: "
-            f"filepath={filepath}, expected {hash_type}={hash_val}."
+        raise HashCheckError(
+            f"{hash_type} hash check of compressed file failed: " f"{filepath=}, expected {hash_type}={hash_val}."
         )
     if has_base:
         # the extracted files will be in this folder
