@@ -51,7 +51,6 @@ SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hash
 class HashCheckError(ValueError):
     pass
 
-
 def get_logger(
     module_name: str = "monai.apps",
     fmt: str = DEFAULT_FMT,
