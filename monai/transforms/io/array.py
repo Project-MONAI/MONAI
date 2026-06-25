@@ -20,10 +20,9 @@ import logging
 import sys
 import traceback
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from pydoc import locate
-from typing import Callable
 
 import numpy as np
 import torch
@@ -300,7 +299,7 @@ class LoadImage(Transform):
             img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
         )
         if self.ensure_channel_first:
-            img = EnsureChannelFirst()(img)
+            img = EnsureChannelFirst()(img, meta_dict=meta_data)
         if self.image_only:
             return img
         return img, img.meta if isinstance(img, MetaTensor) else meta_data

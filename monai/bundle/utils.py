@@ -124,10 +124,8 @@ DEFAULT_MLFLOW_SETTINGS = {
         "run_name": None,
         # may fill it at runtime
         "save_execute_config": True,
-        "is_not_rank0": (
-            "$torch.distributed.is_available() \
-                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
-        ),
+        "is_not_rank0": ("$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"),
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",

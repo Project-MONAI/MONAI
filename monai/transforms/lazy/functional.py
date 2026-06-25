@@ -16,6 +16,7 @@ from typing import Any
 
 import torch
 
+import monai
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
@@ -29,7 +30,7 @@ from monai.transforms.lazy.utils import (
 )
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
-from monai.utils import LazyAttr, look_up_option
+from monai.utils import LazyAttr, TraceKeys, look_up_option
 
 __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending"]
 
@@ -256,9 +257,11 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
     if not pending:
         return data, []
 
+    _rank = data.spatial_ndim if isinstance(data, MetaTensor) else 3
+
     cumulative_xform = affine_from_pending(pending[0])
-    if cumulative_xform.shape[0] == 3:
-        cumulative_xform = to_affine_nd(3, cumulative_xform)
+    if cumulative_xform.shape[0] < _rank + 1:
+        cumulative_xform = to_affine_nd(_rank, cumulative_xform)
 
     cur_kwargs = kwargs_from_pending(pending[0])
     override_kwargs: dict[str, Any] = {}
@@ -283,12 +286,31 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
             data = resample(data.to(device), cumulative_xform, _cur_kwargs)
 
         next_matrix = affine_from_pending(p)
-        if next_matrix.shape[0] == 3:
-            next_matrix = to_affine_nd(3, next_matrix)
+        if next_matrix.shape[0] < _rank + 1:
+            next_matrix = to_affine_nd(_rank, next_matrix)
 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
+    if len(pending) == 1 and isinstance(pending[0], dict):
+        p0 = pending[0]
+        extra_info = p0.get(TraceKeys.EXTRA_INFO)
+        align_corners = cur_kwargs.get(LazyAttr.ALIGN_CORNERS, False)
+        if (
+            isinstance(extra_info, dict)
+            and "affine" in extra_info
+            and TraceKeys.ORIG_SIZE in p0
+            and align_corners not in (False, TraceKeys.NONE)
+            and not isinstance(cur_kwargs.get(LazyAttr.INTERP_MODE), int)
+        ):
+            out_size = cur_kwargs.get(LazyAttr.SHAPE, p0.get(LazyAttr.SHAPE, p0[TraceKeys.ORIG_SIZE]))
+            cumulative_xform = monai.transforms.Affine.compute_w_affine(
+                len(tuple(p0[TraceKeys.ORIG_SIZE])),
+                extra_info["affine"],
+                p0[TraceKeys.ORIG_SIZE],
+                out_size,
+                align_corners=True,
+            )
     data = resample(data.to(device), cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         for p in pending:

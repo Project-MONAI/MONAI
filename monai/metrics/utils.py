@@ -15,7 +15,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from functools import cache, partial
 from types import ModuleType
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 import torch
@@ -55,7 +55,17 @@ __all__ = [
 ]
 
 
-def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]: ...
+
+
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: None = ...) -> tuple[NdarrayTensor, None]: ...
+
+
+def ignore_background(
+    y_pred: NdarrayTensor, y: NdarrayTensor | None = None
+) -> tuple[NdarrayTensor, NdarrayTensor | None]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -63,11 +73,12 @@ def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayT
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
-        y: ground truth, the first dim is batch.
+        y: optional ground truth, the first dim is batch.
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    if y is not None:
+        y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
@@ -330,12 +341,14 @@ def get_edge_surface_distance(
     if not edges_gt.any():
         warnings.warn(
             f"the ground truth of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-            " this may result in nan/inf distance."
+            " this may result in nan/inf distance.",
+            stacklevel=2,
         )
     if not edges_pred.any():
         warnings.warn(
             f"the prediction of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-            " this may result in nan/inf distance."
+            " this may result in nan/inf distance.",
+            stacklevel=2,
         )
     distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
     if symmetric:
@@ -364,7 +377,7 @@ def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
     if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
-        warnings.warn(f"{name} should be a binarized tensor.")
+        warnings.warn(f"{name} should be a binarized tensor.", stacklevel=2)
 
 
 def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
@@ -499,7 +512,8 @@ def compute_voronoi_regions_fast(labels: np.ndarray | torch.Tensor) -> torch.Ten
         if isinstance(labels, torch.Tensor):
             warnings.warn(
                 "Voronoi computation is running on CPU. "
-                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed."
+                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed.",
+                stacklevel=2,
             )
             x = labels.cpu().numpy()
         else:
