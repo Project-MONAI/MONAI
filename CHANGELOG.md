@@ -5,6 +5,67 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-06-12
+
+## What's Changed
+### Added
+* Add `MAPEMetric` for regression evaluation (#8686)
+* Add `CalibrationErrorMetric` and `CalibrationError` handler (#8707)
+* Add `AUC-Margin Loss` for AUROC optimization (#8719)
+* Add `MCCLoss` (Matthews Correlation Coefficient loss) (#8785)
+* Add `EmbeddingCollapseMetric` for detecting representational collapse (#8815)
+* Add 3D support and confusion matrix output to `PanopticQualityMetric` (#8684)
+* Add `GradientAccumulation` utility for `SupervisedTrainer` (#8763)
+* Add nested dot-notation access to `ConfigParser` (#8858)
+* Add `allow_pickle` argument to relevant loaders (#8875)
+* Add configurable GD-enhancing tumor label in `ConvertToMultiChannelBasedOnBratsClasses` (#8779)
+* Enable global coordinates in spatial crop transforms (#8794)
+* Generalize `TestTimeAugmentation` to non-spatial predictions (#8715)
+* Add parameter to `DiceMetric` and `DiceHelper` classes (#8774)
+* Support additional dtypes in `pad_nd` (#8672)
+
+### Fixed
+* Fix `Invertd` transform (#8651)
+* Fix `PerceptualLoss` errors out after hitting maximum number of downloads (#8652)
+* Prevent implicit conversion of `MetaTensor` to numpy array (#8654)
+* Fix weights in alpha for `FocalLoss` (#8665)
+* Fix align_corners mismatch in `AffineTransform` (#8690)
+* Fix multi-axis shear transform to compose individual shear matrices (#8778)
+* Fix incorrect `truncated` parameter in `make_gaussian_kernel` causing corrupted `LocalNormalizedCrossCorrelationLoss` (#8781, #8783)
+* Fix batch size broadcasting bug in `GeneralizedWassersteinDiceLoss` (#8744)
+* Fix `AutoencoderKLMaisi` forcing CUDA transfer on CPU inputs (#8736)
+* Fix `TrainableBilateralFilter` 3D input validation (#8729)
+* Fix GPU memory leak by checking both image and label tensors for CUDA device (#8708)
+* Fix `compute_shape_offset` non-tuple indexing for PyTorch >=2.9 (#8776, #8812)
+* Fix memory leak in `optional_import` traceback handling (#8782)
+* Fix nested `Compose` `map_items` in forward and inverse paths (#8787)
+* Fix `JukeboxLoss.forward` swapped `input_amplitude` and `target_amplitude` (#8821)
+* Fix `EnsureChannelFirst` to pass `meta_data` when `track_meta` is False (#8835)
+* Fix `RandSimulateLowResolution` to not alter `track_meta` state (#8837)
+* Fix incomplete activation validation in `HausdorffDTLoss` (#8841)
+* Fix `CrossAttentionBlock` instantiated unconditionally (#8848)
+* Fix `GlobalMutualInformationLoss` bin_centers registered as buffer (#8869)
+* Fix `SoftclDiceLoss` and `SoftDiceclDiceLoss` with `DiceLoss`-compatible API (#8703)
+* Fix execution order of activation and masking in `MaskedDiceLoss` (#8704)
+* Fix `load_old_state_dict` key mapping in `AutoencoderKL` (#8786)
+* Fix missing `channel_wise` parameter in `RandScaleIntensityFixedMean` (#8741)
+* Fix NibabelReader eager C-order copy (#8825)
+* Fix `nnUNetV2Runner` to support MIG UUID and respect `CUDA_VISIBLE_DEVICES` (#8716)
+* Fix Auto3DSeg device handling and safe no-grad cleanup (#8801, #8803)
+* Replace deprecated `cuda.cudart` with `cuda.bindings.runtime` (#8790)
+* Replace `Tensor | None` with `Optional[Tensor]` for TorchScript compatibility (#8879)
+* Fix for [GHSA-rghg-q7wp-9767](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-rghg-q7wp-9767) (#8885)
+
+### Changed
+* Replace `pickle` with JSON in Auto3DSeg algo serialization (#8695)
+* Replace `flake8` with `ruff` and update lint rules (#8692, #8694)
+* Modernize build commands for setuptools 80+ compatibility (#8728)
+* Replace direct `np.random.*` calls with `np.random.RandomState` instances (#8798)
+* Replace `BaseException` with `Exception` across codebase (#8859)
+* Update base Docker image to 25.12 (#8738)
+* Various performance improvements in engine utilities and core data structures (#8747, #8748, #8751)
+* FFT utilities cleanup and update (#8762)
+
 ## [1.5.2] - 2026-01-28
 
 ## What's Changed
@@ -1267,7 +1328,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.5.2...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/Project-MONAI/MONAI/compare/1.5.2...1.6.0
 [1.5.2]: https://github.com/Project-MONAI/MONAI/compare/1.5.1...1.5.2
 [1.5.1]: https://github.com/Project-MONAI/MONAI/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...1.5.0
