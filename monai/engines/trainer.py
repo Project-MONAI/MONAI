@@ -37,12 +37,12 @@ else:
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = [
-    "Trainer",
-    "SingleNetworkTrainer",
-    "SupervisedTrainer",
+    "AdversarialTrainer",
     "DualNetworkTrainer",
     "GanTrainer",
-    "AdversarialTrainer",
+    "SingleNetworkTrainer",
+    "SupervisedTrainer",
+    "Trainer",
 ]
 
 
@@ -98,9 +98,13 @@ class Trainer(Workflow):
         Returns:
             A 4-tuple ``(inputs, targets, args, kwargs)``.
         """
-        if len(batch) == 2:
+        batch_len = len(batch)
+        if batch_len == 2:
             inputs, targets = batch
             return inputs, targets, (), {}
+        if batch_len != 4:
+            raise ValueError(f"Expected prepared batch to have 2 or 4 items, got {batch_len}.")
+
         return batch
 
 
@@ -146,8 +150,9 @@ class SingleNetworkTrainer(Trainer):
         compile_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
-        if accumulation_steps < 1:
+        if isinstance(accumulation_steps, bool) or not isinstance(accumulation_steps, int) or accumulation_steps < 1:
             raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
+
         super().__init__(**kwargs)
         if compile:
             compile_kwargs = {} if compile_kwargs is None else compile_kwargs
