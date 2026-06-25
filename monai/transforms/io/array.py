@@ -70,6 +70,16 @@ SUPPORTED_READERS = {
     "nibabelreader": NibabelReader,
 }
 
+# Maps reader names (lower-cased) to pip install commands so error messages
+# can tell users exactly how to fix a missing-package error.
+_READER_INSTALL_HINTS: dict[str, str] = {
+    "nibabelreader": "pip install nibabel",
+    "itkreader": "pip install itk",
+    "pilreader": "pip install Pillow",
+    "pydicomreader": "pip install pydicom",
+    "nrrdreader": "pip install pynrrd",
+}
+
 
 def switch_endianness(data, new="<"):
     """
@@ -209,10 +219,10 @@ class LoadImage(Transform):
                     the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
-                except OptionalImportError:
-                    warnings.warn(
-                        f"required package for reader {_r} is not installed, or the version doesn't match requirement."
-                    )
+                except OptionalImportError as e:
+                    hint = _READER_INSTALL_HINTS.get(_r.lower(), "")
+                    install_msg = f" Install with: {hint}" if hint else ""
+                    raise OptionalImportError(f"{e}{install_msg}") from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())

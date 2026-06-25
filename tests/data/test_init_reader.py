@@ -19,6 +19,7 @@ import numpy as np
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
+from monai.utils import OptionalImportError
 from tests.test_utils import SkipIfNoModule
 
 
@@ -30,8 +31,13 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance2, LoadImage)
 
         for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
-            self.assertIsInstance(inst, LoadImaged)
+            try:
+                inst = LoadImaged("image", reader=r)
+                self.assertIsInstance(inst, LoadImaged)
+            except OptionalImportError:
+                # Reader's backend package is not installed — expected in
+                # minimal-dependency environments after the fix for #7437.
+                pass
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
