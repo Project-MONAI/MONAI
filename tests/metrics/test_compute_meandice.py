@@ -291,15 +291,66 @@ TEST_CASE_17 = [
 ]
 
 
+# single-channel y (class indices) with multi-channel y_pred (one-hot)
+TEST_CASE_MIXED_1 = [
+    {
+        "y_pred": torch.tensor(
+            [[[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [1.0, 0.0]]]]
+        ),  # (1, 3, 2, 2) one-hot
+        "y": torch.tensor([[[[0.0, 1.0], [2.0, 1.0]]]]),  # (1, 1, 2, 2) class indices
+        "include_background": True,
+    },
+    # class 0: y_gt=[[1,0],[0,0]], y_pred=[[0,1],[0,0]] -> dice=0.0
+    # class 1: y_gt=[[0,1],[0,1]], y_pred=[[0,0],[0,1]] -> dice=2/3
+    # class 2: y_gt=[[0,0],[1,0]], y_pred=[[1,0],[1,0]] -> dice=2/3
+    [[0.0000, 0.6667, 0.6667]],
+]
+
+# single-channel y_pred (argmaxed, with num_classes) with multi-channel y (one-hot)
+TEST_CASE_MIXED_2 = [
+    {
+        "y_pred": torch.tensor([[[[2.0, 2.0], [2.0, 2.0]]]]),  # (1, 1, 2, 2) all class 2
+        "y": torch.tensor(
+            [[[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]]
+        ),  # (1, 3, 2, 2) one-hot, all background
+        "include_background": True,
+        "num_classes": 3,
+    },
+    # class 0: y_gt=[1,1,1,1](4), y_pred=[0,0,0,0](0) -> dice=0.0
+    # class 1: y_gt=[0,0,0,0](0), y_pred=[0,0,0,0](0) -> dice=nan (ignore_empty default)
+    # class 2: y_gt=[0,0,0,0](0), y_pred=[1,1,1,1](4) -> dice=nan (ignore_empty default)
+    [[False, True, True]],  # False=not-nan, True=nan
+]
+
+# single-channel y (class indices) with multi-channel y_pred, exclude background
+TEST_CASE_MIXED_3 = [
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),  # (2, 3, 2, 2) one-hot
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 1.0]]], [[[0.0, 0.0], [0.0, 1.0]]]]),  # (2, 1, 2, 2) class indices
+        "include_background": False,
+    },
+    # batch 0: class 1 y_gt=[[0,0],[0,1]], y_pred=[[0,0],[1,1]] -> dice=2/3
+    #          class 2 y_gt=[[0,0],[0,0]], y_pred=[[1,0],[0,0]] -> dice=nan
+    # batch 1: class 1 y_gt=[[0,0],[0,1]], y_pred=[[1,0],[0,0]] -> dice=0.0
+    #          class 2 y_gt=[[0,0],[0,0]], y_pred=[[0,1],[1,0]] -> dice=nan
+    [[False, True], [False, True]],  # nan pattern
+]
+
+
 class TestComputeMeanDice(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12, TEST_CASE_MIXED_1])
     def test_value(self, input_data, expected_value):
         result = compute_dice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
         np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
-    @parameterized.expand([TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_3, TEST_CASE_MIXED_2, TEST_CASE_MIXED_3])
     def test_nans(self, input_data, expected_value):
         result = compute_dice(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
@@ -358,6 +409,33 @@ class TestComputeMeanDice(unittest.TestCase):
     def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
             DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
+
+    def test_label_map_fast_path(self):
+        torch.manual_seed(0)
+        for n in (3, 8):
+            for include_background in (True, False):
+                for ignore_empty in (True, False):
+                    kwargs = dict(
+                        num_classes=n,
+                        include_background=include_background,
+                        ignore_empty=ignore_empty,
+                        get_not_nans=False,
+                        apply_argmax=False,
+                    )
+                    y_pred = torch.randint(0, n, (2, 1, 8, 8, 8))
+                    y = torch.randint(0, n, (2, 1, 8, 8, 8))
+                    fast = DiceHelper(**kwargs)(y_pred, y)
+                    ref = DiceHelper(**kwargs)(torch.nn.functional.one_hot(y_pred[:, 0], n).movedim(-1, 1), y)
+                    np.testing.assert_array_equal(torch.isnan(fast).cpu().numpy(), torch.isnan(ref).cpu().numpy())
+                    np.testing.assert_allclose(
+                        torch.nan_to_num(fast).cpu().numpy(), torch.nan_to_num(ref).cpu().numpy(), atol=1e-4
+                    )
+
+    def test_label_map_out_of_range_fallback(self):
+        for y_pred in (torch.tensor([[[[0, 1, 2, 3]]]]), torch.tensor([[[[-1, 1, 2, 0]]]])):
+            y = torch.tensor([[[[0, 1, 2, 0]]]])
+            result = DiceHelper(num_classes=3, get_not_nans=False)(y_pred, y)
+            np.testing.assert_allclose(result.cpu().numpy(), [1.0, 1.0], atol=1e-4)
 
 
 if __name__ == "__main__":
