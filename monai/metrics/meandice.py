@@ -486,16 +486,16 @@ class DiceHelper:
                 return (f, not_nans) if self.get_not_nans else f
 
         first_ch = 0 if self.include_background else 1
-        data = []
+        data_list = []
         for b in range(y_pred.shape[0]):
             c_list = []
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
                 x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
                 c_list.append(self.compute_channel(x_pred, x))
-            data.append(torch.stack(c_list))
+            data_list.append(torch.stack(c_list))
 
-        data = torch.stack(data, dim=0).contiguous()  # type: ignore
+        data = torch.stack(data_list, dim=0).contiguous()
 
         f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
         return (f, not_nans) if self.get_not_nans else f
