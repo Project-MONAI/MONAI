@@ -67,11 +67,13 @@ def compute_fp_tp_probs_nd(
 
     hittedlabel = evaluation_mask[tuple(coords.T)]
     fp_probs = probs[np.where(hittedlabel == 0)]
+    num_targets = 0
     for i in range(1, max_label + 1):
-        if i not in labels_to_exclude and i in hittedlabel:
-            tp_probs[i - 1] = probs[np.where(hittedlabel == i)].max()
+        if i not in labels_to_exclude:
+            num_targets += 1
+            if i in hittedlabel:
+                tp_probs[i - 1] = probs[np.where(hittedlabel == i)].max()
 
-    num_targets = max_label - len(labels_to_exclude)
     return fp_probs, tp_probs, cast(int, num_targets)
 
 
