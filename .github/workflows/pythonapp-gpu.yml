@@ -1,7 +1,7 @@
 # Jenkinsfile.monai-premerge
 name: premerge-gpu
 
-# on:
+on:
 #   # quick tests for pull requests and the releasing branches
 #   push:
 #     branches:
@@ -9,6 +9,8 @@ name: premerge-gpu
 #       - releasing/*
 #   pull_request:
 #     types: [opened, synchronize, closed]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version

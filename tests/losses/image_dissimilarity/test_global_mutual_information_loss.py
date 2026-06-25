@@ -116,6 +116,25 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
+    def test_gaussian_bin_centers_registered_buffer(self):
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=16)
+
+        self.assertIn("bin_centers", dict(loss.named_buffers()))
+        self.assertIsNotNone(loss.bin_centers)
+        self.assertFalse(loss.bin_centers.requires_grad)
+
+        loss = loss.to(dtype=torch.float64)
+        self.assertEqual(loss.bin_centers.dtype, torch.float64)
+
+        if torch.cuda.is_available():
+            loss = loss.to(device="cuda:0")
+            self.assertEqual(loss.bin_centers.device, torch.device("cuda:0"))
+
+    def test_b_spline_bin_centers_exists_as_none(self):
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        self.assertIsNone(loss.bin_centers)
+
     @parameterized.expand(
         [
             (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims

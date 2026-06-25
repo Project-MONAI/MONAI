@@ -31,7 +31,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.data.meta_obj import MetaObj
+from monai.data.meta_obj import _DEFAULT_SPATIAL_NDIM, MetaObj
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -432,6 +432,9 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     collated.meta = default_collate(meta_dicts)
     collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
     collated.is_batch = True
+    collated.spatial_ndim = min(
+        min(getattr(t, "spatial_ndim", _DEFAULT_SPATIAL_NDIM) for t in batch), max(collated.ndim - 1, 1)
+    )
     return collated
 
 

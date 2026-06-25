@@ -26,12 +26,21 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
 
 WORKDIR /opt/monai
 
+# Patch NVIDIA's pip constraint file:
+#   - keep the base image's numpy pin if present (older images pin numpy==1.26.4 as
+#     their torch was compiled against NumPy 1.x; newer images may ship an empty file)
+#   - add setuptools<71 (setuptools>=71 removed pkg_resources, breaking MetricsReloaded)
+#   - pin urllib3>=2 to prevent inadvertent downgrades by pip-installing legacy packages
+RUN (grep '^numpy' /etc/pip/constraint.txt || true) > /tmp/new_constraints.txt \
+  && printf 'setuptools<71\nurllib3>=2\n' >> /tmp/new_constraints.txt \
+  && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
+
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
 RUN cp /tmp/requirements.txt /tmp/req.bak \
   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
-  && python -m pip install --upgrade --no-cache-dir pip \
-  && python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt
+  && python -m pip install --upgrade --no-cache-dir --no-build-isolation pip wheel wheel-stub \
+  && python -m pip install --no-cache-dir --no-build-isolation -r /tmp/requirements-dev.txt
 
 # compile ext and remove temp files
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)

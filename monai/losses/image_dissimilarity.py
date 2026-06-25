@@ -320,6 +320,8 @@ class GlobalMutualInformationLoss(_Loss):
         """
         img = torch.clamp(img, 0, 1)
         img = img.reshape(img.shape[0], -1, 1)  # (batch, num_sample, 1)
+        if self.bin_centers is None:
+            raise ValueError("bin_centers must be defined for gaussian parzen windowing.")
         weight = torch.exp(
             -self.preterm.to(img) * (img - self.bin_centers.to(img)) ** 2
         )  # (batch, num_sample, num_bin)
