@@ -35,8 +35,6 @@ if TYPE_CHECKING:
 else:
     Events = optional_import("ignite.engine", name="Events")
 
-pd, has_pandas = optional_import("pandas")
-
 __all__ = [
     "torch_profiler_full",
     "torch_profiler_time_cpu_gpu",

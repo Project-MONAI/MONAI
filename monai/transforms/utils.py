@@ -1659,7 +1659,6 @@ def extreme_points_to_image(
         rescale_max: maximum value of output data.
     """
     # points to image
-    # points_image = torch.zeros(label.shape[1:], dtype=torch.float)
     points_image = torch.zeros_like(torch.as_tensor(label[0]), dtype=torch.float)
     for p in points:
         points_image[p] = 1.0
