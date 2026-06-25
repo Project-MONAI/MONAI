@@ -30,6 +30,7 @@ Its ambitions are as follows:
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
+- secure archive extraction utilities with built-in path-traversal protection;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
 - multi-GPU multi-node data parallelism support.
