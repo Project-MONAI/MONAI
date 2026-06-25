@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import torch
@@ -74,7 +74,7 @@ def compute_fp_tp_probs_nd(
             if i in hittedlabel:
                 tp_probs[i - 1] = probs[np.where(hittedlabel == i)].max()
 
-    return fp_probs, tp_probs, cast(int, num_targets)
+    return fp_probs, tp_probs, num_targets
 
 
 def compute_fp_tp_probs(
