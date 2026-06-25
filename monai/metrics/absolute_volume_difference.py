@@ -84,6 +84,7 @@ class AbsoluteVolumeDifferenceMetric(CumulativeIterationMetric):
         get_not_nans: bool = False,
         ignore_empty: bool = True,
     ) -> None:
+        """Initialize AbsoluteVolumeDifferenceMetric. See class docstring for argument descriptions."""
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
