@@ -374,6 +374,53 @@ class DiceHelper:
             return torch.tensor(1.0, device=y_o.device)
         return torch.tensor(0.0, device=y_o.device)
 
+    def compute_confusion_dice(self, y_pred: torch.Tensor, y: torch.Tensor, n_pred_ch: int) -> torch.Tensor:
+        """
+        Fast Dice for multi-class label maps. Both ``y_pred`` and ``y`` are single-channel integer class-index maps
+        with values in ``[0, n_pred_ch)``. A single batched confusion matrix is accumulated with ``torch.bincount``
+        (one pass over the voxels, independent of the number of classes), and per-class true-positive, prediction and
+        ground-truth counts are read off its diagonal and margins. This matches :meth:`compute_channel` exactly while
+        avoiding both the per-channel Python loop and the materialization of one-hot tensors.
+
+        Args:
+            y_pred: predicted class indices with shape (batch_size, 1, spatial_dims...).
+            y: ground-truth class indices with shape (batch_size, 1, spatial_dims...).
+            n_pred_ch: number of classes (background included).
+
+        Returns:
+            Per-(batch, class) Dice with shape (batch_size, num_classes_selected), background excluded when
+            ``include_background`` is False, following the same ``ignore_empty`` convention as the per-channel path.
+        """
+        batch_size = y_pred.shape[0]
+        device = y_pred.device
+        y_pred_flat = y_pred.reshape(batch_size, -1).long()
+        y_flat = y.reshape(batch_size, -1).long()
+        batch_offset = torch.arange(batch_size, device=device).unsqueeze(1) * (n_pred_ch * n_pred_ch)
+        indices = (batch_offset + y_pred_flat * n_pred_ch + y_flat).reshape(-1)
+        confusion = torch.bincount(indices, minlength=batch_size * n_pred_ch * n_pred_ch)
+        confusion = confusion.reshape(batch_size, n_pred_ch, n_pred_ch).to(torch.float32)
+
+        tp = torch.diagonal(confusion, dim1=1, dim2=2)
+        pred_sum = confusion.sum(dim=2)
+        y_sum = confusion.sum(dim=1)
+        dice = (2.0 * tp) / (pred_sum + y_sum)
+
+        if self.ignore_empty:
+            dice = torch.where(y_sum > 0, dice, torch.tensor(float("nan"), device=device, dtype=dice.dtype))
+        else:
+            dice = torch.where(
+                y_sum == 0,
+                torch.where(
+                    pred_sum == 0,
+                    torch.tensor(1.0, device=device, dtype=dice.dtype),
+                    torch.tensor(0.0, device=device, dtype=dice.dtype),
+                ),
+                dice,
+            )
+
+        first_ch = 0 if self.include_background else 1
+        return dice[:, first_ch:]
+
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Compute the metric for the given prediction and ground truth.
@@ -382,6 +429,9 @@ class DiceHelper:
             y_pred: input predictions with shape (batch_size, num_classes or 1, spatial_dims...).
                 the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
+
+        Returns:
+            Per-(batch, class) Dice scores, or ``(scores, not_nans)`` when ``get_not_nans`` is True.
 
         Raises:
             ValueError: when the shapes of `y_pred` and `y` are not compatible for the per-component computation.
@@ -413,13 +463,31 @@ class DiceHelper:
                         "(B, 2, H, W) or (B, 2, D, H, W). "
                         f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
                     )
+            data = torch.stack(
+                [
+                    self.compute_cc_dice(y_pred[b].unsqueeze(0), y[b].unsqueeze(0)).reshape(-1)
+                    for b in range(y_pred.shape[0])
+                ],
+                dim=0,
+            ).contiguous()
+            f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
+            return (f, not_nans) if self.get_not_nans else f
 
-        first_ch = 0 if self.include_background and not self.per_component else 1
+        # multi-class label maps use the single-pass confusion matrix; all else uses the per-channel loop
+        label_maps = (
+            y_pred.shape[1] == 1 and y.shape[1] == 1 and not y_pred.is_floating_point() and not y.is_floating_point()
+        )
+        if label_maps and n_pred_ch >= 3:
+            min_label = int(torch.min(y_pred.min(), y.min()))
+            max_label = int(torch.max(y_pred.max(), y.max()))
+            if 0 <= min_label and max_label < n_pred_ch:
+                data = self.compute_confusion_dice(y_pred, y, n_pred_ch)
+                f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
+                return (f, not_nans) if self.get_not_nans else f
+
+        first_ch = 0 if self.include_background else 1
         data = []
         for b in range(y_pred.shape[0]):
-            if self.per_component:
-                data.append(self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0)).reshape(-1))
-                continue
             c_list = []
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
                 x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
