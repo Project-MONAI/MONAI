@@ -36,7 +36,14 @@ else:
     Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
-__all__ = ["Trainer", "SupervisedTrainer", "GanTrainer", "AdversarialTrainer"]
+__all__ = [
+    "Trainer",
+    "SingleNetworkTrainer",
+    "SupervisedTrainer",
+    "DualNetworkTrainer",
+    "GanTrainer",
+    "AdversarialTrainer",
+]
 
 
 class Trainer(Workflow):
@@ -51,7 +58,7 @@ class Trainer(Workflow):
         If call this function multiple times, it will continuously run from the previous state.
 
         """
-        self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
+        self.scaler = torch.amp.GradScaler("cuda") if self.amp else None
         super().run()
 
     def get_stats(self, *vars):
@@ -76,10 +83,144 @@ class Trainer(Workflow):
             stats[k] = getattr(self.state, k, None)
         return stats
 
+    @staticmethod
+    def _unpack_batch(batch) -> tuple:
+        """
+        Unpack a prepared batch into ``(inputs, targets, args, kwargs)``.
 
-class SupervisedTrainer(Trainer):
+        If the batch contains exactly 2 elements, ``args`` and ``kwargs`` default to an empty
+        tuple and dict respectively. Otherwise the batch is expected to already be a 4-tuple.
+
+        Args:
+            batch: output of ``prepare_batch``, either a 2-tuple ``(inputs, targets)``
+                or a 4-tuple ``(inputs, targets, args, kwargs)``.
+
+        Returns:
+            A 4-tuple ``(inputs, targets, args, kwargs)``.
+        """
+        if len(batch) == 2:
+            inputs, targets = batch
+            return inputs, targets, (), {}
+        return batch
+
+
+class SingleNetworkTrainer(Trainer):
     """
-    Standard supervised training method with image and label, inherits from ``Trainer`` and ``Workflow``.
+    Intermediate base class for trainers that operate with a single network and optimizer pair,
+    inherits from ``Trainer``.
+
+    Centralises the ownership and initialisation of ``network``, ``optimizer``, ``inferer``,
+    ``optim_set_to_none``, ``accumulation_steps``, and optional ``torch.compile`` wrapping so
+    that concrete subclasses (e.g. ``SupervisedTrainer``) only need to provide their
+    task-specific loss and forward logic.
+
+    Provides two helper methods intended for use in ``_iteration`` implementations:
+
+    - :meth:`_accumulation_flags` — returns ``(should_zero_grad, should_step)`` for the
+      current iteration based on the configured ``accumulation_steps``.
+    - :meth:`_amp_step` — runs the scaled backward pass and conditional optimizer step,
+      handling both AMP and non-AMP code paths uniformly.
+
+    Args:
+        network: network to train, should be regular PyTorch ``torch.nn.Module``.
+        optimizer: the optimizer associated to the network.
+        inferer: inference method that executes the model forward on input data.
+            Defaults to ``SimpleInferer()``.
+        optim_set_to_none: when calling ``optimizer.zero_grad()``, set grads to ``None``
+            instead of zero. Default: ``False``.
+        accumulation_steps: number of mini-batches over which to accumulate gradients.
+            Must be a positive integer. Default: ``1`` (no accumulation).
+        compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
+        compile_kwargs: keyword arguments forwarded to ``torch.compile()``.
+        **kwargs: remaining arguments forwarded to ``Trainer`` / ``Workflow``.
+    """
+
+    def __init__(
+        self,
+        network: torch.nn.Module,
+        optimizer: Optimizer,
+        inferer: Inferer | None = None,
+        optim_set_to_none: bool = False,
+        accumulation_steps: int = 1,
+        compile: bool = False,
+        compile_kwargs: dict | None = None,
+        **kwargs,
+    ) -> None:
+        if accumulation_steps < 1:
+            raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
+        super().__init__(**kwargs)
+        if compile:
+            compile_kwargs = {} if compile_kwargs is None else compile_kwargs
+            network = torch.compile(network, **compile_kwargs)  # type: ignore[assignment]
+        self.network = network
+        self.compile = compile
+        self.optimizer = optimizer
+        self.inferer = SimpleInferer() if inferer is None else inferer
+        self.optim_set_to_none = optim_set_to_none
+        self.accumulation_steps = accumulation_steps
+
+    def _accumulation_flags(self, engine: SingleNetworkTrainer) -> tuple[bool, bool]:
+        """
+        Return ``(should_zero_grad, should_step)`` for the current iteration.
+
+        When ``accumulation_steps == 1`` both flags are always ``True``.
+        Otherwise the flags reflect whether the current iteration is the first or last step
+        in an accumulation window, with an end-of-epoch flush when ``epoch_length`` is known
+        and not evenly divisible by ``accumulation_steps``.
+
+        Args:
+            engine: the trainer engine for the current iteration.
+
+        Returns:
+            A 2-tuple ``(should_zero_grad, should_step)``.
+        """
+        acc = engine.accumulation_steps
+        if acc == 1:
+            return True, True
+        epoch_length = engine.state.epoch_length
+        if epoch_length is not None:
+            local_iter = (engine.state.iteration - 1) % epoch_length  # 0-indexed within epoch
+            should_zero_grad = local_iter % acc == 0
+            should_step = (local_iter + 1) % acc == 0 or (local_iter + 1) == epoch_length
+        else:
+            local_iter = engine.state.iteration - 1  # 0-indexed global
+            should_zero_grad = local_iter % acc == 0
+            should_step = (local_iter + 1) % acc == 0
+        return should_zero_grad, should_step
+
+    def _amp_step(self, engine: SingleNetworkTrainer, loss: torch.Tensor, *, should_step: bool) -> None:
+        """
+        Run the backward pass and, when ``should_step`` is ``True``, the optimizer step.
+
+        Handles both the AMP (``engine.scaler`` present) and non-AMP code paths, and
+        divides the loss by ``accumulation_steps`` before calling ``.backward()`` so
+        gradients accumulate correctly across micro-batches. Fires
+        ``IterationEvents.BACKWARD_COMPLETED`` after the backward pass in both paths.
+
+        Args:
+            engine: the trainer engine for the current iteration.
+            loss: the **unscaled** loss value (as stored in ``engine.state.output``).
+            should_step: whether to call ``optimizer.step()`` after the backward pass.
+        """
+        acc = engine.accumulation_steps
+        scaled_loss = loss / acc if acc > 1 else loss
+        if engine.amp and engine.scaler is not None:
+            engine.scaler.scale(scaled_loss).backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
+            if should_step:
+                engine.scaler.step(engine.optimizer)
+                engine.scaler.update()
+        else:
+            scaled_loss.backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
+            if should_step:
+                engine.optimizer.step()
+
+
+class SupervisedTrainer(SingleNetworkTrainer):
+    """
+    Standard supervised training method with image and label, inherits from ``SingleNetworkTrainer``,
+    ``Trainer`` and ``Workflow``.
 
     Args:
         device: an object representing the device on which to run.
@@ -168,9 +309,16 @@ class SupervisedTrainer(Trainer):
         compile_kwargs: dict | None = None,
         accumulation_steps: int = 1,
     ) -> None:
-        if accumulation_steps < 1:
-            raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
         super().__init__(
+            # SingleNetworkTrainer args
+            network=network,
+            optimizer=optimizer,
+            inferer=inferer,
+            optim_set_to_none=optim_set_to_none,
+            accumulation_steps=accumulation_steps,
+            compile=compile,
+            compile_kwargs=compile_kwargs,
+            # Workflow args forwarded via **kwargs through SingleNetworkTrainer → Trainer → Workflow
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
@@ -190,16 +338,7 @@ class SupervisedTrainer(Trainer):
             to_kwargs=to_kwargs,
             amp_kwargs=amp_kwargs,
         )
-        if compile:
-            compile_kwargs = {} if compile_kwargs is None else compile_kwargs
-            network = torch.compile(network, **compile_kwargs)  # type: ignore[assignment]
-        self.network = network
-        self.compile = compile
-        self.optimizer = optimizer
         self.loss_function = loss_function
-        self.inferer = SimpleInferer() if inferer is None else inferer
-        self.optim_set_to_none = optim_set_to_none
-        self.accumulation_steps = accumulation_steps
 
     def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]) -> dict:
         """
@@ -221,12 +360,7 @@ class SupervisedTrainer(Trainer):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
         batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
-        if len(batch) == 2:
-            inputs, targets = batch
-            args: tuple = ()
-            kwargs: dict = {}
-        else:
-            inputs, targets, args, kwargs = batch
+        inputs, targets, args, kwargs = self._unpack_batch(batch)
         # FIXME: workaround for https://github.com/pytorch/pytorch/issues/117026
         if self.compile:
             inputs_meta, targets_meta, inputs_applied_operations, targets_applied_operations = None, None, None, None
@@ -255,21 +389,7 @@ class SupervisedTrainer(Trainer):
             engine.state.output[Keys.LOSS] = engine.loss_function(engine.state.output[Keys.PRED], targets).mean()
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
-        # Determine gradient accumulation state
-        acc = engine.accumulation_steps
-        if acc > 1:
-            epoch_length = engine.state.epoch_length
-            if epoch_length is not None:
-                local_iter = (engine.state.iteration - 1) % epoch_length  # 0-indexed within epoch
-                should_zero_grad = local_iter % acc == 0
-                should_step = (local_iter + 1) % acc == 0 or (local_iter + 1) == epoch_length
-            else:
-                local_iter = engine.state.iteration - 1  # 0-indexed global
-                should_zero_grad = local_iter % acc == 0
-                should_step = (local_iter + 1) % acc == 0
-        else:
-            should_zero_grad = True
-            should_step = True
+        should_zero_grad, should_step = self._accumulation_flags(engine)
 
         engine.network.train()
         if should_zero_grad:
@@ -278,19 +398,11 @@ class SupervisedTrainer(Trainer):
         if engine.amp and engine.scaler is not None:
             with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_pred_loss()
-            loss = engine.state.output[Keys.LOSS]
-            engine.scaler.scale(loss / acc if acc > 1 else loss).backward()
-            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            if should_step:
-                engine.scaler.step(engine.optimizer)
-                engine.scaler.update()
         else:
             _compute_pred_loss()
-            loss = engine.state.output[Keys.LOSS]
-            (loss / acc if acc > 1 else loss).backward()
-            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            if should_step:
-                engine.optimizer.step()
+
+        self._amp_step(engine, engine.state.output[Keys.LOSS], should_step=should_step)
+
         # copy back meta info
         if self.compile:
             if inputs_meta is not None:
@@ -309,10 +421,54 @@ class SupervisedTrainer(Trainer):
         return engine.state.output
 
 
-class GanTrainer(Trainer):
+class DualNetworkTrainer(Trainer):
+    """
+    Intermediate base class for trainers that manage a generator and discriminator network pair,
+    inherits from ``Trainer``.
+
+    Centralises the ownership and initialisation of the generator (``g_network``,
+    ``g_optimizer``, ``g_inferer``) and discriminator (``d_network``, ``d_optimizer``,
+    ``d_inferer``) components, along with ``optim_set_to_none``, so that concrete
+    subclasses (e.g. ``GanTrainer``, ``AdversarialTrainer``) only need to provide their
+    task-specific training logic.
+
+    Args:
+        g_network: generator (G) network architecture.
+        g_optimizer: G optimizer.
+        d_network: discriminator (D) network architecture.
+        d_optimizer: D optimizer.
+        g_inferer: inference method to execute G model forward. Defaults to ``SimpleInferer()``.
+        d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
+        optim_set_to_none: when calling ``optimizer.zero_grad()``, set grads to ``None``
+            instead of zero. Default: ``False``.
+        **kwargs: remaining arguments forwarded to ``Trainer`` / ``Workflow``.
+    """
+
+    def __init__(
+        self,
+        g_network: torch.nn.Module,
+        g_optimizer: Optimizer,
+        d_network: torch.nn.Module,
+        d_optimizer: Optimizer,
+        g_inferer: Inferer | None = None,
+        d_inferer: Inferer | None = None,
+        optim_set_to_none: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.g_network = g_network
+        self.g_optimizer = g_optimizer
+        self.g_inferer = SimpleInferer() if g_inferer is None else g_inferer
+        self.d_network = d_network
+        self.d_optimizer = d_optimizer
+        self.d_inferer = SimpleInferer() if d_inferer is None else d_inferer
+        self.optim_set_to_none = optim_set_to_none
+
+
+class GanTrainer(DualNetworkTrainer):
     """
     Generative adversarial network training based on Goodfellow et al. 2014 https://arxiv.org/abs/1406.266,
-    inherits from ``Trainer`` and ``Workflow``.
+    inherits from ``DualNetworkTrainer``, ``Trainer`` and ``Workflow``.
 
     Training Loop: for each batch of data size `m`
         1. Generate `m` fakes from random latent codes.
@@ -407,6 +563,15 @@ class GanTrainer(Trainer):
 
         # set up Ignite engine and environments
         super().__init__(
+            # DualNetworkTrainer args
+            g_network=g_network,
+            g_optimizer=g_optimizer,
+            g_inferer=g_inferer,
+            d_network=d_network,
+            d_optimizer=d_optimizer,
+            d_inferer=d_inferer,
+            optim_set_to_none=optim_set_to_none,
+            # Workflow args forwarded via **kwargs through DualNetworkTrainer → Trainer → Workflow
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
@@ -423,19 +588,12 @@ class GanTrainer(Trainer):
             to_kwargs=to_kwargs,
             amp_kwargs=amp_kwargs,
         )
-        self.g_network = g_network
-        self.g_optimizer = g_optimizer
         self.g_loss_function = g_loss_function
-        self.g_inferer = SimpleInferer() if g_inferer is None else g_inferer
-        self.d_network = d_network
-        self.d_optimizer = d_optimizer
         self.d_loss_function = d_loss_function
-        self.d_inferer = SimpleInferer() if d_inferer is None else d_inferer
         self.d_train_steps = d_train_steps
         self.latent_shape = latent_shape
         self.g_prepare_batch = g_prepare_batch
         self.g_update_latents = g_update_latents
-        self.optim_set_to_none = optim_set_to_none
 
     def _iteration(
         self, engine: GanTrainer, batchdata: dict | Sequence
@@ -498,9 +656,10 @@ class GanTrainer(Trainer):
         }
 
 
-class AdversarialTrainer(Trainer):
+class AdversarialTrainer(DualNetworkTrainer):
     """
-    Standard supervised training workflow for adversarial loss enabled neural networks.
+    Standard supervised training workflow for adversarial loss enabled neural networks,
+    inherits from ``DualNetworkTrainer``, ``Trainer`` and ``Workflow``.
 
     Args:
         device: an object representing the device on which to run.
@@ -579,6 +738,15 @@ class AdversarialTrainer(Trainer):
         amp_kwargs: dict | None = None,
     ):
         super().__init__(
+            # DualNetworkTrainer args
+            g_network=g_network,
+            g_optimizer=g_optimizer,
+            g_inferer=g_inferer,
+            d_network=d_network,
+            d_optimizer=d_optimizer,
+            d_inferer=d_inferer,
+            optim_set_to_none=optim_set_to_none,
+            # Workflow args forwarded via **kwargs through DualNetworkTrainer → Trainer → Workflow
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
@@ -601,22 +769,19 @@ class AdversarialTrainer(Trainer):
 
         self.register_events(*AdversarialIterationEvents)
 
-        self.state.g_network = g_network
-        self.state.g_optimizer = g_optimizer
+        # Promote network/optimizer references into engine.state for checkpoint saving
+        self.state.g_network = self.g_network
+        self.state.g_optimizer = self.g_optimizer
         self.state.g_loss_function = g_loss_function
         self.state.recon_loss_function = recon_loss_function
 
-        self.state.d_network = d_network
-        self.state.d_optimizer = d_optimizer
+        self.state.d_network = self.d_network
+        self.state.d_optimizer = self.d_optimizer
         self.state.d_loss_function = d_loss_function
 
-        self.g_inferer = SimpleInferer() if g_inferer is None else g_inferer
-        self.d_inferer = SimpleInferer() if d_inferer is None else d_inferer
+        self.state.g_scaler = torch.amp.GradScaler("cuda") if self.amp else None
+        self.state.d_scaler = torch.amp.GradScaler("cuda") if self.amp else None
 
-        self.state.g_scaler = torch.cuda.amp.GradScaler() if self.amp else None
-        self.state.d_scaler = torch.cuda.amp.GradScaler() if self.amp else None
-
-        self.optim_set_to_none = optim_set_to_none
         self._complete_state_dict_user_keys()
 
     def _complete_state_dict_user_keys(self) -> None:
