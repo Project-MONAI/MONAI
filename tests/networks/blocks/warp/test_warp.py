@@ -138,6 +138,21 @@ class TestWarp(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
+    def test_jitter(self):
+        ddf = torch.zeros(1, 2, 4, 5)
+        grid = Warp(jitter=True).get_reference_grid(ddf, jitter=True, seed=0)
+        self.assertTrue(grid.is_floating_point())
+        self.assertTrue(bool((grid != grid.round()).any()))
+
+        ref = Warp().get_reference_grid(ddf, jitter=False)
+        self.assertTrue(bool((ref == ref.round()).all()))
+
+        same = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        repeat = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        other = Warp().get_reference_grid(ddf, jitter=True, seed=8)
+        self.assertTrue(torch.equal(same, repeat))
+        self.assertFalse(torch.equal(same, other))
+
     def test_grad(self):
         for b in GridSampleMode:
             for p in GridSamplePadMode:
