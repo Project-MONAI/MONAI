@@ -22,7 +22,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
@@ -114,7 +114,6 @@ def pad_nd(
         if any(k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
         raise ValueError(
-            # pyrefly: ignore [missing-attribute]
             f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"
         ) from err
 
@@ -133,7 +132,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
         mode: the padding mode.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
     """
-    ndim = len(img.shape) - 1
+    ndim = get_spatial_ndim(img)
     matrix_np = np.round(to_affine_nd(ndim, convert_to_numpy(translation_mat, wrap_sequence=True).copy()))
     matrix_np = to_affine_nd(len(spatial_size), matrix_np)
     cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))
@@ -144,7 +143,6 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
     for s, e, sp in zip(src_start, src_end, img.shape[1:]):
         do_pad, do_crop = do_pad or s < 0 or e > sp - 1, do_crop or s > 0 or e < sp - 1
         to_pad += [(0 if s >= 0 else int(-s), 0 if e < sp - 1 else int(e - sp + 1))]
-        # pyrefly: ignore [unnecessary-type-conversion]
         to_crop += [slice(int(max(s, 0)), int(e + 1 + to_pad[-1][0]))]
     if do_pad:
         _mode = _convert_pt_pad_mode(mode)
@@ -190,7 +188,6 @@ def pad_func(
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
     do_pad = np.asarray(to_pad).any()
     if do_pad:
-        # pyrefly: ignore [unnecessary-type-conversion]
         to_pad_list = [(int(p[0]), int(p[1])) for p in to_pad]
         if len(to_pad_list) < len(img.shape):
             to_pad_list += [(0, 0)] * (len(img.shape) - len(to_pad_list))
