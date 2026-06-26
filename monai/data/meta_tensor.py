@@ -473,9 +473,10 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def pixdim(self):
         """Get the spacing"""
+        r = self.affine.shape[-1] - 1
         if self.is_batch:
-            return [affine_to_spacing(a) for a in self.affine]
-        return affine_to_spacing(self.affine)
+            return [affine_to_spacing(a, r=r) for a in self.affine]
+        return affine_to_spacing(self.affine, r=r)
 
     def peek_pending_shape(self):
         """

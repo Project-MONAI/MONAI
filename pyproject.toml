@@ -69,7 +69,6 @@ extend-ignore = [
   "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
 ]
 
-
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
   "B018",

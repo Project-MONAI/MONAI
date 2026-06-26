@@ -634,8 +634,26 @@ fi
 
 if [ $doMypyFormat = true ]
 then
-    echo "${red}Warning: mypy has been replaced by pyrefly. Use --pyrefly instead.${noColor}"
-    exit 1
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}mypy${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed mypy
+    then
+        install_deps
+    fi
+    ${cmdPrefix}"${PY_EXE}" -m mypy --version
+    ${cmdPrefix}"${PY_EXE}" -m mypy "$homedir"
+
+    mypy_status=$?
+    if [ ${mypy_status} -ne 0 ]
+    then
+        : # mypy output already follows format
+        exit ${mypy_status}
+    else
+        : # mypy output already follows format
+    fi
+    set -e # enable exit on failure
 fi
 
 
