@@ -56,8 +56,8 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 
 ```bash
 # optionally update the dependencies and dev tools
-python -m pip install -U pip
-python -m pip install -U -r requirements-dev.txt
+python -m pip install -U pip wheel
+python -m pip install --no-build-isolation -r requirements-dev.txt
 
 # run the linting and type checking tools
 ./runtests.sh --codeformat

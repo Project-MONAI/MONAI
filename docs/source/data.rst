@@ -159,6 +159,16 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+PydicomReader
+~~~~~~~~~~~~~
+.. autoclass:: PydicomReader
+  :members:
+
+NvImgCodecPydicomReader
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: NvImgCodecPydicomReader
+  :members:
+
 NrrdReader
 ~~~~~~~~~~
 .. autoclass:: NrrdReader

@@ -64,7 +64,29 @@ if TYPE_CHECKING:
 else:
     NdarrayOrCupy: TypeAlias = Any
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
+__all__ = [
+    "ImageReader",
+    "ITKReader",
+    "NibabelReader",
+    "NumpyReader",
+    "PILReader",
+    "PydicomReader",
+    "NvImgCodecPydicomReader",
+    "NrrdReader",
+    "DICOM_READER_ENV_MAP",
+    "NON_DICOM_READERS",
+    "get_preferred_dicom_reader_key",
+    "get_default_reader_registration_order",
+    "is_dicom_path",
+]
+
+DICOM_READER_ENV_MAP = {
+    "itk": "itkreader",
+    "pydicom": "pydicomreader",
+    "nvimgcodec": "nvimgcodecpydicomreader",
+}
+
+NON_DICOM_READERS = ["nrrdreader", "numpyreader", "pilreader", "nibabelreader"]
 
 
 class ImageReader(ABC):
@@ -995,6 +1017,137 @@ class PydicomReader(ImageReader):
                 data = data.astype(np.float32) * slope + offset
 
         return data
+
+
+def is_dicom_path(filename: Sequence[PathLike] | PathLike) -> bool:
+    """
+    Return ``True`` if ``filename`` refers to a DICOM file or a directory that may contain a DICOM series.
+    """
+    for name in ensure_tuple(filename):
+        name = f"{name}"
+        path = Path(name)
+        if path.is_dir():
+            return True
+        if path.suffix.lower() == ".dcm":
+            return True
+        if has_pydicom:
+            try:
+                if pydicom.misc.is_dicom(name):
+                    return True
+            except Exception:
+                pass
+    return False
+
+
+def get_preferred_dicom_reader_key() -> str:
+    """
+    Return the :py:class:`LoadImage` registration key for the preferred DICOM reader.
+
+    Controlled by the ``MONAI_DICOM_READER`` environment variable. Supported values are
+    ``itk`` (default), ``pydicom``, and ``nvimgcodec``.
+    """
+    pref = os.environ.get("MONAI_DICOM_READER", "itk").lower()
+    if pref not in DICOM_READER_ENV_MAP:
+        warnings.warn(f"Unknown MONAI_DICOM_READER='{pref}', falling back to 'itk'.")
+        return DICOM_READER_ENV_MAP["itk"]
+    return DICOM_READER_ENV_MAP[pref]
+
+
+def get_default_reader_registration_order() -> list[str]:
+    """
+    Return the default reader registration order for :py:class:`LoadImage`.
+
+    Non-DICOM readers are registered first; the preferred DICOM reader is registered last so that
+    it is tried first during automatic reader selection.
+    """
+    return NON_DICOM_READERS + [get_preferred_dicom_reader_key()]
+
+
+@require_pkg(pkg_name="pydicom")
+class NvImgCodecPydicomReader(PydicomReader):
+    """
+    Load DICOM images using Pydicom with GPU-accelerated decompression via nvImageCodec.
+
+    This reader extends :py:class:`PydicomReader` and registers the nvImageCodec pydicom
+    decoder plugin on initialization. The plugin accelerates decoding of compressed pixel data
+    for JPEG, JPEG 2000, and HTJ2K transfer syntaxes when CUDA, CuPy and ``nvidia-nvimgcodec`` are available.
+
+    If nvImageCodec is not available, a warning is issued and the reader falls back to the
+    default pydicom decoders (same behavior as :py:class:`PydicomReader`).
+
+    Requires optional dependencies: ``pydicom``, ``cupy``, ``nvidia-nvimgcodec-cuXX`` (where XX is the CUDA version).
+    GPU decompression uses ``nvidia.nvimgcodec.tools.dicom.pydicom_plugin`` from the nvImageCodec package. CUDA13 is
+    strongly recommended because the dependency nvjpeg library has addressed a known issue with JPEGLossless decoding
+    in CUDA 13.2.0+.
+
+    Note:
+    Enabling GPU direct loading disables GPU decompression as this bypasses any Pydicom pixel data interpretation.
+    In fact, the current implementation of GPU direct loading is error-prone as it simply loads the raw bytes of
+    the pixel data into GPU memory without any required processing, e.g. applying rescale slope and intercept,
+    `PhotometricInterpretation`, etc., let alone processing compressed pixel data. As such, the resulting
+    data array will not represent the original pixel data.
+
+    Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
+    with :py:class:`monai.transforms.LoadImage` without explicit configuration.
+
+    Why NvImgCodecPydicomReader only has @require_pkg(pkg_name="pydicom")
+        That is intentional today:
+            pydicom is required to construct/use the reader at all.
+            nvimgcodec / CUDA / CuPy are checked later via is_nvimgcodec_available() in nvimgcodec_pydicom_plugin.py,
+            with a warning + fallback to normal pydicom decoders if missing.
+        That lets LoadImage register the reader without hard-failing when GPU deps aren't installed
+
+    Args:
+        channel_dim: the channel dimension of the input image, default is None.
+            This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
+            If None, `original_channel_dim` will be either `no_channel` or `-1`.
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+        swap_ij: whether to swap the first two spatial axes. Default to ``True``.
+        prune_metadata: whether to prune the saved information in metadata. Default to ``True``.
+        label_dict: label of the dicom data for segmentation loading.
+        fname_regex: a regular expression to match file names when the input is a folder.
+        to_gpu: If True, load the image into GPU memory using CuPy and Kvikio. This disables GPU decompression and
+            in fact also bypasses any Pydicom pixel data interpretation.
+        kwargs: additional args for `pydicom.dcmread` API.
+    """
+
+    def __init__(
+        self,
+        channel_dim: str | int | None = None,
+        affine_lps_to_ras: bool = True,
+        swap_ij: bool = True,
+        prune_metadata: bool = True,
+        label_dict: dict | None = None,
+        fname_regex: str = "",
+        to_gpu: bool = False,
+        **kwargs,
+    ):
+        super().__init__(
+            channel_dim=channel_dim,
+            affine_lps_to_ras=affine_lps_to_ras,
+            swap_ij=swap_ij,
+            prune_metadata=prune_metadata,
+            label_dict=label_dict,
+            fname_regex=fname_regex,
+            to_gpu=to_gpu,
+            **kwargs,
+        )
+        from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available, register_as_decoder_plugin
+
+        self._nvimgcodec_available = is_nvimgcodec_available()
+        if not register_as_decoder_plugin():
+            warnings.warn(
+                "NvImgCodecPydicomReader: nvImageCodec decoder plugin did not register successfully. "
+                "Falling back to default pydicom decoders."
+            )
+
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
+        """
+        Verify whether the specified file or files are DICOM and nvImageCodec is available.
+        """
+        if not has_pydicom or not self._nvimgcodec_available:
+            return False
+        return is_dicom_path(filename)
 
 
 @require_pkg(pkg_name="nibabel")

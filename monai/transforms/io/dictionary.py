@@ -52,7 +52,9 @@ class LoadImaged(MapTransform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
+          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader by default).
+        - The default DICOM reader can be changed with the ``MONAI_DICOM_READER`` environment variable.
+          Supported values are ``itk`` (default), ``pydicom``, and ``nvimgcodec`` (GPU-accelerated decoding).
 
     Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
     loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
