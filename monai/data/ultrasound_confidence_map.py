@@ -244,6 +244,8 @@ class UltrasoundConfidenceMap:
 
             if iter_idx == 1:
                 vertical_end = s.shape[0]  # Vertical edges length
+            elif iter_idx == 5:
+                s.shape[0]  # Diagonal edges length
 
         # Normalize weights
         s = self.normalize(s)
