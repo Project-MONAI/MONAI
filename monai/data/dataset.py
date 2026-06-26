@@ -249,8 +249,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
                 If `cache_dir` is `None`, there is effectively no caching.
-            hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.pickle_hashing`.
+            hash_func: a callable to compute hash from data items to be cached, defaults to 
+                `monai.data.utils.pickle_hashing` which uses sha256 (previously md5 so old caches will not work).
             pickle_module: string representing the module used for pickling metadata and objects,
                 default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
                 we can't use `pickle` as arg directly, so here we use a string name instead.
@@ -384,9 +384,9 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
@@ -1618,9 +1618,9 @@ class GDSDataset(PersistentDataset):
         hashfile = None
         # compute a cache id
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):

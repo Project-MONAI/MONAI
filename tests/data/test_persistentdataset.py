@@ -213,8 +213,7 @@ class TestDataset(unittest.TestCase):
         imt = MetaTensor(torch.rand(1, 128, 128, 128), meta=dict(meta), affine=torch.rand(4, 4))
 
         with tempfile.TemporaryDirectory() as tempdir:
-            # cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-            cache_dir = Path(tempdir) / "cache" / "data"
+            cache_dir = Path(tempdir, "cache", "data")
 
             test_data = [{"image": imt}]
 
