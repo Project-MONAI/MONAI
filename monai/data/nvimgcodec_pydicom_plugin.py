@@ -64,7 +64,7 @@ def is_nvimgcodec_available() -> bool:
     return True
 
 
-def register_as_decoder_plugin(module_path: Optional[str] = None) -> bool:
+def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     """Register the nvImageCodec pydicom decoder plugin."""
     if not is_nvimgcodec_available():
         _logger.warning("nvImageCodec is not available; skipping pydicom decoder plugin registration.")

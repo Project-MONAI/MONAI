@@ -17,7 +17,15 @@ import unittest
 
 import numpy as np
 
-from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, NvImgCodecPydicomReader, PILReader, PydicomReader
+from monai.data import (
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    NvImgCodecPydicomReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.transforms import LoadImage, LoadImaged
 from tests.test_utils import SkipIfNoModule
 
@@ -29,7 +37,16 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", "NvImgCodecPydicomReader", None]:
+        for r in [
+            "NibabelReader",
+            "PILReader",
+            "ITKReader",
+            "NumpyReader",
+            "NrrdReader",
+            "PydicomReader",
+            "NvImgCodecPydicomReader",
+            None,
+        ]:
             inst = LoadImaged("image", reader=r)
             self.assertIsInstance(inst, LoadImaged)
 

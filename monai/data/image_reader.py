@@ -80,11 +80,7 @@ __all__ = [
     "is_dicom_path",
 ]
 
-DICOM_READER_ENV_MAP = {
-    "itk": "itkreader",
-    "pydicom": "pydicomreader",
-    "nvimgcodec": "nvimgcodecpydicomreader",
-}
+DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
 
 NON_DICOM_READERS = ["nrrdreader", "numpyreader", "pilreader", "nibabelreader"]
 
