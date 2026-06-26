@@ -16,10 +16,12 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
-from scipy.ndimage import distance_transform_edt
 
 from monai.metrics import SurfaceDistanceMetric
 from monai.metrics.utils import get_mask_edges, get_surface_distance
+from monai.utils import optional_import
+
+distance_transform_edt, has_scipy = optional_import("scipy.ndimage", name="distance_transform_edt")
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -199,6 +201,7 @@ def _edge_masks(seed=0):
     return np.asarray(edges_pred, dtype=bool), np.asarray(edges_gt, dtype=bool)
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy.")
 class TestSurfaceDistanceKDTreeMatchesEDT(unittest.TestCase):
     @parameterized.expand(KDTREE_SPACINGS)
     def test_cpu_kdtree_euclidean_distances_match_dense_edt(self, _name, spacing):

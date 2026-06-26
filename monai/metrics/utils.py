@@ -38,7 +38,7 @@ from monai.utils import (
 binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
-KDTree, _ = optional_import("scipy.spatial", name="KDTree")
+KDTree, has_scipy_kdtree = optional_import("scipy.spatial", name="KDTree")
 
 scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
 cupy, has_cupy = optional_import("cupy")
@@ -301,8 +301,9 @@ def get_surface_distance(
             #     bounding box.
             #   * On GPU, the dense EDT is embarrassingly parallel and significantly faster than
             #     cupy's KDTree (as of this writing anyway)
+            # When scipy's KDTree is unavailable we fall back to the dense distance transform.
             on_gpu = isinstance(seg_gt, torch.Tensor) and seg_gt.device.type == "cuda"
-            if not on_gpu:
+            if not on_gpu and has_scipy_kdtree:
                 gt_coords = np.argwhere(convert_to_numpy(seg_gt)).astype(np.float64)
                 pred_coords = np.argwhere(convert_to_numpy(seg_pred)).astype(np.float64)
                 if spacing is not None:
