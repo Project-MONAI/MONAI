@@ -166,6 +166,10 @@ PydicomReader
 
 NvImgCodecPydicomReader
 ~~~~~~~~~~~~~~~~~~~~~~~
+GPU-accelerated DICOM reader built on :py:class:`PydicomReader` and the nvImageCodec pydicom decoder plugin.
+The ``to_gpu`` init argument is accepted for API compatibility but is always ignored so that GPU decompression
+is not bypassed by GPU direct loading.
+
 .. autoclass:: NvImgCodecPydicomReader
   :members:
 

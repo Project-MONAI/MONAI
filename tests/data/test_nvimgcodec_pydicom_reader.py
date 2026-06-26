@@ -85,6 +85,20 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
         self.assertTrue(reader.verify_suffix("tests/testing_data/CT_DICOM"))
         self.assertFalse(reader.verify_suffix("tests/testing_data/test_image.nii.gz"))
 
+    @SkipIfNoModule("pydicom")
+    @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
+    @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
+    def test_to_gpu_ignored(self, _mock_available, _mock_register):
+        from monai.data import NvImgCodecPydicomReader
+
+        with self.assertWarns(UserWarning) as warning_ctx:
+            reader = NvImgCodecPydicomReader(to_gpu=True)
+        self.assertFalse(reader.to_gpu)
+        self.assertIn("ignores to_gpu=True", str(warning_ctx.warning))
+
+        reader = NvImgCodecPydicomReader(to_gpu=False)
+        self.assertFalse(reader.to_gpu)
+
 
 class TestLoadImageDicomReaderEnv(unittest.TestCase):
     @SkipIfNoModule("pydicom")

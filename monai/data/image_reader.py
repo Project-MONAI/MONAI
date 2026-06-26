@@ -1081,11 +1081,17 @@ class NvImgCodecPydicomReader(PydicomReader):
     in CUDA 13.2.0+.
 
     Note:
-    Enabling GPU direct loading disables GPU decompression as this bypasses any Pydicom pixel data interpretation.
-    In fact, the current implementation of GPU direct loading is error-prone as it simply loads the raw bytes of
-    the pixel data into GPU memory without any required processing, e.g. applying rescale slope and intercept,
-    `PhotometricInterpretation`, etc., let alone processing compressed pixel data. As such, the resulting
-    data array will not represent the original pixel data.
+        GPU direct loading bypasses Pydicom pixel data interpretation mechanism hence disables GPU decompression
+        via Pydicom decoder plugin that is used by this reader. So, GPU direct loading (``to_gpu=True``)
+        cannot be supported by this reader. The ``to_gpu`` init argument is accepted for API compatibility
+        with :py:class:`PydicomReader` but is always ignored so that GPU-accelerated decompression via nvImageCodec
+        is not bypassed.
+
+        Also noted is that the current implementation of GPU direct loading has a serious flaw as it simply loads
+        the raw bytes of pixel data into GPU memory and parses them into integers without any required processing,
+        e.g. applying rescale slope and intercept, `PhotometricInterpretation`, etc., and not processing compressed
+        pixel data. As such, the resulting data array will not represent the original pixel data faithfully except for
+        the simplest case of uncompressed pixel data.
 
     Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
     with :py:class:`monai.transforms.LoadImage` without explicit configuration.
@@ -1106,8 +1112,7 @@ class NvImgCodecPydicomReader(PydicomReader):
         prune_metadata: whether to prune the saved information in metadata. Default to ``True``.
         label_dict: label of the dicom data for segmentation loading.
         fname_regex: a regular expression to match file names when the input is a folder.
-        to_gpu: If True, load the image into GPU memory using CuPy and Kvikio. This disables GPU decompression and
-            in fact also bypasses any Pydicom pixel data interpretation.
+        to_gpu: accepted for API compatibility with :py:class:`PydicomReader` but always ignored (always ``False``).
         kwargs: additional args for `pydicom.dcmread` API.
     """
 
@@ -1122,6 +1127,11 @@ class NvImgCodecPydicomReader(PydicomReader):
         to_gpu: bool = False,
         **kwargs,
     ):
+        if to_gpu:
+            warnings.warn(
+                "NvImgCodecPydicomReader ignores to_gpu=True; GPU direct loading is disabled to preserve "
+                "GPU-accelerated decompression."
+            )
         super().__init__(
             channel_dim=channel_dim,
             affine_lps_to_ras=affine_lps_to_ras,
@@ -1129,7 +1139,7 @@ class NvImgCodecPydicomReader(PydicomReader):
             prune_metadata=prune_metadata,
             label_dict=label_dict,
             fname_regex=fname_regex,
-            to_gpu=to_gpu,
+            to_gpu=False,
             **kwargs,
         )
         from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available, register_as_decoder_plugin
