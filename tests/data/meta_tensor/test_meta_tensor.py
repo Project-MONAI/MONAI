@@ -68,6 +68,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def check_meta(self, a: MetaTensor, b: MetaTensor) -> None:
         self.assertEqual(a.is_batch, b.is_batch)
+        self.assertEqual(a.spatial_ndim, b.spatial_ndim)
         meta_a, meta_b = a.meta, b.meta
         # need to split affine from rest of metadata
         aff_a = meta_a.get("affine", None)
