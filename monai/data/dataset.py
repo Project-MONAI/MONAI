@@ -249,7 +249,7 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
                 If `cache_dir` is `None`, there is effectively no caching.
-            hash_func: a callable to compute hash from data items to be cached, defaults to 
+            hash_func: a callable to compute hash from data items to be cached, defaults to
                 `monai.data.utils.pickle_hashing` which uses sha256 (previously md5 so old caches will not work).
             pickle_module: string representing the module used for pickling metadata and objects,
                 default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
