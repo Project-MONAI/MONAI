@@ -71,11 +71,11 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
         return False
     if not has_pydicom_plugin:
         return False
-    return pydicom_plugin.register(module_path)
+    return bool(pydicom_plugin.register(module_path))
 
 
 def unregister_as_decoder_plugin() -> bool:
     """Unregister the nvImageCodec pydicom decoder plugin."""
     if not has_pydicom_plugin:
         return False
-    return pydicom_plugin.unregister()
+    return bool(pydicom_plugin.unregister())
