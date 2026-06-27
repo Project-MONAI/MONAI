@@ -119,6 +119,11 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
             urlretrieve(url, filepath)
     except (URLError, HTTPError, ContentTooShortError, OSError) as e:
         logger.error(f"Download failed from {url} to {filepath}.")
+        if filepath.exists():
+            try:
+                filepath.unlink()
+            except OSError:
+                pass
         raise e
 
 
