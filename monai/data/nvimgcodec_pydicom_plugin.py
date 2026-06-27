@@ -20,7 +20,6 @@ and stable aliases for registration and availability checks.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from monai.utils import optional_import
 
