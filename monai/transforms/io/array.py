@@ -263,22 +263,21 @@ class LoadImage(Transform):
             img = reader.read(filename)  # runtime specified reader
         else:
             for reader in self.readers[::-1]:
-                if self.auto_select:  # rely on the filename extension to choose the reader
-                    if reader.verify_suffix(filename):
-                        img = reader.read(filename)
-                        break
-                else:  # try the user designated readers
-                    try:
-                        img = reader.read(filename)
-                    except Exception as e:
-                        err.append(traceback.format_exc())
-                        logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
-                        logging.getLogger(self.__class__.__name__).info(
-                            f"{reader.__class__.__name__}: unable to load {filename}.\n"
-                        )
-                    else:
-                        err = []
-                        break
+                # Unified reader selection so auto-select also catches read failures and tries the next reader
+                # (same as the explicit-reader path)
+                if self.auto_select and not reader.verify_suffix(filename):
+                    continue
+                try:
+                    img = reader.read(filename)
+                except Exception as e:
+                    err.append(traceback.format_exc())
+                    logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
+                    logging.getLogger(self.__class__.__name__).info(
+                        f"{reader.__class__.__name__}: unable to load {filename}.\n"
+                    )
+                else:
+                    err = []
+                    break
 
         if img is None or reader is None:
             if isinstance(filename, Sequence) and len(filename) == 1:
