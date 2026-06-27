@@ -51,6 +51,15 @@ class PrepareBatchHoVerNet(PrepareBatch):
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
         `kwargs` supports other args for `Tensor.to()` API.
         """
+        # Validate that all extra_keys exist in batchdata to provide a helpful error message
+        if isinstance(self.prepare_batch.extra_keys, (list, tuple)):
+            for key in self.prepare_batch.extra_keys:
+                if key not in batchdata:
+                    raise KeyError(
+                        f"PrepareBatchHoVerNet: extra_key '{key}' not found in batchdata. "
+                        f"Available keys are: {list(batchdata.keys())}"
+                    )
+
         image, _label, extra_label, _ = self.prepare_batch(batchdata, device, non_blocking, **kwargs)
         label = {HoVerNetBranch.NP: _label, HoVerNetBranch.NC: extra_label[0], HoVerNetBranch.HV: extra_label[1]}
 
