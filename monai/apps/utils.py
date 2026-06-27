@@ -151,9 +151,14 @@ def safe_extract_member(member, extract_to):
     extract_root = os.path.realpath(extract_to)
     target_real = os.path.realpath(full_path)
     # Ensure the resolved path stays within the extraction root
-    if os.path.commonpath([extract_root, target_real]) != extract_root:
-        logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked: {member_path}")
-        raise ValueError(f"Unsafe path: path traversal {member_path}")
+    try:
+        # On Windows, comparing paths on different drives raises ValueError in commonpath
+        if os.path.commonpath([extract_root, target_real]) != extract_root:
+            logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked: {member_path}")
+            raise ValueError(f"Unsafe path: path traversal {member_path}")
+    except ValueError as e:
+        logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked due to drive mismatch or invalid paths: {member_path}")
+        raise ValueError(f"Unsafe path: path traversal {member_path}") from e
 
     return full_path
 
