@@ -1076,6 +1076,9 @@ class NvImgCodecPydicomReader(PydicomReader):
     strongly recommended because the dependency nvjpeg library has addressed a known issue with JPEGLossless decoding
     in CUDA 13.2.0+.
 
+    Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
+    with :py:class:`monai.transforms.LoadImage` without explicit configuration.
+
     Note:
         GPU direct loading bypasses Pydicom pixel data interpretation mechanism hence disables GPU decompression
         via Pydicom decoder plugin that is used by this reader. So, GPU direct loading (``to_gpu=True``)
@@ -1089,15 +1092,10 @@ class NvImgCodecPydicomReader(PydicomReader):
         pixel data. As such, the resulting data array will not represent the original pixel data faithfully except for
         the simplest case of uncompressed pixel data.
 
-    Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
-    with :py:class:`monai.transforms.LoadImage` without explicit configuration.
-
-    Why NvImgCodecPydicomReader only has @require_pkg(pkg_name="pydicom")
-        That is intentional today:
-            pydicom is required to construct/use the reader at all.
-            nvimgcodec / CUDA / CuPy are checked later via is_nvimgcodec_available() in nvimgcodec_pydicom_plugin.py,
-            with a warning + fallback to normal pydicom decoders if missing.
-        That lets LoadImage register the reader without hard-failing when GPU deps aren't installed
+        This reader only declares ``@require_pkg(pkg_name="pydicom")`` so that :py:class:`monai.transforms.LoadImage`
+        can register it without hard-failing when GPU dependencies are missing. ``pydicom`` is required to construct
+        the reader; nvimgcodec, CUDA, and CuPy availability is checked at runtime with a warning issued and fallback to
+        default pydicom decoders if missing.
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
@@ -1364,7 +1362,7 @@ class NibabelReader(ImageReader):
             with kvikio.CuFile(filename, "r") as f:
                 f.read(image)
             if filename.endswith(".nii.gz"):
-                # for compressed data, have to tansfer to CPU to decompress
+                # for compressed data, have to transfer to CPU to decompress
                 # and then transfer back to GPU. It is not efficient compared to .nii file
                 # and may be slower than CPU loading in some cases.
                 warnings.warn("Loading compressed NIfTI file into GPU may not be efficient.")
