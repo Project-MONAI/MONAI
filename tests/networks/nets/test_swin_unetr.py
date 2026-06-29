@@ -23,7 +23,6 @@ from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.blocks.hyena import HyenaTransformerBlock, is_nvsubquadratic_available
 from monai.networks.nets.swin_unetr import (
-    BasicLayer,
     PatchMerging,
     PatchMergingV2,
     SwinTransformer,

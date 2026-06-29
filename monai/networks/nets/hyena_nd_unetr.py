@@ -125,7 +125,7 @@ class HyenaNDUNETR(SwinUNETR):
         )
 
     @classmethod
-    def get_variant(cls, variant: str, **kwargs) -> "HyenaNDUNETR":
+    def get_variant(cls, variant: str, **kwargs) -> HyenaNDUNETR:
         """Build a :class:`HyenaNDUNETR` matching one of the NeurIPS 2026 paper variants.
 
         Args:

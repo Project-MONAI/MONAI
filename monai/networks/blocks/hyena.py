@@ -29,7 +29,6 @@ FFT-conv classes have no such dependency and always work.
 
 from __future__ import annotations
 
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -522,7 +521,7 @@ class HyenaTransformerBlock(nn.Module):
     def forward_part2(self, x: torch.Tensor) -> torch.Tensor:
         return self.drop_path(self.mlp(self.norm2(x)))
 
-    def forward(self, x: torch.Tensor, mask_matrix: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask_matrix: torch.Tensor | None = None) -> torch.Tensor:
         """Forward pass.
 
         Args:
