@@ -46,14 +46,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -c "import sys; assert sys.version_info >= (3, 11), f'Python >= 3.11 required for nvsubquadratic, got {sys.version}'"
+        python -c "import sys; assert sys.version_info >= (3, 10), f'Python >= 3.10 required for nvsubquadratic, got {sys.version}'"
         python -m pip install -r requirements-dev.txt
         python -m pip install -e .
-        # nvsubquadratic 0.1.0 over-declares its deps (megatron-core, dali, wandb, ...);
-        # install with --no-deps (runtime needs only torch + einops + omegaconf).  Drop
-        # the --no-deps once nvsubquadratic slims install_requires (>= 0.1.1).
+        # Install nvsubquadratic with --no-deps: the default torch_fft path needs only
+        # torch + einops + omegaconf, and nvsubquadratic pins torch>=2.10,<2.11 which can
+        # clash with the container's torch.  To exercise the accelerated fused CUDA
+        # kernels instead, install the [cuda] extra (subquadratic-ops-torch-cu12, builds
+        # against the container's nvcc) and set fft_backend="subq_ops" in the tests.
         python -m pip install omegaconf
-        python -m pip install --no-deps nvsubquadratic
+        python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
         python -m pip list
       shell: bash
     - name: Verify CUDA + nvsubquadratic
