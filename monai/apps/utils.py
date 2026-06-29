@@ -278,8 +278,12 @@ def download_url(
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
             shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
-    except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
-        pass
+    except (PermissionError, NotADirectoryError) as e:  # project-monai/monai issue #3613 #3757 for windows
+        if not check_hash(filepath, hash_val, hash_type):
+            raise RuntimeError(
+                f"Failed to move downloaded file to destination due to permission/directory error, "
+                f"and no valid cached file matching the hash was found at {filepath}: {e}"
+            ) from e
     logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
