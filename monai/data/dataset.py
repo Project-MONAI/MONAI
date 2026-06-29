@@ -210,8 +210,12 @@ class PersistentDataset(Dataset):
 
         Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
         be converted to tensors, however any other object type returned by transforms will not be loadable since
-        `torch.load` will be used with `weights_only=True` to prevent loading of potentially malicious objects.
-        Legacy cache files may not be loadable and may need to be recomputed.
+        `torch.load` will be used with `weights_only=True` by default to prevent loading of potentially malicious
+        objects. Legacy cache files may not be loadable and may need to be recomputed. MetaTensor objects can be saved
+        and loaded with their metadata preserved if `track_meta` is True, however the objects stored in the metadata
+        must be acceptable as serialisable by `torch.load` by default or if they have been white-listed with
+        `torch.serialization.add_safe_globals`. Any other object type may be stored but will fail to load and force
+        a cache recompute.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
@@ -245,8 +249,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
                 If `cache_dir` is `None`, there is effectively no caching.
-            hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.pickle_hashing`.
+            hash_func: a callable to compute hash from data items to be cached, defaults to
+                `monai.data.utils.pickle_hashing` which uses sha256 (previously md5 so old caches will not work).
             pickle_module: string representing the module used for pickling metadata and objects,
                 default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
                 we can't use `pickle` as arg directly, so here we use a string name instead.
@@ -266,17 +270,12 @@ class PersistentDataset(Dataset):
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
-            track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
-                default to `False`. Cannot be used with `weights_only=True`.
+            track_meta: whether to track the meta information, defaults to False. If `True`, converts to `MetaTensor`.
             weights_only: keyword argument passed to `torch.load` when reading cached files.
-                default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
-                other safe objects. Setting this to `False` is required for loading `MetaTensor`
-                objects saved with `track_meta=True`, however this creates the possibility of remote
-                code execution through `torch.load` so be aware of the security implications of doing so.
-
-        Raises:
-            ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
-                prevents cached MetaTensors from being reloaded and causes perpetual cache regeneration.
+                default to `True`. When `True`, `torch.load` restricts loading to tensors and other safe objects.
+                Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
+                eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
+                they intend to load before doing so.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -292,11 +291,6 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
-        if track_meta and weights_only:
-            raise ValueError(
-                "Invalid argument combination: `track_meta=True` cannot be used with `weights_only=True`. "
-                "To cache and reload MetaTensors, set `track_meta=True` and `weights_only=False`."
-            )
         self.track_meta = track_meta
         self.weights_only = weights_only
 
@@ -390,9 +384,9 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
@@ -1627,9 +1621,9 @@ class GDSDataset(PersistentDataset):
         hashfile = None
         # compute a cache id
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
