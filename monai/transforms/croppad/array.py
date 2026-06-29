@@ -342,6 +342,15 @@ class DivisiblePad(Pad):
         return spatial_pad.compute_pad_width(spatial_shape)
 
 
+def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
+    """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
+    if isinstance(data, (torch.Tensor, np.ndarray)):
+        data = data.tolist()
+    if isinstance(data, Sequence):
+        return [int(i) for i in data]
+    return [int(data)]
+
+
 class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
@@ -379,31 +388,25 @@ class Crop(InvertibleTransform, LazyTransform):
             roi_slices: list of slices for each of the spatial dimensions.
 
         """
-        roi_start_t: torch.Tensor
-
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError(f"only slice steps of 1/None are currently supported, got {roi_slices}.")
             return ensure_tuple(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
-                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
-                _zeros = torch.zeros_like(roi_center_t)
-                half = torch.divide(roi_size_t, 2, rounding_mode="floor")
-                roi_start_t = torch.maximum(roi_center_t - half, _zeros)
-                roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
+                centers = _to_int_list(roi_center)
+                sizes = _to_int_list(roi_size)
+                n = max(len(centers), len(sizes))
+                centers = centers * n if len(centers) == 1 else centers
+                sizes = sizes * n if len(sizes) == 1 else sizes
+                starts = [max(c - s // 2, 0) for c, s in zip(centers, sizes)]
+                ends = [max(st + s, st) for st, s in zip(starts, sizes)]
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_t = convert_to_tensor(data=roi_start, dtype=torch.int16, wrap_sequence=True)
-                roi_start_t = torch.maximum(roi_start_t, torch.zeros_like(roi_start_t))
-                roi_end_t = convert_to_tensor(data=roi_end, dtype=torch.int16, wrap_sequence=True)
-                roi_end_t = torch.maximum(roi_end_t, roi_start_t)
-            # convert to slices (accounting for 1d)
-            if roi_start_t.numel() == 1:
-                return ensure_tuple([slice(int(roi_start_t.item()), int(roi_end_t.item()))])
-            return ensure_tuple([slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())])
+                starts = [max(s, 0) for s in _to_int_list(roi_start)]
+                ends = [max(e, st) for e, st in zip(_to_int_list(roi_end), starts)]
+            return ensure_tuple([slice(s, e) for s, e in zip(starts, ends)])
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None

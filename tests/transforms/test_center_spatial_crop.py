@@ -14,10 +14,13 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data.meta_obj import set_track_meta
 from monai.transforms import CenterSpatialCrop
 from tests.croppers import CropTest
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TEST_SHAPES = [
     [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3), True],
@@ -49,6 +52,17 @@ class TestCenterSpatialCrop(CropTest):
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _, align_corners):
         self.crop_test_pending_ops(input_param, input_shape, align_corners)
+
+    @SkipIfBeforePyTorchVersion((2, 1))
+    def test_torch_compile(self):
+        set_track_meta(False)
+        try:
+            cropper = torch.compile(CenterSpatialCrop(roi_size=(1, 16, 16)))
+            img = torch.rand(1, 1, 32, 32, dtype=torch.float32)
+            self.assertEqual(tuple(cropper(img).shape), (1, 1, 16, 16))
+        finally:
+            set_track_meta(True)
+            torch._dynamo.reset()
 
 
 if __name__ == "__main__":
