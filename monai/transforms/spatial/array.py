@@ -27,7 +27,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
@@ -850,12 +850,14 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        input_ndim = img.ndim - 1  # spatial ndim
+        input_ndim = get_spatial_ndim(img)
         if self.size_mode == "all":
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
                 input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
                 img = img.reshape(input_shape)
+                if isinstance(img, MetaTensor):
+                    img.spatial_ndim = output_ndim
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
@@ -1036,6 +1038,9 @@ class Rotate(InvertibleTransform, LazyTransform):
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
         if isinstance(out, MetaTensor):
             affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
+            # Use affine matrix shape directly (not spatial_ndim) because the affine may be
+            # larger than the spatial dimensions (e.g., 4x4 for 2D data), and we need to match
+            # the actual affine matrix rank being composed
             mat = to_affine_nd(len(affine) - 1, transform_t)
             out.affine @= convert_to_dst_type(mat, affine)[0]
         return out
@@ -1133,7 +1138,7 @@ class Zoom(InvertibleTransform, LazyTransform):
                 during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        _zoom = ensure_tuple_rep(self.zoom, get_spatial_ndim(img))
         _mode = self.mode if mode is None else mode
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
@@ -1521,7 +1526,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._axis = self.R.randint(data.ndim - 1)
+        self._axis = self.R.randint(get_spatial_ndim(data))
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -1631,13 +1636,14 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
+        _sp = get_spatial_ndim(img)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
         if len(self._zoom) == 1:
             # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
+            self._zoom = ensure_tuple_rep(self._zoom[0], _sp)
+        elif len(self._zoom) == 2 and _sp > 2:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
+            self._zoom = ensure_tuple_rep(self._zoom[0], _sp - 1) + ensure_tuple(self._zoom[-1])
 
     def __call__(
         self,
@@ -2183,6 +2189,13 @@ class Affine(InvertibleTransform, LazyTransform):
 
     This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
     for more information.
+
+    Note:
+        This transform assumes that the origin of the coordinate system is at the spatial center
+        of the image. When applying transformations (rotation, scaling, etc.), they are performed
+        relative to this center point. If you need transformations around a different origin,
+        you may need to compose this transform with translation operations or adjust your affine
+        matrix accordingly.
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -2245,10 +2258,12 @@ class Affine(InvertibleTransform, LazyTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            normalized: indicating whether the provided `affine` is defined to include a normalization
-                transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` (defined in ``create_grid``) to
-                `[0, size - 1]` or `[-1, 1]` in order to be compatible with the underlying resampling API.
-                If `normalized=False`, additional coordinate normalization will be applied before resampling.
+            normalized: indicates whether the provided `affine` matrix already includes coordinate
+                normalization. Set to ``True`` if your affine matrix is designed to work with normalized
+                coordinates (e.g., from image processing libraries that use normalized coordinate systems).
+                Set to ``False`` (default) if your affine matrix works with pixel/voxel coordinates centered
+                at the image center. When ``False``, MONAI will automatically apply the necessary coordinate
+                transformations. Most users should use the default ``False``.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``float32``.
@@ -2340,6 +2355,25 @@ class Affine(InvertibleTransform, LazyTransform):
 
     @classmethod
     def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, align_corners: bool = False):
+        """
+        Compute the affine matrix for transforming image coordinates, accounting for
+        center-based coordinate system.
+
+        This function adjusts the provided affine transformation matrix to work with images
+        where transformations are applied relative to the image center rather than the origin.
+        It composes the input matrix with translation operations that shift between
+        corner-based and center-based coordinate systems.
+
+        Args:
+            spatial_rank: number of spatial dimensions (e.g., 2 for 2D, 3 for 3D).
+            mat: the base affine transformation matrix to be adjusted.
+            img_size: spatial dimensions of the input image.
+            sp_size: spatial dimensions of the output (transformed) image.
+            align_corners: if True, align the corners of the initial and transformed volumes.
+
+        Returns:
+            The adjusted affine matrix that can be applied to image coordinates.
+        """
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
@@ -2376,6 +2410,8 @@ class Affine(InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        # Use affine matrix shape directly (not spatial_ndim) to ensure matrix composition compatibility
+        # when affine is larger than spatial dimensions (e.g., 4x4 for 2D data)
         xform, *_ = convert_to_dst_type(
             Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
@@ -2645,6 +2681,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        # Use affine matrix shape directly (not spatial_ndim) to ensure matrix composition compatibility
+        # when affine is larger than spatial dimensions (e.g., 4x4 for 2D data)
         xform, *_ = convert_to_dst_type(
             Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
@@ -3059,10 +3097,11 @@ class GridDistortion(Transform):
             raise ValueError("the spatial size of `img` does not match with the length of `distort_steps`")
 
         all_ranges = []
-        num_cells = ensure_tuple_rep(self.num_cells, len(img.shape) - 1)
+        _sp = get_spatial_ndim(img)
+        num_cells = ensure_tuple_rep(self.num_cells, _sp)
         if isinstance(img, MetaTensor) and img.pending_operations:
             warnings.warn("MetaTensor img has pending operations, transform may return incorrect results.")
-        for dim_idx, dim_size in enumerate(img.shape[1:]):
+        for dim_idx, dim_size in enumerate(img.shape[1 : 1 + _sp]):
             dim_distort_steps = distort_steps[dim_idx]
             ranges = torch.zeros(dim_size, dtype=torch.float32)
             cell_size = dim_size // num_cells[dim_idx]
