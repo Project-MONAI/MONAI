@@ -67,8 +67,8 @@ jobs:
         rm -rf /opt/hostedtoolcache/{node,go,Ruby,Java*}
         ls -al /opt/hostedtoolcache
         rm -rf /usr/share/dotnet/
-        python -m pip install -U pip wheel
-        python -m pip install -r requirements-dev.txt
+        python -m pip install -U --no-build-isolation pip wheel wheel-stub
+        python -m pip install --no-build-isolation -r requirements-dev.txt
         BUILD_MONAI=1 ./runtests.sh --build
 
     - name: Perform CodeQL Analysis
