@@ -69,7 +69,8 @@ class TestCenterSpatialCrop(CropTest):
         prev_track_meta = get_track_meta()
         set_track_meta(False)
         try:
-            cropper = torch.compile(CenterSpatialCrop(roi_size=(1, 16, 16)))
+            # eager backend traces the transform without needing the Inductor C++ compiler
+            cropper = torch.compile(CenterSpatialCrop(roi_size=(1, 16, 16)), backend="eager")
             img = torch.rand(1, 1, 32, 32, dtype=torch.float32)
             self.assertEqual(tuple(cropper(img).shape), (1, 1, 16, 16))
         finally:
