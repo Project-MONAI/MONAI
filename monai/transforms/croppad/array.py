@@ -343,12 +343,43 @@ class DivisiblePad(Pad):
 
 
 def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
-    """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
+    """
+    Coerce an ROI spec to a list of Python ints.
+
+    Args:
+        data: an ROI value as a Python scalar, a sequence, a ``torch.Tensor`` or a ``numpy.ndarray``.
+
+    Returns:
+        The values as a list of Python ints (a scalar becomes a single-element list).
+    """
     if isinstance(data, (torch.Tensor, np.ndarray)):
         data = data.tolist()
     if isinstance(data, Sequence):
         return [int(i) for i in data]
     return [int(data)]
+
+
+def _broadcast_int_pair(
+    a: Sequence[int] | int | NdarrayOrTensor, b: Sequence[int] | int | NdarrayOrTensor
+) -> tuple[list[int], list[int]]:
+    """
+    Coerce a pair of ROI specs to two equal-length int lists, broadcasting a scalar to match.
+
+    Args:
+        a: first ROI spec (e.g. ``roi_center`` or ``roi_start``).
+        b: second ROI spec (e.g. ``roi_size`` or ``roi_end``).
+
+    Returns:
+        The two specs as lists of Python ints, padded to a common length.
+
+    Raises:
+        ValueError: when both are non-scalar sequences of differing lengths.
+    """
+    list_a, list_b = _to_int_list(a), _to_int_list(b)
+    n = max(len(list_a), len(list_b))
+    if len(list_a) not in (1, n) or len(list_b) not in (1, n):
+        raise ValueError(f"ROI specs must have matching lengths or be scalar, got {len(list_a)} and {len(list_b)}.")
+    return (list_a * n if len(list_a) == 1 else list_a), (list_b * n if len(list_b) == 1 else list_b)
 
 
 class Crop(InvertibleTransform, LazyTransform):
@@ -394,18 +425,15 @@ class Crop(InvertibleTransform, LazyTransform):
             return ensure_tuple(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                centers = _to_int_list(roi_center)
-                sizes = _to_int_list(roi_size)
-                n = max(len(centers), len(sizes))
-                centers = centers * n if len(centers) == 1 else centers
-                sizes = sizes * n if len(sizes) == 1 else sizes
+                centers, sizes = _broadcast_int_pair(roi_center, roi_size)
                 starts = [max(c - s // 2, 0) for c, s in zip(centers, sizes)]
                 ends = [max(st + s, st) for st, s in zip(starts, sizes)]
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
-                starts = [max(s, 0) for s in _to_int_list(roi_start)]
-                ends = [max(e, st) for e, st in zip(_to_int_list(roi_end), starts)]
+                starts, ends = _broadcast_int_pair(roi_start, roi_end)
+                starts = [max(s, 0) for s in starts]
+                ends = [max(e, st) for e, st in zip(ends, starts)]
             return ensure_tuple([slice(s, e) for s, e in zip(starts, ends)])
 
     def __call__(  # type: ignore[override]

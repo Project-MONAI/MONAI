@@ -19,6 +19,7 @@ from parameterized import parameterized
 
 from monai.data.meta_obj import set_track_meta
 from monai.transforms import CenterSpatialCrop
+from monai.transforms.croppad.array import Crop
 from tests.croppers import CropTest
 from tests.test_utils import SkipIfBeforePyTorchVersion
 
@@ -52,6 +53,14 @@ class TestCenterSpatialCrop(CropTest):
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _, align_corners):
         self.crop_test_pending_ops(input_param, input_shape, align_corners)
+
+    def test_compute_slices_broadcast(self):
+        self.assertEqual(Crop.compute_slices(roi_center=2, roi_size=(4, 6, 8)), (slice(0, 4), slice(0, 6), slice(0, 8)))
+        self.assertEqual(Crop.compute_slices(roi_start=1, roi_end=(3, 5, 7)), (slice(1, 3), slice(1, 5), slice(1, 7)))
+        with self.assertRaises(ValueError):
+            Crop.compute_slices(roi_center=(2, 3), roi_size=(4, 5, 6))
+        with self.assertRaises(ValueError):
+            Crop.compute_slices(roi_start=(1, 2), roi_end=(3, 5, 7))
 
     @SkipIfBeforePyTorchVersion((2, 1))
     def test_torch_compile(self):
