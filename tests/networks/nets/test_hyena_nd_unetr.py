@@ -95,12 +95,12 @@ class TestHyenaNDUNETRConstructorContract(unittest.TestCase):
 
 
 class TestHyenaNDUNETRFromPaperVariant(unittest.TestCase):
-    """``from_paper_variant`` maps {HHHH, HAHA, HHAA} to the correct stage pattern."""
+    """``get_variant`` maps {HHHH, HAHA, HHAA} to the correct stage pattern."""
 
     @parameterized.expand(PAPER_VARIANT_CASES)
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_returns_expected_stages(self, name, expected_stages):
-        m = HyenaNDUNETR.from_paper_variant(name, in_channels=1, out_channels=14, feature_size=12)
+        m = HyenaNDUNETR.get_variant(name, in_channels=1, out_channels=14, feature_size=12)
         self.assertEqual(m.hyena_stages, expected_stages)
         for stage_idx, want_hyena in enumerate(expected_stages):
             block_type = _block_type_at_stage(m, stage_idx)
@@ -111,25 +111,25 @@ class TestHyenaNDUNETRFromPaperVariant(unittest.TestCase):
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_case_insensitive(self):
-        m_upper = HyenaNDUNETR.from_paper_variant("HHAA", in_channels=1, out_channels=14, feature_size=12)
-        m_lower = HyenaNDUNETR.from_paper_variant("hhaa", in_channels=1, out_channels=14, feature_size=12)
+        m_upper = HyenaNDUNETR.get_variant("HHAA", in_channels=1, out_channels=14, feature_size=12)
+        m_lower = HyenaNDUNETR.get_variant("hhaa", in_channels=1, out_channels=14, feature_size=12)
         self.assertEqual(m_upper.hyena_stages, m_lower.hyena_stages)
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_aaaa_rejected(self):
         """AAAA is plain SwinUNETR and intentionally not exposed via this constructor."""
         with self.assertRaisesRegex(ValueError, "Unknown paper variant"):
-            HyenaNDUNETR.from_paper_variant("AAAA", in_channels=1, out_channels=14, feature_size=12)
+            HyenaNDUNETR.get_variant("AAAA", in_channels=1, out_channels=14, feature_size=12)
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_unknown_variant_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unknown paper variant"):
-            HyenaNDUNETR.from_paper_variant("HAAA", in_channels=1, out_channels=14, feature_size=12)
+            HyenaNDUNETR.get_variant("HAAA", in_channels=1, out_channels=14, feature_size=12)
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_redundant_hyena_stages_kwarg_rejected(self):
         with self.assertRaisesRegex(ValueError, "do not also pass hyena_stages"):
-            HyenaNDUNETR.from_paper_variant(
+            HyenaNDUNETR.get_variant(
                 "HHAA",
                 in_channels=1,
                 out_channels=14,
@@ -152,7 +152,7 @@ class TestHyenaNDUNETRForward(unittest.TestCase):
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     @skip_if_no_cuda
     def test_forward_shape(self, name, _stages):
-        m = HyenaNDUNETR.from_paper_variant(
+        m = HyenaNDUNETR.get_variant(
             name, in_channels=1, out_channels=14, feature_size=12
         ).cuda().eval()
         x = torch.randn(1, 1, 64, 64, 64, device="cuda")

@@ -19,7 +19,7 @@ defaults make Hyena placement explicit:
 * ``hyena_stages`` is **required** -- callers must explicitly declare which of the
   four Swin stages run HyenaND vs windowed attention.
 
-The classmethod :meth:`HyenaNDUNETR.from_paper_variant` provides the three Hyena
+The classmethod :meth:`HyenaNDUNETR.get_variant` provides the three Hyena
 variants from Table 4 of the NeurIPS 2026 paper "Native Multi-Dimensional Subquadratic
 Operators via Input Dependent Long Convolutions" (paper id 26539):
 
@@ -60,7 +60,7 @@ class HyenaNDUNETR(SwinUNETR):
     """SwinUNETR with HyenaND replacing windowed self-attention at selected stages.
 
     See the module docstring for the paper-variant table and
-    :meth:`from_paper_variant` for a convenience constructor matching the NeurIPS
+    :meth:`get_variant` for a convenience constructor matching the NeurIPS
     2026 paper.  All other kwargs are forwarded to :class:`SwinUNETR`.
 
     Args:
@@ -125,7 +125,7 @@ class HyenaNDUNETR(SwinUNETR):
         )
 
     @classmethod
-    def from_paper_variant(cls, variant: str, **kwargs) -> "HyenaNDUNETR":
+    def get_variant(cls, variant: str, **kwargs) -> "HyenaNDUNETR":
         """Build a :class:`HyenaNDUNETR` matching one of the NeurIPS 2026 paper variants.
 
         Args:
@@ -143,7 +143,7 @@ class HyenaNDUNETR(SwinUNETR):
 
         Example::
 
-            >>> net = HyenaNDUNETR.from_paper_variant(
+            >>> net = HyenaNDUNETR.get_variant(
             ...     "HHAA",
             ...     in_channels=1,
             ...     out_channels=29,
@@ -159,7 +159,7 @@ class HyenaNDUNETR(SwinUNETR):
             )
         if "hyena_stages" in kwargs:
             raise ValueError(
-                "from_paper_variant sets hyena_stages from the variant name; "
+                "get_variant sets hyena_stages from the variant name; "
                 "do not also pass hyena_stages via kwargs."
             )
         return cls(hyena_stages=PAPER_VARIANTS[key], **kwargs)
