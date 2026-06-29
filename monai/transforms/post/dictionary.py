@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -740,7 +740,7 @@ class GenerateHeatmapd(MapTransform):
     def _determine_shape(
         self, points: Any, static_shape: tuple[int, ...] | None, data: Mapping[Hashable, Any], ref_key: Hashable | None
     ) -> tuple[int, ...]:
-        points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
+        points_t = cast(torch.Tensor, convert_to_tensor(points, dtype=torch.float32, track_meta=False))
         if points_t.ndim != 2:
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
@@ -793,13 +793,13 @@ class GenerateHeatmapd(MapTransform):
             raise ValueError("coordinate_space='world' requires ref_image_keys or a reference affine.")
         affine = getattr(reference, "affine", None)
         if affine is not None:
-            return affine
+            return cast(torch.Tensor, convert_to_tensor(affine, dtype=torch.float32, track_meta=False))
         if isinstance(reference, (torch.Tensor, np.ndarray)) and reference.shape in ((3, 3), (4, 4)):
-            return reference
+            return cast(torch.Tensor, convert_to_tensor(reference, dtype=torch.float32, track_meta=False))
         raise ValueError("coordinate_space='world' requires reference data with an affine matrix.")
 
     def _compute_visibility(self, points: Any, spatial_shape: tuple[int, ...]) -> torch.Tensor:
-        points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
+        points_t = cast(torch.Tensor, convert_to_tensor(points, dtype=torch.float32, track_meta=False))
         if points_t.ndim != 2:
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         bounds = torch.as_tensor(spatial_shape, dtype=points_t.dtype, device=points_t.device)
