@@ -237,6 +237,45 @@ jobs:
         python -m unittest -v
       shell: bash
 
+  hyena-dep:  # Optional HyenaND dependency installs + runs the no-CUDA Hyena tests.
+    # nvsubquadratic wheels require Python >= 3.11, so this job pins 3.11 and uses the
+    # [hyena] extra.  CUDA-required Hyena tests skip cleanly here (no GPU on cloud
+    # runners) — the GPU surface is covered by ``.github/workflows/pythonapp-hyena-gpu.yml``
+    # when a self-hosted GPU runner is available.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: Clean unused tools
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc /usr/local/.ghcup
+        sudo docker system prune -f
+    - uses: actions/checkout@v6
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    - name: Install torch + monai[hyena]
+      run: |
+        python -m pip install --upgrade pip wheel
+        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -e '.[hyena]'
+        python -m pip list
+      shell: bash
+    - name: Run Hyena tests (CUDA-required cases skip cleanly)
+      run: |
+        python -c "import monai; from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
+                   assert is_nvsubquadratic_available(), 'nvsubquadratic must be importable on Python 3.11+'"
+        python -m pytest -v \
+          tests/networks/blocks/test_hyena_block.py \
+          tests/networks/nets/test_hyena_nd_unetr.py \
+          tests/networks/nets/test_swin_unetr.py
+      shell: bash
+
   packaging:  # Test package generation
     runs-on: ubuntu-latest
     env:
