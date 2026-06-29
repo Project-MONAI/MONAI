@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data.meta_obj import set_track_meta
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.transforms import CenterSpatialCrop
 from monai.transforms.croppad.array import Crop
 from tests.croppers import CropTest
@@ -64,13 +64,14 @@ class TestCenterSpatialCrop(CropTest):
 
     @SkipIfBeforePyTorchVersion((2, 1))
     def test_torch_compile(self):
+        prev_track_meta = get_track_meta()
         set_track_meta(False)
         try:
             cropper = torch.compile(CenterSpatialCrop(roi_size=(1, 16, 16)))
             img = torch.rand(1, 1, 32, 32, dtype=torch.float32)
             self.assertEqual(tuple(cropper(img).shape), (1, 1, 16, 16))
         finally:
-            set_track_meta(True)
+            set_track_meta(prev_track_meta)
             torch._dynamo.reset()
 
 
