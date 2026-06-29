@@ -61,6 +61,8 @@ class TestCenterSpatialCrop(CropTest):
             Crop.compute_slices(roi_center=(2, 3), roi_size=(4, 5, 6))
         with self.assertRaises(ValueError):
             Crop.compute_slices(roi_start=(1, 2), roi_end=(3, 5, 7))
+        with self.assertRaises(TypeError):
+            Crop.compute_slices(roi_center="10", roi_size=(4, 6))
 
     @SkipIfBeforePyTorchVersion((2, 1))
     def test_torch_compile(self):

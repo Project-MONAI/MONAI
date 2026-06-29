@@ -351,9 +351,14 @@ def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
 
     Returns:
         The values as a list of Python ints (a scalar becomes a single-element list).
+
+    Raises:
+        TypeError: when ``data`` is a ``str`` or ``bytes``.
     """
     if isinstance(data, (torch.Tensor, np.ndarray)):
         data = data.tolist()
+    if isinstance(data, (str, bytes)):
+        raise TypeError(f"ROI spec must be numeric, got {type(data).__name__}.")
     if isinstance(data, Sequence):
         return [int(i) for i in data]
     return [int(data)]
