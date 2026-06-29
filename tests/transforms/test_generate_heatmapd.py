@@ -260,12 +260,7 @@ class TestGenerateHeatmapd(unittest.TestCase):
 
     def test_world_points_with_translated_rotated_affine(self):
         affine = torch.tensor(
-            [
-                [0.0, -2.0, 0.0, 10.0],
-                [3.0, 0.0, 0.0, 20.0],
-                [0.0, 0.0, 4.0, 30.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
+            [[0.0, -2.0, 0.0, 10.0], [3.0, 0.0, 0.0, 20.0], [0.0, 0.0, 4.0, 30.0], [0.0, 0.0, 0.0, 1.0]],
             dtype=torch.float32,
         )
         image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)

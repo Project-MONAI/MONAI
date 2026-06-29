@@ -643,12 +643,7 @@ class GenerateHeatmapd(MapTransform):
     def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
         d = dict(data)
         for key, out_key, ref_key, coordinate_space, visibility_key, static_shape in self.key_iterator(
-            d,
-            self.heatmap_keys,
-            self.ref_image_keys,
-            self.coordinate_spaces,
-            self.visibility_keys,
-            self.static_shapes,
+            d, self.heatmap_keys, self.ref_image_keys, self.coordinate_spaces, self.visibility_keys, self.static_shapes
         ):
             points = d[key]
             shape = self._determine_shape(points, static_shape, d, ref_key)
