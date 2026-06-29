@@ -1200,7 +1200,7 @@ def batched_nms(
     # from different classes do not overlap
     max_coordinate = boxes_t.max()
     offsets = labels_t.to(boxes_t) * (max_coordinate + 1)
-    boxes_for_nms = boxes + offsets[:, None]
+    boxes_for_nms = boxes_t + offsets[:, None]
     keep = non_max_suppression(boxes_for_nms, scores_t, nms_thresh, max_proposals, box_overlap_metric)
 
     # convert tensor back to numpy if needed
