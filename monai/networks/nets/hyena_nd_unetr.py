@@ -79,12 +79,7 @@ class HyenaNDUNETR(SwinUNETR):
     """
 
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        hyena_stages: Sequence[bool],
-        feature_size: int = 48,
-        **kwargs,
+        self, in_channels: int, out_channels: int, hyena_stages: Sequence[bool], feature_size: int = 48, **kwargs
     ) -> None:
         if hyena_stages is None:
             raise ValueError(
@@ -98,21 +93,17 @@ class HyenaNDUNETR(SwinUNETR):
             )
         if not any(stages_tuple):
             raise ValueError(
-                "hyena_stages must enable HyenaND at at least one stage; "
-                "use SwinUNETR directly for pure attention."
+                "hyena_stages must enable HyenaND at at least one stage; " "use SwinUNETR directly for pure attention."
             )
 
         # ``use_hyena`` and ``hyena_stages`` are set explicitly here.  If the caller
         # also passed them through ``**kwargs`` we refuse the conflict rather than
         # silently override -- the subclass exists to make Hyena placement explicit.
         if "use_hyena" in kwargs:
-            raise TypeError(
-                "HyenaNDUNETR forces use_hyena=True; do not pass use_hyena via kwargs."
-            )
+            raise TypeError("HyenaNDUNETR forces use_hyena=True; do not pass use_hyena via kwargs.")
         if "hyena_stages" in kwargs:
             raise TypeError(
-                "HyenaNDUNETR receives hyena_stages as a positional/named arg; "
-                "do not pass it again via kwargs."
+                "HyenaNDUNETR receives hyena_stages as a positional/named arg; " "do not pass it again via kwargs."
             )
 
         super().__init__(
@@ -159,7 +150,6 @@ class HyenaNDUNETR(SwinUNETR):
             )
         if "hyena_stages" in kwargs:
             raise ValueError(
-                "get_variant sets hyena_stages from the variant name; "
-                "do not also pass hyena_stages via kwargs."
+                "get_variant sets hyena_stages from the variant name; " "do not also pass hyena_stages via kwargs."
             )
         return cls(hyena_stages=PAPER_VARIANTS[key], **kwargs)

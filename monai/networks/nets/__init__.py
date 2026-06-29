@@ -53,6 +53,7 @@ from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
+from .hyena_nd_unetr import HyenaNDUNETR
 from .masked_autoencoder_vit import MaskedAutoEncoderViT
 from .mednext import (
     MedNeXt,
@@ -131,7 +132,6 @@ from .senet import (
 from .spade_autoencoderkl import SPADEAutoencoderKL
 from .spade_diffusion_model_unet import SPADEDiffusionModelUNet
 from .spade_network import SPADENet
-from .hyena_nd_unetr import HyenaNDUNETR
 from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex

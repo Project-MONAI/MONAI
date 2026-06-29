@@ -48,7 +48,12 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -c "import sys; assert sys.version_info >= (3, 11), f'Python >= 3.11 required for nvsubquadratic, got {sys.version}'"
         python -m pip install -r requirements-dev.txt
-        python -m pip install -e '.[hyena]'
+        python -m pip install -e .
+        # nvsubquadratic 0.1.0 over-declares its deps (megatron-core, dali, wandb, ...);
+        # install with --no-deps (runtime needs only torch + einops + omegaconf).  Drop
+        # the --no-deps once nvsubquadratic slims install_requires (>= 0.1.1).
+        python -m pip install omegaconf
+        python -m pip install --no-deps nvsubquadratic
         python -m pip list
       shell: bash
     - name: Verify CUDA + nvsubquadratic

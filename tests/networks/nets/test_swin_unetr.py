@@ -312,9 +312,7 @@ class TestSwinUNETRHyenaSlidingWindow(unittest.TestCase):
         m = _build_hyena_unetr(use_hyena=True, hyena_stages=(True, True, False, False)).cuda().eval()
         x = torch.randn(1, 1, 96, 96, 96, device="cuda")
         with torch.no_grad():
-            out = sliding_window_inference(
-                inputs=x, roi_size=(64, 64, 64), sw_batch_size=2, predictor=m, overlap=0.25
-            )
+            out = sliding_window_inference(inputs=x, roi_size=(64, 64, 64), sw_batch_size=2, predictor=m, overlap=0.25)
         self.assertEqual(out.shape, (1, 14, 96, 96, 96))
 
 

@@ -29,7 +29,6 @@ FFT-conv classes have no such dependency and always work.
 
 from __future__ import annotations
 
-
 import torch
 import torch.nn as nn
 from torch.nn import LayerNorm
@@ -99,9 +98,7 @@ class _DepthwiseFFTForward:
         fft_size = [s + k - 1 for s, k in zip(spatial, kernel_shape)]
         in_dtype = x.dtype
 
-        slices = (slice(None), slice(None)) + tuple(
-            slice(k // 2, k // 2 + s) for s, k in zip(spatial, kernel_shape)
-        )
+        slices = (slice(None), slice(None)) + tuple(slice(k // 2, k // 2 + s) for s, k in zip(spatial, kernel_shape))
 
         chunk = getattr(self, "fft_chunk_size", 0)
         if chunk > 0 and x.shape[1] > chunk:
@@ -164,14 +161,7 @@ class DepthwiseFFTConv2d(_DepthwiseFFTForward, nn.Conv2d):
         if bias:
             raise ValueError("bias is not supported in DepthwiseFFTConv")
         nn.Conv2d.__init__(
-            self,
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=1,
-            padding=padding,
-            groups=groups,
-            bias=False,
+            self, in_channels, out_channels, kernel_size, stride=1, padding=padding, groups=groups, bias=False
         )
         self.fft_chunk_size = fft_chunk_size
 
@@ -204,14 +194,7 @@ class DepthwiseFFTConv3d(_DepthwiseFFTForward, nn.Conv3d):
         if bias:
             raise ValueError("bias is not supported in DepthwiseFFTConv")
         nn.Conv3d.__init__(
-            self,
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=1,
-            padding=padding,
-            groups=groups,
-            bias=False,
+            self, in_channels, out_channels, kernel_size, stride=1, padding=padding, groups=groups, bias=False
         )
         self.fft_chunk_size = fft_chunk_size
 
@@ -305,8 +288,7 @@ class HyenaMixer(nn.Module):
             )
         if use_chunked_fftconv and fft_padding != "zero":
             raise ValueError(
-                "use_chunked_fftconv=True requires fft_padding='zero'; "
-                f"got fft_padding='{fft_padding}'"
+                "use_chunked_fftconv=True requires fft_padding='zero'; " f"got fft_padding='{fft_padding}'"
             )
 
         self.dim = dim
@@ -507,11 +489,7 @@ class HyenaTransformerBlock(nn.Module):
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = MLPBlock(
-            hidden_size=dim,
-            mlp_dim=mlp_hidden_dim,
-            act=act_layer,
-            dropout_rate=drop,
-            dropout_mode="swin",
+            hidden_size=dim, mlp_dim=mlp_hidden_dim, act=act_layer, dropout_rate=drop, dropout_mode="swin"
         )
 
     def forward_part1(self, x: torch.Tensor) -> torch.Tensor:

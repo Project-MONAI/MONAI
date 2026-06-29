@@ -165,13 +165,7 @@ class TestHyenaMixerConfigValidation(unittest.TestCase):
             HyenaMixer(dim=12, spatial_dims=4)
 
     def test_zero_double_chunked_constructs(self):
-        m = HyenaMixer(
-            dim=12,
-            spatial_dims=3,
-            fft_padding="zero",
-            grid_type="double",
-            use_chunked_fftconv=True,
-        )
+        m = HyenaMixer(dim=12, spatial_dims=3, fft_padding="zero", grid_type="double", use_chunked_fftconv=True)
         self.assertEqual(m.dim, 12)
 
 
@@ -209,13 +203,9 @@ class TestHyenaMixerForward(unittest.TestCase):
         self.assertEqual(m(x).shape, x.shape)
 
     def test_zero_double_chunked_forward(self):
-        m = HyenaMixer(
-            dim=12,
-            spatial_dims=3,
-            fft_padding="zero",
-            grid_type="double",
-            use_chunked_fftconv=True,
-        ).to(self.device)
+        m = HyenaMixer(dim=12, spatial_dims=3, fft_padding="zero", grid_type="double", use_chunked_fftconv=True).to(
+            self.device
+        )
         x = torch.randn(2, 8, 8, 8, 12, device=self.device)
         self.assertEqual(m(x).shape, x.shape)
 
@@ -237,9 +227,7 @@ class TestHyenaMixerGradients(unittest.TestCase):
         x = torch.randn(2, 6, 6, 6, 12, device=self.device)
         m(x).sum().backward()
         with_grad = [
-            name
-            for name, p in m.mixer.named_parameters()
-            if p.grad is not None and p.grad.abs().sum().item() > 0
+            name for name, p in m.mixer.named_parameters() if p.grad is not None and p.grad.abs().sum().item() > 0
         ]
         self.assertGreater(len(with_grad), 0, "no mixer-internal params received a gradient")
 
@@ -330,9 +318,7 @@ class TestHyenaMixerFFTShortConv(unittest.TestCase):
         self.assertEqual(m(x).shape, x.shape)
 
     def test_3d_with_short_conv_chunks(self):
-        m = HyenaMixer(
-            dim=12, spatial_dims=3, use_fft_short_conv=True, short_conv_fft_chunk_size=4
-        ).to(self.device)
+        m = HyenaMixer(dim=12, spatial_dims=3, use_fft_short_conv=True, short_conv_fft_chunk_size=4).to(self.device)
         x = torch.randn(2, 8, 8, 8, 12, device=self.device)
         self.assertEqual(m(x).shape, x.shape)
 

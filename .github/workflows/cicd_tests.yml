@@ -237,11 +237,16 @@ jobs:
         python -m unittest -v
       shell: bash
 
-  hyena-dep:  # Optional HyenaND dependency installs + runs the no-CUDA Hyena tests.
-    # nvsubquadratic wheels require Python >= 3.11, so this job pins 3.11 and uses the
-    # [hyena] extra.  CUDA-required Hyena tests skip cleanly here (no GPU on cloud
-    # runners) — the GPU surface is covered by ``.github/workflows/pythonapp-hyena-gpu.yml``
-    # when a self-hosted GPU runner is available.
+  hyena-dep:  # Optional HyenaND dependency + the no-CUDA Hyena tests on Python 3.11.
+    # nvsubquadratic requires Python >= 3.11, hence the pin.  It is installed with
+    # ``--no-deps`` on purpose: the published 0.1.0 wheel over-declares its
+    # install_requires (megatron-core, subquadratic-ops-torch-cu12 [a CUDA sdist],
+    # nvidia-dali, wandb, datasets, pytorch-lightning, ...) none of which the HyenaND
+    # operators import at runtime — they only need torch + einops + omegaconf.  A plain
+    # ``pip install nvsubquadratic`` therefore fails to resolve on a CPU cloud runner.
+    # Once nvsubquadratic slims its deps (>= 0.1.1) this can become a normal
+    # ``pip install -e '.[hyena]'``.  CUDA-required Hyena tests skip cleanly here; the
+    # GPU surface is covered by ``.github/workflows/pythonapp-hyena-gpu.yml``.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -258,17 +263,21 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
-    - name: Install torch + monai[hyena]
+    - name: Install dependencies + nvsubquadratic (no-deps)
       run: |
         python -m pip install --upgrade pip wheel
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
         python -m pip install --no-build-isolation -r requirements-dev.txt
-        python -m pip install -e '.[hyena]'
+        python -m pip install -e .
+        # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
+        # the package itself without its (over-declared, CUDA-heavy) dependency tree.
+        python -m pip install omegaconf
+        python -m pip install --no-deps nvsubquadratic
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)
       run: |
-        python -c "import monai; from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
+        python -c "from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
                    assert is_nvsubquadratic_available(), 'nvsubquadratic must be importable on Python 3.11+'"
         python -m pytest -v \
           tests/networks/blocks/test_hyena_block.py \

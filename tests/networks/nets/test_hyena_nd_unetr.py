@@ -53,23 +53,14 @@ class TestHyenaNDUNETRConstructorContract(unittest.TestCase):
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_all_false_stages_rejected(self):
         with self.assertRaisesRegex(ValueError, "at least one stage"):
-            HyenaNDUNETR(
-                in_channels=1,
-                out_channels=14,
-                feature_size=12,
-                hyena_stages=(False, False, False, False),
-            )
+            HyenaNDUNETR(in_channels=1, out_channels=14, feature_size=12, hyena_stages=(False, False, False, False))
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_use_hyena_kwarg_rejected(self):
         """The subclass forces use_hyena=True; caller may not override via kwargs."""
         with self.assertRaisesRegex(TypeError, "use_hyena"):
             HyenaNDUNETR(
-                in_channels=1,
-                out_channels=14,
-                feature_size=12,
-                hyena_stages=(True, True, False, False),
-                use_hyena=True,
+                in_channels=1, out_channels=14, feature_size=12, hyena_stages=(True, True, False, False), use_hyena=True
             )
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
@@ -86,9 +77,7 @@ class TestHyenaNDUNETRConstructorContract(unittest.TestCase):
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_subclass_of_swin_unetr(self):
-        m = HyenaNDUNETR(
-            in_channels=1, out_channels=14, feature_size=12, hyena_stages=(True, True, False, False)
-        )
+        m = HyenaNDUNETR(in_channels=1, out_channels=14, feature_size=12, hyena_stages=(True, True, False, False))
         self.assertIsInstance(m, SwinUNETR)
         # The forced kwargs land on the instance via SwinUNETR.__init__.
         self.assertTrue(m.use_hyena)
@@ -131,11 +120,7 @@ class TestHyenaNDUNETRFromPaperVariant(unittest.TestCase):
     def test_redundant_hyena_stages_kwarg_rejected(self):
         with self.assertRaisesRegex(ValueError, "do not also pass hyena_stages"):
             HyenaNDUNETR.get_variant(
-                "HHAA",
-                in_channels=1,
-                out_channels=14,
-                feature_size=12,
-                hyena_stages=(True, False, True, False),
+                "HHAA", in_channels=1, out_channels=14, feature_size=12, hyena_stages=(True, False, True, False)
             )
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
@@ -153,9 +138,7 @@ class TestHyenaNDUNETRForward(unittest.TestCase):
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     @skip_if_no_cuda
     def test_forward_shape(self, name, _stages):
-        m = HyenaNDUNETR.get_variant(
-            name, in_channels=1, out_channels=14, feature_size=12
-        ).cuda().eval()
+        m = HyenaNDUNETR.get_variant(name, in_channels=1, out_channels=14, feature_size=12).cuda().eval()
         x = torch.randn(1, 1, 64, 64, 64, device="cuda")
         with torch.no_grad():
             out = m(x)
