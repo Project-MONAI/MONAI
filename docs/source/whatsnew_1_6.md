@@ -9,6 +9,7 @@
 - Nested dot-notation key access in `ConfigParser`.
 - Auto3DSeg algo serialization migrated from pickle to JSON for improved security and portability.
 - Global coordinates support in spatial crop transforms. These now support global coordinate mode, allowing crops to be specified in world/global coordinates rather than local image indices, improving interoperability with physical-space annotations.
+- `GenerateHeatmapd` can convert world-coordinate landmarks to reference-image voxel space and emit landmark visibility masks.
 - `SoftclDiceLoss` and `SoftDiceclDiceLoss` enhanced with `DiceLoss`-compatible API
 - Variable expansion hardening has been added to the nnUNet app to eliminate code injection attacks when composing shell command lines, addressing concerns in [GHSA-rghg-q7wp-9767](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-rghg-q7wp-9767).
 - `NumpyReader` has been updated with an `allow_pickle` boolean argument to enable/disable pickle loading from `.npy/.npz` files. This was previously hard-coded to be enabled, but is now defined by this argument and disabled by default. This addresses [GHSA-qxq5-qhx6-94qw](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-qxq5-qhx6-94qw).
