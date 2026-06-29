@@ -343,21 +343,10 @@ class DivisiblePad(Pad):
 
 
 def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
-    """
-    Coerce an ROI spec to a list of Python ints.
-
-    Args:
-        data: an ROI value as a Python scalar, a sequence, a ``torch.Tensor`` or a ``numpy.ndarray``.
-
-    Returns:
-        The values as a list of Python ints (a scalar becomes a single-element list).
-
-    Raises:
-        TypeError: when ``data`` is a ``str`` or ``bytes``.
-    """
+    """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
     if isinstance(data, (torch.Tensor, np.ndarray)):
         data = data.tolist()
-    if isinstance(data, (str, bytes)):
+    if isinstance(data, (str, bytes)):  # a str is a Sequence, guard so it is not iterated into digits
         raise TypeError(f"ROI spec must be numeric, got {type(data).__name__}.")
     if isinstance(data, Sequence):
         return [int(i) for i in data]
@@ -367,19 +356,7 @@ def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
 def _broadcast_int_pair(
     a: Sequence[int] | int | NdarrayOrTensor, b: Sequence[int] | int | NdarrayOrTensor
 ) -> tuple[list[int], list[int]]:
-    """
-    Coerce a pair of ROI specs to two equal-length int lists, broadcasting a scalar to match.
-
-    Args:
-        a: first ROI spec (e.g. ``roi_center`` or ``roi_start``).
-        b: second ROI spec (e.g. ``roi_size`` or ``roi_end``).
-
-    Returns:
-        The two specs as lists of Python ints, padded to a common length.
-
-    Raises:
-        ValueError: when both are non-scalar sequences of differing lengths.
-    """
+    """Coerce a pair of ROI specs to two equal-length int lists, broadcasting a scalar to match."""
     list_a, list_b = _to_int_list(a), _to_int_list(b)
     n = max(len(list_a), len(list_b))
     if len(list_a) not in (1, n) or len(list_b) not in (1, n):
@@ -432,14 +409,14 @@ class Crop(InvertibleTransform, LazyTransform):
             if roi_center is not None and roi_size is not None:
                 centers, sizes = _broadcast_int_pair(roi_center, roi_size)
                 starts = [max(c - s // 2, 0) for c, s in zip(centers, sizes)]
-                ends = [max(st + s, st) for st, s in zip(starts, sizes)]
+                ends = [st + s for st, s in zip(starts, sizes)]
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
                 starts, ends = _broadcast_int_pair(roi_start, roi_end)
                 starts = [max(s, 0) for s in starts]
-                ends = [max(e, st) for e, st in zip(ends, starts)]
-            return ensure_tuple([slice(s, e) for s, e in zip(starts, ends)])
+            # clamp each end to its own start so no slice has negative width
+            return ensure_tuple([slice(s, max(e, s)) for s, e in zip(starts, ends)])
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
