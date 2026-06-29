@@ -14,8 +14,8 @@
 #   3. Flip ``if: false`` to ``if: github.event.pull_request.merged != true``
 #      (mirroring ``pythonapp-gpu.yml``'s gating pattern).
 #
-# Unlike ``pythonapp-gpu.yml``, this job pins Python 3.11+ so that
-# ``nvsubquadratic`` (Hyena's optional dep, ``Requires-Python >= 3.11``) installs.
+# nvsubquadratic (Hyena's optional dep) requires Python >= 3.10; any NGC base with
+# Python >= 3.10 works. The accelerated [cuda] kernels build against the container nvcc.
 
 name: hyena-gpu
 
