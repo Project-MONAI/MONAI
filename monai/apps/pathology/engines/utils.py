@@ -51,6 +51,9 @@ class PrepareBatchHoVerNet(PrepareBatch):
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
         `kwargs` supports other args for `Tensor.to()` API.
         """
+        if not isinstance(batchdata, dict):
+            raise TypeError(f"PrepareBatchHoVerNet: expected batchdata to be a dictionary, got {type(batchdata)}")
+
         # Validate that all extra_keys exist in batchdata to provide a helpful error message
         if isinstance(self.prepare_batch.extra_keys, (list, tuple)):
             for key in self.prepare_batch.extra_keys:
