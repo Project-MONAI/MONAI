@@ -29,6 +29,8 @@ FFT-conv classes have no such dependency and always work.
 
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 from torch.nn import LayerNorm
@@ -133,7 +135,7 @@ class _DepthwiseFFTForward:
 
         out_fft = x_fft * k_fft.unsqueeze(0)
         out = torch.fft.irfftn(out_fft, s=fft_size, dim=fft_dims)
-        return out[slices].to(in_dtype)
+        return cast(torch.Tensor, out[slices].to(in_dtype))
 
 
 def _validate_depthwise_fft_args(
@@ -319,6 +321,7 @@ class HyenaMixer(nn.Module):
         self.dim = dim
         self.spatial_dims = spatial_dims
 
+        conv_class: type[nn.Module]
         if use_fft_short_conv:
             if spatial_dims == 2:
                 conv_class = DepthwiseFFTConv2d
@@ -417,7 +420,7 @@ class HyenaMixer(nn.Module):
             v = v.float()
             x = self.mixer(q, k, v)
         x = x.to(qkv.dtype)
-        return self.out_proj(x)
+        return cast(torch.Tensor, self.out_proj(x))
 
 
 # ---------------------------------------------------------------------------
@@ -519,10 +522,10 @@ class HyenaTransformerBlock(nn.Module):
 
     def forward_part1(self, x: torch.Tensor) -> torch.Tensor:
         x = self.norm1(x)
-        return self.mixer(x)
+        return cast(torch.Tensor, self.mixer(x))
 
     def forward_part2(self, x: torch.Tensor) -> torch.Tensor:
-        return self.drop_path(self.mlp(self.norm2(x)))
+        return cast(torch.Tensor, self.drop_path(self.mlp(self.norm2(x))))
 
     def forward(self, x: torch.Tensor, mask_matrix: torch.Tensor | None = None) -> torch.Tensor:
         """Forward pass.
