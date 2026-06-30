@@ -943,7 +943,7 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         w_key: key for the weight map. The corresponding value will be used as the sampling weights,
-            it should be a single-channel array in size, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
+            it should be a single-channel array with shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
             The weight map is only used to compute the patch sample locations; it is not cropped itself.
             To obtain the cropped weight map (e.g. to batch it alongside the image), include ``w_key`` in
             ``keys`` so it is cropped with the same sample centers; otherwise it is passed through unchanged
