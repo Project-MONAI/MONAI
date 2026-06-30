@@ -761,10 +761,10 @@ class PydicomReader(ImageReader):
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
-            k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
-            affine[0, 2] = k1
-            affine[1, 2] = k2
-            affine[2, 2] = k3
+            if n > 1:
+                affine[0, 2] = (t1n - sx) / (n - 1)
+                affine[1, 2] = (t2n - sy) / (n - 1)
+                affine[2, 2] = (t3n - sz) / (n - 1)
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
