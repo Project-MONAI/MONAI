@@ -19,6 +19,7 @@ import numpy as np
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
+from monai.utils import MetaKeys
 from tests.test_utils import SkipIfNoModule
 
 
@@ -99,6 +100,40 @@ class TestInitLoadImage(unittest.TestCase):
                     # The reader must not force an eager C-order copy; the native
                     # (F-order) layout from nibabel should be preserved here.
                     self.assertFalse(data.flags.c_contiguous)
+
+    @SkipIfNoModule("Pydicom")
+    def test_pydicom_reader_get_affine_single_slice_with_last_position(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [10.0, 20.0, 30.0]},
+            "00280030": {"Value": [0.5, 0.25]},
+            "lastImagePositionPatient": np.array([10.0, 20.0, 30.0]),
+            MetaKeys.SPATIAL_SHAPE: np.array([64, 64, 1]),
+        }
+
+        affine = reader._get_affine(metadata, lps_to_ras=False)
+
+        np.testing.assert_allclose(affine[0, 2], 0.0)
+        np.testing.assert_allclose(affine[1, 2], 0.0)
+        np.testing.assert_allclose(affine[2, 2], 1.0)
+
+    @SkipIfNoModule("Pydicom")
+    def test_pydicom_reader_get_affine_multi_slice_uses_last_position(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [1.0, 1.0]},
+            "lastImagePositionPatient": np.array([0.0, 0.0, 4.0]),
+            MetaKeys.SPATIAL_SHAPE: np.array([8, 8, 5]),
+        }
+
+        affine = reader._get_affine(metadata, lps_to_ras=False)
+
+        np.testing.assert_allclose(affine[0, 2], 0.0)
+        np.testing.assert_allclose(affine[1, 2], 0.0)
+        np.testing.assert_allclose(affine[2, 2], 1.0)
 
 
 if __name__ == "__main__":
