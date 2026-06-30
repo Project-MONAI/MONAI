@@ -49,7 +49,7 @@ class TestInitLoadImage(unittest.TestCase):
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("PIL")
     @SkipIfNoModule("nrrd")
-    @SkipIfNoModule("Pydicom")
+    @SkipIfNoModule("pydicom")
     def test_readers(self):
         inst = ITKReader()
         self.assertIsInstance(inst, ITKReader)
@@ -101,7 +101,7 @@ class TestInitLoadImage(unittest.TestCase):
                     # (F-order) layout from nibabel should be preserved here.
                     self.assertFalse(data.flags.c_contiguous)
 
-    @SkipIfNoModule("Pydicom")
+    @SkipIfNoModule("pydicom")
     def test_pydicom_reader_get_affine_single_slice_with_last_position(self):
         reader = PydicomReader()
         metadata = {
@@ -118,7 +118,7 @@ class TestInitLoadImage(unittest.TestCase):
         np.testing.assert_allclose(affine[1, 2], 0.0)
         np.testing.assert_allclose(affine[2, 2], 1.0)
 
-    @SkipIfNoModule("Pydicom")
+    @SkipIfNoModule("pydicom")
     def test_pydicom_reader_get_affine_multi_slice_uses_last_position(self):
         reader = PydicomReader()
         metadata = {
