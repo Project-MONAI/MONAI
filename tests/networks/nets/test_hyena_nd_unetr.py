@@ -64,18 +64,6 @@ class TestHyenaNDUNETRConstructorContract(unittest.TestCase):
             )
 
     @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
-    def test_duplicate_hyena_stages_kwarg_rejected(self):
-        duplicate_hyena_stages = {"hyena_stages": (True, False, True, False)}
-        with self.assertRaisesRegex(TypeError, "hyena_stages"):
-            HyenaNDUNETR(
-                in_channels=1,
-                out_channels=14,
-                feature_size=12,
-                hyena_stages=(True, True, False, False),
-                **duplicate_hyena_stages,
-            )
-
-    @skipUnless(HAS_NVSUBQ, "Requires nvsubquadratic")
     def test_subclass_of_swin_unetr(self):
         m = HyenaNDUNETR(in_channels=1, out_channels=14, feature_size=12, hyena_stages=(True, True, False, False))
         self.assertIsInstance(m, SwinUNETR)

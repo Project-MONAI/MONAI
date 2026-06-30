@@ -96,15 +96,11 @@ class HyenaNDUNETR(SwinUNETR):
                 "hyena_stages must enable HyenaND at at least one stage; " "use SwinUNETR directly for pure attention."
             )
 
-        # ``use_hyena`` and ``hyena_stages`` are set explicitly here.  If the caller
-        # also passed them through ``**kwargs`` we refuse the conflict rather than
-        # silently override -- the subclass exists to make Hyena placement explicit.
+        # ``use_hyena`` is forced True here; reject it in kwargs rather than silently
+        # override -- the subclass exists to make Hyena placement explicit.  (``hyena_stages``
+        # is an explicit parameter above, so it can never reach ``kwargs``.)
         if "use_hyena" in kwargs:
             raise TypeError("HyenaNDUNETR forces use_hyena=True; do not pass use_hyena via kwargs.")
-        if "hyena_stages" in kwargs:
-            raise TypeError(
-                "HyenaNDUNETR receives hyena_stages as a positional/named arg; " "do not pass it again via kwargs."
-            )
 
         super().__init__(
             in_channels=in_channels,

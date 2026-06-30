@@ -363,7 +363,8 @@ class SwinUNETR(nn.Module):
                     warnings.warn(
                         f"Skipping {layer_name} block weights: stage uses HyenaTransformerBlock, "
                         "which has no compatible Swin attention weights. Blocks remain at their "
-                        "random initialization."
+                        "random initialization.",
+                        stacklevel=2,
                     )
                 else:
                     for bname, block in stage.blocks.named_children():
@@ -1012,7 +1013,8 @@ class BasicLayer(nn.Module):
             dp = int(np.ceil(d / window_size[0])) * window_size[0]
             hp = int(np.ceil(h / window_size[1])) * window_size[1]
             wp = int(np.ceil(w / window_size[2])) * window_size[2]
-            attn_mask = compute_mask([dp, hp, wp], window_size, shift_size, x.device)
+            # HyenaTransformerBlock ignores the attention mask; skip building it for Hyena stages.
+            attn_mask = None if self.use_hyena else compute_mask([dp, hp, wp], window_size, shift_size, x.device)
             for blk in self.blocks:
                 x = blk(x, attn_mask)
             x = x.view(b, d, h, w, -1)
@@ -1026,7 +1028,8 @@ class BasicLayer(nn.Module):
             x = rearrange(x, "b c h w -> b h w c")
             hp = int(np.ceil(h / window_size[0])) * window_size[0]
             wp = int(np.ceil(w / window_size[1])) * window_size[1]
-            attn_mask = compute_mask([hp, wp], window_size, shift_size, x.device)
+            # HyenaTransformerBlock ignores the attention mask; skip building it for Hyena stages.
+            attn_mask = None if self.use_hyena else compute_mask([hp, wp], window_size, shift_size, x.device)
             for blk in self.blocks:
                 x = blk(x, attn_mask)
             x = x.view(b, h, w, -1)

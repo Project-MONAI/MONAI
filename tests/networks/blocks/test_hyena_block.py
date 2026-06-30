@@ -125,6 +125,15 @@ class TestDepthwiseFFTConvConstruction(unittest.TestCase):
         with self.assertRaises(ValueError):
             DepthwiseFFTConv3d(8, 8, kernel_size=3, groups=8, padding=1, bias=True)
 
+    def test_rejects_non_same_padding(self):
+        # forward() crops to the input size assuming padding == kernel_size // 2.
+        with self.assertRaisesRegex(ValueError, "same"):
+            DepthwiseFFTConv3d(8, 8, kernel_size=3, groups=8, padding=0)
+
+    def test_rejects_even_kernel(self):
+        with self.assertRaisesRegex(ValueError, "same"):
+            DepthwiseFFTConv3d(8, 8, kernel_size=4, groups=8, padding=2)
+
     def test_weight_shape(self):
         conv = DepthwiseFFTConv3d(16, 16, kernel_size=3, groups=16, padding=1)
         self.assertEqual(conv.weight.shape, (16, 1, 3, 3, 3))

@@ -46,13 +46,17 @@ __all__ = [
 ]
 
 # Optional ``nvsubquadratic`` symbols.  Resolved at module-import time; the missing-dep
-# error is raised lazily inside the consuming class ``__init__``.
-_LazyConfig, _has_nvsubq = optional_import("nvsubquadratic.lazy_config", name="LazyConfig")
-_instantiate, _ = optional_import("nvsubquadratic.lazy_config", name="instantiate")
-_Hyena, _ = optional_import("nvsubquadratic.modules.hyena_nd", name="Hyena")
-_CKConvND, _ = optional_import("nvsubquadratic.modules.ckconv_nd", name="CKConvND")
-_SIRENKernelND, _ = optional_import("nvsubquadratic.modules.kernels_nd", name="SIRENKernelND")
-_GaussianModulationND, _ = optional_import("nvsubquadratic.modules.masks_nd", name="GaussianModulationND")
+# error is raised lazily inside the consuming class ``__init__``.  Every symbol the Hyena
+# classes use carries its own availability flag so a partial / broken install (e.g.
+# ``lazy_config`` present but ``modules.hyena_nd`` missing) reports unavailable rather than
+# failing later with an opaque ``AttributeError``.
+_LazyConfig, _has_lazyconfig = optional_import("nvsubquadratic.lazy_config", name="LazyConfig")
+_instantiate, _has_instantiate = optional_import("nvsubquadratic.lazy_config", name="instantiate")
+_Hyena, _has_hyena = optional_import("nvsubquadratic.modules.hyena_nd", name="Hyena")
+_CKConvND, _has_ckconv = optional_import("nvsubquadratic.modules.ckconv_nd", name="CKConvND")
+_SIRENKernelND, _has_siren = optional_import("nvsubquadratic.modules.kernels_nd", name="SIRENKernelND")
+_GaussianModulationND, _has_gaussian = optional_import("nvsubquadratic.modules.masks_nd", name="GaussianModulationND")
+_has_nvsubq = all((_has_lazyconfig, _has_instantiate, _has_hyena, _has_ckconv, _has_siren, _has_gaussian))
 
 _NVSUBQ_INSTALL_HINT = (
     "Hyena operators require the optional ``nvsubquadratic`` package. "
@@ -132,6 +136,31 @@ class _DepthwiseFFTForward:
         return out[slices].to(in_dtype)
 
 
+def _validate_depthwise_fft_args(
+    in_channels: int, out_channels: int, kernel_size: int, groups: int, padding: int, bias: bool
+) -> None:
+    """Validate the constructor arguments shared by ``DepthwiseFFTConv{2,3}d``.
+
+    The FFT forward only implements depthwise, bias-free, ``"same"``-style convolution: it
+    crops the full convolution back to the input spatial size assuming ``padding ==
+    kernel_size // 2`` with an odd kernel. Reject anything else up front rather than return a
+    silently wrong shape.
+    """
+    if not (in_channels == out_channels == groups):
+        raise ValueError(
+            "DepthwiseFFTConv only supports depthwise (groups == in_channels == out_channels); "
+            f"got in_channels={in_channels}, out_channels={out_channels}, groups={groups}"
+        )
+    if bias:
+        raise ValueError("bias is not supported in DepthwiseFFTConv")
+    if kernel_size % 2 == 0 or padding != kernel_size // 2:
+        raise ValueError(
+            "DepthwiseFFTConv only supports 'same'-style padding: kernel_size must be odd and "
+            f"padding must equal kernel_size // 2; got kernel_size={kernel_size}, padding={padding}. "
+            "The FFT forward crops to the input spatial size and does not implement general padding."
+        )
+
+
 class DepthwiseFFTConv2d(_DepthwiseFFTForward, nn.Conv2d):
     """2-D depthwise FFT convolution. ``isinstance(x, nn.Conv2d)`` remains ``True``.
 
@@ -139,6 +168,10 @@ class DepthwiseFFTConv2d(_DepthwiseFFTForward, nn.Conv2d):
     and ``bias=False``. Useful as the short-conv inside :class:`HyenaMixer` at large 2-D
     inputs, where ``F.conv2d`` would not yet hit the INT32 limit but the unified
     Conv2d/Conv3d API is convenient.
+
+    Only ``"same"``-style padding is supported: ``padding`` must equal ``kernel_size // 2``
+    (and ``kernel_size`` must be odd). The FFT forward crops its output back to the input
+    spatial size and does not implement general (e.g. ``"valid"``) padding.
     """
 
     _spatial_dims = 2
@@ -153,13 +186,7 @@ class DepthwiseFFTConv2d(_DepthwiseFFTForward, nn.Conv2d):
         bias: bool = False,
         fft_chunk_size: int = 0,
     ) -> None:
-        if not (in_channels == out_channels == groups):
-            raise ValueError(
-                "DepthwiseFFTConv only supports depthwise (groups == in_channels == out_channels); "
-                f"got in_channels={in_channels}, out_channels={out_channels}, groups={groups}"
-            )
-        if bias:
-            raise ValueError("bias is not supported in DepthwiseFFTConv")
+        _validate_depthwise_fft_args(in_channels, out_channels, kernel_size, groups, padding, bias)
         nn.Conv2d.__init__(
             self, in_channels, out_channels, kernel_size, stride=1, padding=padding, groups=groups, bias=False
         )
@@ -172,6 +199,10 @@ class DepthwiseFFTConv3d(_DepthwiseFFTForward, nn.Conv3d):
     Drop-in replacement for an ``nn.Conv3d`` with ``groups == in_channels == out_channels``
     and ``bias=False``. Avoids the INT32 unfold limit that prevents ``F.conv3d`` from
     running at ROI > ~128 for typical medical-imaging channel counts.
+
+    Only ``"same"``-style padding is supported: ``padding`` must equal ``kernel_size // 2``
+    (and ``kernel_size`` must be odd). The FFT forward crops its output back to the input
+    spatial size and does not implement general (e.g. ``"valid"``) padding.
     """
 
     _spatial_dims = 3
@@ -186,13 +217,7 @@ class DepthwiseFFTConv3d(_DepthwiseFFTForward, nn.Conv3d):
         bias: bool = False,
         fft_chunk_size: int = 0,
     ) -> None:
-        if not (in_channels == out_channels == groups):
-            raise ValueError(
-                "DepthwiseFFTConv only supports depthwise (groups == in_channels == out_channels); "
-                f"got in_channels={in_channels}, out_channels={out_channels}, groups={groups}"
-            )
-        if bias:
-            raise ValueError("bias is not supported in DepthwiseFFTConv")
+        _validate_depthwise_fft_args(in_channels, out_channels, kernel_size, groups, padding, bias)
         nn.Conv3d.__init__(
             self, in_channels, out_channels, kernel_size, stride=1, padding=padding, groups=groups, bias=False
         )
