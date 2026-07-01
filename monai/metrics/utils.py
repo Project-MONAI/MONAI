@@ -292,18 +292,16 @@ def get_surface_distance(
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
             is_cpu = isinstance(seg_pred, np.ndarray) or (not seg_pred.is_cuda)
-            
+
             if is_cpu:
                 from scipy.spatial import KDTree
 
-                # Safely convert to numpy arrays for scipy handling
                 gt_np = seg_gt.cpu().numpy() if isinstance(seg_gt, torch.Tensor) else np.asarray(seg_gt)
                 pred_np = seg_pred.cpu().numpy() if isinstance(seg_pred, torch.Tensor) else np.asarray(seg_pred)
 
                 gt_coords = np.argwhere(gt_np)
                 pred_coords = np.argwhere(pred_np)
 
-                # Handle empty edges edge case to prevent KDTree crash
                 if gt_coords.size == 0 or pred_coords.size == 0:
                     dis_np = np.empty(pred_coords.shape[0], dtype=np.float32)
                     dis_np.fill(np.inf)
@@ -316,13 +314,17 @@ def get_surface_distance(
                     tree = KDTree(gt_coords)
                     dis_np, _ = tree.query(pred_coords, workers=-1)
 
-                if isinstance(seg_pred, torch.Tensor):
-                    return torch.from_numpy(dis_np).to(device=seg_pred.device, dtype=torch.float32)
-                else:
-                    return dis_np.astype(np.float32)
+                dis = dis_np
             else:
                 dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
-                
+        elif distance_metric in {"chessboard", "taxicab"}:
+            dis = distance_transform_cdt(convert_to_numpy(~seg_gt), metric=distance_metric)
+        else:
+            raise ValueError(f"distance_metric {distance_metric} is not implemented.")
+
+    dis = convert_to_dst_type(dis, seg_pred, dtype=lib.float32)[0]
+    return dis if distance_metric == "euclidean" and is_cpu else dis[seg_pred]  # type: ignore
+                    
 def get_edge_surface_distance(
     y_pred: torch.Tensor,
     y: torch.Tensor,
