@@ -22,7 +22,6 @@ from tests.croppers import CropTest
 TEST_SHAPES = [
     [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3), True],
     [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2), True],
-    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2), True],
     [{"roi_size": [2, 1, 2]}, (3, 3, 3, 3), (3, 2, 1, 2), False],
     [{"roi_size": [2, 1, 3]}, (3, 3, 1, 3), (3, 2, 1, 3), True],
 ]
