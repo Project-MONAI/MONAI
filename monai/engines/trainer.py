@@ -84,7 +84,7 @@ class Trainer(Workflow):
         return stats
 
     @staticmethod
-    def _unpack_batch(batch) -> tuple:
+    def _unpack_batch(batch: tuple[Any, ...]) -> tuple[Any, ...]:
         """
         Unpack a prepared batch into ``(inputs, targets, args, kwargs)``.
 
@@ -148,7 +148,7 @@ class SingleNetworkTrainer(Trainer):
         accumulation_steps: int = 1,
         compile: bool = False,
         compile_kwargs: dict | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if isinstance(accumulation_steps, bool) or not isinstance(accumulation_steps, int) or accumulation_steps < 1:
             raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
@@ -458,7 +458,7 @@ class DualNetworkTrainer(Trainer):
         g_inferer: Inferer | None = None,
         d_inferer: Inferer | None = None,
         optim_set_to_none: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.g_network = g_network
