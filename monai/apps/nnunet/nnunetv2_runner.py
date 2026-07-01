@@ -598,7 +598,11 @@ class nnUNetV2Runner:  # noqa: N801
 
         for _key, _value in kwargs.items():
             prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
-            cmd += [f"{prefix}{_key}", str(_value)]
+            if isinstance(_value, bool):
+                if _value:
+                    cmd.append(f"{prefix}{_key}")
+            else:
+                cmd += [f"{prefix}{_key}", str(_value)]
 
         cmd_str: list[str] = [str(c) for c in cmd]
 
