@@ -57,6 +57,8 @@ class ExtractHEStainsd(MapTransform):
         self.extractor = ExtractHEStains(tli=tli, alpha=alpha, beta=beta, max_cref=max_cref)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        if not isinstance(data, Mapping):
+            raise TypeError(f"data must be a Mapping, got {type(data)}.")
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.extractor(d[key])
@@ -103,6 +105,8 @@ class NormalizeHEStainsd(MapTransform):
         self.normalizer = NormalizeHEStains(tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        if not isinstance(data, Mapping):
+            raise TypeError(f"data must be a Mapping, got {type(data)}.")
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
