@@ -53,6 +53,13 @@ class TestNvImgCodecPydicomPlugin(unittest.TestCase):
             self.assertNotIn("itkreader", order)
             self.assertNotIn("nvimgcodecpydicomreader", order)
 
+    def test_get_default_reader_registration_order_nvimgcodec_env(self):
+        with patch.dict(os.environ, {"MONAI_DICOM_READER": "nvimgcodec"}):
+            order = get_default_reader_registration_order()
+            self.assertEqual(order[-1], "nvimgcodecpydicomreader")
+            self.assertNotIn("pydicomreader", order)
+            self.assertNotIn("itkreader", order)
+
     def test_dicom_reader_env_map_values(self):
         self.assertEqual(set(DICOM_READER_ENV_MAP.keys()), {"itk", "pydicom", "nvimgcodec"})
 
@@ -117,6 +124,28 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             loader = LoadImage(image_only=True)
             reader_types = [type(r).__name__ for r in loader.readers]
             self.assertEqual(reader_types[-1], "NvImgCodecPydicomReader")
+
+    @SkipIfNoModule("pydicom")
+    @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=False)
+    @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
+    def test_load_image_nvimgcodec_env_unavailable_auto_select(self, _mock_available, _mock_register):
+        """When nvimgcodec is unavailable, verify_suffix blocks auto-selection and no DICOM reader remains."""
+        with patch.dict(os.environ, {"MONAI_DICOM_READER": "nvimgcodec"}):
+            order = get_default_reader_registration_order()
+            self.assertEqual(order[-1], "nvimgcodecpydicomreader")
+
+            loader = LoadImage(image_only=True)
+            reader_types = [type(r).__name__ for r in loader.readers]
+            self.assertEqual(reader_types[-1], "NvImgCodecPydicomReader")
+            self.assertNotIn("ITKReader", reader_types)
+            self.assertNotIn("PydicomReader", reader_types)
+
+            nv_reader = loader.readers[-1]
+            self.assertFalse(nv_reader.verify_suffix("tests/testing_data/CT_DICOM"))
+
+            with self.assertRaises(RuntimeError) as err_ctx:
+                loader("tests/testing_data/CT_DICOM")
+            self.assertIn("cannot find a suitable reader", str(err_ctx.exception))
 
 
 class TestNvImgCodecPluginRegistration(unittest.TestCase):
