@@ -291,45 +291,38 @@ def get_surface_distance(
             dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
-            # Проверяем, находятся ли данные на CPU (numpy или torch на cpu)
             is_cpu = isinstance(seg_pred, np.ndarray) or (not seg_pred.is_cuda)
             
             if is_cpu:
                 from scipy.spatial import KDTree
 
-                # Переводим маски в numpy для работы с scipy
-                if isinstance(seg_gt, torch.Tensor):
-                    gt_np = seg_gt.cpu().numpy()
-                    pred_np = seg_pred.cpu().numpy()
-                else:
-                    gt_np = seg_gt
-                    pred_np = seg_pred
+                # Safely convert to numpy arrays for scipy handling
+                gt_np = seg_gt.cpu().numpy() if isinstance(seg_gt, torch.Tensor) else np.asarray(seg_gt)
+                pred_np = seg_pred.cpu().numpy() if isinstance(seg_pred, torch.Tensor) else np.asarray(seg_pred)
 
-                # Получаем координаты (индексы) пикселей/вокселей контуров
                 gt_coords = np.argwhere(gt_np)
                 pred_coords = np.argwhere(pred_np)
 
-                # Если задан spacing (шаг сетки), учитываем его, чтобы получить мм вместо пикселей
-                if spacing is not None:
-                    spacing_array = np.asarray(spacing, dtype=np.float32)
-                    gt_coords = gt_coords * spacing_array
-                    pred_coords = pred_coords * spacing_array
+                # Handle empty edges edge case to prevent KDTree crash
+                if gt_coords.size == 0 or pred_coords.size == 0:
+                    dis_np = np.empty(pred_coords.shape[0], dtype=np.float32)
+                    dis_np.fill(np.inf)
+                else:
+                    if spacing is not None:
+                        spacing_array = np.asarray(spacing, dtype=np.float32)
+                        gt_coords = gt_coords * spacing_array
+                        pred_coords = pred_coords * spacing_array
 
-                # Строим KD-дерево по точкам Ground Truth и ищем ближайшие для Prediction
-                tree = KDTree(gt_coords)
-                # query возвращает (расстояния, индексы). Нам нужны только расстояния
-                dis_np, _ = tree.query(pred_coords, workers=-1) # workers=-1 задействует все ядра CPU
+                    tree = KDTree(gt_coords)
+                    dis_np, _ = tree.query(pred_coords, workers=-1)
 
-                # Возвращаем результат в исходном типе (numpy или torch)
                 if isinstance(seg_pred, torch.Tensor):
                     return torch.from_numpy(dis_np).to(device=seg_pred.device, dtype=torch.float32)
                 else:
                     return dis_np.astype(np.float32)
             else:
-                # Если это GPU (CUDA), оставляем стандартный быстрый метод MONAI
                 dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
-
-
+                
 def get_edge_surface_distance(
     y_pred: torch.Tensor,
     y: torch.Tensor,
