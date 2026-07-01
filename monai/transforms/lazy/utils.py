@@ -20,7 +20,10 @@ import monai
 from monai.config import NdarrayOrTensor
 from monai.data.utils import AFFINE_TOL
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import LazyAttr, TraceKeys, convert_to_numpy, convert_to_tensor, look_up_option
+from monai.utils import InterpolateMode, LazyAttr, TraceKeys, convert_to_numpy, convert_to_tensor, look_up_option
+
+# interp modes with no grid_sample equivalent; the lazy resample backend keeps its default for these
+_INTERP_ONLY_MODES = frozenset({InterpolateMode.AREA.value, InterpolateMode.NEAREST_EXACT.value})
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -92,25 +95,26 @@ def affine_from_pending(pending_item):
 def kwargs_from_pending(pending_item):
     """Extract kwargs from a pending transform item.
 
-    When ``pending_item`` is a dict, ``align_corners`` is also extracted from its ``extra_info`` entry
-    (if present and boolean) so the lazy pipeline preserves the original transform's alignment.
+    When ``pending_item`` is a dict, ``mode``, ``padding_mode`` and ``align_corners`` are read from
+    its ``extra_info`` entry so the lazy pipeline preserves the resampling settings recorded by the
+    originating transform (see issue #6850).
     """
     if not isinstance(pending_item, dict):
         return {}
+    extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
+    extra_info = extra_info if isinstance(extra_info, dict) else {}
+    interp_mode = pending_item.get(LazyAttr.INTERP_MODE, extra_info.get("mode"))
     ret = {
-        LazyAttr.INTERP_MODE: pending_item.get(LazyAttr.INTERP_MODE, None),  # interpolation mode
-        LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, None),  # padding mode
+        LazyAttr.INTERP_MODE: None if str(interp_mode) in _INTERP_ONLY_MODES else interp_mode,
+        LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, extra_info.get("padding_mode")),
     }
     if LazyAttr.SHAPE in pending_item:
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
-    # Extract align_corners from extra_info if available
-    extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
-    if isinstance(extra_info, dict) and "align_corners" in extra_info:
-        align_corners_val = extra_info["align_corners"]
-        if isinstance(align_corners_val, bool):
-            ret[LazyAttr.ALIGN_CORNERS] = align_corners_val
+    align_corners = extra_info.get("align_corners")
+    if isinstance(align_corners, bool):
+        ret[LazyAttr.ALIGN_CORNERS] = align_corners
     return ret
 
 
