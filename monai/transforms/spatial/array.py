@@ -936,6 +936,9 @@ class Rotate(InvertibleTransform, LazyTransform):
             the output data type is always ``float32``.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        rotate_order: for 3D inputs, the order in which the axes are rotated about, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+            :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
     """
 
     backend = [TransformBackends.TORCH]
@@ -949,6 +952,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = torch.float32,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.angle = angle
@@ -957,6 +961,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
+        self.rotate_order = rotate_order
 
     def __call__(
         self,
@@ -1009,6 +1014,7 @@ class Rotate(InvertibleTransform, LazyTransform):
             _dtype,
             lazy=lazy_,
             transform_info=self.get_transform_info(),
+            rotate_order=self.rotate_order,
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1741,6 +1747,10 @@ class AffineGrid(LazyTransform):
             dimensions + 1.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        rotate_order: for 3D inputs, the order in which the axes are rotated about when building the
+            rotation from ``rotate_params``, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+            :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
     """
 
     backend = [TransformBackends.TORCH]
@@ -1756,6 +1766,7 @@ class AffineGrid(LazyTransform):
         align_corners: bool = False,
         affine: NdarrayOrTensor | None = None,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.rotate_params = rotate_params
@@ -1767,6 +1778,7 @@ class AffineGrid(LazyTransform):
         self.dtype = _dtype if _dtype in (torch.float16, torch.float64, None) else torch.float32
         self.align_corners = align_corners
         self.affine = affine
+        self.rotate_order = rotate_order
 
     def __call__(
         self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None, lazy: bool | None = None
@@ -1808,7 +1820,7 @@ class AffineGrid(LazyTransform):
         if self.affine is None:
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
-                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)  # type: ignore[assignment]
+                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b, rotate_order=self.rotate_order)  # type: ignore[assignment]
             if self.shear_params:
                 affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)  # type: ignore[assignment]
             if self.translate_params:
@@ -2216,6 +2228,7 @@ class Affine(InvertibleTransform, LazyTransform):
         align_corners: bool = False,
         image_only: bool = False,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -2274,6 +2287,10 @@ class Affine(InvertibleTransform, LazyTransform):
             image_only: if True return only the image volume, otherwise return (image, affine).
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
+            rotate_order: for 3D inputs, the order in which the axes are rotated about when building the rotation
+                from ``rotate_params``, following the convention of
+                :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+                :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
         """
         LazyTransform.__init__(self, lazy=lazy)
         self.affine_grid = AffineGrid(
@@ -2286,6 +2303,7 @@ class Affine(InvertibleTransform, LazyTransform):
             align_corners=align_corners,
             device=device,
             lazy=lazy,
+            rotate_order=rotate_order,
         )
         self.image_only = image_only
         self.norm_coord = not normalized

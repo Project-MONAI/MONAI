@@ -66,7 +66,7 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
@@ -129,7 +129,7 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
@@ -191,7 +191,7 @@ jobs:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
@@ -249,7 +249,7 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - name: Set up Python ${{ env.PYTHON_VER1 }}
