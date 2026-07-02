@@ -171,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]  # macOS-latest omitted for now for being very slow, see #8864
+        os: [windows-latest, ubuntu-latest, macOS-latest]  # macOS-latest is very slow (#8864), testing install only
     timeout-minutes: 120
     env:
       QUICKTEST: True
@@ -230,7 +230,8 @@ jobs:
         python -m pip uninstall -y monai
         BUILD_MONAI=1 python -m pip install -e .  # compile the cpp extensions
       shell: bash
-    - name: Run quick tests
+    - if: runner.os != 'darwin'
+      name: Run full tests
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
