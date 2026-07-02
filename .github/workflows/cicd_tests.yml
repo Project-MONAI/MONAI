@@ -230,12 +230,12 @@ jobs:
         python -m pip uninstall -y monai
         BUILD_MONAI=1 python -m pip install -e .  # compile the cpp extensions
       shell: bash
-    - if: runner.os != 'darwin'
-      name: Run full tests
+    - if: runner.os != 'macOS'
+      name: Run minimum tests
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m unittest -v
+        ./runtests.sh --min
       shell: bash
 
   packaging:  # Test package generation
