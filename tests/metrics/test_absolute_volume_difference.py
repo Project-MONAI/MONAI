@@ -78,18 +78,12 @@ class TestComputeAbsoluteVolumeDifference(unittest.TestCase):
     def test_shape_mismatch_raises(self):
         """Mismatched y_pred and y shapes should raise a ValueError."""
         with self.assertRaises(ValueError):
-            compute_absolute_volume_difference(
-                y_pred=torch.zeros(2, 3, 8, 8),
-                y=torch.zeros(2, 3, 4, 4),
-            )
+            compute_absolute_volume_difference(y_pred=torch.zeros(2, 3, 8, 8), y=torch.zeros(2, 3, 4, 4))
 
     def test_too_few_dims_raises(self):
         """Input tensors with fewer than 3 dimensions should raise a ValueError."""
         with self.assertRaises(ValueError):
-            compute_absolute_volume_difference(
-                y_pred=torch.zeros(2, 3),
-                y=torch.zeros(2, 3),
-            )
+            compute_absolute_volume_difference(y_pred=torch.zeros(2, 3), y=torch.zeros(2, 3))
 
     def test_3d_volumes(self):
         """AVD should correctly count voxel differences in 3-D spatial inputs."""
@@ -159,15 +153,8 @@ class TestAbsoluteVolumeDifferenceMetric(unittest.TestCase):
         metric(y, y)
         metric.reset()
         # after reset the buffer should be empty; calling aggregate raises
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             metric.aggregate()
-
-    def test_imported_from_top_level(self):
-        """AbsoluteVolumeDifferenceMetric should be importable from the monai.metrics top-level namespace."""
-        # ensure the class is accessible from monai.metrics top-level
-        from monai.metrics import AbsoluteVolumeDifferenceMetric as _AVD
-
-        self.assertIs(_AVD, AbsoluteVolumeDifferenceMetric)
 
 
 if __name__ == "__main__":

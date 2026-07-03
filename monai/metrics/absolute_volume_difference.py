@@ -31,6 +31,12 @@ class AbsoluteVolumeDifferenceMetric(CumulativeIterationMetric):
     segmentation (e.g. retinal fluid in OCT volumes) where Dice score is known to be
     overly sensitive to volume size and does not directly reflect volume discrepancies.
 
+    .. note::
+        For 2D inputs this computes the difference in foreground **areas** rather than
+        volumes.  In all cases the returned values are raw voxel/pixel counts and are
+        **not** scaled by the voxel/pixel spacing, so they are not expressed in the
+        physical units of the original image.
+
     Reference:
         Bogunovic et al. (2019). RETOUCH: The Retinal OCT Fluid Detection and
         Segmentation Benchmark and Challenge.
@@ -84,7 +90,6 @@ class AbsoluteVolumeDifferenceMetric(CumulativeIterationMetric):
         get_not_nans: bool = False,
         ignore_empty: bool = True,
     ) -> None:
-        """Initialize AbsoluteVolumeDifferenceMetric. See class docstring for argument descriptions."""
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
@@ -105,10 +110,7 @@ class AbsoluteVolumeDifferenceMetric(CumulativeIterationMetric):
                 f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {y_pred.ndimension()}."
             )
         return compute_absolute_volume_difference(
-            y_pred=y_pred,
-            y=y,
-            include_background=self.include_background,
-            ignore_empty=self.ignore_empty,
+            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
     def aggregate(
@@ -129,10 +131,7 @@ class AbsoluteVolumeDifferenceMetric(CumulativeIterationMetric):
 
 
 def compute_absolute_volume_difference(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-    ignore_empty: bool = True,
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
 ) -> torch.Tensor:
     """
     Compute the Absolute Volume Difference (AVD) for a batch of segmentation predictions.
@@ -159,9 +158,7 @@ def compute_absolute_volume_difference(
         ValueError: when ``y_pred`` and ``y`` have different shapes.
     """
     if y_pred.ndim < 3:
-        raise ValueError(
-            f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {y_pred.ndim}."
-        )
+        raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {y_pred.ndim}.")
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
