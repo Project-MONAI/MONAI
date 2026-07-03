@@ -104,6 +104,7 @@ all = [
   "torchvision",
   "tqdm>=4.47.0",
   "transformers>=5.5.0",
+  "wsidicom>=0.20.0",
   "zarr"
 ]
 clearml = ["clearml>=1.10.0rc0"]
@@ -166,6 +167,7 @@ torchio = ["torchio"]
 torchvision = ["torchvision"]
 tqdm = ["tqdm>=4.47.0"]
 transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/BertConfig updates; re-verify the NGC image float8 concern
+wsidicom = ["wsidicom>=0.20.0"]
 zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [

@@ -346,7 +346,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         )
         # Set WSI reader
         self._set_reader(reader, reader_kwargs)
-        if self.reader.backend.lower() not in ["openslide", "cucim"]:
+        if self.reader.backend.lower() not in ["openslide", "cucim", "wsidicom"]:
             warnings.warn(
                 f"WSIReader with {self.reader.backend.lower()} backend is not supported for efficiently loading patches. "
                 "This may cause an significant slow down and a large memory foot print. "

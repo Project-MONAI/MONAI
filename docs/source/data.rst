@@ -326,6 +326,11 @@ TiffFileWSIReader
 .. autoclass:: monai.data.TiffFileWSIReader
   :members:
 
+WsiDicomWSIReader
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.WsiDicomWSIReader
+  :members:
+
 
 Whole slide image datasets
 --------------------------
