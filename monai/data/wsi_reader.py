@@ -37,7 +37,7 @@ from monai.utils.misc import ConvertUnits
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
-__all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader", "OpenSlideWSIReader", "TiffFileWSIReader"]
+__all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader", "OpenSlideWSIReader", "TiffFileWSIReader", "WsiDicomWSIReader"]
 
 
 class BaseWSIReader(ImageReader):
@@ -530,6 +530,8 @@ class WSIReader(BaseWSIReader):
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
+        Supported backends are ``cucim``, ``openslide``, ``tifffile``, and ``wsidicom`` (DICOM WSI).
+
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
@@ -537,7 +539,7 @@ class WSIReader(BaseWSIReader):
 
     """
 
-    supported_backends = ["cucim", "openslide", "tifffile"]
+    supported_backends = ["cucim", "openslide", "tifffile", "wsidicom"]
 
     def __init__(
         self,
@@ -556,7 +558,7 @@ class WSIReader(BaseWSIReader):
         **kwargs,
     ):
         self.backend = backend.lower()
-        self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
+        self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader | WsiDicomWSIReader
         if self.backend == "cucim":
             self.reader = CuCIMWSIReader(
                 level=level,
@@ -602,9 +604,24 @@ class WSIReader(BaseWSIReader):
                 mode=mode,
                 **kwargs,
             )
+        elif self.backend == "wsidicom":
+            self.reader = WsiDicomWSIReader(
+                level=level,
+                mpp=mpp,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
+                power=power,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
+                channel_dim=channel_dim,
+                dtype=dtype,
+                device=device,
+                mode=mode,
+                **kwargs,
+            )
         else:
             raise ValueError(
-                f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given."
+                f"The supported backends are cucim, openslide, tifffile, and wsidicom but '{self.backend}' was given."
             )
         self.supported_suffixes = self.reader.supported_suffixes
         self.level = self.reader.level
@@ -1567,3 +1584,200 @@ class TiffFileWSIReader(BaseWSIReader):
         closest_lvl_wsi = closest_lvl_wsi.resize((target_res_y, target_res_x), pil_image.BILINEAR)
 
         return closest_lvl_wsi
+
+
+@require_pkg(pkg_name="wsidicom")
+class WsiDicomWSIReader(BaseWSIReader):
+    """
+    Read DICOM whole slide images using the wsidicom library (pydicom-based).
+
+    wsidicom opens folders or collections of DICOM VL Whole Slide Microscopy instances.
+    On initialization, wsidicom is configured to prefer its pydicom decoder backend and the
+    nvImageCodec pydicom decoder plugin is registered when ``register_nvimgcodec`` is ``True``
+    (default). A legacy ``pixel_data_handlers`` bridge delegates wsidicom tile decoding to
+    pydicom 3's ``pixels`` backend so nvImageCodec can accelerate supported transfer syntaxes
+    when CUDA, CuPy, and ``nvidia-nvimgcodec`` are available.
+
+    Note:
+        wsidicom ``read_region`` expects ``location`` relative to the requested pyramid ``level``,
+        while MONAI patch APIs use ``location`` in the level-0 reference frame (OpenSlide convention).
+        This reader performs the coordinate conversion internally.
+
+    Args:
+        register_nvimgcodec: register the nvImageCodec pydicom decoder plugin and configure
+            wsidicom to decode tiles through pydicom.
+        prefer_pydicom_decoder: set ``wsidicom.config.settings.prefered_decoder`` to ``"pydicom"``.
+        num_threads: number of threads passed to ``WsiDicom.read_region``.
+        kwargs: additional args forwarded to ``WsiDicom.open``.
+
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
+
+    """
+
+    supported_suffixes: list[str] = []
+    backend = "wsidicom"
+
+    def __init__(
+        self, register_nvimgcodec: bool = True, prefer_pydicom_decoder: bool = True, num_threads: int = 1, **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.num_threads = num_threads
+        if register_nvimgcodec or prefer_pydicom_decoder:
+            from monai.data.nvimgcodec_pydicom_plugin import configure_wsidicom_pydicom_decoder
+
+            configure_wsidicom_pydicom_decoder(
+                register_nvimgcodec=register_nvimgcodec,
+                prefer_pydicom_decoder=prefer_pydicom_decoder,
+            )
+
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
+        """
+        Verify whether the path contains readable DICOM WSI data via wsidicom.
+        """
+        wsi_dicom_cls, has_wsidicom = optional_import("wsidicom", name="WsiDicom")
+        if not has_wsidicom:
+            return False
+        for name in ensure_tuple(filename):
+            if not wsi_dicom_cls.is_supported(name):
+                return False
+        return True
+
+    @staticmethod
+    def get_level_count(wsi) -> int:
+        """
+        Returns the number of pyramid levels in the DICOM WSI.
+        """
+        return int(wsi.pyramid.highest_level + 1)
+
+    def get_size(self, wsi, level: int) -> tuple[int, int]:
+        """
+        Returns the size (height, width) of the whole slide image at a given pyramid level.
+        """
+        wsi_level = wsi.pyramid.get(level, pyramid_index=True)
+        size = wsi_level.size
+        return int(size.height), int(size.width)
+
+    def get_downsample_ratio(self, wsi, level: int) -> float:
+        """
+        Returns the down-sampling ratio of the whole slide image at a given pyramid level.
+        """
+        if level == 0:
+            return 1.0
+        _, base_w = self.get_size(wsi, 0)
+        _, level_w = self.get_size(wsi, level)
+        return base_w / level_w
+
+    @staticmethod
+    def get_file_path(wsi) -> str:
+        """Return the file path for the WSI object."""
+        path = getattr(wsi, "_monai_file_path", None)
+        if path:
+            return str(path)
+        files = getattr(wsi, "files", None)
+        if files:
+            return str(abspath(files[0]))
+        return ""
+
+    def get_mpp(self, wsi, level: int) -> tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+        """
+        downsample_ratio = self.get_downsample_ratio(wsi, level)
+        base_mpp = wsi.mpp
+        return float(base_mpp.height) * downsample_ratio, float(base_mpp.width) * downsample_ratio
+
+    def get_power(self, wsi, level: int) -> float:
+        """
+        Returns the objective power of the whole slide image at a given level.
+        """
+        raise ValueError("Objective `power` cannot be obtained for DICOM WSI. Please use `level` (or `mpp`) instead.")
+
+    def get_wsi_at_mpp(
+        self, wsi, mpp: float | tuple[float, float], atol: float = 0.00, rtol: float = 0.05
+    ) -> np.ndarray:
+        """
+        Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
+        """
+        mpp = ensure_tuple_rep(mpp, 2)
+
+        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(self.get_level_count(wsi))]
+        closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
+
+        within_tolerance, closest_level_is_bigger = self._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
+
+        if within_tolerance:
+            closest_lvl_wsi = self._read_region_pil(wsi, (0, 0), closest_lvl, self.get_size(wsi, closest_lvl))
+        elif closest_level_is_bigger:
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+        else:
+            if closest_lvl == 0:
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+            else:
+                closest_lvl = closest_lvl - 1
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+
+        closest_lvl_wsi = closest_lvl_wsi.convert(self.mode)
+        wsi_arr = np.array(closest_lvl_wsi)
+        if wsi_arr.ndim < 3:
+            wsi_arr = wsi_arr[..., None]
+        return np.moveaxis(wsi_arr, -1, self.channel_dim)
+
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
+        """
+        Read DICOM whole slide image objects from a folder or file collection.
+
+        Args:
+            data: path to a DICOM WSI folder, a DICOM file, or a list of DICOM files.
+            kwargs: additional args forwarded to ``WsiDicom.open``.
+
+        Returns:
+            ``WsiDicom`` object or list of such objects.
+
+        """
+        wsi_dicom_cls, _ = optional_import("wsidicom", name="WsiDicom")
+        wsi_list: list = []
+
+        filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
+        for filename in filenames:
+            wsi = wsi_dicom_cls.open(filename, **kwargs_)
+            setattr(wsi, "_monai_file_path", abspath(str(filename)))
+            wsi_list.append(wsi)
+
+        return wsi_list if len(filenames) > 1 else wsi_list[0]
+
+    def _read_region_pil(self, wsi, location: tuple[int, int], level: int, size: tuple[int, int]):
+        """Read a region as a PIL image using wsidicom with MONAI level-0 location convention."""
+        downsample_ratio = self.get_downsample_ratio(wsi, level)
+        x = int(location[1] / downsample_ratio)
+        y = int(location[0] / downsample_ratio)
+        return wsi.read_region((x, y), level, (size[1], size[0]), threads=self.num_threads)
+
+    def _get_patch(
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ) -> np.ndarray:
+        """
+        Extracts and returns a patch image from the DICOM whole slide image.
+        """
+        pil_patch = self._read_region_pil(wsi, location=location, level=level, size=size)
+        pil_patch = pil_patch.convert(mode)
+        patch = np.asarray(pil_patch, dtype=dtype)
+        patch = np.moveaxis(patch, -1, self.channel_dim)
+        return patch
+
+    def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
+        """
+        Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
+        """
+        pil_image, _ = optional_import("PIL", name="Image")
+
+        h, w = self.get_size(wsi, closest_lvl)
+        closest_lvl_dim = (w, h)
+        target_res_x, target_res_y = self._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
+
+        closest_lvl_wsi = self._read_region_pil(wsi, (0, 0), closest_lvl, (h, w))
+        return closest_lvl_wsi.resize((target_res_y, target_res_x), pil_image.BILINEAR)

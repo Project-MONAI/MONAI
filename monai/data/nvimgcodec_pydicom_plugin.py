@@ -78,3 +78,34 @@ def unregister_as_decoder_plugin() -> bool:
     if not has_pydicom_plugin:
         return False
     return bool(pydicom_plugin.unregister())
+
+
+def register_pixels_handler_for_wsidicom() -> None:
+    """Prepend the pydicom 3 ``pixels`` bridge to ``pixel_data_handlers`` for wsidicom."""
+    from monai.data import pydicom_pixels_handler
+
+    pydicom_config, has_pydicom = optional_import("pydicom", name="config")
+    if not has_pydicom:
+        return
+    if pydicom_pixels_handler not in pydicom_config.pixel_data_handlers:
+        pydicom_config.pixel_data_handlers.insert(0, pydicom_pixels_handler)
+
+
+def configure_wsidicom_pydicom_decoder(
+    *, register_nvimgcodec: bool = True, prefer_pydicom_decoder: bool = True
+) -> None:
+    """
+    Configure wsidicom to decode tiles through pydicom and use nvImageCodec when available.
+
+    This registers the nvImageCodec pydicom decoder plugin (when requested and available),
+    prepends a legacy ``pixel_data_handlers`` bridge that delegates to pydicom 3's ``pixels``
+    backend, and optionally sets ``wsidicom.config.settings.prefered_decoder`` to ``"pydicom"``.
+    """
+    if register_nvimgcodec:
+        register_as_decoder_plugin()
+    register_pixels_handler_for_wsidicom()
+
+    if prefer_pydicom_decoder:
+        wsidicom_config, has_wsidicom = optional_import("wsidicom", name="config")
+        if has_wsidicom:
+            wsidicom_config.settings.prefered_decoder = "pydicom"
