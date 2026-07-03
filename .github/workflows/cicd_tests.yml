@@ -46,29 +46,40 @@ env:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       run_tests: ${{ steps.diff.outputs.run_tests }}
     steps:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
+        persist-credentials: false
     - id: diff
       name: Determine if non-doc changes exist
+      env:
+        BASE_REF: ${{ github.base_ref }}
+        EVENT_NAME: ${{ github.event_name }}
+        EVENT_BEFORE: ${{ github.event.before }}
+        EVENT_SHA: ${{ github.sha }}
       shell: bash
       run: |
         set -euo pipefail
 
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          base_ref="origin/${{ github.base_ref }}"
-          git fetch origin "${{ github.base_ref }}" --depth=1
-          changed_files=$(git diff --name-only "$base_ref"..."${{ github.sha }}")
+        # Default to running tests on any failure (fail-open for safety)
+        trap 'echo "run_tests=true" >> "$GITHUB_OUTPUT"' ERR
+
+        if [[ "$EVENT_NAME" == "pull_request" ]]; then
+          base_ref="origin/$BASE_REF"
+          git fetch origin "$BASE_REF" --depth=1
+          changed_files=$(git diff --name-only "$base_ref"..."$EVENT_SHA")
         else
-          before="${{ github.event.before }}"
+          before="$EVENT_BEFORE"
           if [[ -z "$before" || "$before" == "0000000000000000000000000000000000000000" ]]; then
             echo "run_tests=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed_files=$(git diff --name-only "$before"..."${{ github.sha }}")
+          changed_files=$(git diff --name-only "$before"..."$EVENT_SHA")
         fi
 
         run_tests=false
