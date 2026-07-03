@@ -125,7 +125,7 @@ class TestInitLoadImage(unittest.TestCase):
             "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
             "00200032": {"Value": [0.0, 0.0, 0.0]},
             "00280030": {"Value": [1.0, 1.0]},
-            "lastImagePositionPatient": np.array([0.0, 0.0, 4.0]),
+            "lastImagePositionPatient": np.array([0.0, 0.0, 8.0]),
             MetaKeys.SPATIAL_SHAPE: np.array([8, 8, 5]),
         }
 
@@ -133,7 +133,7 @@ class TestInitLoadImage(unittest.TestCase):
 
         np.testing.assert_allclose(affine[0, 2], 0.0)
         np.testing.assert_allclose(affine[1, 2], 0.0)
-        np.testing.assert_allclose(affine[2, 2], 1.0)
+        np.testing.assert_allclose(affine[2, 2], 2.0)
 
 
 if __name__ == "__main__":
