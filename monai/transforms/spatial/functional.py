@@ -383,7 +383,9 @@ def resize(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def rotate(
+    img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info, rotate_order="XYZ"
+):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -405,6 +407,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
             the output data type is always ``float32``.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+        rotate_order: the order in which the axes are rotated about for 3D inputs, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See :py:func:`monai.transforms.utils.create_rotate`.
+            Defaults to ``"XYZ"`` (the legacy behaviour). Ignored for 2D inputs.
 
     """
 
@@ -413,7 +418,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    transform = create_rotate(input_ndim, _angle)
+    transform = create_rotate(input_ndim, _angle, rotate_order=rotate_order)
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore
