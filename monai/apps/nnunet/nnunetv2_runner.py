@@ -598,7 +598,11 @@ class nnUNetV2Runner:  # noqa: N801
 
         for _key, _value in kwargs.items():
             prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
-            cmd += [f"{prefix}{_key}", str(_value)]
+            if isinstance(_value, bool):
+                if _value:
+                    cmd.append(f"{prefix}{_key}")
+            else:
+                cmd += [f"{prefix}{_key}", str(_value)]
 
         cmd_str: list[str] = [str(c) for c in cmd]
 
@@ -758,7 +762,7 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-        self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
+        self.train_single_model(config=config, fold=fold, val=True, **kwargs)
 
     def validate(
         self, configs: tuple = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES), **kwargs: Any

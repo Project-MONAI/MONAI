@@ -23,6 +23,7 @@ from monai.data.box_utils import (
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
+    batched_nms,
     box_area,
     box_centers,
     box_giou,
@@ -267,6 +268,16 @@ class TestBoxUtilsDtype(unittest.TestCase):
         iou = box_iou(boxes1, boxes2)
         self.assertTrue(np.issubdtype(iou.dtype, np.floating))
         self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
+
+
+class TestBatchedNms(unittest.TestCase):
+    @parameterized.expand(TEST_NDARRAYS)
+    def test_batched_nms_backend(self, p):
+        boxes = p(np.array([[0, 0, 10, 10], [1, 1, 11, 11], [100, 100, 110, 110]], dtype=np.float32))
+        scores = p(np.array([0.9, 0.8, 0.7], dtype=np.float32))
+        labels = p(np.array([0, 0, 1]))
+        keep = batched_nms(boxes, scores, labels, nms_thresh=0.5)
+        assert_allclose(keep, [0, 2], type_test=False)
 
 
 if __name__ == "__main__":
