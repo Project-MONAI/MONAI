@@ -27,11 +27,41 @@ class TestQuantileThreshold(unittest.TestCase):
         qhat = _quantile_threshold(scores, alpha=0.1)
         assert_allclose(qhat, torch.tensor(9.0))
 
-    def test_clamps_to_valid_rank(self):
-        # alpha very small -> rank clamps to n
+    def test_small_n_returns_inf(self):
+        # n too small for alpha (ceil((n+1)(1-alpha)) > n): no finite score gives the
+        # guarantee, so qhat must be +inf (full prediction set), not the max score.
         scores = torch.linspace(0.0, 1.0, 5)
         qhat = _quantile_threshold(scores, alpha=1e-6)
-        assert_allclose(qhat, scores.max())
+        self.assertTrue(torch.isinf(qhat))
+        # n=8, alpha=0.1 -> rank ceil(9*0.9)=9 > 8 -> inf
+        self.assertTrue(torch.isinf(_quantile_threshold(torch.rand(8), alpha=0.1)))
+        # n=9, alpha=0.1 -> rank 9 <= 9 -> finite
+        self.assertFalse(torch.isinf(_quantile_threshold(torch.rand(9), alpha=0.1)))
+
+    def test_marginal_coverage_monte_carlo(self):
+        # Canonical conformal regression test: with exchangeable scores, held-out coverage
+        # P(score_test <= qhat) must be >= 1 - alpha in expectation over calibration draws.
+        g = torch.Generator().manual_seed(0)
+        alpha, n, n_test, trials = 0.2, 20, 50, 400
+        covered = 0
+        total = 0
+        for _ in range(trials):
+            cal_scores = torch.rand(n, generator=g)
+            test_scores = torch.rand(n_test, generator=g)
+            qhat = _quantile_threshold(cal_scores, alpha=alpha)
+            covered += int((test_scores <= qhat).sum())
+            total += n_test
+        coverage = covered / total
+        # target 0.8; allow Monte-Carlo slack below and the standard (1-alpha)+1/(n+1) above
+        self.assertGreaterEqual(coverage, 1 - alpha - 0.02)
+        self.assertLessEqual(coverage, 1 - alpha + 1 / (n + 1) + 0.02)
+
+    def test_marginal_coverage_small_n(self):
+        # in the small-n regime the +inf fallback must yield full coverage, not under-cover
+        g = torch.Generator().manual_seed(0)
+        for _ in range(50):
+            qhat = _quantile_threshold(torch.rand(5, generator=g), alpha=0.1)
+            self.assertTrue((torch.rand(20, generator=g) <= qhat).all())
 
     def test_rejects_empty(self):
         with self.assertRaises(ValueError):
@@ -45,8 +75,8 @@ class TestQuantileThreshold(unittest.TestCase):
 
 
 class TestConformalCalibrator(unittest.TestCase):
-    def _cal_batch(self, probs, labels, include_background=True):
-        cal = ConformalCalibrator(alpha=0.1, include_background=include_background)
+    def _cal_batch(self, probs, labels, include_background=True, alpha=0.1):
+        cal = ConformalCalibrator(alpha=alpha, include_background=include_background)
         cal.accumulate(probs, labels)
         return cal.calibrate()
 
@@ -76,12 +106,12 @@ class TestConformalCalibrator(unittest.TestCase):
         assert_allclose(qhat, torch.tensor(0.5), atol=1e-6)
 
     def test_segmentation_voxel_reshape(self):
-        # (B=2, C=3, H=2, W=2) with constant true-prob 0.8 -> score 0.2 everywhere
-        probs = torch.zeros(2, 3, 2, 2)
+        # (B=2, C=3, H=2, W=3) -> n=12 voxels with constant true-prob 0.8 -> score 0.2 everywhere
+        probs = torch.zeros(2, 3, 2, 3)
         probs[:, 0] = 0.8
         probs[:, 1] = 0.1
         probs[:, 2] = 0.1  # already normalized: 0.8 + 0.1 + 0.1 = 1
-        labels = torch.zeros(2, 1, 2, 2, dtype=torch.long)
+        labels = torch.zeros(2, 1, 2, 3, dtype=torch.long)
         qhat = self._cal_batch(probs, labels)
         assert_allclose(qhat, torch.tensor(0.2), atol=1e-6)
 
@@ -89,7 +119,8 @@ class TestConformalCalibrator(unittest.TestCase):
         # foreground voxel (class 1): full softmax kept, score = 1 - softmax[1]
         probs = torch.tensor([[[0.8], [0.1], [0.1]]])  # (B=1, C=3, spatial=1)
         labels = torch.tensor([[[1]]])  # (1,1,1) class 1
-        qhat = self._cal_batch(probs, labels, include_background=False)
+        # alpha=0.5 keeps rank feasible for n=1 (small-n now yields +inf by design)
+        qhat = self._cal_batch(probs, labels, include_background=False, alpha=0.5)
         # true class-1 prob 0.1 -> score 0.9
         assert_allclose(qhat, torch.tensor(0.9), atol=1e-6)
 
@@ -98,7 +129,7 @@ class TestConformalCalibrator(unittest.TestCase):
         # fg score (1 - 0.7 = 0.3) calibrates the threshold, not bg's tiny score.
         probs = torch.tensor([[[0.9, 0.2], [0.05, 0.1], [0.05, 0.7]]])  # (B=1, C=3, spatial=2)
         labels = torch.tensor([[[0, 2]]])  # (1,1,2): voxel0 bg, voxel1 class 2
-        qhat = self._cal_batch(probs, labels, include_background=False)
+        qhat = self._cal_batch(probs, labels, include_background=False, alpha=0.5)
         assert_allclose(qhat, torch.tensor(0.3), atol=1e-6)
 
     def test_unsupported_score_raises(self):
@@ -125,7 +156,7 @@ class TestConformalCalibrator(unittest.TestCase):
         # qhat should reflect only the valid score.
         probs = torch.tensor([[[0.8, 0.8], [0.1, 0.1], [0.1, 0.1]]])  # (1, 3, 2)
         labels = torch.tensor([[[0, 99]]])  # voxel0 valid, voxel1 invalid
-        qhat = self._cal_batch(probs, labels)
+        qhat = self._cal_batch(probs, labels, alpha=0.5)
         assert_allclose(qhat, torch.tensor(0.2), atol=1e-6)
 
 

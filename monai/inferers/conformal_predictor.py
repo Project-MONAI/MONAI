@@ -38,7 +38,9 @@ def _quantile_threshold(scores: torch.Tensor, alpha: float) -> torch.Tensor:
         alpha: mis-coverage level in ``(0, 1)``.
 
     Returns:
-        Scalar tensor ``qhat`` on the same device/dtype as ``scores``.
+        Scalar tensor ``qhat`` on the same device/dtype as ``scores``. When
+        ``ceil((n+1)(1-alpha)) > n`` (calibration set too small for the requested ``alpha``),
+        returns ``+inf`` so every class is admitted, preserving the coverage guarantee.
 
     Raises:
         ValueError: if ``scores`` is empty or ``alpha`` is not in ``(0, 1)``.
@@ -49,7 +51,11 @@ def _quantile_threshold(scores: torch.Tensor, alpha: float) -> torch.Tensor:
     if not 0.0 < alpha < 1.0:
         raise ValueError(f"alpha must be in (0, 1), got {alpha}.")
     rank = math.ceil((n + 1) * (1.0 - alpha))
-    rank = max(1, min(rank, n))  # clamp into [1, n]; kthvalue is 1-indexed
+    if rank > n:
+        # too few calibration points for this alpha: no finite score gives the guarantee,
+        # so return +inf (full prediction set) rather than under-covering at the max score.
+        return torch.tensor(float("inf"), dtype=scores.dtype, device=scores.device)
+    rank = max(1, rank)  # kthvalue is 1-indexed
     return torch.kthvalue(scores.float(), rank).values.to(scores.dtype)
 
 
@@ -141,7 +147,7 @@ class ConformalCalibrator:
             raise RuntimeError("No calibration scores accumulated; call accumulate(probs, labels) first.")
         all_scores = torch.cat(self._scores)
         qhat = _quantile_threshold(all_scores, self.alpha)
-        self._scores = []  # ponytail: one-shot; caller keeps qhat
+        self._scores = []  # one-shot; caller keeps qhat
         return qhat
 
     def reset(self) -> None:
@@ -252,7 +258,7 @@ class ConformalPredictor(Inferer):
                 logits = network(imgs)
                 if isinstance(logits, torch.Tensor):
                     probs = logits.softmax(dim=1).detach()
-                else:  # ponytail: dict/tuple outputs left as a follow-up if needed
+                else:
                     raise TypeError(f"network must return a Tensor of logits, got {type(logits)}.")
                 cal.accumulate(probs.to(device), batch["label"].to(device))
         qhat = cal.calibrate()
