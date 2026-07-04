@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 
 import torch
 
@@ -165,6 +166,34 @@ class TestConformalRiskCalibrator(unittest.TestCase):
     def test_calibrate_empty_raises(self):
         with self.assertRaises(RuntimeError):
             ConformalRiskCalibrator().calibrate()
+
+    def test_non_monotone_loss_warns(self):
+        """A custom loss that increases with lambda must trigger the monotonicity warning."""
+
+        def bad_loss(sets: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+            # loss grows with set size -> increasing in lambda, violating the CRC precondition
+            return sets.float().mean(dim=(1, 2))
+
+        probs = torch.rand(4, 3, 2)
+        probs = probs / probs.sum(dim=1, keepdim=True)
+        labels = torch.randint(0, 3, (4, 1, 2))
+        cal = ConformalRiskCalibrator(alpha=0.9, loss=bad_loss, lam_grid=torch.linspace(0.0, 1.0, 11))
+        cal.accumulate(probs, labels)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            cal.calibrate()
+        self.assertTrue(any("non-increasing" in str(w.message) for w in caught))
+
+    def test_builtin_loss_does_not_warn(self):
+        """Built-in miscoverage loss is non-increasing in lambda and must calibrate silently."""
+        probs = torch.rand(4, 3, 2)
+        probs = probs / probs.sum(dim=1, keepdim=True)
+        labels = torch.randint(0, 3, (4, 1, 2))
+        cal = ConformalRiskCalibrator(alpha=0.5, loss="miscoverage")
+        cal.accumulate(probs, labels)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            cal.calibrate()
 
     def test_reset_clears_buffers(self):
         cal = ConformalRiskCalibrator()

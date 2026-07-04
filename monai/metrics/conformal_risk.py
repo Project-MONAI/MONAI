@@ -29,6 +29,7 @@ rather than a marginal-coverage quantile, and because the natural outputs
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -147,7 +148,11 @@ class ConformalRiskCalibrator:
         alpha: target risk, e.g. ``0.1`` bounds the expected loss at ~``0.1``.
         loss: image-level loss bounded in [0, 1]. Either a callable
             ``(sets, labels) -> (B,)`` tensor, or one of ``"miscoverage"`` /
-            ``"false_negative"``.
+            ``"false_negative"``. A callable **must be non-increasing in the threshold**
+            ``lambda`` (larger sets never increase the loss) — this is a precondition of
+            the CRC guarantee (Angelopoulos et al. 2022, Thm 1); both built-ins satisfy
+            it. :meth:`calibrate` warns if the empirical risk is not non-increasing over
+            the grid.
         include_background: when ``False`` drop background-labeled (class 0) voxels from
             the score pool before computing the loss. Defaults to ``True``.
         lam_grid: grid of candidate thresholds (1-D tensor in ``[0, 1]``) used for the
@@ -259,7 +264,7 @@ class ConformalRiskCalibrator:
         # Sum each image's per-lambda loss; images vary in size so we loop per image but
         # vectorize over the whole lambda grid (n_lam acts as the batch dim into loss_fn).
         risk_sum = torch.zeros(n_lam, device=device, dtype=torch.float32)
-        # ponytail: chunk over the lambda grid to bound peak memory; the full
+        # Chunk over the lambda grid to bound peak memory; the full
         # (n_lam, P_i, C) tensor would OOM on large 3D volumes. 1 << 12 lambdas
         # at a time keeps the working set modest while preserving the cumulative
         # sum; lower if calibration volumes are very large.
@@ -286,6 +291,15 @@ class ConformalRiskCalibrator:
                     raise ValueError("loss_fn returned NaN; check inputs or loss implementation.")
                 risk_sum[start:end] += loss
         emp_risk = risk_sum / n
+        # CRC requires the loss to be non-increasing in lambda; a violating custom loss
+        # breaks the infimum selection and voids the E[L] <= alpha guarantee.
+        if not bool((emp_risk[1:] <= emp_risk[:-1] + 1e-6).all()):
+            warnings.warn(
+                "empirical risk is not non-increasing in lambda; the conformal risk control "
+                "guarantee requires a loss that is non-increasing in the threshold. "
+                "Check the custom loss function.",
+                stacklevel=2,
+            )
         # Finite-sample-corrected selection. B = 1 is the loss upper bound (losses are in
         # [0, 1]); losses are non-increasing in lambda, so the leftmost lambda clearing the
         # bound is the infimum.
@@ -296,7 +310,7 @@ class ConformalRiskCalibrator:
             lam_hat = lam_grid[-1]
         else:
             lam_hat = lam_grid[within[0]]
-        self.reset()  # ponytail: one-shot; caller keeps lam_hat
+        self.reset()  # one-shot; caller keeps lam_hat
         return lam_hat.to(dtype).to(device)
 
     def reset(self) -> None:
