@@ -361,7 +361,7 @@ class StdShiftIntensity(Transform):
             std = np.std
 
         slices = (img != 0) if self.nonzero else ()
-        if not self.nonzero or slices.any():
+        if not self.nonzero or (isinstance(slices, (np.ndarray, torch.Tensor)) and slices.any()):
             offset = self.factor * std(img[slices])
             img[slices] = img[slices] + offset
         return img
