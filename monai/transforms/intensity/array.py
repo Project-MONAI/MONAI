@@ -360,11 +360,8 @@ class StdShiftIntensity(Transform):
         else:
             std = np.std
 
-        if not self.nonzero:
-            shifted: NdarrayOrTensor = img + self.factor * std(img)
-            return shifted
-        slices = img != 0
-        if slices.any():
+        slices = (img != 0) if self.nonzero else ()
+        if not self.nonzero or slices.any():
             offset = self.factor * std(img[slices])
             img[slices] = img[slices] + offset
         return img
