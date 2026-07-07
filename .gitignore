@@ -107,6 +107,9 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# pytype cache
+.pytype/
+
 # pyrefly cache
 .pyrefly_cache/
 

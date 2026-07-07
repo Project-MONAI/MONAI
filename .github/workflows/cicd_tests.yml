@@ -80,8 +80,7 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have multiple cores, so parallelize static checks
-        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
+        $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
   min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
     runs-on: ${{ matrix.os }}

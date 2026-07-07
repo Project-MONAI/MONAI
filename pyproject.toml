@@ -113,6 +113,9 @@ missing-import = "ignore"
 # Match mypy's warn_unused_ignores = False
 unused-ignore = "ignore"
 
+# Suppress implicit-import globally (MONAI style uses lazy imports)
+implicit-import = "ignore"
+
 # Downgrade errors in unannotated/dynamic code to warnings
 # (pre-existing issues, not new — will fix incrementally)
 bad-assignment = "warn"

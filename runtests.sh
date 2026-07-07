@@ -48,6 +48,7 @@ doRuffFormat=false
 doRuffFix=false
 doClangFormat=false
 doCopyRight=false
+doPytypeFormat=false
 doPyreflyFormat=false
 doMypyFormat=false
 doCleanup=false
@@ -61,7 +62,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
-    echo "            [--clangformat] [--precommit] [--pyrefly]"
+    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy] [--pyrefly]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
@@ -87,6 +88,9 @@ function print_usage {
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
     echo "Python type check options:"
+    echo "    --pytype          : perform \"pytype\" static type checks (deprecated, may be removed in future)"
+    echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL) (deprecated)"
+    echo "    --mypy            : perform \"mypy\" static type checks"
     echo "    --pyrefly         : perform \"pyrefly\" static type checks"
     echo ""
     echo "MONAI unit testing options:"
@@ -194,6 +198,8 @@ function clean_py {
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pyrefly_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
@@ -310,6 +316,10 @@ do
         ;;
         --precommit)
             doPrecommit=true
+        ;;
+        --pytype)
+            echo "${yellow}WARNING: --pytype is deprecated and may be removed in a future release.${noColor}"
+            doPytypeFormat=true
         ;;
         --pyrefly)
             doPyreflyFormat=true
@@ -601,6 +611,39 @@ then
         exit ${ruff_status}
     else
         echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+
+if [ $doPytypeFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${yellow}WARNING: pytype is deprecated and may be removed in a future release.${noColor}"
+    echo "${separator}${blue}pytype${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pytype
+    then
+        install_deps
+    fi
+    pytype_ver=$(${cmdPrefix}"${PY_EXE}" -m pytype --version)
+    if [[ "$OSTYPE" == "darwin"* && "$pytype_ver" == "2021."* ]]; then
+        echo "${red}pytype not working on macOS 2021 (https://github.com/Project-MONAI/MONAI/issues/2391). Please upgrade to 2022*.${noColor}"
+        exit 1
+    else
+        ${cmdPrefix}"${PY_EXE}" -m pytype --version
+
+        ${cmdPrefix}"${PY_EXE}" -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$homedir"
+
+        pytype_status=$?
+        if [ ${pytype_status} -ne 0 ]
+        then
+            echo "${red}failed!${noColor}"
+            exit ${pytype_status}
+        else
+            echo "${green}passed!${noColor}"
+        fi
     fi
     set -e # enable exit on failure
 fi
