@@ -20,6 +20,8 @@ on:
       - '**.md'
       - '**.rst'
       - 'docs/**'
+  merge_group:  # needed for merge queue
+    types: [checks_requested]
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version

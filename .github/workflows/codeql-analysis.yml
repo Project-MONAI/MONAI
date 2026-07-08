@@ -17,6 +17,8 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ dev ]
+  merge_group:  # needed for merge queue
+    types: [checks_requested]
   schedule:
     - cron: '18 1 * * 0'
 
