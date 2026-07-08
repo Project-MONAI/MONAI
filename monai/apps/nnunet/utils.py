@@ -154,7 +154,6 @@ def create_new_dataset_json(
     """
     new_json_data: dict = {}
 
-    # modality = self.input_info.pop("modality")
     modality = ensure_tuple(modality)  # type: ignore
 
     new_json_data["channel_names"] = {}
@@ -166,18 +165,11 @@ def create_new_dataset_json(
     for _j in range(num_foreground_classes):
         new_json_data["labels"][f"class{_j + 1}"] = _j + 1
 
-    # new_json_data["numTraining"] = len(datalist_json["training"])
     new_json_data["numTraining"] = num_training_data
     new_json_data["file_ending"] = ".nii.gz"
 
     ConfigParser.export_config_file(
-        config=new_json_data,
-        # filepath=os.path.join(raw_data_foldername, "dataset.json"),
-        filepath=output_filepath,
-        fmt="json",
-        sort_keys=True,
-        indent=4,
-        ensure_ascii=False,
+        config=new_json_data, filepath=output_filepath, fmt="json", sort_keys=True, indent=4, ensure_ascii=False
     )
 
     return

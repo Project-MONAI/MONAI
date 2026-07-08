@@ -66,7 +66,7 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
@@ -128,7 +128,7 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
@@ -170,7 +170,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]  # macOS-latest omitted for now for being very slow, see #8864
+        os: [windows-latest, ubuntu-latest, macOS-latest]  # macOS-latest is very slow (#8864), testing install only
     timeout-minutes: 120
     env:
       QUICKTEST: True
@@ -190,7 +190,7 @@ jobs:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
@@ -222,18 +222,27 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install --no-build-isolation -r requirements-dev.txt
         python -m pip list
-        python -m pip install -e .  # test no compile installation
+        python -m pip install --no-build-isolation -e .  # test no compile installation
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install -e .  # compile the cpp extensions
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
       shell: bash
-    - name: Run quick tests
+    - if: runner.os != 'macOS'
+      name: Run full tests
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         python -m unittest -v
+      shell: bash
+    - if: runner.os == 'macOS'
+      name: Run min tests
+      run: |
+        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -c "import monai; monai.config.print_config()"
+        # TODO: enable large range of macOS tests which don't take a very long time
+        ./runtests.sh --min
       shell: bash
 
   packaging:  # Test package generation
@@ -248,7 +257,7 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - name: Set up Python ${{ env.PYTHON_VER1 }}
