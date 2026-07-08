@@ -50,7 +50,6 @@ doClangFormat=false
 doCopyRight=false
 doPytypeFormat=false
 doPyreflyFormat=false
-doMypyFormat=false
 doCleanup=false
 doDistTests=false
 doPrecommit=false
@@ -62,7 +61,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
-    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy] [--pyrefly]"
+    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--pyrefly]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
@@ -90,7 +89,6 @@ function print_usage {
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks (deprecated, may be removed in future)"
     echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL) (deprecated)"
-    echo "    --mypy            : perform \"mypy\" static type checks"
     echo "    --pyrefly         : perform \"pyrefly\" static type checks"
     echo ""
     echo "MONAI unit testing options:"
@@ -198,7 +196,6 @@ function clean_py {
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pyrefly_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
@@ -323,9 +320,6 @@ do
         ;;
         --pyrefly)
             doPyreflyFormat=true
-        ;;
-        --mypy)
-            doMypyFormat=true
         ;;
         -j|--jobs)
             NUM_PARALLEL=$2
@@ -670,31 +664,6 @@ then
         exit ${pyrefly_status}
     else
         echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
-
-if [ $doMypyFormat = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    echo "${separator}${blue}mypy${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed mypy
-    then
-        install_deps
-    fi
-    ${cmdPrefix}"${PY_EXE}" -m mypy --version
-    ${cmdPrefix}"${PY_EXE}" -m mypy "$homedir"
-
-    mypy_status=$?
-    if [ ${mypy_status} -ne 0 ]
-    then
-        : # mypy output already follows format
-        exit ${mypy_status}
-    else
-        : # mypy output already follows format
     fi
     set -e # enable exit on failure
 fi

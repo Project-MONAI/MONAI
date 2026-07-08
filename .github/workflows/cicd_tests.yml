@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "mypy", "pyrefly"]
+        opt: ["codeformat", "pyrefly"]
     steps:
     - name: Clean unused tools
       run: |

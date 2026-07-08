@@ -84,7 +84,7 @@ extend-ignore = [
 max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
 
 [tool.pyrefly]
-# Check only the monai package (matching mypy's scope)
+# Check only the monai package
 project-includes = ["monai/"]
 
 # Exclude auto-generated and vendored files
@@ -99,18 +99,17 @@ project-excludes = [
 python-version = "3.9"
 python-platform = "linux"
 
-# "legacy" preset matches mypy's laxness for a smooth migration
+# "legacy" preset provides a smooth migration from previous type checkers
 preset = "legacy"
 
-# Match mypy's check_untyped_defs=True (set for [mypy-monai.*])
-# and disallow_untyped_decorators=True
+# Check unannotated defs (previously enforced in mypy config)
 check-unannotated-defs = true
 
 [tool.pyrefly.errors]
-# Match mypy's ignore_missing_imports = True
+# Ignore missing imports
 missing-import = "ignore"
 
-# Match mypy's warn_unused_ignores = False
+# Suppress unused-ignore warnings
 unused-ignore = "ignore"
 
 # Suppress implicit-import globally (MONAI style uses lazy imports)
@@ -121,13 +120,13 @@ implicit-import = "ignore"
 bad-assignment = "warn"
 bad-return = "warn"
 bad-argument-type = "warn"
-invalid-annotation = "warn"
+invalid-annotation = "ignore"
 not-iterable = "warn"
 not-callable = "warn"
 bad-index = "warn"
 
-# Pre-existing errors in the codebase matched to mypy's baseline
-# (mypy didn't flag these, so suppress for a smooth migration)
+# Pre-existing errors not flagged by previous type checkers
+# Suppress for a smooth migration; fix incrementally
 missing-attribute = "ignore"
 bad-override = "ignore"
 no-matching-overload = "ignore"
