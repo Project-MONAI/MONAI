@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import os
-import tempfile
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import torch
@@ -34,6 +34,8 @@ from tests.test_utils import (
 )
 
 einops, has_einops = optional_import("einops")
+
+TESTS_PATH = Path(__file__).parents[2]
 
 test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 checkpoint_vals = [True, False]
@@ -111,19 +113,18 @@ class TestSWINUNETR(unittest.TestCase):
     @skip_if_no_cuda
     def test_filter_swinunetr(self, input_param, key, value):
         with skip_if_downloading_fails():
-            with tempfile.TemporaryDirectory() as tempdir:
-                file_name = "ssl_pretrained_weights.pth"
-                data_spec = testing_data_config("models", f"{file_name.split('.', 1)[0]}")
-                weight_path = os.path.join(tempdir, file_name)
-                download_url(
-                    data_spec["url"], weight_path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
-                )
+            file_name = "ssl_pretrained_weights.pth"
+            data_spec = testing_data_config("models", f"{file_name.split('.', 1)[0]}")
+            weight_path = os.path.join(TESTS_PATH, "testing_data", f"temp_{file_name}")
+            download_url(
+                data_spec["url"], weight_path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
+            )
 
-                ssl_weight = torch.load(weight_path, weights_only=True)["model"]
-                net = SwinUNETR(**input_param)
-                dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
-                assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)
-                self.assertTrue(len(loaded) == 157 and len(not_loaded) == 2)
+            ssl_weight = torch.load(weight_path, weights_only=True)["model"]
+            net = SwinUNETR(**input_param)
+            dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
+            assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)
+            self.assertTrue(len(loaded) == 157 and len(not_loaded) == 2)
 
 
 if __name__ == "__main__":
