@@ -768,6 +768,11 @@ Nets
 .. autoclass:: VoxelMorph
    :members:
 
+`MAGNUS`
+~~~~~~~~
+.. autoclass:: MAGNUS
+   :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
