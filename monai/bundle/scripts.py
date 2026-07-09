@@ -59,7 +59,6 @@ Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPOR
 requests, has_requests = optional_import("requests")
 onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
-gdown, _ = optional_import("gdown", "4.7.3")
 
 logger = get_logger(module_name=__name__)
 
