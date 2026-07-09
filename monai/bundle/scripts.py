@@ -59,6 +59,7 @@ Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPOR
 requests, has_requests = optional_import("requests")
 onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
+gdown, _ = optional_import("gdown", "4.7.3")
 
 logger = get_logger(module_name=__name__)
 
@@ -2005,7 +2006,6 @@ def download_large_files(bundle_path: str | None = None, large_file_name: str | 
     parser.read_config(large_file_path)
     large_files_list = parser.get()["large_files"]
     for lf_data in large_files_list:
-        lf_data["fuzzy"] = True
         if "hash_val" in lf_data and lf_data.get("hash_val", "") == "":
             lf_data.pop("hash_val")
         if "hash_type" in lf_data and lf_data.get("hash_type", "") == "":
