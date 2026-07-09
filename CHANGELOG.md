@@ -4,6 +4,8 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+* Added `RandNonCentralChiNoise` and `RandNonCentralChiNoised` for generalized Rician noise simulation in MRI.
 
 ## [1.6.0] - 2026-06-12
 
