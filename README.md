@@ -59,7 +59,7 @@ Please refer to [the installation guide](https://monai.readthedocs.io/en/latest/
 
 Examples and notebook tutorials are located at [Project-MONAI/tutorials](https://github.com/Project-MONAI/tutorials).
 
-Technical documentation is available at [docs.monai.io](https://docs.monai.io).
+Technical documentation is available at [monai.readthedocs.io](https://monai.readthedocs.io).
 
 ## Docker
 

@@ -117,6 +117,22 @@ To build the extensions, if the system environment already has a version of Pyto
 BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
 ```
 
+On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by
+`cmd.exe` or PowerShell. Set the environment variable first, then run either
+install command shown above:
+
+```bat
+:: cmd.exe
+set BUILD_MONAI=1
+pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
+```powershell
+# PowerShell
+$env:BUILD_MONAI="1"
+pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
 this command will download and install the current `dev` branch of [MONAI from
 GitHub](https://github.com/Project-MONAI/MONAI).
 
@@ -145,6 +161,22 @@ cd MONAI/
 BUILD_MONAI=1 pip install -e .
 # for MacOS
 BUILD_MONAI=1 CC=clang CXX=clang++ pip install -e .
+```
+
+On Windows set the environment variable before running `pip install -e .`:
+
+```bat
+:: cmd.exe
+cd MONAI/
+set BUILD_MONAI=1
+pip install -e .
+```
+
+```powershell
+# PowerShell
+cd MONAI/
+$env:BUILD_MONAI="1"
+pip install -e .
 ```
 
 To uninstall the package please run:

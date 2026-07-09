@@ -864,6 +864,7 @@ def create_rotate(
     radians: Sequence[float] | float,
     device: torch.device | None = None,
     backend: str = TransformBackends.NUMPY,
+    rotate_order: str = "XYZ",
 ) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
@@ -872,19 +873,33 @@ def create_rotate(
         spatial_dims: {``2``, ``3``} spatial rank
         radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
-            rotation in the 1st, 2nd, and 3rd dim respectively.
+            rotation about the axes named by ``rotate_order``, in the order they are listed.
         device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
+        rotate_order: the order in which the axes are rotated about when ``spatial_dims == 3``,
+            following the convention of :py:func:`scipy.spatial.transform.Rotation.from_euler`.
+            A string of up to three characters from ``{'x', 'y', 'z'}`` (or ``{'X', 'Y', 'Z'}``),
+            where ``radians[i]`` is the angle applied about ``rotate_order[i]``. Lower case letters
+            select extrinsic rotations (about the original fixed axes); upper case letters select
+            intrinsic rotations (about the moving, body-fixed axes). The default ``"XYZ"``
+            reproduces the legacy behaviour (intrinsic x, then y, then z). Ignored when
+            ``spatial_dims == 2``.
 
     Raises:
         ValueError: When ``radians`` is empty.
         ValueError: When ``spatial_dims`` is not one of [2, 3].
+        ValueError: When ``rotate_order`` is not a valid Euler axis sequence.
 
     """
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
         return _create_rotate(
-            spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, eye_func=np.eye
+            spatial_dims=spatial_dims,
+            radians=radians,
+            sin_func=np.sin,
+            cos_func=np.cos,
+            eye_func=np.eye,
+            order=rotate_order,
         )
     if _backend == TransformBackends.TORCH:
         return _create_rotate(
@@ -893,8 +908,37 @@ def create_rotate(
             sin_func=lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32, device=device)),
             cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=device)),
             eye_func=lambda rank: torch.eye(rank, device=device),
+            order=rotate_order,
         )
     raise ValueError(f"backend {backend} is not supported")
+
+
+def _validate_euler_order(order: str, num_radians: int) -> None:
+    """
+    Validate a scipy-style Euler axis sequence.
+
+    Args:
+        order: the user-facing ``rotate_order`` value, a 1-3 character axis sequence.
+        num_radians: number of rotation angles the sequence must accommodate.
+
+    Raises:
+        ValueError: when ``order`` is not a valid Euler axis sequence for ``num_radians`` angles.
+    """
+    if not isinstance(order, str):
+        raise ValueError(f"`rotate_order` must be a string, got {type(order).__name__}.")
+    if not 1 <= len(order) <= 3:
+        raise ValueError(f"`rotate_order` must contain between 1 and 3 axes, got '{order}'.")
+    if not (order.islower() or order.isupper()):
+        raise ValueError(
+            f"`rotate_order` must be all lower case (extrinsic) or all upper case (intrinsic), got '{order}'."
+        )
+    lowered = order.lower()
+    if any(axis not in "xyz" for axis in lowered):
+        raise ValueError(f"`rotate_order` axes must be from 'x', 'y', 'z' (any case), got '{order}'.")
+    if any(lowered[i] == lowered[i + 1] for i in range(len(lowered) - 1)):
+        raise ValueError(f"`rotate_order` must not repeat the same axis consecutively, got '{order}'.")
+    if len(order) < num_radians:
+        raise ValueError(f"`rotate_order` '{order}' is too short for {num_radians} rotation angle(s).")
 
 
 def _create_rotate(
@@ -903,6 +947,7 @@ def _create_rotate(
     sin_func: Callable = np.sin,
     cos_func: Callable = np.cos,
     eye_func: Callable = np.eye,
+    order: str = "XYZ",
 ) -> NdarrayOrTensor:
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
@@ -915,30 +960,25 @@ def _create_rotate(
         raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
-        affine = None
-        if len(radians) >= 1:
-            sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
-            affine = eye_func(4)
-            affine[1, 1], affine[1, 2] = cos_, -sin_
-            affine[2, 1], affine[2, 2] = sin_, cos_
-        if len(radians) >= 2:
-            sin_, cos_ = sin_func(radians[1]), cos_func(radians[1])
-            if affine is None:
-                raise ValueError("Affine should be a matrix.")
-            _affine = eye_func(4)
-            _affine[0, 0], _affine[0, 2] = cos_, sin_
-            _affine[2, 0], _affine[2, 2] = -sin_, cos_
-            affine = affine @ _affine
-        if len(radians) >= 3:
-            sin_, cos_ = sin_func(radians[2]), cos_func(radians[2])
-            if affine is None:
-                raise ValueError("Affine should be a matrix.")
-            _affine = eye_func(4)
-            _affine[0, 0], _affine[0, 1] = cos_, -sin_
-            _affine[1, 0], _affine[1, 1] = sin_, cos_
-            affine = affine @ _affine
-        if affine is None:
+        if len(radians) < 1:
             raise ValueError("radians must be non empty.")
+        _validate_euler_order(order, len(radians))
+        intrinsic = order.isupper()
+        affine = eye_func(4)
+        for axis, radian in zip(order.lower(), radians):
+            sin_, cos_ = sin_func(radian), cos_func(radian)
+            _affine = eye_func(4)
+            if axis == "x":
+                _affine[1, 1], _affine[1, 2] = cos_, -sin_
+                _affine[2, 1], _affine[2, 2] = sin_, cos_
+            elif axis == "y":
+                _affine[0, 0], _affine[0, 2] = cos_, sin_
+                _affine[2, 0], _affine[2, 2] = -sin_, cos_
+            else:  # axis == "z"
+                _affine[0, 0], _affine[0, 1] = cos_, -sin_
+                _affine[1, 0], _affine[1, 1] = sin_, cos_
+            # intrinsic rotations post-multiply (body-fixed axes); extrinsic pre-multiply (world axes)
+            affine = affine @ _affine if intrinsic else _affine @ affine
         return affine  # type: ignore
 
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
@@ -1659,7 +1699,6 @@ def extreme_points_to_image(
         rescale_max: maximum value of output data.
     """
     # points to image
-    # points_image = torch.zeros(label.shape[1:], dtype=torch.float)
     points_image = torch.zeros_like(torch.as_tensor(label[0]), dtype=torch.float)
     for p in points:
         points_image[p] = 1.0
