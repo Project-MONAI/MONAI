@@ -61,9 +61,10 @@ _GaussianModulationND, _has_gaussian = optional_import("nvsubquadratic.modules.m
 _has_nvsubq = all((_has_lazyconfig, _has_instantiate, _has_hyena, _has_ckconv, _has_siren, _has_gaussian))
 
 _NVSUBQ_INSTALL_HINT = (
-    "Hyena operators require the optional ``nvsubquadratic`` package. "
-    "Install with ``pip install nvsubquadratic`` "
-    "or ``pip install monai[hyena]``."
+    "HyenaND operators require the optional 'nvsubquadratic' package (Python >= 3.10). "
+    "Install it with:  pip install 'monai[hyena]'  "
+    "(equivalently: pip install 'nvsubquadratic>=0.1.1'). "
+    "See https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies"
 )
 
 
