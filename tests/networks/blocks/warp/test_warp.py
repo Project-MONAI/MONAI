@@ -145,7 +145,7 @@ class TestWarp(unittest.TestCase):
         self.assertFalse(torch.equal(grid, grid.round()))
 
         ref = Warp().get_reference_grid(ddf, jitter=False)
-        self.assertTrue(bool((ref == ref.round()).all()))
+        self.assertTrue(torch.equal(grid, grid.round()))
 
         same = Warp().get_reference_grid(ddf, jitter=True, seed=7)
         repeat = Warp().get_reference_grid(ddf, jitter=True, seed=7)
