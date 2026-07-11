@@ -155,7 +155,10 @@ class Warp(nn.Module):
 
         if not _use_compiled:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
-                grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
+                # guard against a singleton spatial dim (e.g. a single-slice volume), where
+                # ``dim - 1 == 0`` would divide by zero; clamp the denominator to 1 so the lone
+                # voxel maps to -1, matching ``monai.networks.utils.normalize_transform``.
+                grid[..., i] = grid[..., i] * 2 / max(dim - 1, 1) - 1
             index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(
