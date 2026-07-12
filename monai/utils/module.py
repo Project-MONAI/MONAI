@@ -476,7 +476,7 @@ def require_pkg(
             if not has:
                 err_msg = f"required package `{pkg_name}` is not installed or the version doesn't match requirement."
                 if raise_error:
-                    raise OptionalImportError(err_msg)
+                    raise OptionalImportError(err_msg, name=pkg_name)
                 else:
                     warnings.warn(err_msg)
 

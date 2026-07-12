@@ -63,6 +63,9 @@ __all__ = [
 
 SUPPORTED_WRITERS: dict = {}
 
+# Map import names to their corresponding Python distribution names where they differ.
+_PACKAGE_INSTALL_NAMES = {"PIL": "pillow"}
+
 
 def register_writer(ext_name, *im_writers):
     """
@@ -99,6 +102,10 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
             As an indexing key it will be converted to a lower case string.
         error_if_not_found: whether to raise an error if no suitable image writer is found.
             if True , raise an ``OptionalImportError``, otherwise return an empty tuple. Default is ``True``.
+
+    Raises:
+        OptionalImportError: When no registered writer is available. If candidate writers require missing optional
+            dependencies, the error includes commands for installing them.
     """
     if not SUPPORTED_WRITERS:
         init()
@@ -106,17 +113,28 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
     if fmt.startswith("."):
         fmt = fmt[1:]
     avail_writers = []
+    missing_packages: set[str] = set()
     default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
     for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
-        except OptionalImportError:
+        except OptionalImportError as error:
+            if error.name:
+                missing_packages.add(_PACKAGE_INSTALL_NAMES.get(error.name, error.name))
             continue
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        message = f"No ImageWriter backend found for {fmt}."
+        packages = sorted(missing_packages)
+        if len(packages) == 1:
+            package = packages[0]
+            message += f" Install `{package}` with `pip install {package}`."
+        elif packages:
+            hints = ", ".join(f"`{package}` (`pip install {package}`)" for package in packages)
+            message += f" Install one of the following packages: {hints}."
+        raise OptionalImportError(message)
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
