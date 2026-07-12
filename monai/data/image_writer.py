@@ -103,6 +103,10 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
         error_if_not_found: whether to raise an error if no suitable image writer is found.
             if True , raise an ``OptionalImportError``, otherwise return an empty tuple. Default is ``True``.
 
+    Returns:
+        A tuple of available ``ImageWriter`` classes, or an empty tuple when ``error_if_not_found`` is ``False`` and
+            no writer is available.
+
     Raises:
         OptionalImportError: When no registered writer is available. If candidate writers require missing optional
             dependencies, the error includes commands for installing them.
