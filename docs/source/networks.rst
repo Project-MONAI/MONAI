@@ -129,6 +129,23 @@ Blocks
 .. autoclass:: TransformerBlock
     :members:
 
+`Hyena Mixer`
+~~~~~~~~~~~~~
+.. autoclass:: HyenaMixer
+    :members:
+
+`Hyena Transformer Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HyenaTransformerBlock
+    :members:
+
+`Depthwise FFT Convolution`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DepthwiseFFTConv2d
+    :members:
+.. autoclass:: DepthwiseFFTConv3d
+    :members:
+
 `UNETR Block`
 ~~~~~~~~~~~~~
 .. autoclass:: UnetrBasicBlock
@@ -589,6 +606,11 @@ Nets
 `SwinUNETR`
 ~~~~~~~~~~~
 .. autoclass:: SwinUNETR
+    :members:
+
+`HyenaNDUNETR`
+~~~~~~~~~~~~~~
+.. autoclass:: HyenaNDUNETR
     :members:
 
 `BasicUNet`
