@@ -37,7 +37,6 @@ from monai.apps.detection.transforms.array import (
     StandardizeEmptyBox,
     ZoomBox,
 )
-
 from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
