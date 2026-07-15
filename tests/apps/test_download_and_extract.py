@@ -20,7 +20,6 @@ from pathlib import Path
 from parameterized import parameterized
 
 from monai.apps import download_and_extract, download_url, extractall
-from monai.apps.utils import HashCheckError
 from tests.test_utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 
@@ -47,7 +46,7 @@ class TestDownloadAndExtract(unittest.TestCase):
 
     @skip_if_quick
     def test_download_url_hash_mismatch(self):
-        """download_url should raise HashCheckError on hash mismatch."""
+        """download_url should raise ValueError on hash mismatch."""
         filepath = self.testing_dir / "MedNIST.tar.gz"
 
         with skip_if_downloading_fails():
@@ -55,20 +54,24 @@ class TestDownloadAndExtract(unittest.TestCase):
             download_url(self.url, filepath, hash_val=self.hash_val, hash_type=self.hash_type)
 
         # Now test incorrect hash
-        with self.assertRaises(HashCheckError):
+        with self.assertRaises(ValueError) as ctx:
             download_url(self.url, filepath, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
+
+        self.assertIn("hash check", str(ctx.exception).lower())
 
     @skip_if_quick
     def test_extractall_hash_mismatch(self):
-        """extractall should raise HashCheckError when hash is incorrect."""
+        """extractall should raise ValueError when hash is incorrect."""
         filepath = self.testing_dir / "MedNIST.tar.gz"
         output_dir = self.testing_dir
 
         with skip_if_downloading_fails():
             download_url(self.url, filepath, hash_val=self.hash_val, hash_type=self.hash_type)
 
-        with self.assertRaises(HashCheckError):
+        with self.assertRaises(ValueError) as ctx:
             extractall(filepath, output_dir, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
+
+        self.assertIn("hash check", str(ctx.exception).lower())
 
     @skip_if_quick
     @parameterized.expand([("icon", "tar"), ("favicon", "zip")])
