@@ -162,7 +162,14 @@ class _ConfigProxy:
         try:
             return self._chain(key)
         except KeyError:
-            return getattr(self._value, key)
+            pass
+        if isinstance(self._value, dict) and key in self._value:
+            # the chained id is absent from the resolver (for example when this proxy is
+            # backed by a `$@ref`, whose children have no ids of their own), but the key
+            # does exist in the container: resolve it like `__getitem__` does, so dot- and
+            # bracket-notation agree and config keys keep precedence over dict methods.
+            return self._value[key]
+        return getattr(self._value, key)
 
     def __getitem__(self, key: str | int) -> Any:
         try:
