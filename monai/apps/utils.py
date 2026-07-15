@@ -224,7 +224,7 @@ def download_url(
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        ValueError: When the hash validation of the ``url`` downloaded file fails.
+        HashCheckError: When the hash validation of the ``url`` downloaded file fails.
     """
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
