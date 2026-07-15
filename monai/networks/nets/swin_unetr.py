@@ -23,6 +23,7 @@ from torch.nn import LayerNorm
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
+from monai.networks.blocks.hyena import HyenaTransformerBlock
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 
@@ -84,6 +85,19 @@ class SwinUNETR(nn.Module):
         spatial_dims: int = 3,
         downsample: str | nn.Module = "merging",
         use_v2: bool = False,
+        use_hyena: bool = False,
+        hyena_stages: Sequence[bool] | None = None,
+        hyena_kernel_size: int = 3,
+        hyena_kernel_mlp_dim: int = 32,
+        hyena_kernel_layers: int = 3,
+        hyena_mask_max_attenuation: float = 0.95,
+        hyena_fft_padding: str = "circular",
+        hyena_grid_type: str = "single",
+        hyena_use_chunked_fft: bool = False,
+        hyena_use_fft_short_conv: bool = False,
+        hyena_omega_0: float = 10.0,
+        hyena_l_cache: int = 32,
+        hyena_short_conv_fft_chunks: int = 0,
     ) -> None:
         """
         Args:
@@ -110,6 +124,31 @@ class SwinUNETR(nn.Module):
                 user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
                 The default is currently `"merging"` (the original version defined in v0.9.0).
             use_v2: using swinunetr_v2, which adds a residual convolution block at the beggining of each swin stage.
+            use_hyena: replace windowed self-attention with the HyenaND operator (subquadratic O(N log N)
+                global convolution) in every Swin stage. Default ``False`` keeps the model bit-identical
+                to the pre-HyenaND code path. Requires the optional ``nvsubquadratic`` package
+                (``pip install monai[hyena]``). When combined with ``hyena_stages``, the per-stage flag
+                overrides this master switch on a per-stage basis.
+            hyena_stages: optional 4-tuple of bools selecting which Swin stages use HyenaND vs windowed
+                attention. ``True`` at index ``i`` builds :class:`HyenaTransformerBlock` at stage ``i``,
+                ``False`` builds the conventional :class:`SwinTransformerBlock`. The four NeurIPS 2026
+                paper variants are: ``None`` (AAAA, all attention, requires ``use_hyena=False``);
+                ``(True, True, True, True)`` (HHHH, equivalent to ``use_hyena=True``); ``(True, False,
+                True, False)`` (HAHA); ``(True, True, False, False)`` (HHAA, paper-best).
+            hyena_kernel_size: HyenaND short-convolution kernel size (depthwise on QKV).
+            hyena_kernel_mlp_dim: SIREN implicit-kernel MLP hidden dimension.
+            hyena_kernel_layers: SIREN implicit-kernel depth.
+            hyena_mask_max_attenuation: Gaussian-modulation boundary attenuation (0-1).
+            hyena_fft_padding: ``"circular"`` or ``"zero"``. ``"circular"`` was the paper-best setting.
+            hyena_grid_type: ``"single"`` (kernel = input size, required for circular) or ``"double"``
+                (kernel = 2x input size, requires zero padding).
+            hyena_use_chunked_fft: enable chunked FFT for ~26 percent memory savings; requires
+                ``hyena_fft_padding="zero"``.
+            hyena_use_fft_short_conv: replace the short conv with :class:`DepthwiseFFTConv{2,3}d` to
+                eliminate the INT32 unfold limit and enable ROI > 128.
+            hyena_omega_0: SIREN frequency. Default 10.0 (stable).
+            hyena_l_cache: SIREN coordinate-grid cache size per spatial dim.
+            hyena_short_conv_fft_chunks: channel chunk size for the FFT short conv (0 = no chunking).
 
         Examples::
 
@@ -151,6 +190,8 @@ class SwinUNETR(nn.Module):
             raise ValueError("feature_size should be divisible by 12.")
 
         self.normalize = normalize
+        self.use_hyena = use_hyena
+        self.hyena_stages = tuple(bool(s) for s in hyena_stages) if hyena_stages is not None else None
 
         self.swinViT = SwinTransformer(
             in_chans=in_channels,
@@ -170,6 +211,19 @@ class SwinUNETR(nn.Module):
             spatial_dims=spatial_dims,
             downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
             use_v2=use_v2,
+            use_hyena=use_hyena,
+            hyena_stages=self.hyena_stages,
+            hyena_kernel_size=hyena_kernel_size,
+            hyena_kernel_mlp_dim=hyena_kernel_mlp_dim,
+            hyena_kernel_layers=hyena_kernel_layers,
+            hyena_mask_max_attenuation=hyena_mask_max_attenuation,
+            hyena_fft_padding=hyena_fft_padding,
+            hyena_grid_type=hyena_grid_type,
+            hyena_use_chunked_fft=hyena_use_chunked_fft,
+            hyena_use_fft_short_conv=hyena_use_fft_short_conv,
+            hyena_omega_0=hyena_omega_0,
+            hyena_l_cache=hyena_l_cache,
+            hyena_short_conv_fft_chunks=hyena_short_conv_fft_chunks,
         )
 
         self.encoder1 = UnetrBasicBlock(
@@ -274,50 +328,52 @@ class SwinUNETR(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
+        """Load pretrained Swin weights into the matching submodules.
+
+        When a stage uses :class:`HyenaTransformerBlock` instead of
+        :class:`SwinTransformerBlock`, the per-block ``load_from`` call is skipped for
+        that stage and a warning is issued -- HyenaND has a different parameter layout
+        and there are no compatible attention weights to copy. PatchMerging
+        downsample weights are still loaded for all stages (the downsample layer is
+        the same in both code paths).
+        """
+        import warnings
+
         layers1_0: BasicLayer = self.swinViT.layers1[0]  # type: ignore[assignment]
         layers2_0: BasicLayer = self.swinViT.layers2[0]  # type: ignore[assignment]
         layers3_0: BasicLayer = self.swinViT.layers3[0]  # type: ignore[assignment]
         layers4_0: BasicLayer = self.swinViT.layers4[0]  # type: ignore[assignment]
         wstate = weights["state_dict"]
 
+        def _stage_is_hyena(stage_layer: BasicLayer) -> bool:
+            first_block = next(iter(stage_layer.blocks.children()))
+            return isinstance(first_block, HyenaTransformerBlock)
+
         with torch.no_grad():
             self.swinViT.patch_embed.proj.weight.copy_(wstate["module.patch_embed.proj.weight"])
             self.swinViT.patch_embed.proj.bias.copy_(wstate["module.patch_embed.proj.bias"])
-            for bname, block in layers1_0.blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers1")  # type: ignore[operator]
 
-            if layers1_0.downsample is not None:
-                d = layers1_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers1.0.downsample.reduction.weight"])  # type: ignore
-                d.norm.weight.copy_(wstate["module.layers1.0.downsample.norm.weight"])  # type: ignore
-                d.norm.bias.copy_(wstate["module.layers1.0.downsample.norm.bias"])  # type: ignore
-
-            for bname, block in layers2_0.blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers2")  # type: ignore[operator]
-
-            if layers2_0.downsample is not None:
-                d = layers2_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers2.0.downsample.reduction.weight"])  # type: ignore
-                d.norm.weight.copy_(wstate["module.layers2.0.downsample.norm.weight"])  # type: ignore
-                d.norm.bias.copy_(wstate["module.layers2.0.downsample.norm.bias"])  # type: ignore
-
-            for bname, block in layers3_0.blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers3")  # type: ignore[operator]
-
-            if layers3_0.downsample is not None:
-                d = layers3_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers3.0.downsample.reduction.weight"])  # type: ignore
-                d.norm.weight.copy_(wstate["module.layers3.0.downsample.norm.weight"])  # type: ignore
-                d.norm.bias.copy_(wstate["module.layers3.0.downsample.norm.bias"])  # type: ignore
-
-            for bname, block in layers4_0.blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers4")  # type: ignore[operator]
-
-            if layers4_0.downsample is not None:
-                d = layers4_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers4.0.downsample.reduction.weight"])  # type: ignore
-                d.norm.weight.copy_(wstate["module.layers4.0.downsample.norm.weight"])  # type: ignore
-                d.norm.bias.copy_(wstate["module.layers4.0.downsample.norm.bias"])  # type: ignore
+            for layer_name, stage in [
+                ("layers1", layers1_0),
+                ("layers2", layers2_0),
+                ("layers3", layers3_0),
+                ("layers4", layers4_0),
+            ]:
+                if _stage_is_hyena(stage):
+                    warnings.warn(
+                        f"Skipping {layer_name} block weights: stage uses HyenaTransformerBlock, "
+                        "which has no compatible Swin attention weights. Blocks remain at their "
+                        "random initialization.",
+                        stacklevel=2,
+                    )
+                else:
+                    for bname, block in stage.blocks.named_children():
+                        block.load_from(weights, n_block=bname, layer=layer_name)  # type: ignore[operator]
+                if stage.downsample is not None:
+                    d = stage.downsample
+                    d.reduction.weight.copy_(wstate[f"module.{layer_name}.0.downsample.reduction.weight"])  # type: ignore
+                    d.norm.weight.copy_(wstate[f"module.{layer_name}.0.downsample.norm.weight"])  # type: ignore
+                    d.norm.bias.copy_(wstate[f"module.{layer_name}.0.downsample.norm.bias"])  # type: ignore
 
     @torch.jit.unused
     def _check_input_size(self, spatial_shape):
@@ -856,6 +912,18 @@ class BasicLayer(nn.Module):
         norm_layer: type[LayerNorm] = nn.LayerNorm,
         downsample: nn.Module | None = None,
         use_checkpoint: bool = False,
+        use_hyena: bool = False,
+        hyena_kernel_size: int = 3,
+        hyena_kernel_mlp_dim: int = 32,
+        hyena_kernel_layers: int = 3,
+        hyena_mask_max_attenuation: float = 0.95,
+        hyena_fft_padding: str = "circular",
+        hyena_grid_type: str = "single",
+        hyena_use_chunked_fft: bool = False,
+        hyena_use_fft_short_conv: bool = False,
+        hyena_omega_0: float = 10.0,
+        hyena_l_cache: int = 32,
+        hyena_short_conv_fft_chunks: int = 0,
     ) -> None:
         """
         Args:
@@ -871,6 +939,13 @@ class BasicLayer(nn.Module):
             norm_layer: normalization layer.
             downsample: an optional downsampling layer at the end of the layer.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
+            use_hyena: replace :class:`SwinTransformerBlock` with :class:`HyenaTransformerBlock`
+                in this stage. See :class:`SwinUNETR` for the per-stage selection mechanism.
+            hyena_kernel_size, hyena_kernel_mlp_dim, hyena_kernel_layers,
+                hyena_mask_max_attenuation, hyena_fft_padding, hyena_grid_type,
+                hyena_use_chunked_fft, hyena_use_fft_short_conv, hyena_omega_0, hyena_l_cache,
+                hyena_short_conv_fft_chunks: forwarded to :class:`HyenaTransformerBlock`. See its
+                docstring for semantics.
         """
 
         super().__init__()
@@ -879,24 +954,52 @@ class BasicLayer(nn.Module):
         self.no_shift = tuple(0 for i in window_size)
         self.depth = depth
         self.use_checkpoint = use_checkpoint
-        self.blocks = nn.ModuleList(
-            [
-                SwinTransformerBlock(
-                    dim=dim,
-                    num_heads=num_heads,
-                    window_size=self.window_size,
-                    shift_size=self.no_shift if (i % 2 == 0) else self.shift_size,
-                    mlp_ratio=mlp_ratio,
-                    qkv_bias=qkv_bias,
-                    drop=drop,
-                    attn_drop=attn_drop,
-                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
-                    norm_layer=norm_layer,
-                    use_checkpoint=use_checkpoint,
-                )
-                for i in range(depth)
-            ]
-        )
+        self.use_hyena = use_hyena
+        if use_hyena:
+            self.blocks = nn.ModuleList(
+                [
+                    HyenaTransformerBlock(
+                        dim=dim,
+                        spatial_dims=len(self.window_size),
+                        mlp_ratio=mlp_ratio,
+                        drop=drop,
+                        drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                        norm_layer=norm_layer,
+                        use_checkpoint=use_checkpoint,
+                        hyena_kernel_size=hyena_kernel_size,
+                        hyena_kernel_mlp_dim=hyena_kernel_mlp_dim,
+                        hyena_kernel_layers=hyena_kernel_layers,
+                        hyena_mask_max_attenuation=hyena_mask_max_attenuation,
+                        hyena_fft_padding=hyena_fft_padding,
+                        hyena_grid_type=hyena_grid_type,
+                        hyena_use_chunked_fft=hyena_use_chunked_fft,
+                        hyena_use_fft_short_conv=hyena_use_fft_short_conv,
+                        hyena_omega_0=hyena_omega_0,
+                        hyena_l_cache=hyena_l_cache,
+                        hyena_short_conv_fft_chunks=hyena_short_conv_fft_chunks,
+                    )
+                    for i in range(depth)
+                ]
+            )
+        else:
+            self.blocks = nn.ModuleList(
+                [
+                    SwinTransformerBlock(
+                        dim=dim,
+                        num_heads=num_heads,
+                        window_size=self.window_size,
+                        shift_size=self.no_shift if (i % 2 == 0) else self.shift_size,
+                        mlp_ratio=mlp_ratio,
+                        qkv_bias=qkv_bias,
+                        drop=drop,
+                        attn_drop=attn_drop,
+                        drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                        norm_layer=norm_layer,
+                        use_checkpoint=use_checkpoint,
+                    )
+                    for i in range(depth)
+                ]
+            )
         self.downsample = downsample
         if callable(self.downsample):
             self.downsample = downsample(dim=dim, norm_layer=norm_layer, spatial_dims=len(self.window_size))
@@ -910,7 +1013,8 @@ class BasicLayer(nn.Module):
             dp = int(np.ceil(d / window_size[0])) * window_size[0]
             hp = int(np.ceil(h / window_size[1])) * window_size[1]
             wp = int(np.ceil(w / window_size[2])) * window_size[2]
-            attn_mask = compute_mask([dp, hp, wp], window_size, shift_size, x.device)
+            # HyenaTransformerBlock ignores the attention mask; skip building it for Hyena stages.
+            attn_mask = None if self.use_hyena else compute_mask([dp, hp, wp], window_size, shift_size, x.device)
             for blk in self.blocks:
                 x = blk(x, attn_mask)
             x = x.view(b, d, h, w, -1)
@@ -924,7 +1028,8 @@ class BasicLayer(nn.Module):
             x = rearrange(x, "b c h w -> b h w c")
             hp = int(np.ceil(h / window_size[0])) * window_size[0]
             wp = int(np.ceil(w / window_size[1])) * window_size[1]
-            attn_mask = compute_mask([hp, wp], window_size, shift_size, x.device)
+            # HyenaTransformerBlock ignores the attention mask; skip building it for Hyena stages.
+            attn_mask = None if self.use_hyena else compute_mask([hp, wp], window_size, shift_size, x.device)
             for blk in self.blocks:
                 x = blk(x, attn_mask)
             x = x.view(b, h, w, -1)
@@ -961,6 +1066,19 @@ class SwinTransformer(nn.Module):
         spatial_dims: int = 3,
         downsample="merging",
         use_v2=False,
+        use_hyena: bool = False,
+        hyena_stages: Sequence[bool] | None = None,
+        hyena_kernel_size: int = 3,
+        hyena_kernel_mlp_dim: int = 32,
+        hyena_kernel_layers: int = 3,
+        hyena_mask_max_attenuation: float = 0.95,
+        hyena_fft_padding: str = "circular",
+        hyena_grid_type: str = "single",
+        hyena_use_chunked_fft: bool = False,
+        hyena_use_fft_short_conv: bool = False,
+        hyena_omega_0: float = 10.0,
+        hyena_l_cache: int = 32,
+        hyena_short_conv_fft_chunks: int = 0,
     ) -> None:
         """
         Args:
@@ -983,6 +1101,17 @@ class SwinTransformer(nn.Module):
                 user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
                 The default is currently `"merging"` (the original version defined in v0.9.0).
             use_v2: using swinunetr_v2, which adds a residual convolution block at the beginning of each swin stage.
+            use_hyena: build :class:`HyenaTransformerBlock` instead of :class:`SwinTransformerBlock`
+                in every stage. See :class:`SwinUNETR` for paper-variant patterns.
+            hyena_stages: optional per-stage override (4-tuple of bools); a stage flagged ``True``
+                builds a Hyena block regardless of ``use_hyena``, and a stage flagged ``False``
+                builds a Swin block regardless of ``use_hyena``. ``None`` falls back to ``use_hyena``
+                for all stages.
+            hyena_kernel_size, hyena_kernel_mlp_dim, hyena_kernel_layers,
+                hyena_mask_max_attenuation, hyena_fft_padding, hyena_grid_type,
+                hyena_use_chunked_fft, hyena_use_fft_short_conv, hyena_omega_0, hyena_l_cache,
+                hyena_short_conv_fft_chunks: HyenaND configuration. See
+                :class:`monai.networks.blocks.HyenaTransformerBlock` for semantics.
         """
 
         super().__init__()
@@ -991,6 +1120,33 @@ class SwinTransformer(nn.Module):
         self.patch_norm = patch_norm
         self.window_size = window_size
         self.patch_size = patch_size
+
+        # Per-stage Hyena selection: explicit ``hyena_stages`` overrides the master flag.
+        self._per_stage_hyena: list[bool] = (
+            [bool(s) for s in hyena_stages] if hyena_stages is not None else [bool(use_hyena)] * self.num_layers
+        )
+        if len(self._per_stage_hyena) != self.num_layers:
+            raise ValueError(
+                f"hyena_stages must have length {self.num_layers} (one bool per Swin stage); "
+                f"got length {len(self._per_stage_hyena)}."
+            )
+
+        # Legacy RoPE-divisibility guard: kept as defensive validation for callers that bypass the
+        # SwinUNETR-level ``feature_size % 12 == 0`` check.  ``nvsubquadratic`` removed RoPE from
+        # the HyenaND operator on 2026-04-27, so this check is now slightly conservative; it does
+        # not affect any valid SwinUNETR configuration.
+        if any(self._per_stage_hyena):
+            div = 6 if spatial_dims == 3 else 4
+            for i, use_h in enumerate(self._per_stage_hyena):
+                if use_h:
+                    dim_at_layer = int(embed_dim * 2**i)
+                    if dim_at_layer % div != 0:
+                        raise ValueError(
+                            f"For {spatial_dims}D Hyena, embed_dim * 2^layer must be divisible by {div}. "
+                            f"At layer {i}, dim={dim_at_layer} is not. "
+                            "Use embed_dim that is a multiple of 12 (the SwinUNETR default check)."
+                        )
+
         self.patch_embed = PatchEmbed(
             patch_size=self.patch_size,
             in_chans=in_chans,
@@ -1025,6 +1181,18 @@ class SwinTransformer(nn.Module):
                 norm_layer=norm_layer,
                 downsample=down_sample_mod,
                 use_checkpoint=use_checkpoint,
+                use_hyena=self._per_stage_hyena[i_layer],
+                hyena_kernel_size=hyena_kernel_size,
+                hyena_kernel_mlp_dim=hyena_kernel_mlp_dim,
+                hyena_kernel_layers=hyena_kernel_layers,
+                hyena_mask_max_attenuation=hyena_mask_max_attenuation,
+                hyena_fft_padding=hyena_fft_padding,
+                hyena_grid_type=hyena_grid_type,
+                hyena_use_chunked_fft=hyena_use_chunked_fft,
+                hyena_use_fft_short_conv=hyena_use_fft_short_conv,
+                hyena_omega_0=hyena_omega_0,
+                hyena_l_cache=hyena_l_cache,
+                hyena_short_conv_fft_chunks=hyena_short_conv_fft_chunks,
             )
             if i_layer == 0:
                 self.layers1.append(layer)
