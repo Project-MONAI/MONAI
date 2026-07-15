@@ -328,7 +328,7 @@ def extractall(
             be False.
 
     Raises:
-        ValueError: When the hash validation of the ``filepath`` compressed file fails.
+        HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
