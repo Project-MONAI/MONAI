@@ -157,7 +157,10 @@ class ConvNeXt(nn.Module):
 
     Raises:
         ValueError: when `spatial_dims` is not one of (1, 2, 3).
-        ValueError: when `depths` and `features` have different lengths.
+        ValueError: when `depths` and `features` are empty or of different lengths.
+        ValueError: when any value in `depths` or `features` is not positive.
+        ValueError: when `kernel_size` is even, as the block could not preserve its input size.
+        ValueError: when `drop_path_rate` is outside the interval [0, 1].
 
     Example::
 
@@ -182,10 +185,20 @@ class ConvNeXt(nn.Module):
 
         if spatial_dims not in (1, 2, 3):
             raise ValueError(f"`spatial_dims` should be 1, 2 or 3, got {spatial_dims}.")
-        if len(depths) != len(features):
+        if len(depths) == 0 or len(depths) != len(features):
             raise ValueError(
-                f"`depths` and `features` should have the same length, got {len(depths)} and {len(features)}."
+                f"`depths` and `features` should be non-empty and of the same length, "
+                f"got lengths {len(depths)} and {len(features)}."
             )
+        if any(d <= 0 for d in depths) or any(f <= 0 for f in features):
+            raise ValueError(f"`depths` and `features` should be positive, got {tuple(depths)} and {tuple(features)}.")
+        if kernel_size % 2 == 0:
+            # an even depthwise kernel cannot keep the spatial size at stride 1, which breaks the residual
+            raise ValueError(
+                f"`kernel_size` should be odd so that the block preserves its input size, got {kernel_size}."
+            )
+        if not 0 <= drop_path_rate <= 1:
+            raise ValueError(f"`drop_path_rate` should be between 0 and 1, got {drop_path_rate}.")
 
         conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         avg_pool_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[

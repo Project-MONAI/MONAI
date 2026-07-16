@@ -18,7 +18,18 @@ import torch.nn as nn
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import ConvNeXt, ConvNeXtBase, ConvNeXtLarge, ConvNeXtSmall, ConvNeXtTiny, ConvNeXtXLarge
+from monai.networks.nets import (
+    ConvNeXt,
+    Convnext_base,
+    Convnext_xlarge,
+    ConvNeXtBase,
+    ConvNeXtLarge,
+    ConvNeXtSmall,
+    ConvNeXtTiny,
+    ConvNeXtXLarge,
+    convnext_large,
+    convnext_tiny,
+)
 from monai.networks.nets.convnext import LayerNormNd
 from tests.test_utils import skip_if_quick, test_script_save
 
@@ -63,9 +74,10 @@ TEST_CASES = []
 for case in CASES:
     TEST_CASES.append([ConvNeXt, *case])
 
-# every variant, over the 2D and 3D cases, exercising the aliases alongside the canonical names
+# every variant, over the 2D and 3D cases, mixing canonical class names with the exported lower/mixed
+# case aliases so that a broken package export is caught as well as a broken variant
 TEST_VARIANT_CASES = []
-for model in [ConvNeXtTiny, ConvNeXtSmall, ConvNeXtBase, ConvNeXtLarge, ConvNeXtXLarge]:
+for model in [convnext_tiny, ConvNeXtSmall, Convnext_base, convnext_large, Convnext_xlarge]:
     for case in [TEST_CASE_1, TEST_CASE_2]:
         TEST_VARIANT_CASES.append([model, *case])
 
@@ -149,6 +161,14 @@ class TestConvNeXt(unittest.TestCase):
             ConvNeXt(spatial_dims=4, in_channels=1, out_channels=2)
         with self.assertRaises(ValueError):  # depths and features of different lengths
             ConvNeXt(spatial_dims=3, in_channels=1, out_channels=2, depths=(1, 1), features=SMALL_FEATURES)
+        with self.assertRaises(ValueError):  # empty depths and features
+            ConvNeXt(spatial_dims=3, in_channels=1, out_channels=2, depths=(), features=())
+        with self.assertRaises(ValueError):  # non-positive depth
+            ConvNeXt(spatial_dims=3, in_channels=1, out_channels=2, depths=(1, 0, 1, 1), features=SMALL_FEATURES)
+        with self.assertRaises(ValueError):  # even kernel_size cannot preserve the spatial size
+            ConvNeXt(spatial_dims=3, in_channels=1, out_channels=2, features=SMALL_FEATURES, kernel_size=4)
+        with self.assertRaises(ValueError):  # drop_path_rate out of range
+            ConvNeXt(spatial_dims=3, in_channels=1, out_channels=2, features=SMALL_FEATURES, drop_path_rate=1.5)
 
 
 if __name__ == "__main__":
