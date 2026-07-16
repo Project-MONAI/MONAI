@@ -467,6 +467,31 @@ Nets
 .. autoclass:: AHNet
   :members:
 
+`ConvNeXt`
+~~~~~~~~~~
+.. autoclass:: ConvNeXt
+  :members:
+
+`ConvNeXtTiny`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtTiny
+
+`ConvNeXtSmall`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtSmall
+
+`ConvNeXtBase`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtBase
+
+`ConvNeXtLarge`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtLarge
+
+`ConvNeXtXLarge`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtXLarge
+
 `DenseNet`
 ~~~~~~~~~~
 .. autoclass:: DenseNet
