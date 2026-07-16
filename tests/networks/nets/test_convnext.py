@@ -23,10 +23,8 @@ from monai.networks.nets import (
     Convnext_base,
     Convnext_xlarge,
     ConvNeXtBase,
-    ConvNeXtLarge,
     ConvNeXtSmall,
     ConvNeXtTiny,
-    ConvNeXtXLarge,
     convnext_large,
     convnext_tiny,
 )
