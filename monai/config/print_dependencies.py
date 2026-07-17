@@ -1,0 +1,59 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+This program prints the MONAI dependencies for the optional names given on the command line. The printed values can
+be piped to a requirements file to work with pip. All required dependencies are always printed, those for builing are
+included in "build-system" is given as an argument, and all optional requirements are included if "*" is given. This
+assumes the pyproject.toml file is in the current working directory.
+"""
+
+import sys
+
+if sys.version_info.minor >= 11:
+    import tomllib
+
+    load_func = tomllib.loads
+else:
+    import tomlkit
+
+    load_func = tomlkit.parse
+
+
+BUILD_SYSTEM_KEY = "build-system"
+PROJ_KEY = "project"
+OPTS_KEY = "optional-dependencies"
+DEP_KEY = "dependencies"
+REQ_KEY = "requires"
+TOML_FILE = "pyproject.toml"
+
+if __name__ == "__main__":
+    sections = set(sys.argv[1:])
+
+    with open(TOML_FILE, "rb") as o:
+        data = load_func(o.read())
+
+    proj = data[PROJ_KEY]
+    opts = proj[OPTS_KEY]
+    dependencies = proj[DEP_KEY]
+
+    if BUILD_SYSTEM_KEY in sections:
+        sections.remove(BUILD_SYSTEM_KEY)
+        dependencies += data[BUILD_SYSTEM_KEY][REQ_KEY]
+
+    if "*" in sections:
+        dependencies += sum(opts.values(), [])
+    else:
+        for s in sections:
+            dependencies += opts[s]
+
+    for d in sorted(set(dependencies)):
+        print(d)

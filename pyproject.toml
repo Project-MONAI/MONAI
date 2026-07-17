@@ -1,13 +1,14 @@
 
 [build-system]
 requires = [
-  "setuptools>=69", 
+  "setuptools<71",  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
   "wheel", 
   "versioneer[toml]",
   "more-itertools>=8.0",
   "torch>=2.8.0",
   "ninja",
-  "packaging"
+  "packaging",
+  "backports.tarfile"  # see #8792
 ]
 build-backend = "setuptools.build_meta"
 
@@ -50,94 +51,137 @@ Documentation = "https://monai.readthedocs.io/"
 
 [project.optional-dependencies]
 all = [
+  "black>=26.3.1",
+  "clearml>=1.10.0rc0",
+  "coverage>=5.5", 
+  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
+  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
+  "einops",
+  "filelock<3.12.0",
+  "fire",
+  "gdown>=4.7.3",
+  "git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded",
+  "git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
+  "h5py",
+  "huggingface_hub",
+  "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
+  "isort>=5.1, <6, !=6.0.0",
+  "itk>=5.2",
+  "jsonschema",
+  "lmdb",
+  "lpips==0.1.4",
+  "matplotlib>=3.6.3",
+  "mlflow>=2.12.2,<3.13",
+  "mypy>=1.5.0, <1.12.0",
   "nibabel",
   "ninja",
-  "scikit-image>=0.14.2",
+  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
+  "nvidia-ml-py",
+  "onnx_graphsurgeon",
+  "onnx>=1.13.0",
+  "onnxruntime; python_version <= '3.10'",
+  "onnxscript",
+  "openslide-bin",
+  "openslide-python",
+  "optuna",
+  "pandas",
+  "parameterized",
+  "pep8-naming",
+  "pillow!=8.3.0",
+  "polygraphy",
+  "pre-commit",
+  "psutil",
+  "pyamg>=5.0.0,<5.3.0",
+  "pybind11",
+  "pycodestyle",
+  "pydicom",
+  "pyflakes",
+  "pynrrd",
+  "pytest",
+  "pytorch-ignite",
+  "pyyaml",
+  "requests",
+  "ruff>=0.14.11,<0.15",
+  "scikit-image>=0.19.0",
   "scipy>=1.12.0",
-  "pillow",
-  "tensorboard",
-  "gdown>=4.7.3",
-  "pytorch-ignite==0.4.11",
+  "tensorboard>=2.12.0",  
+  "tensorboardX",
+  "tifffile; platform_system == 'Linux' or platform_system == 'Darwin'",
   "torchio",
   "torchvision",
-  "itk>=5.2",
   "tqdm>=4.47.0",
-  "lmdb",
-  "psutil",
-  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
-  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
-  "openslide-python",
-  "openslide-bin",
-  "tifffile; platform_system == 'Linux' or platform_system == 'Darwin'",
-  "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
-  "pandas",
-  "einops",
-  "transformers>=4.53.0",
-  "mlflow>=2.12.2,<3.13",
-  "clearml>=1.10.0rc0",
-  "matplotlib>=3.6.3",
-  "tensorboardX",
-  "pyyaml",
-  "fire",
-  "jsonschema",
-  "pynrrd",
-  "pydicom",
-  "h5py",
-  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
-  "optuna",
-  "onnx>=1.13.0",
-  "onnxruntime",
-  "zarr",
-  "lpips==0.1.4",
-  "nvidia-ml-py",
-  "huggingface_hub",
-  "pyamg>=5.0.0,<5.3.0",
+  "transformers>=4.53.0, <5.0",
+  "typeguard<3",
+  "types-PyYAML",
+  "types-setuptools",
+  "zarr"
 ]
+black = ["black>=26.3.1"]
+clearml = ["clearml>=1.10.0rc0"]
+cucim = [
+  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'", 
+  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'"
+]
+einops = ["einops"]
+fire = ["fire"]
+gdown = ["gdown>=4.7.3"]
+h5py = ["h5py"]
+huggingface_hub = ["huggingface_hub"]
+hyena = ["nvsubquadratic>=0.1.1"]  # omitted from all for compatibility
+ignite = ["pytorch-ignite"]
+imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'"]
+isort = ["isort>=5.1, <6, !=6.0.0"]
+itk = ["itk>=5.2"]
+jsonschema = ["jsonschema"]
+lmdb = ["lmdb"]
+lpips = ["lpips==0.1.4"]
+matplotlib = ["matplotlib>=3.6.3"]
+mccabe = ["mccabe"]
+metrics_reloaded = ["git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded"]
+mlflow = ["mlflow>=2.12.2,<3.13"]
+mypy = ["mypy>=1.5.0, <1.12.0"]
 nibabel = ["nibabel"]
 ninja = ["ninja"]
-skimage = ["scikit-image>=0.14.2"]
+nni = [
+  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
+  "filelock<3.12.0"  # https://github.com/microsoft/nni/issues/5523
+]
+onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
+openslide = ["openslide-python", "openslide-bin"]
+optuna = ["optuna"]
+packaging = ["packaging"]
+pandas = ["pandas"]
+pep8-naming = ["pep8-naming"]
+pillow = ["pillow!=8.3.0"]  # https://github.com/python-pillow/Pillow/issues/5571
+polygraphy = ["polygraphy"]
+pre-commit = ["pre-commit"]
+psutil = ["psutil"]
+pyamg = ["pyamg>=5.0.0,<5.3.0"]
+pybind11 = ["pybind11"]
+pycodestyle = ["pycodestyle"]
+pydicom = ["pydicom"]
+pyflakes = ["pyflakes"]
+pynrrd = ["pynrrd"]
+pytest = ["pytest"]
+pynvml = ["nvidia-ml-py"]
+pyyaml = ["pyyaml"]
+requests = ["requests"]
+ruff = ["ruff>=0.14.11,<0.15"]
+segment_anything = ["git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"]
 scipy = ["scipy>=1.12.0"]
-pillow = ["pillow!=8.3.0"]
-tensorboard = ["tensorboard"]
-gdown = ["gdown>=4.7.3"]
-ignite = ["pytorch-ignite==0.4.11"]
+skimage = ["scikit-image>=0.19.0"]
+tensorboard = ["tensorboard>=2.12.0"]  # https://github.com/Project-MONAI/MONAI/issues/7434
+tensorboardX = ["tensorboardX"]
+testing = ["coverage>=5.5", "parameterized"]
+tifffile = ["tifffile; platform_system == 'Linux' or platform_system == 'Darwin'"]
 torchio = ["torchio"]
 torchvision = ["torchvision"]
-itk = ["itk>=5.2"]
 tqdm = ["tqdm>=4.47.0"]
-lmdb = ["lmdb"]
-psutil = ["psutil"]
-cucim = [
-  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
-  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
-]
-openslide = ["openslide-python", "openslide-bin"]
-tifffile = ["tifffile; platform_system == 'Linux' or platform_system == 'Darwin'"]
-imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'"]
-pandas = ["pandas"]
-einops = ["einops"]
-hyena = ["nvsubquadratic>=0.1.1"]
-transformers = ["transformers>=4.36.0,<4.41.0; python_version <= '3.10'"]
-mlflow = ["mlflow>=2.12.2,<3.13"]
-matplotlib = ["matplotlib>=3.6.3"]
-clearml = ["clearml"]
-tensorboardX = ["tensorboardX"]
-pyyaml = ["pyyaml"]
-fire = ["fire"]
-packaging = ["packaging"]
-jsonschema = ["jsonschema"]
-pynrrd = ["pynrrd"]
-pydicom = ["pydicom"]
-h5py = ["h5py"]
-nni = ["nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine"]
-optuna = ["optuna"]
-onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'"]
+transformers = ["transformers>=4.53.0, <5.0"]  # 5.x references torch.float8_e8m0fnu absent in older PyTorch builds
+typeguard = ["typeguard<3"]  # https://github.com/microsoft/nni/issues/5457
+types-PyYAML = ["types-PyYAML"]
+types-setuptools = ["types-setuptools"]
 zarr = ["zarr"]
-lpips = ["lpips==0.1.4"]
-pynvml = ["nvidia-ml-py"]
-polygraphy = ["polygraphy"]
-huggingface_hub = ["huggingface_hub"]
-pyamg = ["pyamg>=5.0.0,<5.3.0"]
 
 [tool.setuptools]
 license-files = ["LICENSE"]
