@@ -160,13 +160,11 @@ class AsDiscrete(Transform):
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
-        rankseg: whether to apply RankSEG decoding. Requires installing the optional ``rankseg`` package.
-            RankSEG is applied to a channel-first probability map for one image; ``dim`` identifies the
-            class/channel dimension and is moved to the front before decoding. For the common MONAI
-            post-processing input shape ``(C, *spatial)``, use the default ``dim=0``.
-            The output is a label map. With the default ``keepdim=True``, the output shape is ``(1, *spatial)``;
-            with ``keepdim=False``, it is ``(*spatial)``. The ``dim`` and ``keepdim`` shape handling is aligned
-            with ``argmax``. This option is incompatible with ``argmax=True``.
+        rankseg: whether to use RankSEG to decode an image's class probability map into a segmentation label map.
+            RankSEG is an inference-time decoder that maximizes the expected samplewise Dice or IoU.
+            The class dimension is specified by ``dim``;
+            ``keepdim`` follows the same output-shape convention as ``argmax``. Requires the optional ``rankseg``
+            package and is incompatible with ``argmax=True``.
             Defaults to ``False``.
         kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
             currently ``dim``, ``keepdim``, ``dtype``, and RankSEG ``metric`` are supported, unrecognized parameters
@@ -207,6 +205,8 @@ class AsDiscrete(Transform):
     ) -> None:
         if argmax and rankseg:
             raise ValueError("`rankseg=True` is incompatible with `argmax=True`.")
+        if rankseg and not has_rankseg:
+            raise OptionalImportError("`rankseg=True` requires the `rankseg` package, but it is not installed.")
         self.argmax = argmax
         self.rankseg = rankseg
         if isinstance(to_onehot, bool):  # for backward compatibility

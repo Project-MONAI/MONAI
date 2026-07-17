@@ -100,7 +100,11 @@ class TestAsDiscrete(unittest.TestCase):
     def test_rankseg_missing_dependency(self):
         with mock.patch("monai.transforms.post.array.has_rankseg", False):
             with self.assertRaises(OptionalImportError):
-                AsDiscrete(rankseg=True)([[[0.3, 0.6]], [[0.7, 0.4]]])
+                AsDiscrete(rankseg=True)
+
+            transform = AsDiscrete()
+            with self.assertRaises(OptionalImportError):
+                transform([[[0.3, 0.6]], [[0.7, 0.4]]], rankseg=True)
 
 
 if __name__ == "__main__":
