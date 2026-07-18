@@ -1224,11 +1224,15 @@ def get_largest_connected_component_mask(
     if num_features <= num_components:
         out = img_.astype(bool)
     else:
-        # ignore background
-        nonzeros = features[lib.nonzero(features)]
-        # get number voxels per feature (bincount). argsort[::-1] to get indices
-        # of largest components.
-        features_to_keep = lib.argsort(lib.bincount(nonzeros))[::-1]
+        # count voxels per feature directly over the whole field; background is
+        # label 0. This avoids materializing the ``nonzero`` index arrays (one per
+        # spatial dim) and the gathered copy of every foreground voxel that
+        # ``features[lib.nonzero(features)]`` would create.
+        counts = lib.bincount(features.reshape(-1))
+        # ignore background so it is never selected as a component to keep.
+        counts[0] = 0
+        # argsort[::-1] to get indices of the largest components.
+        features_to_keep = lib.argsort(counts)[::-1]
         # only keep the first n non-background indices
         features_to_keep = features_to_keep[:num_components]
         # generate labelfield. True if in list of features to keep

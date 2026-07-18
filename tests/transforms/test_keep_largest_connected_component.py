@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
+from monai.transforms.utils import get_largest_connected_component_mask
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.type_conversion import convert_to_dst_type
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
@@ -413,6 +414,34 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
             img = input_image.argmax(0)[None]
             result2 = KeepLargestConnectedComponent(**args)(img)
             assert_allclose(result.argmax(0)[None], result2, type_test="tensor")
+
+
+class TestGetLargestConnectedComponentMask(unittest.TestCase):
+    @parameterized.expand([(p,) for p in TEST_NDARRAYS])
+    def test_num_components_selection(self, in_type):
+        # a field with four separate foreground blobs of sizes 6, 4, 3 and 1
+        # voxels (plus background). Selecting the ``num_components`` largest must
+        # keep exactly the largest ``num_components`` blobs, regardless of label
+        # order. This guards the bincount-based ranking in
+        # ``get_largest_connected_component_mask``.
+        img = in_type(
+            torch.tensor(
+                [[1, 1, 0, 2, 2, 0], [1, 1, 0, 2, 2, 0], [1, 1, 0, 0, 0, 0], [0, 0, 0, 3, 3, 0], [4, 0, 0, 3, 0, 0]]
+            )
+        )
+
+        # sizes: blob A=6, B=4, C=3, D=1 -> expected kept voxels for each n
+        expected_counts = {1: 6, 2: 10, 3: 13, 4: 14}
+        for num_components, expected in expected_counts.items():
+            mask = get_largest_connected_component_mask(img, num_components=num_components)
+            assert_allclose(mask.sum(), torch.tensor(expected), type_test=False)
+
+    @parameterized.expand([(p,) for p in TEST_NDARRAYS])
+    def test_background_never_selected(self, in_type):
+        # background (label 0) dominates by voxel count but must never be kept.
+        img = in_type(torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0]]))
+        mask = get_largest_connected_component_mask(img, num_components=1)
+        assert_allclose(mask.sum(), torch.tensor(2), type_test=False)
 
 
 if __name__ == "__main__":
