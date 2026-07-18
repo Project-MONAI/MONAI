@@ -17,6 +17,7 @@ import os
 import re
 import shlex
 import subprocess
+import threading
 from typing import Any
 
 import monai
@@ -740,17 +741,39 @@ class nnUNetV2Runner:  # noqa: N801
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
-            processes = []
-            for device_id in stage:
-                if not stage[device_id]:
+            threads = []
+            for device_id, device_cmds in stage.items():
+                if not device_cmds:
                     continue
-                cmd_str = "; ".join(shlex.join(cmd) for cmd, _ in stage[device_id])
-                env = stage[device_id][0][1]
-                logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, env=env, stdout=subprocess.DEVNULL))
-            # finish this stage first
-            for p in processes:
-                p.wait()
+                logger.info(
+                    f"Current running commands on GPU device {device_id}:\n"
+                    + "\n".join(shlex.join(cmd) for cmd, _ in device_cmds)
+                    + "\n"
+                )
+                # one worker per device runs that device's commands sequentially, in order;
+                # different devices run concurrently. No shell is invoked (shell=False).
+                thread = threading.Thread(target=self._run_device_commands, args=(device_cmds,))
+                thread.start()
+                threads.append(thread)
+            # finish this stage before starting the next
+            for thread in threads:
+                thread.join()
+
+    @staticmethod
+    def _run_device_commands(device_cmds: list) -> None:
+        """
+        Run one device's argument-list commands sequentially without invoking a shell.
+
+        Args:
+            device_cmds: a list of ``(cmd, env)`` pairs, where ``cmd`` is an argument list and
+                ``env`` is the environment for that command.
+
+        Each command is run in its original order with ``shell=False``, keeping its associated
+        environment. A non-zero exit status does not stop the remaining commands for the device,
+        matching the previous ``"; ".join(...)`` shell behavior.
+        """
+        for cmd, env in device_cmds:
+            subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, check=False)
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
