@@ -42,10 +42,29 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+    "HashValidationError",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+
+
+class HashValidationError(RuntimeError):
+    """
+    Raised when a downloaded or existing file does not match its expected hash value.
+
+    This is a dedicated subclass of :class:`RuntimeError` (so existing ``except RuntimeError``
+    handlers keep working) that specifically signals data corruption or a content mismatch,
+    as opposed to a transient/incomplete download. It lets callers distinguish a genuine hash
+    failure from recoverable network errors and avoid silently skipping it.
+    """
 
 
 def get_logger(
@@ -213,14 +232,14 @@ def download_url(
             https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` existing file fails.
+        HashValidationError: When the hash validation of the ``filepath`` existing file fails.
         RuntimeError: When a network issue or denied permission prevents the
             file download from ``url`` to ``filepath``.
         URLError: See urllib.request.urlretrieve.
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        RuntimeError: When the hash validation of the ``url`` downloaded file fails.
+        HashValidationError: When the hash validation of the ``url`` downloaded file fails.
 
     """
     if not filepath:
@@ -229,7 +248,7 @@ def download_url(
     filepath = Path(filepath)
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
-            raise RuntimeError(
+            raise HashValidationError(
                 f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
             )
         logger.info(f"File exists: {filepath}, skipped downloading.")
@@ -268,7 +287,7 @@ def download_url(
         pass
     logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
+        raise HashValidationError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
             f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
@@ -325,7 +344,7 @@ def extractall(
             be False.
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
+        HashValidationError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
@@ -339,7 +358,7 @@ def extractall(
         return
     filepath = Path(filepath)
     if hash_val and not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
+        raise HashValidationError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
     logger.info(f"Writing into directory: {output_dir}.")

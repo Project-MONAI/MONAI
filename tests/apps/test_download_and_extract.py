@@ -21,6 +21,7 @@ from urllib.error import ContentTooShortError, HTTPError
 from parameterized import parameterized
 
 from monai.apps import download_and_extract, download_url, extractall
+from monai.apps.utils import HashValidationError
 from tests.test_utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 
@@ -66,6 +67,36 @@ class TestDownloadAndExtract(unittest.TestCase):
                     hash_type=img_spec["hash_type"],
                     file_type=file_type,
                 )
+
+
+class TestHashValidationError(unittest.TestCase):
+    """A hash mismatch must raise the dedicated HashValidationError (offline, no network)."""
+
+    def test_existing_file_wrong_hash_raises(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            filepath = Path(tmp_dir) / "data.bin"
+            filepath.write_bytes(b"monai")
+            # existing-file branch of download_url validates the on-disk file against hash_val.
+            with self.assertRaises(HashValidationError):
+                download_url("https://example.com/data.bin", filepath, hash_val="0" * 32, hash_type="md5")
+
+    def test_extractall_wrong_hash_raises(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = Path(tmp_dir) / "archive.zip"
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("a.txt", "content")
+            with self.assertRaises(HashValidationError):
+                extractall(str(zip_path), str(Path(tmp_dir) / "out"), hash_val="0" * 32, hash_type="md5")
+
+    def test_hash_error_is_runtime_error_subclass(self):
+        # backward compatibility: existing ``except RuntimeError`` handlers keep catching it.
+        self.assertTrue(issubclass(HashValidationError, RuntimeError))
+
+    def test_skip_if_downloading_fails_does_not_suppress(self):
+        # a genuine hash mismatch must propagate, not be turned into a skipped test.
+        with self.assertRaises(HashValidationError):
+            with skip_if_downloading_fails():
+                raise HashValidationError("md5 check of downloaded file failed: ...")
 
 
 class TestPathTraversalProtection(unittest.TestCase):

@@ -41,7 +41,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-from monai.apps.utils import download_url
+from monai.apps.utils import HashValidationError, download_url
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
@@ -81,7 +81,6 @@ DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
     "network issue",
     "gdown dependency",  # gdown not installed
-    "md5 check",
     "limit",  # HTTP Error 503: Egress is over the account limit
     "authenticate",
     "timed out",  # urlopen error [Errno 110] Connection timed out
@@ -169,10 +168,16 @@ def assert_allclose(
 def skip_if_downloading_fails():
     """
     Skips a test if downloading something raises an exception recognised to indicate a download has failed.
+
+    A :class:`~monai.apps.utils.HashValidationError` is deliberately *not* treated as a recoverable
+    download failure: it indicates the downloaded content does not match its expected hash (data
+    corruption or a content mismatch), so it is re-raised instead of skipping the test.
     """
 
     try:
         yield
+    except HashValidationError:
+        raise  # genuine hash mismatch, surface it rather than silently skipping
     except DOWNLOAD_EXCEPTS as e:
         raise unittest.SkipTest(f"Error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
