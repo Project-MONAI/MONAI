@@ -51,9 +51,7 @@ Documentation = "https://monai.readthedocs.io/"
 
 [project.optional-dependencies]
 all = [
-  "black>=26.3.1",
   "clearml>=1.10.0rc0",
-  "coverage>=5.5", 
   "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
   "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
   "einops",
@@ -65,7 +63,6 @@ all = [
   "h5py",
   "huggingface_hub",
   "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
-  "isort>=5.1, <6, !=6.0.0",
   "itk>=5.2",
   "jsonschema",
   "lmdb",
@@ -85,23 +82,17 @@ all = [
   "openslide-python",
   "optuna",
   "pandas",
-  "parameterized",
-  "pep8-naming",
   "pillow!=8.3.0",
   "polygraphy",
-  "pre-commit",
   "psutil",
   "pyamg>=5.0.0,<5.3.0",
   "pybind11",
-  "pycodestyle",
   "pydicom",
-  "pyflakes",
   "pynrrd",
   "pytest",
   "pytorch-ignite",
   "pyyaml",
   "requests",
-  "ruff>=0.14.11,<0.15",
   "scikit-image>=0.19.0",
   "scipy>=1.12.0",
   "tensorboard>=2.12.0",  
@@ -111,12 +102,8 @@ all = [
   "torchvision",
   "tqdm>=4.47.0",
   "transformers>=4.53.0, <5.0",
-  "typeguard<3",
-  "types-PyYAML",
-  "types-setuptools",
   "zarr"
 ]
-black = ["black>=26.3.1"]
 clearml = ["clearml>=1.10.0rc0"]
 cucim = [
   "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'", 
@@ -151,37 +138,44 @@ openslide = ["openslide-python", "openslide-bin"]
 optuna = ["optuna"]
 packaging = ["packaging"]
 pandas = ["pandas"]
-pep8-naming = ["pep8-naming"]
 pillow = ["pillow!=8.3.0"]  # https://github.com/python-pillow/Pillow/issues/5571
 polygraphy = ["polygraphy"]
-pre-commit = ["pre-commit"]
 psutil = ["psutil"]
 pyamg = ["pyamg>=5.0.0,<5.3.0"]
 pybind11 = ["pybind11"]
-pycodestyle = ["pycodestyle"]
 pydicom = ["pydicom"]
-pyflakes = ["pyflakes"]
 pynrrd = ["pynrrd"]
 pytest = ["pytest"]
 pynvml = ["nvidia-ml-py"]
 pyyaml = ["pyyaml"]
 requests = ["requests"]
-ruff = ["ruff>=0.14.11,<0.15"]
 segment_anything = ["git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"]
 scipy = ["scipy>=1.12.0"]
 skimage = ["scikit-image>=0.19.0"]
 tensorboard = ["tensorboard>=2.12.0"]  # https://github.com/Project-MONAI/MONAI/issues/7434
 tensorboardX = ["tensorboardX"]
-testing = ["coverage>=5.5", "parameterized"]
 tifffile = ["tifffile; platform_system == 'Linux' or platform_system == 'Darwin'"]
 torchio = ["torchio"]
 torchvision = ["torchvision"]
 tqdm = ["tqdm>=4.47.0"]
 transformers = ["transformers>=4.53.0, <5.0"]  # 5.x references torch.float8_e8m0fnu absent in older PyTorch builds
-typeguard = ["typeguard<3"]  # https://github.com/microsoft/nni/issues/5457
-types-PyYAML = ["types-PyYAML"]
-types-setuptools = ["types-setuptools"]
 zarr = ["zarr"]
+# these dependencies are for testing/development only, they aren't needed for regular use so don't appear in "all"
+testing = [
+  "black>=26.3.1",
+  "coverage>=5.5", 
+  "isort>=5.1, <6, !=6.0.0",
+  "parameterized",
+  "pep8-naming",
+  "pre-commit",
+  "pycodestyle",
+  "pyflakes",
+  "ruff>=0.14.11,<0.15",
+  "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
+  "types-PyYAML",
+  "types-setuptools"
+]
+
 
 [tool.setuptools]
 license-files = ["LICENSE"]
