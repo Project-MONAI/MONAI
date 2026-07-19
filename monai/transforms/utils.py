@@ -2275,7 +2275,7 @@ def squarepulse(sig, duty: float = 0.5):
     w = convert_to_tensor(w)
     t = convert_to_tensor(t)
 
-    y = torch.zeros(t.shape)
+    y = torch.zeros(t.shape, device=t.device, dtype=t.dtype if t.is_floating_point() else None)
 
     mask1 = (w > 1) | (w < 0)
 
