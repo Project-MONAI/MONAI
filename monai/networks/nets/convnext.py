@@ -19,6 +19,7 @@ import torch.nn as nn
 
 from monai.networks.layers.drop_path import DropPath
 from monai.networks.layers.factories import Conv, Pool
+from monai.networks.layers.layer_norm_nd import LayerNormNd
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.layers.weight_init import trunc_normal_
 
@@ -41,37 +42,6 @@ __all__ = [
     "Convnext_xlarge",
     "convnext_xlarge",
 ]
-
-
-class LayerNormNd(nn.Module):
-    """
-    Layer normalization over the channel dimension of a channels-first tensor.
-
-    `torch.nn.LayerNorm` normalizes over the trailing dimensions, so it expects a channels-last layout
-    such as (batch, *spatial, channel). Convolutional feature maps in MONAI are channels-first,
-    (batch, channel, *spatial), and this module normalizes those over the channel dimension only,
-    for any number of spatial dimensions.
-
-    Args:
-        num_channels: number of channels of the input, i.e. the size of dimension 1.
-        spatial_dims: number of spatial dimensions of the input image.
-        eps: value added to the denominator for numerical stability.
-    """
-
-    def __init__(self, num_channels: int, spatial_dims: int, eps: float = 1e-6) -> None:
-        super().__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(num_channels))
-        self.bias = nn.Parameter(torch.zeros(num_channels))
-        # broadcast the affine parameters against (batch, channel, *spatial); precomputed so that the
-        # module is scriptable without inspecting the rank of the input at runtime.
-        self.param_shape = [1, num_channels] + [1] * spatial_dims
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        mean = x.mean(dim=1, keepdim=True)
-        var = (x - mean).pow(2).mean(dim=1, keepdim=True)
-        x = (x - mean) / torch.sqrt(var + self.eps)
-        return self.weight.view(self.param_shape) * x + self.bias.view(self.param_shape)
 
 
 class _ConvNeXtBlock(nn.Module):

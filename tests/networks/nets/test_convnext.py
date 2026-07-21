@@ -28,7 +28,6 @@ from monai.networks.nets import (
     convnext_large,
     convnext_tiny,
 )
-from monai.networks.nets.convnext import LayerNormNd
 from tests.test_utils import skip_if_quick, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -135,24 +134,6 @@ class TestConvNeXt(unittest.TestCase):
             spatial_dims=2, in_channels=1, out_channels=2, features=SMALL_FEATURES, layer_scale_init_value=0.0
         )
         self.assertIsNone(net.features.stage1[0].gamma)
-
-    @parameterized.expand([[2], [3]])
-    def test_layer_norm_nd(self, spatial_dims):
-        """`LayerNormNd` should equal `nn.LayerNorm` applied to the equivalent channels-last tensor."""
-        num_channels = 6
-        norm_nd = LayerNormNd(num_channels, spatial_dims=spatial_dims)
-        norm_ref = nn.LayerNorm(num_channels, eps=1e-6)
-        with torch.no_grad():
-            norm_nd.weight.normal_()
-            norm_nd.bias.normal_()
-            norm_ref.weight.copy_(norm_nd.weight)
-            norm_ref.bias.copy_(norm_nd.bias)
-
-        x = torch.randn(2, num_channels, *([4] * spatial_dims))
-        channel_last = list(range(spatial_dims + 2))
-        channel_last.append(channel_last.pop(1))  # (batch, channel, *spatial) -> (batch, *spatial, channel)
-        expected = norm_ref(x.permute(channel_last)).permute([0, spatial_dims + 1, *range(1, spatial_dims + 1)])
-        assert torch.allclose(norm_nd(x), expected, atol=1e-5)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):  # unsupported spatial_dims

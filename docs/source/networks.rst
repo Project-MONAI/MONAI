@@ -326,6 +326,11 @@ Layers
 .. automodule:: monai.networks.layers.Norm
   :members:
 
+`LayerNormNd`
+~~~~~~~~~~~~~
+.. autoclass:: LayerNormNd
+  :members:
+
 `Conv`
 ~~~~~~
 .. automodule:: monai.networks.layers.Conv
