@@ -229,6 +229,7 @@ class TestLoadImageReaderSelection(unittest.TestCase):
             self.assertIsInstance(loader.readers[0], _FallbackReader)
 
             with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
                 with self.assertRaises(OptionalImportError):
                     LoadImage(reader="missingreader")
 
