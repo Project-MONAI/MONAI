@@ -269,7 +269,8 @@ class ResidualUnit(nn.Module):
         self.out_channels = out_channels
         self.conv = nn.Sequential()
         self.residual = nn.Identity()
-        if not padding:
+        same_pad = padding is None
+        if padding is None:
             padding = same_padding(kernel_size, dilation)
         schannels = in_channels
         sstrides = strides
@@ -301,11 +302,12 @@ class ResidualUnit(nn.Module):
             sstrides = 1
 
         # apply convolution to input to change number of output channels and size to match that coming from self.conv
-        if np.prod(strides) != 1 or in_channels != out_channels:
+        if np.prod(strides) != 1 or in_channels != out_channels or not same_pad:
             rkernel_size = kernel_size
             rpadding = padding
 
-            if np.prod(strides) == 1:  # if only adapting number of channels a 1x1 kernel is used with no padding
+            # if only adapting number of channels a 1x1 kernel is used with no padding
+            if np.prod(strides) == 1 and same_pad:
                 rkernel_size = 1
                 rpadding = 0
 
