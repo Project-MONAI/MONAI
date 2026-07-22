@@ -152,7 +152,7 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_padding1(self):
-        conv = ResidualUnit(2, 1, self.output_channels, kernel_size=3, padding=0)
+        conv = ResidualUnit(2, 1, self.output_channels, kernel_size=1, padding=0)
         self.assertEqual(conv.conv.unit0.conv.padding, (0, 0))
 
 
