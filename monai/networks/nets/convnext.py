@@ -228,7 +228,7 @@ class ConvNeXt(nn.Module):
             if isinstance(m, (conv_type, nn.Linear)):
                 trunc_normal_(m.weight, std=0.02)
                 if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)

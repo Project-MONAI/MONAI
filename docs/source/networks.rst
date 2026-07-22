@@ -326,11 +326,6 @@ Layers
 .. automodule:: monai.networks.layers.Norm
   :members:
 
-`LayerNormNd`
-~~~~~~~~~~~~~
-.. autoclass:: LayerNormNd
-  :members:
-
 `Conv`
 ~~~~~~
 .. automodule:: monai.networks.layers.Conv
@@ -347,6 +342,11 @@ Layers
   :members:
 
 .. currentmodule:: monai.networks.layers
+
+`LayerNormNd`
+~~~~~~~~~~~~~
+.. autoclass:: LayerNormNd
+    :members:
 
 `ChannelPad`
 ~~~~~~~~~~~~
