@@ -1,0 +1,7 @@
+name: monai
+channels:
+  - defaults
+dependencies:
+  - pip
+  - pip:
+    - -e .[all,testing]
