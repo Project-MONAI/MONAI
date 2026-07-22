@@ -24,6 +24,20 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
       pip install numcodecs; \
     fi
 
+# NGC Client
+WORKDIR /opt/tools
+ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
+RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
+    find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
+    rm -rf ngccli_linux.zip ngc-cli.md5
+ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
+RUN apt-get update \
+  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
+  && rm -rf /var/lib/apt/lists/*
+# append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
+ENV PATH=${PATH}:/opt/tools
+ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
+
 WORKDIR /opt/monai
 
 # Patch NVIDIA's pip constraint file:
@@ -54,21 +68,5 @@ COPY monai ./monai
 # RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
 #   && rm -rf build __pycache__
 
-RUN BUILD_MONAI=1 FORCE_CUDA=1 pip install -e .[all,testing]
+RUN BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir --build-constraint /etc/pip/constraint.txt -e .[all,testing]
 
-# # NGC Client
-# WORKDIR /opt/tools
-# ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
-# RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
-#     find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
-#     rm -rf ngccli_linux.zip ngc-cli.md5
-# ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
-# RUN apt-get update \
-#   && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
-#   && rm -rf /var/lib/apt/lists/*
-# # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
-# ENV PATH=${PATH}:/opt/tools
-# ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
-
-
-WORKDIR /opt/monai
