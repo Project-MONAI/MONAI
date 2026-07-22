@@ -16,6 +16,8 @@ FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
 
+ENV BUILD_MONAI=1
+
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
       export CFLAGS="-O3" && \
@@ -45,9 +47,9 @@ WORKDIR /opt/monai
 #     their torch was compiled against NumPy 1.x; newer images may ship an empty file)
 #   - add setuptools<71 (setuptools>=71 removed pkg_resources, breaking MetricsReloaded)
 #   - pin urllib3>=2 to prevent inadvertent downgrades by pip-installing legacy packages
-RUN (grep '^numpy' /etc/pip/constraint.txt || true) > /tmp/new_constraints.txt \
-  && printf 'setuptools<71\nurllib3>=2\n' >> /tmp/new_constraints.txt \
-  && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
+# RUN (grep '^numpy' /etc/pip/constraint.txt || true) > /tmp/new_constraints.txt \
+#   && printf 'setuptools<71\nurllib3>=2\n' >> /tmp/new_constraints.txt \
+#   && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
 
 # install full deps
 # COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
@@ -68,5 +70,11 @@ COPY monai ./monai
 # RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
 #   && rm -rf build __pycache__
 
-RUN BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir --build-constraint /etc/pip/constraint.txt -e .[all,testing]
+# Need to install build requirements explicitly so that no-build-isolation can be used to ensure compiled libraries are 
+# built against the in-build PyTorch, otherwise in isolation the build system installs a different version. Update these
+# requirements if the build configuration changes, setuptools is limited to <71 to account for MetricsReloaded issue.
+RUN pip install --no-cache-dir setuptools\<71 versioneer[toml]\
+  && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .
+
+#FORCE_CUDA=1 pip install --build-constraint /etc/pip/constraint.txt -e .
 
