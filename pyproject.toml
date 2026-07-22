@@ -7,6 +7,8 @@ requires = [
   "more-itertools>=8.0",
   "ninja",
   "packaging",
+  "torch>=2.8.0",
+  "numpy>=1.24,<3.0",
   "backports.tarfile"  # see https://github.com/Project-MONAI/MONAI/issues/8791
 ]
 build-backend = "setuptools.build_meta"
@@ -179,6 +181,9 @@ testing = [
 
 [tool.setuptools]
 license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {attr = "monai.__version__"}
 
 [tool.versioneer]
 VCS = "git"

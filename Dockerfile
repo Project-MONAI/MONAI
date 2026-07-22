@@ -42,33 +42,13 @@ ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 
 WORKDIR /opt/monai
 
-# Patch NVIDIA's pip constraint file:
-#   - keep the base image's numpy pin if present (older images pin numpy==1.26.4 as
-#     their torch was compiled against NumPy 1.x; newer images may ship an empty file)
-#   - add setuptools<71 (setuptools>=71 removed pkg_resources, breaking MetricsReloaded)
-#   - pin urllib3>=2 to prevent inadvertent downgrades by pip-installing legacy packages
-# RUN (grep '^numpy' /etc/pip/constraint.txt || true) > /tmp/new_constraints.txt \
-#   && printf 'setuptools<71\nurllib3>=2\n' >> /tmp/new_constraints.txt \
-#   && cp /tmp/new_constraints.txt /etc/pip/constraint.txt
-
-# install full deps
-# COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
-# RUN cp /tmp/requirements.txt /tmp/req.bak \
-#   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
-#   && python -m pip install --upgrade --no-cache-dir --no-build-isolation pip wheel wheel-stub \
-#   && python -m pip install --no-cache-dir --no-build-isolation -r /tmp/requirements-dev.txt
-
-# compile ext and remove temp files
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
 # please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
 # this or anything below it and always will build from at most here; one file change leads to no caching from here on...
-
 COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py pyproject.toml runtests.sh MANIFEST.in ./
 COPY tests ./tests
 COPY monai ./monai
 
-# RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
-#   && rm -rf build __pycache__
 
 # Need to install build requirements explicitly so that no-build-isolation can be used to ensure compiled libraries are 
 # built against the in-build PyTorch, otherwise in isolation the build system installs a different version. Update these
@@ -76,5 +56,4 @@ COPY monai ./monai
 RUN pip install --no-cache-dir setuptools\<71 versioneer[toml]\
   && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .
 
-#FORCE_CUDA=1 pip install --build-constraint /etc/pip/constraint.txt -e .
 
