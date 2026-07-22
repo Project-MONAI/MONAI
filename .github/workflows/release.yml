@@ -159,8 +159,6 @@ jobs:
             echo "unmatched version string, please check the tagging branch."
             exit 1
           fi
-          # remove flake package as it is not needed on hub.docker.com
-          sed -i '/flake/d' requirements-dev.txt
           docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
           # distribute with a tag to hub.docker.com
           echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin

@@ -18,16 +18,6 @@ assumes the pyproject.toml file is in the current working directory.
 
 import sys
 
-if sys.version_info.minor >= 11:
-    import tomllib
-
-    load_func = tomllib.loads
-else:
-    import tomlkit
-
-    load_func = tomlkit.parse
-
-
 BUILD_SYSTEM_KEY = "build-system"
 PROJ_KEY = "project"
 OPTS_KEY = "optional-dependencies"
@@ -35,15 +25,24 @@ DEP_KEY = "dependencies"
 REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
-if __name__ == "__main__":
-    sections = set(sys.argv[1:])
 
-    with open(TOML_FILE, "rb") as o:
+def parse_dependencies(filename=TOML_FILE, sections=[]):
+    # these imports should be here to avoid attempting to import when MONAI is imported and both packages are missing
+    if sys.version_info.minor >= 11:
+        import tomlib
+
+        load_func = tomlib.loads
+    else:
+        import tomli
+
+        load_func = tomli.loads
+
+    with open(filename, "r") as o:
         data = load_func(o.read())
 
     proj = data[PROJ_KEY]
     opts = proj[OPTS_KEY]
-    dependencies = proj[DEP_KEY]
+    dependencies = list(proj[DEP_KEY])
 
     if BUILD_SYSTEM_KEY in sections:
         sections.remove(BUILD_SYSTEM_KEY)
@@ -55,5 +54,11 @@ if __name__ == "__main__":
         for s in sections:
             dependencies += opts[s]
 
-    for d in sorted(set(dependencies)):
+    return sorted(set(dependencies))
+
+
+if __name__ == "__main__":
+    dependencies = parse_dependencies(sections=set(sys.argv[1:]))
+
+    for d in dependencies:
         print(d)

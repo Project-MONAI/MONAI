@@ -37,8 +37,7 @@ jobs:
         pip uninstall -y monai
         pip uninstall -y monai-weekly
         pip uninstall -y monai-weekly
-        python -m pip install --upgrade torch torchvision torchaudio torchtext
-        python -m pip install -r requirements-dev.txt
+        python -m pip install .[all,testing]
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Clean directory
       run: |
@@ -113,8 +112,7 @@ jobs:
         pip uninstall -y monai
         pip uninstall -y monai-weekly
         pip uninstall -y monai-weekly
-        python -m pip install --upgrade torch torchvision torchaudio torchtext
-        python -m pip install -r requirements-dev.txt
+        python -m pip install .[all,testing]
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Clean directory
       run: |

@@ -1,14 +1,13 @@
 
 [build-system]
 requires = [
-  "setuptools<71",  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
+  "setuptools<71.0.0",  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
   "wheel", 
   "versioneer[toml]",
   "more-itertools>=8.0",
-  "torch>=2.8.0",
   "ninja",
   "packaging",
-  "backports.tarfile"  # see #8792
+  "backports.tarfile"  # see https://github.com/Project-MONAI/MONAI/issues/8791
 ]
 build-backend = "setuptools.build_meta"
 
@@ -42,6 +41,7 @@ dependencies = [
   "torch>=2.8.0",
   "numpy>=1.24,<3.0",
 ]
+dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://project-monai.github.io/"
@@ -58,8 +58,10 @@ all = [
   "filelock<3.12.0",
   "fire",
   "gdown>=4.7.3",
-  "git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded",
-  "git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
+  # TODO: fix this URL before finalising
+  "MetricsReloaded @ git+https://github.com/ericspod/MetricsReloaded@monai-support-fix",
+  # "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
+  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
   "h5py",
   "huggingface_hub",
   "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
@@ -114,21 +116,19 @@ fire = ["fire"]
 gdown = ["gdown>=4.7.3"]
 h5py = ["h5py"]
 huggingface_hub = ["huggingface_hub"]
-hyena = ["nvsubquadratic>=0.1.1"]  # omitted from all for compatibility
+hyena = ["nvsubquadratic>=0.1.1", "omegaconf"]  # omitted from all for compatibility
 ignite = ["pytorch-ignite"]
 imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'"]
-isort = ["isort>=5.1, <6, !=6.0.0"]
 itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
 lpips = ["lpips==0.1.4"]
 matplotlib = ["matplotlib>=3.6.3"]
 mccabe = ["mccabe"]
-metrics_reloaded = ["git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded"]
+metrics_reloaded = ["MetricsReloaded @ git+https://github.com/ericspod/MetricsReloaded@monai-support-fix"]
 mlflow = ["mlflow>=2.12.2,<3.13"]
 mypy = ["mypy>=1.5.0, <1.12.0"]
 nibabel = ["nibabel"]
-ninja = ["ninja"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
   "filelock<3.12.0"  # https://github.com/microsoft/nni/issues/5523
@@ -136,7 +136,6 @@ nni = [
 onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
 openslide = ["openslide-python", "openslide-bin"]
 optuna = ["optuna"]
-packaging = ["packaging"]
 pandas = ["pandas"]
 pillow = ["pillow!=8.3.0"]  # https://github.com/python-pillow/Pillow/issues/5571
 polygraphy = ["polygraphy"]
@@ -149,7 +148,7 @@ pytest = ["pytest"]
 pynvml = ["nvidia-ml-py"]
 pyyaml = ["pyyaml"]
 requests = ["requests"]
-segment_anything = ["git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"]
+segment_anything = ["segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"]
 scipy = ["scipy>=1.12.0"]
 skimage = ["scikit-image>=0.19.0"]
 tensorboard = ["tensorboard>=2.12.0"]  # https://github.com/Project-MONAI/MONAI/issues/7434
@@ -165,17 +164,18 @@ testing = [
   "black>=26.3.1",
   "coverage>=5.5", 
   "isort>=5.1, <6, !=6.0.0",
+  "packaging",
   "parameterized",
   "pep8-naming",
   "pre-commit",
   "pycodestyle",
   "pyflakes",
   "ruff>=0.14.11,<0.15",
+  "tomli",  # used in print_dependencies.py for Python<3.11
   "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
   "types-PyYAML",
   "types-setuptools"
 ]
-
 
 [tool.setuptools]
 license-files = ["LICENSE"]

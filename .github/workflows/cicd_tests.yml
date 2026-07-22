@@ -75,7 +75,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install .[all,testing]
     - name: Lint and type check
       run: |
         # clean up temporary files
@@ -144,9 +144,8 @@ jobs:
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
-        python -m pip install -r requirements-min.txt
+        python -m pip install -e .[testing]
         python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - if: matrix.os == 'linux-gpu-runner'
       name: Print GPU Info
@@ -220,10 +219,8 @@ jobs:
     - name: Install the complete dependencies
       run: |
         python -m pip install --user --upgrade pip wheel pybind11  # TODO: pybind11 added for macOS, may not be needed
-        cat "requirements-dev.txt"
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -e .[all,testing]
         python -m pip list
-        python -m pip install --no-build-isolation -e .  # test no compile installation
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
@@ -277,12 +274,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
-        python -m pip install --no-build-isolation -r requirements-dev.txt
-        python -m pip install -e .
-        # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
-        # the package itself without its core dependency tree (see job comment above).
-        python -m pip install omegaconf
-        python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip install -e .[all,hyena,testing]
+        # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
+        # # the package itself without its core dependency tree (see job comment above).
+        # python -m pip install omegaconf
+        # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip install -e .[hyena]
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)
