@@ -20,8 +20,8 @@ class LayerNormNd(nn.Module):
     Layer normalization over the channel dimension of a channels-first tensor.
 
     `torch.nn.LayerNorm` normalizes over the trailing dimensions, so it expects a channels-last layout
-    such as (batch, *spatial, channel). Convolutional feature maps in MONAI are channels-first,
-    (batch, channel, *spatial), and this module normalizes those over the channel dimension only,
+    such as ``(batch, *spatial, channel)``. Convolutional feature maps in MONAI are channels-first,
+    ``(batch, channel, *spatial)``, and this module normalizes those over the channel dimension only,
     for any number of spatial dimensions.
 
     Args:
