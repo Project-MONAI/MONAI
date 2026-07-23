@@ -19,13 +19,13 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [PyTorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
 
 To install optional features such as handling the NIfTI files using
-[Nibabel](https://nipy.org/nibabel/), or building workflows using [Pytorch
+[Nibabel](https://nipy.org/nibabel/), or building workflows using [PyTorch
 Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
@@ -48,6 +48,25 @@ To install the [current milestone release](https://pypi.org/project/monai/):
 ```bash
 pip install monai
 ```
+
+MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
+
+```
+clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, mccabe, metrics_reloaded, mlflow, mypy, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pytest, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
+```
+
+which correspond to the packages: `clearml`, `cupy`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `mccabe`, `MetricsReloaded`, `mlflow`, `mypy`, `nibabel`, `nni`, `filelock`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `pytest`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
+
+Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages.
+
+The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
+required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
+O(N log N) alternatives to windowed self-attention). Install with
+`pip install 'monai[hyena]'`.
+
+The command  `pip install 'monai[all,hyena,testing]'` installs all the optional dependencies.
+
+When installing MONAI, the compiled extensions are not compiled by default. Set the environment variable `BUILD_MONAI` to `1` when invoking `pip` to compile these, see below for details.
 
 ### Weekly preview release
 
@@ -110,11 +129,17 @@ or, to build with MONAI C++/CUDA extensions:
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
-To build the extensions, if the system environment already has a version of Pytorch installed,
+To build the extensions, if the system environment already has a version of PyTorch installed,
 `--no-build-isolation` might be preferred:
 
 ```bash
 BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
+When using build isolation (pip's default behaviour), a version of PyTorch must be installed which may not be the same as an existing install. This can cause the compiled libraries to be built against an ABI-incompatible PyTorch and thus not function at runtime. Building without isolation requires the current environment to have the necessary building libraries already installed. See the `build-system` section of `pyproject.toml` for these libraries, or use the following to install them:
+
+```bash
+python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
 ```
 
 On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by
@@ -263,12 +288,14 @@ cd MONAI/
 pip install -e ".[all]"
 ```
 
-To install all optional dependencies with `pip` based on MONAI development environment settings:
+To install all optional dependencies with `pip` based on MONAI development environment settings without installing
+MONAI itself:
 
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-pip install -r requirements-dev.txt
+python monai/config/print_dependencies.py \* > requirements.txt
+pip install -r requirements.txt
 ```
 
 To install all optional dependencies with `conda` based on MONAI development environment settings (`environment-dev.yml`;
@@ -280,21 +307,3 @@ cd MONAI/
 conda create -n <name> python=<ver>  # eg 3.10
 conda env update -n <name> -f environment-dev.yml
 ```
-
-Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
-
-- The options are
-
-```
-[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr, lpips, pynvml, huggingface_hub, hyena]
-```
-
-which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub`, `pyamg`, and `nvsubquadratic` respectively.
-
-The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
-required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
-O(N log N) alternatives to windowed self-attention). Install with
-`pip install 'monai[hyena]'`.
-
-- `pip install 'monai[all]'` installs all the optional dependencies.
