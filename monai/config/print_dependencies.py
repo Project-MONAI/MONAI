@@ -26,7 +26,7 @@ REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
 
-def parse_dependencies(filename=TOML_FILE, sections=[]):
+def parse_dependencies(filename=TOML_FILE, sections=None):
     # these imports should be here to avoid attempting to import when MONAI is imported and both packages are missing
     if sys.version_info.minor >= 11:
         import tomllib
@@ -43,6 +43,7 @@ def parse_dependencies(filename=TOML_FILE, sections=[]):
     proj = data[PROJ_KEY]
     opts = proj[OPTS_KEY]
     dependencies = list(proj[DEP_KEY])
+    sections = sections or []
 
     if BUILD_SYSTEM_KEY in sections:
         sections.remove(BUILD_SYSTEM_KEY)
