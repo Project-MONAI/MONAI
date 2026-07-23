@@ -40,7 +40,7 @@ def _reference_remap(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
         return pred
     if by_size:
         instance_size = [(pred == instance_id).sum() for instance_id in pred_id]
-        pair_list = sorted(zip(pred_id, instance_size), key=lambda x: x[1], reverse=True)
+        pair_list = sorted(zip(pred_id, instance_size, strict=True), key=lambda x: x[1], reverse=True)
         pred_id = [p[0] for p in pair_list]
     new_pred = torch.zeros_like(pred, dtype=torch.int)
     for idx, instance_id in enumerate(pred_id):
@@ -49,20 +49,24 @@ def _reference_remap(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
 
 
 class TestRemapInstanceId(unittest.TestCase):
+    """Tests for `remap_instance_id` covering expected values, pass-through cases, and reference equivalence."""
 
     @parameterized.expand(TEST_CASES)
     def test_expected_value(self, _, pred, by_size, expected):
+        """Remapping produces the hand-computed contiguous ids, including `by_size` ordering and ties."""
         result = remap_instance_id(torch.as_tensor(pred, device=_device), by_size=by_size)
         torch.testing.assert_close(result.cpu(), torch.as_tensor(expected, dtype=torch.int), check_dtype=False)
 
     @parameterized.expand([["all_background_2d", (4, 4)], ["all_background_3d", (2, 3, 4)], ["empty", (0,)]])
     def test_passthrough(self, _, shape):
+        """Inputs without foreground ids are returned unchanged, keeping their original dtype."""
         pred = torch.zeros(shape, dtype=torch.int64, device=_device)
         result = remap_instance_id(pred, by_size=True)
         self.assertEqual(result.dtype, pred.dtype)
         torch.testing.assert_close(result, pred)
 
     def test_output_dtype(self):
+        """Remapped outputs use the `torch.int` dtype regardless of input dtype."""
         pred = torch.as_tensor([[0, 9]], dtype=torch.int64, device=_device)
         self.assertEqual(remap_instance_id(pred).dtype, torch.int)
 
@@ -75,8 +79,9 @@ class TestRemapInstanceId(unittest.TestCase):
         ]
     )
     def test_matches_reference(self, name, shape, n_inst, by_size):
-        g = torch.Generator().manual_seed(0)
-        pred = torch.randint(0, n_inst + 1, shape, generator=g).to(_device)
+        """Randomized inputs produce output identical to the previous per-instance-loop implementation."""
+        generator = torch.Generator().manual_seed(0)
+        pred = torch.randint(0, n_inst + 1, shape, generator=generator).to(_device)
         if name.startswith("sparse"):
             pred = pred * 1000 + 17  # large, non-contiguous, no-background ids
         result = remap_instance_id(pred, by_size=by_size)

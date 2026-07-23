@@ -418,6 +418,9 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
             value of the tensor should be an integer, and represents the prediction of its corresponding instance id.
         by_size: if True, largest instance will be assigned a smaller id.
 
+    Returns:
+        tensor of the same shape as ``pred`` with ids remapped to ``1..K`` (``torch.int`` dtype),
+        or ``pred`` unchanged (original dtype) when it contains no foreground ids.
     """
     uniq, inverse = torch.unique(pred, return_inverse=True)
     order = torch.nonzero(uniq != 0).flatten()
