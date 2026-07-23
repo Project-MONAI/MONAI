@@ -42,6 +42,7 @@ classifiers = [
 dependencies = [
   "torch>=2.8.0",
   "numpy>=1.24,<3.0",
+  "setuptools<71.0.0"  # used here to match requirement in build-system and prevent different PyTorch installations
 ]
 dynamic = ["version"]
 
@@ -60,10 +61,6 @@ all = [
   "filelock<3.12.0",
   "fire",
   "gdown>=4.7.3",
-  # TODO: fix this URL before finalising
-  "MetricsReloaded @ git+https://github.com/ericspod/MetricsReloaded@monai-support-fix",
-  # "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
-  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
   "h5py",
   "huggingface_hub",
   "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
@@ -72,8 +69,9 @@ all = [
   "lmdb",
   "lpips==0.1.4",
   "matplotlib>=3.6.3",
+  # TODO: change URL to https://github.com/Project-MONAI/MetricsReloaded@monai-support before finalising
+  "MetricsReloaded @ git+https://github.com/ericspod/MetricsReloaded@monai-support-fix",
   "mlflow>=2.12.2,<3.13",
-  "mypy>=1.5.0, <1.12.0",
   "nibabel",
   "ninja",
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
@@ -93,10 +91,11 @@ all = [
   "pybind11",
   "pydicom",
   "pynrrd",
-  "pytest",
+  "pytest",  # FIXME: CuPy 14.1.0 required this through polygraphy and trt_compiler https://github.com/Project-MONAI/MONAI/pull/8867
   "pytorch-ignite",
   "pyyaml",
   "requests",
+  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
   "scikit-image>=0.19.0",
   "scipy>=1.12.0",
   "tensorboard>=2.12.0",  
@@ -113,6 +112,7 @@ cucim = [
   "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'", 
   "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'"
 ]
+cupy = ["cupy"]
 einops = ["einops"]
 fire = ["fire"]
 gdown = ["gdown>=4.7.3"]
@@ -127,7 +127,7 @@ lmdb = ["lmdb"]
 lpips = ["lpips==0.1.4"]
 matplotlib = ["matplotlib>=3.6.3"]
 mccabe = ["mccabe"]
-metrics_reloaded = ["MetricsReloaded @ git+https://github.com/ericspod/MetricsReloaded@monai-support-fix"]
+metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=2.12.2,<3.13"]
 mypy = ["mypy>=1.5.0, <1.12.0"]
 nibabel = ["nibabel"]
@@ -161,11 +161,13 @@ torchvision = ["torchvision"]
 tqdm = ["tqdm>=4.47.0"]
 transformers = ["transformers>=4.53.0, <5.0"]  # 5.x references torch.float8_e8m0fnu absent in older PyTorch builds
 zarr = ["zarr"]
-# these dependencies are for testing/development only, they aren't needed for regular use so don't appear in "all"
+# these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
   "black>=26.3.1",
   "coverage>=5.5", 
-  "isort>=5.1, <6, !=6.0.0",
+  "isort>=5.1,<6,!=6.0.0",
+  "mccabe",
+  "mypy>=1.5.0,<1.12.0",
   "packaging",
   "parameterized",
   "pep8-naming",

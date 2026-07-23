@@ -49,11 +49,7 @@ COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versionee
 COPY tests ./tests
 COPY monai ./monai
 
-
-# Need to install build requirements explicitly so that no-build-isolation can be used to ensure compiled libraries are 
-# built against the in-build PyTorch, otherwise in isolation the build system installs a different version. Update these
-# requirements if the build configuration changes, setuptools is limited to <71 to account for MetricsReloaded issue.
-RUN pip install --no-cache-dir setuptools\<71 versioneer[toml]\
-  && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .
-
-
+# Need to install build requirements explicitly so that no-build-isolation can be used. This needed to make pip build
+# against the included version of PyTorch, rather than install a new version in the isolated environment.
+RUN python monai/config/print_dependencies.py build-system | xargs pip install --no-cache-dir --no-build-isolation \
+  && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .[all,testing]

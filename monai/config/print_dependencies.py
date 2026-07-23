@@ -29,9 +29,9 @@ TOML_FILE = "pyproject.toml"
 def parse_dependencies(filename=TOML_FILE, sections=[]):
     # these imports should be here to avoid attempting to import when MONAI is imported and both packages are missing
     if sys.version_info.minor >= 11:
-        import tomlib
+        import tomllib
 
-        load_func = tomlib.loads
+        load_func = tomllib.loads
     else:
         import tomli
 
