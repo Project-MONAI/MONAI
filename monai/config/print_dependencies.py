@@ -37,7 +37,7 @@ def parse_dependencies(filename=TOML_FILE, sections=None):
 
         load_func = tomli.loads
 
-    with open(filename, "r") as o:
+    with open(filename) as o:
         data = load_func(o.read())
 
     proj = data[PROJ_KEY]
