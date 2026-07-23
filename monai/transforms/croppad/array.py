@@ -344,11 +344,7 @@ class DivisiblePad(Pad):
 
 def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
     """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
-    if isinstance(data, (torch.Tensor, np.ndarray)):
-        data = data.tolist()
-    if isinstance(data, (str, bytes)):  # a str is a Sequence, guard so it is not iterated into digits
-        raise TypeError(f"ROI spec must be numeric, got {type(data).__name__}.")
-    if isinstance(data, Sequence):
+    if issequenceiterable(data):
         return [int(i) for i in data]
     return [int(data)]
 
