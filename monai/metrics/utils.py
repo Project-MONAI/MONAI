@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from functools import cache, partial
 from types import ModuleType
 from typing import Any, overload
