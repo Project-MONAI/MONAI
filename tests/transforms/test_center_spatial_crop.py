@@ -21,7 +21,6 @@ from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.transforms import CenterSpatialCrop
 from monai.transforms.croppad.array import Crop
 from tests.croppers import CropTest
-from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TEST_SHAPES = [
     [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3), True],
@@ -64,7 +63,6 @@ class TestCenterSpatialCrop(CropTest):
         with self.assertRaises(TypeError):
             Crop.compute_slices(roi_center="10", roi_size=(4, 6))
 
-    @SkipIfBeforePyTorchVersion((2, 1))
     def test_torch_compile(self):
         prev_track_meta = get_track_meta()
         set_track_meta(False)
