@@ -344,9 +344,9 @@ class DivisiblePad(Pad):
 
 def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
     """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
-    if issequenceiterable(data):
-        return [int(i) for i in data]
-    return [int(data)]
+    if isinstance(data, (str, bytes)):
+        raise TypeError("ROI specs must be integers or sequences of integers, not strings.")
+    return [int(i) for i in ensure_tuple(data)]
 
 
 def _broadcast_int_pair(
@@ -412,7 +412,7 @@ class Crop(InvertibleTransform, LazyTransform):
                 starts, ends = _broadcast_int_pair(roi_start, roi_end)
                 starts = [max(s, 0) for s in starts]
             # clamp each end to its own start so no slice has negative width
-            return tuple(slice(s, max(e, s)) for s, e in zip(starts, ends))
+            return ensure_tuple(slice(s, max(e, s)) for s, e in zip(starts, ends))
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
