@@ -2,7 +2,7 @@
 [build-system]
 requires = [
   "setuptools<71.0.0",  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
-  "wheel", 
+  "wheel",
   "versioneer[toml]",
   "more-itertools>=8.0",
   "ninja",
@@ -98,7 +98,7 @@ all = [
   "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
   "scikit-image>=0.19.0",
   "scipy>=1.12.0",
-  "tensorboard>=2.12.0",  
+  "tensorboard>=2.12.0",
   "tensorboardX",
   "tifffile; platform_system == 'Linux' or platform_system == 'Darwin'",
   "torchio",
@@ -109,7 +109,7 @@ all = [
 ]
 clearml = ["clearml>=1.10.0rc0"]
 cucim = [
-  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'", 
+  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
   "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'"
 ]
 cupy = ["cupy"]
@@ -164,7 +164,7 @@ zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
   "black>=26.3.1",
-  "coverage>=5.5", 
+  "coverage>=5.5",
   "isort>=5.1,<6,!=6.0.0",
   "mccabe",
   "mypy>=1.5.0,<1.12.0",
