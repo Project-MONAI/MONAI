@@ -55,16 +55,18 @@ class MaskedLoss(_Loss):
             mask: the shape should be B1H[WD] or 11H[WD].
         """
         if mask is None:
-            warnings.warn("No mask value specified for the MaskedLoss.")
+            warnings.warn("No mask value specified for the MaskedLoss.", stacklevel=2)
             return self.loss(input, target)
 
         if input.dim() != mask.dim():
-            warnings.warn(f"Dim of input ({input.shape}) is different from mask ({mask.shape}).")
+            warnings.warn(f"Dim of input ({input.shape}) is different from mask ({mask.shape}).", stacklevel=2)
         if input.shape[0] != mask.shape[0] and mask.shape[0] != 1:
             raise ValueError(f"Batch size of mask ({mask.shape}) must be one or equal to input ({input.shape}).")
         if target.dim() > 1:
             if mask.shape[1] != 1:
                 raise ValueError(f"Mask ({mask.shape}) must have only one channel.")
             if input.shape[2:] != mask.shape[2:]:
-                warnings.warn(f"Spatial size of input ({input.shape}) is different from mask ({mask.shape}).")
+                warnings.warn(
+                    f"Spatial size of input ({input.shape}) is different from mask ({mask.shape}).", stacklevel=2
+                )
         return self.loss(input * mask, target * mask)

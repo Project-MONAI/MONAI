@@ -735,9 +735,22 @@ class PydicomReader(ImageReader):
             metadata: metadata with dict type.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Warns:
+            UserWarning: when ImageOrientationPatient (00200037) or ImagePositionPatient
+                (00200032) is missing from metadata. The affine matrix is set to identity,
+                which may be incorrect. Common with multiframe DICOM files.
+
         """
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
+            warnings.warn(
+                "PydicomReader: ImageOrientationPatient (0020,0037) and/or "
+                "ImagePositionPatient (0020,0032) tags are missing, so the affine "
+                "matrix cannot be derived and defaults to the identity. The image "
+                "orientation and spacing may be incorrect (e.g. for multi-frame "
+                "Enhanced DICOM); consider using ITKReader for such files.",
+                stacklevel=2,
+            )
             return affine
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
@@ -761,10 +774,10 @@ class PydicomReader(ImageReader):
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
-            k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
-            affine[0, 2] = k1
-            affine[1, 2] = k2
-            affine[2, 2] = k3
+            if n > 1:
+                affine[0, 2] = (t1n - sx) / (n - 1)
+                affine[1, 2] = (t2n - sy) / (n - 1)
+                affine[2, 2] = (t3n - sz) / (n - 1)
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
