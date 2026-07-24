@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from functools import partial
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -96,7 +97,7 @@ class _RMSNorm(nn.Module):
         self.gamma = nn.Parameter(torch.ones(num_heads, 1, dim_head))
 
     def forward(self, x: Tensor) -> Tensor:
-        return F.normalize(x, dim=-1) * self.scale * self.gamma
+        return cast(Tensor, F.normalize(x, dim=-1) * self.scale * self.gamma)
 
 
 class _NaViTAttention(nn.Module):
@@ -174,7 +175,7 @@ class _NaViTAttention(nn.Module):
         attn = self.drop_weights(dots.softmax(dim=-1))
         out = torch.matmul(attn, v)  # (B, heads, N, dim_head)
         out = out.transpose(1, 2).flatten(-2)  # (B, N, inner_dim)
-        return self.drop_output(self.out_proj(out))
+        return cast(Tensor, self.drop_output(self.out_proj(out)))
 
 
 class _NaViTTransformerBlock(nn.Module):
@@ -571,4 +572,4 @@ class NaViT(nn.Module):
         is_valid = (image_id_range.unsqueeze(0) < num_images_t.unsqueeze(1)).reshape(-1)  # (B * max_queries,)
         pooled = pooled[is_valid]  # (total_images, hidden_size)
 
-        return self.mlp_head(pooled)  # (total_images, num_classes)
+        return cast(Tensor, self.mlp_head(pooled))  # (total_images, num_classes)
