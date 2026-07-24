@@ -21,7 +21,6 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence as orig_pad_sequence
 
 from monai.networks.blocks.mlp import MLPBlock
-from monai.networks.blocks.selfattention import SABlock
 from monai.utils import ensure_tuple_rep, optional_import
 
 rearrange, has_einops = optional_import("einops", name="rearrange")
