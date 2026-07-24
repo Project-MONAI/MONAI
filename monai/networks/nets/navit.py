@@ -81,7 +81,7 @@ def _group_images_by_max_seq_len(
 
 
 class _RMSNorm(nn.Module):
-    """Per-head RMS normalisation applied to query and key tensors.
+    """Per-head RMS normalization applied to query and key tensors.
 
     Equivalent to the QK-norm introduced in ViT-22B
     (Dehghani et al., https://arxiv.org/abs/2302.05442).
@@ -101,7 +101,7 @@ class _RMSNorm(nn.Module):
 
 
 class _NaViTAttention(nn.Module):
-    """Multi-head attention with QK-normalisation and support for packed-sequence attention masks.
+    """Multi-head attention with QK-normalization and support for packed-sequence attention masks.
 
     This block is used both for the main transformer layers (self-attention) and for the final
     attention-pooling step (cross-attention between learned queries and patch tokens).
@@ -163,7 +163,7 @@ class _NaViTAttention(nn.Module):
         k = self.to_k(kv_src).unflatten(-1, (self.num_heads, self.dim_head)).transpose(1, 2)
         v = self.to_v(kv_src).unflatten(-1, (self.num_heads, self.dim_head)).transpose(1, 2)
 
-        # QK normalisation for training stability
+        # QK normalization for training stability
         q = self.q_norm(q)
         k = self.k_norm(k)
 
@@ -230,13 +230,13 @@ class NaViT(nn.Module):
 
     - **Patch n' Pack**: multiple images (possibly different resolutions) are concatenated into one sequence
       per batch element, separated by a per-image attention mask.
-    - **Factorised positional embeddings**: separate learnable embeddings for each spatial axis are summed,
-      allowing generalisation to unseen resolutions.
+    - **Factorized positional embeddings**: separate learnable embeddings for each spatial axis are summed,
+      allowing generalization to unseen resolutions.
     - **Token dropout**: a configurable fraction of patch tokens can be randomly dropped during training,
       acting as a form of masked-image modelling.
     - **Attention pooling**: a learned query vector attends over each image's tokens to produce a fixed-size
       per-image representation, cleanly handling variable numbers of images per packed sequence.
-    - **QK normalisation**: RMS normalisation on queries and keys for training stability (ViT-22B).
+    - **QK normalization**: RMS normalization on queries and keys for training stability (ViT-22B).
     - **spatial_dims support**: works for 2D images ``(C, H, W)`` and 3D volumes ``(C, H, W, D)``.
 
     Args:
@@ -342,7 +342,7 @@ class NaViT(nn.Module):
             nn.LayerNorm(patch_dim), nn.Linear(patch_dim, hidden_size), nn.LayerNorm(hidden_size)
         )
 
-        # --- factorised positional embeddings (one table per spatial axis) ---
+        # --- factorized positional embeddings (one table per spatial axis) ---
         image_size_t = ensure_tuple_rep(image_size, spatial_dims)
         self.pos_embed_axes = nn.ParameterList(
             [nn.Parameter(torch.randn(img_d // patch_size, hidden_size)) for img_d in image_size_t]
@@ -524,7 +524,7 @@ class NaViT(nn.Module):
         attn_mask = attn_mask.unsqueeze(1)  # (B, 1, max_len, max_len)
 
         # ------------------------------------------------------------------ #
-        # 3. Patch embedding + factorised positional encoding                 #
+        # 3. Patch embedding + factorized positional encoding                 ##
         # ------------------------------------------------------------------ #
         patches = pad_sequence(batched_sequences)  # (B, max_len, patch_dim)
         patch_positions = pad_sequence(batched_positions)  # (B, max_len, spatial_dims)
