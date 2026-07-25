@@ -130,7 +130,6 @@ lpips = ["lpips==0.1.4"]
 matplotlib = ["matplotlib>=3.6.3"]
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=2.12.2,<3.13"]
-mypy = ["mypy>=1.5.0, <1.12.0"]
 nibabel = ["nibabel"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",

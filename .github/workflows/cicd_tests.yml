@@ -280,7 +280,7 @@ jobs:
         # # the package itself without its core dependency tree (see job comment above).
         # python -m pip install omegaconf
         # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
-        python -m pip install --no-build-isolation .[hyena]
+        python -m pip install --no-build-isolation .[hyena,testing]
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)
