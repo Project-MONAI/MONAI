@@ -138,13 +138,13 @@ jobs:
     - name: Prepare pip wheel
       run: |
         which python
-        python -m pip install --upgrade pip wheel
-        python -m pip install --user more-itertools>=8.0
+        python -m pip install --upgrade pip wheel tomli
     - name: Install the minimum dependencies
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
-        python -m pip install -e .[testing]
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install --no-build-isolation -e .[testing]
         python -m pip list
       shell: bash
     - if: matrix.os == 'linux-gpu-runner'
@@ -218,8 +218,9 @@ jobs:
       shell: bash
     - name: Install the complete dependencies
       run: |
-        python -m pip install --user --upgrade pip wheel pybind11  # TODO: pybind11 added for macOS, may not be needed
-        python -m pip install -e .[all,testing]
+        python -m pip install --user --upgrade pip wheel tomli
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install -e --no-build-isolation .[all,testing]
         python -m pip list
       shell: bash
     - name: Run compiled (${{ runner.os }})
@@ -272,14 +273,14 @@ jobs:
         cache: 'pip'
     - name: Install dependencies + nvsubquadratic (no-deps)
       run: |
-        python -m pip install --upgrade pip wheel
+        python -m pip install --upgrade pip wheel tomli
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
-        python -m pip install -e .[all,hyena,testing]
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
         # python -m pip install omegaconf
         # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
-        python -m pip install -e .[hyena]
+        python -m pip install --no-build-isolation -e .[hyena]
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)

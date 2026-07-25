@@ -137,7 +137,7 @@ jobs:
       - name: Install the dependencies
         run: |
           which python
-          python -m pip install --upgrade pip wheel twine
+          python -m pip install --upgrade pip wheel twine tomli
           python -m pip list
       - name: Run tests report coverage
         shell: bash
@@ -159,6 +159,7 @@ jobs:
           # move packages to a temp dir
           tmp_dir=$(mktemp -d)
           cp dist/monai* "$tmp_dir"
+          python monai/config/print_dependencies.py build-system all testing > "$tmp_dir/requirements.txt"
           rm -r build dist monai.egg-info
           cd "$tmp_dir"
           ls -al
@@ -186,7 +187,7 @@ jobs:
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
           python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
 
-          python -m pip install .[all,testing]
+          pip install --no-build-isolation -r requirements.txt
           PYTHONPATH="$tmp_dir":$PYTHONPATH BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
           if pgrep python; then pkill python; fi
 
@@ -238,8 +239,8 @@ jobs:
       id: monai-install
       run: |
         which python
-        python -m pip install --upgrade pip wheel
-        python -m pip install .[all,testing]
+        python -m pip install --upgrade pip wheel tomli
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-cache-dir --no-build-isolation
         BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
