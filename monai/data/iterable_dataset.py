@@ -75,6 +75,11 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
         epochs: number of epochs to iterate over the dataset, default to 1, -1 means infinite epochs.
+        source_shards_by_worker: whether ``data`` already partitions its stream
+            using ``torch.utils.data.get_worker_info``. ``None`` automatically
+            recognizes MONAI ``IterableDataset`` sources, ``True`` avoids a
+            second worker partition for any worker-aware source, and ``False``
+            preserves the outer partition for unsharded iterable datasets.
 
     Note:
         Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
@@ -97,11 +102,22 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0, epochs: int = 1) -> None:
+    def __init__(
+        self,
+        data,
+        transform=None,
+        buffer_size: int = 512,
+        seed: int = 0,
+        epochs: int = 1,
+        source_shards_by_worker: bool | None = None,
+    ) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
         self.epochs = epochs
+        self.source_shards_by_worker = (
+            isinstance(data, IterableDataset) if source_shards_by_worker is None else source_shards_by_worker
+        )
         self._idx = 0
 
     def randomized_pop(self, buffer):
@@ -124,17 +140,13 @@ class ShuffleBuffer(Randomizable, IterableDataset):
     def __iter__(self):
         """Randomly pop buffered items from ``self.data``.
 
-        MONAI ``IterableDataset`` sources retain their existing worker
-        partition; other sources are partitioned after shuffling.
-
         Yields:
             Items from the shuffled source after applying the optional transform.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
         for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
-            if isinstance(self.data, IterableDataset):
-                # MONAI IterableDataset subclasses already partition their source per worker.
+            if self.source_shards_by_worker:
                 for item in self.generate_item():
                     if self.transform is not None:
                         item = apply_transform(self.transform, item)

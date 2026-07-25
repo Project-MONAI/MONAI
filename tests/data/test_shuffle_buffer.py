@@ -17,9 +17,31 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
+from torch.utils.data import IterableDataset as TorchIterableDataset
 
 from monai.data import DataLoader, IterableDataset, ShuffleBuffer
+from monai.data import iterable_dataset as iterable_dataset_module
 from monai.utils import convert_data_type
+
+
+class _UnshardedMonaiIterable(IterableDataset):
+    """MONAI iterable subclass that intentionally does not partition itself."""
+
+    def __iter__(self):
+        yield from self.data
+
+
+class _WorkerShardedTorchIterable(TorchIterableDataset):
+    """PyTorch iterable source that partitions itself across workers."""
+
+    def __init__(self, size):
+        self.size = size
+
+    def __iter__(self):
+        worker_info = iterable_dataset_module.get_worker_info()
+        num_workers = worker_info.num_workers if worker_info is not None else 1
+        worker_id = worker_info.id if worker_info is not None else 0
+        yield from range(worker_id, self.size, num_workers)
 
 
 class TestShuffleBuffer(unittest.TestCase):
@@ -39,17 +61,47 @@ class TestShuffleBuffer(unittest.TestCase):
             np.testing.assert_allclose(output, [[2, 3], [1, 4]], err_msg=f"seed {buffer.seed}")
             np.testing.assert_allclose(output2, [[1, 4], [2, 3]], err_msg=f"seed {buffer.seed}")
 
-    def test_iterable_dataset_is_not_sharded_twice(self):
-        """Verify a MONAI iterable source is partitioned exactly once."""
-        worker_info = SimpleNamespace(num_workers=2, id=0)
-        source = IterableDataset(range(40))
-        buffer = ShuffleBuffer(source, transform=lambda item: item + 40, buffer_size=8, seed=7)
+    def test_monai_iterable_source_is_detected_as_worker_sharded(self):
+        """Verify MONAI iterable sources avoid a second worker partition by default."""
+        outputs = []
+        for worker_id in range(2):
+            source = IterableDataset(range(40))
+            buffer = ShuffleBuffer(source, buffer_size=8, seed=7)
+            worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+            with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                outputs.extend(buffer)
 
-        with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
-            output = list(buffer)
+        self.assertEqual(len(outputs), 40)
+        self.assertEqual(set(outputs), set(range(40)))
 
-        self.assertEqual(len(output), 20)
-        self.assertEqual(set(output), set(range(40, 80, 2)))
+    def test_worker_sharded_source_is_not_sharded_twice(self):
+        """Verify an explicitly worker-sharded source is not repartitioned."""
+        sources = [IterableDataset(range(40)), _WorkerShardedTorchIterable(40)]
+        for source in sources:
+            outputs = []
+            for worker_id in range(2):
+                buffer = ShuffleBuffer(
+                    source, transform=lambda item: item + 40, buffer_size=8, seed=7, source_shards_by_worker=True
+                )
+                worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+                with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                    outputs.extend(buffer)
+
+            self.assertEqual(len(outputs), 40)
+            self.assertEqual(set(outputs), set(range(40, 80)))
+
+    def test_explicit_unsharded_source_keeps_outer_worker_partition(self):
+        """Verify explicit unsharded mode preserves outer worker partitioning."""
+        outputs = []
+        for worker_id in range(2):
+            source = _UnshardedMonaiIterable(range(40))
+            buffer = ShuffleBuffer(source, buffer_size=8, seed=7, source_shards_by_worker=False)
+            worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+            with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                outputs.extend(buffer)
+
+        self.assertEqual(len(outputs), 40)
+        self.assertEqual(set(outputs), set(range(40)))
 
     def test_epochs(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0, epochs=2)
