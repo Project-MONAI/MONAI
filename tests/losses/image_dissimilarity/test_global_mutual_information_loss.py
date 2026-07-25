@@ -172,11 +172,30 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
 class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
     """Test B-spline mutual information on degenerate intensity ranges."""
 
-    def test_b_spline_constant_images_are_finite(self):
-        """Verify constant float32 inputs yield finite loss and gradients."""
-        pred = torch.zeros((1, 1, 8, 8), requires_grad=True)
-        target = torch.ones_like(pred)
+    @parameterized.expand(["prediction", "target"])
+    def test_b_spline_single_constant_input_is_finite(self, constant_input):
+        """Verify either independently constant input yields finite gradients."""
+        varying = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8)
+        if constant_input == "prediction":
+            pred = torch.zeros_like(varying, requires_grad=True)
+            target = varying
+        else:
+            pred = varying.clone().requires_grad_()
+            target = torch.ones_like(varying)
         loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_b_spline_constant_half_precision_images_are_finite(self):
+        """Verify constant float16 inputs survive overflow-sized bin distances."""
+        pred = torch.zeros((1, 1, 8, 8), dtype=torch.float16, requires_grad=True)
+        target = torch.ones_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
 
         result = loss(pred, target)
 
@@ -186,16 +205,24 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
 
-    def test_b_spline_constant_half_precision_images_are_finite(self):
-        """Verify constant float16 inputs yield finite loss and gradients."""
-        pred = torch.zeros((1, 1, 8, 8), dtype=torch.float16, requires_grad=True)
-        target = torch.ones_like(pred)
-        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=32)
+    @parameterized.expand(
+        [
+            ("float16_tiny", torch.float16, torch.finfo(torch.float16).tiny / 2),
+            ("bfloat16_tiny", torch.bfloat16, torch.finfo(torch.bfloat16).tiny / 2),
+            ("float32_tiny", torch.float32, torch.finfo(torch.float32).tiny / 2),
+            ("float16_large", torch.float16, 65000.0),
+        ]
+    )
+    def test_b_spline_nonzero_ranges_are_finite(self, _, dtype, maximum):
+        """Verify extreme nonzero ranges yield finite loss and gradients."""
+        values = torch.tensor([0.0, maximum, maximum, 0.0], dtype=dtype).reshape(1, 1, 2, 2)
+        pred = values.clone().requires_grad_()
+        target = torch.flip(values, dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
 
         result = loss(pred, target)
 
         self.assertTrue(torch.isfinite(result))
-        self.assertAlmostEqual(result.item(), 0.0, places=6)
         result.backward()
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())

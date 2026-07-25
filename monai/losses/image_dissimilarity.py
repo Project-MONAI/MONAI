@@ -214,7 +214,7 @@ class GlobalMutualInformationLoss(_Loss):
                       IEEE Transactions in Medical Imaging. Vol.22, No.1,
                       January 2003. pp.120-128.
 
-            num_bins: number of bins for intensity. The b-spline kernel requires more than 4 bins.
+            num_bins: number of bins for intensity. The B-spline kernel requires more than 4 bins.
             sigma_ratio: a hyper param for gaussian function
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
@@ -288,22 +288,25 @@ class GlobalMutualInformationLoss(_Loss):
         # Note that there can still be non-zero bin values in the padded region,
         # it's just that these bins will never be a central bin for the Parzen
         # window.
-        _max, _min = torch.max(img), torch.min(img)
+        compute_img = img.float() if img.dtype in (torch.float16, torch.bfloat16) else img
+        _max, _min = torch.max(compute_img), torch.min(compute_img)
         padding = 2
+        interior_bins = self.num_bins - 2 * padding
         value_range = _max - _min
-        bin_size = value_range / (self.num_bins - 2 * padding)
-        bin_size = torch.where(value_range > 0, bin_size, torch.ones_like(bin_size))
+        raw_bin_size = value_range / interior_bins
+        # Smaller bins either underflow the compute dtype or require a
+        # normalization slope that cannot be represented by the input dtype.
+        minimum_bin_size = max(torch.finfo(compute_img.dtype).tiny, 1.0 / torch.finfo(img.dtype).max)
+        bin_size = torch.where(raw_bin_size >= minimum_bin_size, raw_bin_size, torch.ones_like(raw_bin_size))
         norm_min = torch.div(_min, bin_size) - padding
 
         # assign bin/window index to each voxel
-        window_term = torch.div(img, bin_size) - norm_min  # B[NDHW]
+        window_term = torch.div(compute_img, bin_size) - norm_min  # B[NDHW]
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
         bins = torch.arange(self.num_bins, device=window_term.device).reshape(1, 1, -1)  # (1, 1, num_bins)
         sample_bin_matrix = torch.abs(bins - window_term)  # (batch, num_sample, num_bins)
-        if sample_bin_matrix.dtype == torch.float16:
-            sample_bin_matrix = sample_bin_matrix.float()  # avoid overflow in the cubic polynomial
 
         # b-spleen kernel
         # (4 - 6 * abs ** 2 + 3 * abs ** 3) / 6 when 0 <= abs < 1
