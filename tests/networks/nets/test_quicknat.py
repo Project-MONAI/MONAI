@@ -28,9 +28,22 @@ _, has_se = optional_import("squeeze_and_excitation")
 class _DoubleWithIdx(torch.nn.Module):
     """Double tensor values using QuickNAT's indexed-module signature."""
 
-    def forward(self, input, indices):
-        """Return the doubled tensor and unchanged indices."""
-        return input * 2, indices
+    def __init__(self):
+        super().__init__()
+        self.received_indices = None
+
+    def forward(self, tensor, indices):
+        """Return doubled values and the unchanged index object.
+
+        Args:
+            tensor: input tensor to double.
+            indices: pooling indices passed through the indexed module.
+
+        Returns:
+            A tuple containing the doubled tensor and the original indices.
+        """
+        self.received_indices = indices
+        return tensor * 2, indices
 
 
 TEST_CASES = [
@@ -52,14 +65,16 @@ class TestQuicknatCore(unittest.TestCase):
     @parameterized.expand(["cat", "add", "mul"])
     def test_skip_connection_modes_preserve_indices(self, mode):
         """Verify each fusion mode and preservation of pooling indices."""
-        skip = SkipConnectionWithIdx(_DoubleWithIdx(), mode=mode)
-        input = torch.tensor([[[[2.0]]]])
+        submodule = _DoubleWithIdx()
+        skip = SkipConnectionWithIdx(submodule, mode=mode)
+        tensor = torch.tensor([[[[2.0]]]])
         indices = torch.tensor([[[[3]]]])
 
-        output, returned_indices = skip(input, indices)
+        output, returned_indices = skip(tensor, indices)
 
-        expected = {"cat": torch.cat([input, input * 2], dim=1), "add": input * 3, "mul": input * input * 2}[mode]
+        expected = {"cat": torch.cat([tensor, tensor * 2], dim=1), "add": tensor * 3, "mul": tensor * tensor * 2}[mode]
         self.assertTrue(torch.equal(output, expected))
+        self.assertIs(submodule.received_indices, indices)
         self.assertIs(returned_indices, indices)
 
     def test_skip_connection_rejects_unsupported_mode(self):

@@ -55,7 +55,7 @@ class SkipConnectionWithIdx(SkipConnection):
         Raises:
             NotImplementedError: if the configured skip mode is unsupported.
         """
-        submodule_output, _ = self.submodule(input, None)
+        submodule_output, _ = self.submodule(input, indices)
         if self.mode == "cat":
             output = torch.cat([input, submodule_output], dim=self.dim)
         elif self.mode == "add":
