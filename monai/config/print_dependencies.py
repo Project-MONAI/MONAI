@@ -19,7 +19,7 @@ assumes the pyproject.toml file is in the current working directory.
 from __future__ import annotations
 
 import sys
-from typing import Collection
+from collections.abc import Collection
 
 BUILD_SYSTEM_KEY = "build-system"
 PROJ_KEY = "project"
