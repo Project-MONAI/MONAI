@@ -16,6 +16,8 @@ included in "build-system" is given as an argument, and all optional requirement
 assumes the pyproject.toml file is in the current working directory.
 """
 
+from __future__ import annotations
+
 import sys
 
 BUILD_SYSTEM_KEY = "build-system"

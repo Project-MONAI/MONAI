@@ -278,7 +278,7 @@ jobs:
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
-        # python -m pip install omegaconf
+        # python -m pip install omegaconf pytest
         # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
         python -m pip install --no-build-isolation .[hyena]
         python -m pip list
