@@ -53,7 +53,7 @@ Documentation = "https://monai.readthedocs.io/"
 "Source Code" = "https://github.com/Project-MONAI/MONAI"
 
 [project.optional-dependencies]
-# All dependencies are included here except some omitted for compatibility. Testing dependencies are typically not 
+# All dependencies are included here except some omitted for compatibility. Testing dependencies are typically not
 # needed and so present only in "testing". Ensure requirement changes in other lists are reflected here as well.
 all = [
   "clearml>=1.10.0rc0",
