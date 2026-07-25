@@ -181,6 +181,80 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
         self.assertEqual(probability.dtype, image.dtype)
         self.assertEqual(weight.device, image.device)
         self.assertEqual(probability.device, image.device)
+        torch.testing.assert_close(
+            weight.float().sum(dim=-1), torch.ones_like(weight[..., 0], dtype=torch.float32), rtol=0.0, atol=5e-3
+        )
+        torch.testing.assert_close(
+            probability.float().sum(dim=-1),
+            torch.ones_like(probability[..., 0], dtype=torch.float32),
+            rtol=0.0,
+            atol=5e-3,
+        )
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_module_cast_with_many_bins_remains_finite(self, dtype):
+        """Verify module dtype conversion cannot overflow Gaussian parameters.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        image = torch.linspace(0.0, 1.0, 64, dtype=dtype).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.flip(image.detach(), dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256).to(dtype=dtype)
+
+        weight, probability = loss.parzen_windowing_gaussian(image)
+        result = loss(image, target)
+
+        self.assertTrue(torch.isfinite(weight).all())
+        self.assertTrue(torch.isfinite(probability).all())
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(image.grad)
+        self.assertTrue(torch.isfinite(image.grad).all())
+
+    def test_float16_default_dtype_with_many_bins_remains_finite(self):
+        """Verify construction under a float16 default keeps Gaussian parameters finite."""
+        original_dtype = torch.get_default_dtype()
+        try:
+            torch.set_default_dtype(torch.float16)
+            image = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+            target = torch.flip(image.detach(), dims=(-1,))
+            loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256)
+
+            weight, probability = loss.parzen_windowing_gaussian(image)
+            result = loss(image, target)
+
+            self.assertTrue(torch.isfinite(weight).all())
+            self.assertTrue(torch.isfinite(probability).all())
+            self.assertTrue(torch.isfinite(result))
+            result.backward()
+            self.assertIsNotNone(image.grad)
+            self.assertTrue(torch.isfinite(image.grad).all())
+        finally:
+            torch.set_default_dtype(original_dtype)
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_nonconstant_images_match_float32(self, dtype):
+        """Verify nonconstant reduced-precision loss tracks float32.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        pred_float = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8)
+        target_float = torch.flip(pred_float, dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        expected = loss(pred_float, target_float)
+        pred = pred_float.to(dtype=dtype).requires_grad_()
+        target = target_float.to(dtype=dtype)
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, dtype)
+        torch.testing.assert_close(result.float(), expected, rtol=1e-2, atol=1e-2)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
 
     @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
     def test_half_precision_large_constant_volume_is_finite(self, dtype):
@@ -200,6 +274,37 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
         self.assertEqual(pred.grad.dtype, pred.dtype)
         self.assertEqual(pred.grad.device, pred.device)
 
+    def test_cpu_float16_autocast_nonconstant_images_match_float32(self):
+        """Verify nonconstant CPU autocast loss matches float32."""
+        pred = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.flip(pred.detach(), dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        expected = loss(pred, target).detach()
+
+        with torch.autocast(device_type="cpu", dtype=torch.float16):
+            result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
+        torch.testing.assert_close(result, expected)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_scripted_cpu_float16_autocast_large_volume_is_finite(self):
+        """Verify scripted loss avoids float16 histogram overflow under autocast."""
+        pred = torch.zeros((1, 1, 257, 257), requires_grad=True)
+        target = torch.zeros_like(pred)
+        loss = torch.jit.script(GlobalMutualInformationLoss(kernel_type="gaussian"))
+
+        with torch.autocast(device_type="cpu", dtype=torch.float16):
+            result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
     def test_cpu_float16_autocast_large_volume_is_finite(self):
         """Verify CPU float16 autocast avoids histogram accumulation overflow."""
         pred = torch.zeros((1, 1, 48, 48, 48), requires_grad=True)
@@ -210,6 +315,7 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
             result = loss(pred, target)
 
         self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
         result.backward()
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
