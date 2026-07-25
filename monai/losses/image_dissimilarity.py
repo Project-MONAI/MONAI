@@ -214,7 +214,7 @@ class GlobalMutualInformationLoss(_Loss):
                       IEEE Transactions in Medical Imaging. Vol.22, No.1,
                       January 2003. pp.120-128.
 
-            num_bins: number of bins for intensity
+            num_bins: number of bins for intensity. The b-spline kernel requires more than 4 bins.
             sigma_ratio: a hyper param for gaussian function
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
@@ -224,6 +224,10 @@ class GlobalMutualInformationLoss(_Loss):
                 - ``"sum"``: the output will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
+
+        Raises:
+            ValueError: if ``num_bins`` is not positive, or if a B-spline
+                kernel is configured with four or fewer bins.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         if num_bins <= 0:
@@ -231,6 +235,9 @@ class GlobalMutualInformationLoss(_Loss):
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
+        # B-spline windowing reserves two padding bins at each boundary.
+        if self.kernel_type == "b-spline" and num_bins <= 4:
+            raise ValueError(f"num_bins must be greater than 4 for b-spline kernel, got {num_bins}")
         self.num_bins = num_bins
         # declared as buffers so they move with the module (e.g. ``.to(device)``); only populated for the
         # gaussian kernel, hence the ``Tensor`` annotation reflects the type at the use sites in that path.
@@ -283,7 +290,9 @@ class GlobalMutualInformationLoss(_Loss):
         # window.
         _max, _min = torch.max(img), torch.min(img)
         padding = 2
-        bin_size = (_max - _min) / (self.num_bins - 2 * padding)
+        value_range = _max - _min
+        bin_size = value_range / (self.num_bins - 2 * padding)
+        bin_size = torch.where(value_range > 0, bin_size, torch.ones_like(bin_size))
         norm_min = torch.div(_min, bin_size) - padding
 
         # assign bin/window index to each voxel
@@ -293,6 +302,8 @@ class GlobalMutualInformationLoss(_Loss):
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
         bins = torch.arange(self.num_bins, device=window_term.device).reshape(1, 1, -1)  # (1, 1, num_bins)
         sample_bin_matrix = torch.abs(bins - window_term)  # (batch, num_sample, num_bins)
+        if sample_bin_matrix.dtype == torch.float16:
+            sample_bin_matrix = sample_bin_matrix.float()  # avoid overflow in the cubic polynomial
 
         # b-spleen kernel
         # (4 - 6 * abs ** 2 + 3 * abs ** 3) / 6 when 0 <= abs < 1
