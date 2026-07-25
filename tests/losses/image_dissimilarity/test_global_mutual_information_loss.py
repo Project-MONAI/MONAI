@@ -164,6 +164,59 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
             GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
 
 
+class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
+    """Test stable Gaussian mutual information in reduced-precision modes."""
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_gaussian_weights_with_many_bins_are_finite(self, dtype):
+        """Verify many-bin Parzen outputs remain finite and preserve metadata."""
+        image = torch.zeros((1, 1, 2), dtype=dtype)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256)
+
+        weight, probability = loss.parzen_windowing_gaussian(image)
+
+        self.assertTrue(torch.isfinite(weight).all())
+        self.assertTrue(torch.isfinite(probability).all())
+        self.assertEqual(weight.dtype, image.dtype)
+        self.assertEqual(probability.dtype, image.dtype)
+        self.assertEqual(weight.device, image.device)
+        self.assertEqual(probability.device, image.device)
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_large_constant_volume_is_finite(self, dtype):
+        """Verify reduced-precision loss and gradients remain finite."""
+        pred = torch.zeros((1, 1, 48, 48, 48), dtype=dtype, requires_grad=True)
+        target = torch.zeros_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
+        self.assertEqual(result.device, pred.device)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertEqual(pred.grad.dtype, pred.dtype)
+        self.assertEqual(pred.grad.device, pred.device)
+
+    def test_cpu_float16_autocast_large_volume_is_finite(self):
+        """Verify CPU float16 autocast avoids histogram accumulation overflow."""
+        pred = torch.zeros((1, 1, 48, 48, 48), requires_grad=True)
+        target = torch.zeros_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+
+        with torch.autocast(device_type="cpu", dtype=torch.float16):
+            result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertEqual(pred.grad.dtype, pred.dtype)
+        self.assertEqual(pred.grad.device, pred.device)
+
+
 class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
     def test_gaussian_kernel_registers_buffers(self):
         """Verify gaussian kernel registers preterm and bin_centers as non-trainable, non-persistent buffers."""
