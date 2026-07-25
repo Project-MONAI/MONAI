@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
-from monai.data import DataLoader, ShuffleBuffer
+from monai.data import DataLoader, IterableDataset, ShuffleBuffer
 from monai.utils import convert_data_type
 
 
@@ -36,6 +38,18 @@ class TestShuffleBuffer(unittest.TestCase):
         else:  # multiprocess shuffle
             np.testing.assert_allclose(output, [[2, 3], [1, 4]], err_msg=f"seed {buffer.seed}")
             np.testing.assert_allclose(output2, [[1, 4], [2, 3]], err_msg=f"seed {buffer.seed}")
+
+    def test_iterable_dataset_is_not_sharded_twice(self):
+        """Verify a MONAI iterable source is partitioned exactly once."""
+        worker_info = SimpleNamespace(num_workers=2, id=0)
+        source = IterableDataset(range(40))
+        buffer = ShuffleBuffer(source, transform=lambda item: item + 40, buffer_size=8, seed=7)
+
+        with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+            output = list(buffer)
+
+        self.assertEqual(len(output), 20)
+        self.assertEqual(set(output), set(range(40, 80, 2)))
 
     def test_epochs(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0, epochs=2)

@@ -122,14 +122,25 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             yield self.randomized_pop(buffer)
 
     def __iter__(self):
-        """
-        Randomly pop buffered items from `self.data`.
-        Multiple dataloader workers sharing this dataset will generate identical item sequences.
+        """Randomly pop buffered items from ``self.data``.
+
+        MONAI ``IterableDataset`` sources retain their existing worker
+        partition; other sources are partitioned after shuffling.
+
+        Yields:
+            Items from the shuffled source after applying the optional transform.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
         for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
-            yield from IterableDataset(self.generate_item(), transform=self.transform)
+            if isinstance(self.data, IterableDataset):
+                # MONAI IterableDataset subclasses already partition their source per worker.
+                for item in self.generate_item():
+                    if self.transform is not None:
+                        item = apply_transform(self.transform, item)
+                    yield item
+            else:
+                yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
