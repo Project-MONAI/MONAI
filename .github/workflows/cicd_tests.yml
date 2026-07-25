@@ -144,7 +144,7 @@ jobs:
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
-        python -m pip install --no-build-isolation -e .[testing]
+        python -m pip install --no-build-isolation .[testing]
         python -m pip list
       shell: bash
     - if: matrix.os == 'linux-gpu-runner'
@@ -220,13 +220,13 @@ jobs:
       run: |
         python -m pip install --user --upgrade pip wheel tomli
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
-        python -m pip install -e --no-build-isolation .[all,testing]
+        python -m pip install --no-build-isolation .[all,testing]
         python -m pip list
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
+        BUILD_MONAI=1 python -m pip install --no-build-isolation .  # compile the cpp extensions
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
@@ -280,7 +280,7 @@ jobs:
         # # the package itself without its core dependency tree (see job comment above).
         # python -m pip install omegaconf
         # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
-        python -m pip install --no-build-isolation -e .[hyena]
+        python -m pip install --no-build-isolation .[hyena]
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)
