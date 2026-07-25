@@ -142,8 +142,8 @@ function install_deps {
     ${cmdPrefix}"${PY_EXE}" -m pip install -U tomli
     # create a temporary requirements file and install using it
     REQ=$(mktemp --tmpdir XXX.txt)
-    ${cmdPrefix}"${PY_EXE}" monai/config/print_dependencies.py all testing > $REQ
-    ${cmdPrefix}"${PY_EXE}" -m pip install -r $REQ
+    ${cmdPrefix}"${PY_EXE}" monai/config/print_dependencies.py all testing > "$REQ"
+    ${cmdPrefix}"${PY_EXE}" -m pip install -r "$REQ"
 }
 
 function compile_cpp {

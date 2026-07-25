@@ -51,7 +51,7 @@ pip install monai
 
 MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
 
-```
+```text
 clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, mccabe, metrics_reloaded, mlflow, mypy, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pytest, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
 ```
 

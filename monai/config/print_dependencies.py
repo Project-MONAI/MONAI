@@ -19,6 +19,7 @@ assumes the pyproject.toml file is in the current working directory.
 from __future__ import annotations
 
 import sys
+from typing import Collection
 
 BUILD_SYSTEM_KEY = "build-system"
 PROJ_KEY = "project"
@@ -28,7 +29,10 @@ REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
 
-def parse_dependencies(filename=TOML_FILE, sections=None):
+def parse_dependencies(filename: str = TOML_FILE, sections: Collection[str] | None = None) -> list[str]:
+    """
+    Parse the toml file given by `filename` and return the dependency sections selected by `sections`.
+    """
     # these imports should be here to avoid attempting to import when MONAI is imported and both packages are missing
     # isort: off
     if sys.version_info.minor >= 11:
