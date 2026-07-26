@@ -111,6 +111,18 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         epochs: int = 1,
         source_shards_by_worker: bool | None = None,
     ) -> None:
+        """Initialize the shuffle buffer.
+
+        Args:
+            data: input data source to load, shuffle, and optionally transform.
+            transform: a callable data transform applied to each yielded item.
+            buffer_size: maximum number of items stored before random popping.
+            seed: random seed used to initialize the worker random states.
+            epochs: number of source iterations, where ``-1`` means infinite.
+            source_shards_by_worker: whether ``data`` already partitions its
+                stream using ``torch.utils.data.get_worker_info``. ``None``
+                automatically recognizes MONAI ``IterableDataset`` sources.
+        """
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
