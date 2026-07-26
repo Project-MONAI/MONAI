@@ -228,12 +228,14 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
 
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
     @SkipIfNoModule("pydicom")
+    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     def test_load_dicom_with_pydicom_env(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"}):
             result = LoadImage(image_only=True)("tests/testing_data/CT_DICOM")
             self.assertEqual(tuple(result.shape), (16, 16, 4))
 
     @SkipIfNoModule("pydicom")
+    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=False)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_load_dicom_with_nvimgcodec_reader_fallback(self, _mock_available, _mock_register):
