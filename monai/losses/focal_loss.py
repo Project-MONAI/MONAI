@@ -232,7 +232,9 @@ class FocalLoss(_Loss):
                 if mask is not None:
                     spatial_dims = list(range(2, len(target.shape)))
                     sum_mask = mask.sum(dim=spatial_dims, keepdim=True)
-                    loss = (loss * mask).sum(dim=spatial_dims, keepdim=True) / sum_mask.clamp(min=torch.finfo(mask.dtype).eps)
+                    loss = (loss * mask).sum(dim=spatial_dims, keepdim=True) / sum_mask.clamp(
+                        min=torch.finfo(mask.dtype).eps
+                    )
                 else:
                     loss = loss.mean(dim=list(range(2, len(target.shape))))
             loss = loss.sum()

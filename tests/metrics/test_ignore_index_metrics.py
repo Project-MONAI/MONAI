@@ -80,9 +80,8 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         torch.testing.assert_close(res1, res2, msg=f"Failed for {metric_class.__name__}")
 
     @parameterized.expand(
-        [(metric_class, kwargs, ignore_index)
-         for metric_class, kwargs in TEST_METRICS
-         for ignore_index in (0, 1)])
+        [(metric_class, kwargs, ignore_index) for metric_class, kwargs in TEST_METRICS for ignore_index in (0, 1)]
+    )
     def test_metric_ignore_class_index(self, metric_class, kwargs, ignore_index):
         metric = metric_class(ignore_index=ignore_index, **kwargs)
 
@@ -175,9 +174,8 @@ class TestIgnoreIndexSurfaceMetrics(unittest.TestCase):
         torch.testing.assert_close(res1, res2, msg=f"Failed for {metric_class.__name__}")
 
     @parameterized.expand(
-        [(metric_class, kwargs, ignore_index)
-         for metric_class, kwargs in SCIPY_METRICS
-         for ignore_index in (0, 1)])
+        [(metric_class, kwargs, ignore_index) for metric_class, kwargs in SCIPY_METRICS for ignore_index in (0, 1)]
+    )
     def test_metric_ignore_class_index(self, metric_class, kwargs, ignore_index):
         metric = metric_class(ignore_index=ignore_index, **kwargs)
 
