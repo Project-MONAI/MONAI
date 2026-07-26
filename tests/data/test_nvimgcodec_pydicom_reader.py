@@ -15,11 +15,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from monai.data.image_reader import (
-    DICOM_READER_ENV_MAP,
-    get_preferred_dicom_reader_key,
-    is_dicom_path,
-)
+from monai.data.image_reader import DICOM_READER_ENV_MAP, get_preferred_dicom_reader_key, is_dicom_path
 from monai.transforms import LoadImage
 from monai.transforms.io.array import SUPPORTED_READERS, get_default_reader_registration_order
 from tests.test_utils import SkipIfNoModule
@@ -73,14 +69,7 @@ class TestNvImgCodecPydicomPlugin(unittest.TestCase):
             self.assertIn("nvimgcodecpydicomreader", order)
             self.assertEqual(
                 order[:-1],
-                [
-                    "nvimgcodecpydicomreader",
-                    "itkreader",
-                    "nrrdreader",
-                    "numpyreader",
-                    "pilreader",
-                    "nibabelreader",
-                ],
+                ["nvimgcodecpydicomreader", "itkreader", "nrrdreader", "numpyreader", "pilreader", "nibabelreader"],
             )
 
     def test_get_default_reader_registration_order_nvimgcodec_env(self):
