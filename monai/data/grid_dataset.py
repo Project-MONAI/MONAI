@@ -382,7 +382,7 @@ class PatchDataset(IterableDataset):
                   np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image patch sampler
         n_samples = 5
-        sampler = RandSpatialCropSamples(roi_size=(3, 3), num_samples=n_samples,
+        sampler = RandSpatialCropSamples(spatial_size=(3, 3), num_samples=n_samples,
                                          random_center=True, random_size=False)
         # patch-level intensity shifts
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)

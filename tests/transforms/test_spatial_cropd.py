@@ -23,13 +23,13 @@ from tests.croppers import CropTest
 
 TESTS = [
     [
-        {"keys": ["img"], "roi_center": [1, 1], "roi_size": [2, 2]},
+        {"keys": ["img"], "roi_center": [1, 1], "spatial_size": [2, 2]},
         (1, 3, 3),
         (1, 2, 2),
         (slice(None), slice(None, 2), slice(None, 2)),
     ],
     [
-        {"keys": ["img"], "roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
+        {"keys": ["img"], "roi_center": [1, 1, 1], "spatial_size": [2, 2, 2]},
         (3, 3, 3, 3),
         (3, 2, 2, 2),
         (slice(None), slice(None, 2), slice(None, 2), slice(None, 2)),
@@ -85,10 +85,10 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
         self.assertEqual(result["img"].shape, (3, 5, 5, 5))
 
     def test_string_roi_center_size(self):
-        """String keys for roi_center and roi_size should resolve from data dict."""
+        """String keys for roi_center and spatial_size should resolve from data dict."""
         img = MetaTensor(torch.rand(1, 20, 20, 20))
         data = {"img": img, "center_key": [10, 10, 10], "size_key": [6, 6, 6]}
-        cropper = SpatialCropd(keys="img", roi_center="center_key", roi_size="size_key")
+        cropper = SpatialCropd(keys="img", roi_center="center_key", spatial_size="size_key")
         result = cropper(data)
         self.assertEqual(result["img"].shape, (1, 6, 6, 6))
 
@@ -96,7 +96,7 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
         """Mix of string key and direct value for ROI params."""
         img = MetaTensor(torch.rand(1, 20, 20, 20))
         data = {"img": img, "center_key": [10, 10, 10]}
-        cropper = SpatialCropd(keys="img", roi_center="center_key", roi_size=[4, 4, 4])
+        cropper = SpatialCropd(keys="img", roi_center="center_key", spatial_size=[4, 4, 4])
         result = cropper(data)
         self.assertEqual(result["img"].shape, (1, 4, 4, 4))
 
@@ -216,6 +216,11 @@ class TestSpatialCropdStringKeys(unittest.TestCase):
         inverted = cropper.inverse(result)
         self.assertEqual(inverted["img1"].shape, (1, 20, 20, 20))
         self.assertEqual(inverted["img2"].shape, (3, 20, 20, 20))
+
+
+    def test_deprecated_roi_size(self):
+        with self.assertWarns(FutureWarning):
+            SpatialCropd(keys=["img"], roi_center=[1, 1, 1], roi_size=[2, 2, 2])
 
 
 if __name__ == "__main__":

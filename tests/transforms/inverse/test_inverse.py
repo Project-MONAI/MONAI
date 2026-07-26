@@ -89,14 +89,14 @@ for name in ("1D even", "1D odd"):
             partial(BorderPadd, spatial_border=[val, val + 1]),
             partial(DivisiblePadd, k=val),
             partial(ResizeWithPadOrCropd, spatial_size=20 + val),
-            partial(CenterSpatialCropd, roi_size=10 + val),
+            partial(CenterSpatialCropd, spatial_size=10 + val),
             partial(CenterScaleCropd, roi_scale=0.8),
             partial(CropForegroundd, source_key="label"),
-            partial(SpatialCropd, roi_center=10, roi_size=10 + val),
-            partial(SpatialCropd, roi_center=11, roi_size=10 + val),
+            partial(SpatialCropd, roi_center=10, spatial_size=10 + val),
+            partial(SpatialCropd, roi_center=11, spatial_size=10 + val),
             partial(SpatialCropd, roi_start=val, roi_end=17),
             partial(SpatialCropd, roi_start=val, roi_end=16),
-            partial(RandSpatialCropd, roi_size=12 + val),
+            partial(RandSpatialCropd, spatial_size=12 + val),
             partial(ResizeWithPadOrCropd, spatial_size=21 - val),
         ):
             TESTS.append((t.func.__name__ + name, name, 0, True, t(KEYS)))  # type: ignore
@@ -104,12 +104,12 @@ for name in ("1D even", "1D odd"):
 # non-sensical tests: crop bigger or pad smaller or -ve values
 for t in (
     partial(DivisiblePadd, k=-3),
-    partial(CenterSpatialCropd, roi_size=-3),
-    partial(RandSpatialCropd, roi_size=-3),
+    partial(CenterSpatialCropd, spatial_size=-3),
+    partial(RandSpatialCropd, spatial_size=-3),
     partial(SpatialPadd, spatial_size=15),
     partial(BorderPadd, spatial_border=[15, 16]),
-    partial(CenterSpatialCropd, roi_size=30),
-    partial(SpatialCropd, roi_center=10, roi_size=100),
+    partial(CenterSpatialCropd, spatial_size=30),
+    partial(SpatialCropd, roi_center=10, spatial_size=100),
     partial(SpatialCropd, roi_start=3, roi_end=100),
 ):
     TESTS.append((t.func.__name__ + "bad 1D even", "1D even", 0, True, t(KEYS)))  # type: ignore
@@ -157,9 +157,9 @@ TESTS.append(("DivisiblePadd 2d", "2D", 0, True, DivisiblePadd(KEYS, k=4)))
 
 TESTS.append(("DivisiblePadd 3d", "3D", 0, True, DivisiblePadd(KEYS, k=[4, 8, 11])))
 
-TESTS.append(("CenterSpatialCropd 2d", "2D", 0, True, CenterSpatialCropd(KEYS, roi_size=95)))
+TESTS.append(("CenterSpatialCropd 2d", "2D", 0, True, CenterSpatialCropd(KEYS, spatial_size=95)))
 
-TESTS.append(("CenterSpatialCropd 3d", "3D", 0, True, CenterSpatialCropd(KEYS, roi_size=[95, 97, 98])))
+TESTS.append(("CenterSpatialCropd 3d", "3D", 0, True, CenterSpatialCropd(KEYS, spatial_size=[95, 97, 98])))
 
 TESTS.append(("CropForegroundd 2d", "2D", 0, True, CropForegroundd(KEYS, source_key="label", margin=2)))
 

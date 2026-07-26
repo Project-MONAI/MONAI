@@ -1353,7 +1353,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
+            grid = CenterSpatialCrop(spatial_size=sp_size)(grid[0])
         else:
             grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=device, backend="torch"))
 

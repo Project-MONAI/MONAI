@@ -19,8 +19,8 @@ from monai.transforms import CenterScaleCrop, CenterSpatialCrop, SpatialCrop
 from tests.croppers import CropTest
 
 TESTS = [
-    [{"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
-    [{"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]}, (3, 1, 1, 1), (3, 1, 1, 1)],
+    [{"roi_center": [1, 1, 1], "spatial_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"roi_center": [1, 1, 1], "spatial_size": [2, 2, 2]}, (3, 1, 1, 1), (3, 1, 1, 1)],
     [{"roi_start": [0, 0, 0], "roi_end": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_start": [0, 0], "roi_end": [2, 2]}, (3, 3, 3, 3), (3, 2, 2, 3)],
     [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
@@ -42,8 +42,8 @@ TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [Non
 
 TEST_LAZY_ERRORS = [[{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)]]
 
-func1 = {CenterSpatialCrop: {"roi_size": [8, 8, 6]}}
-func2 = {SpatialCrop: {"roi_center": [1, 1, 1], "roi_size": [3, 4, 3]}}
+func1 = {CenterSpatialCrop: {"spatial_size": [8, 8, 6]}}
+func2 = {SpatialCrop: {"roi_center": [1, 1, 1], "spatial_size": [3, 4, 3]}}
 func3 = {CenterScaleCrop: {"roi_scale": [0.6, 0.3, -1]}}
 
 TESTS_COMBINE = []
@@ -76,6 +76,13 @@ class TestSpatialCrop(CropTest):
     @parameterized.expand(TESTS_COMBINE)
     def test_combine_ops(self, funcs, input_shape):
         self.crop_test_combine_ops(funcs, input_shape)
+
+
+    def test_deprecated_roi_size(self):
+        with self.assertWarns(FutureWarning):
+            cropper = SpatialCrop(roi_center=[1, 1, 1], roi_size=[2, 2, 2])
+        # slices computed at init; no stored size attribute
+        self.assertIsNotNone(cropper.slices)
 
 
 if __name__ == "__main__":

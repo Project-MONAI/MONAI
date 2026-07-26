@@ -2861,7 +2861,7 @@ class Rand2DElastic(RandomizableTransform):
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
+            grid = CenterSpatialCrop(spatial_size=sp_size)(grid[0])
         else:
             _device = img.device if isinstance(img, torch.Tensor) else self.device
             grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=_device, backend="torch"))

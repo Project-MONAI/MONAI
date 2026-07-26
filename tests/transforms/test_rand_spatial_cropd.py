@@ -23,33 +23,33 @@ from tests.croppers import CropTest
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_SHAPES = [
-    [{"keys": "img", "roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 5), (3, 3, 3, 5)],
-    [{"keys": "img", "roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
-    [{"keys": "img", "roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
-    [{"keys": "img", "roi_size": [3, 2, 3], "random_center": False, "random_size": False}, (3, 3, 3, 3), (3, 3, 2, 3)],
+    [{"keys": "img", "spatial_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 5), (3, 3, 3, 5)],
+    [{"keys": "img", "spatial_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"keys": "img", "spatial_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"keys": "img", "spatial_size": [3, 2, 3], "random_center": False, "random_size": False}, (3, 3, 3, 3), (3, 3, 2, 3)],
 ]
 
 TEST_VALUES = [
     [
-        {"keys": "img", "roi_size": [3, 3], "random_center": False},
+        {"keys": "img", "spatial_size": [3, 3], "random_center": False},
         np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
     ]
 ]
 
 TEST_RANDOM_SHAPES = [
     [
-        {"keys": "img", "roi_size": [3, 3, 3], "max_roi_size": [5, -1, 4], "random_center": True, "random_size": True},
+        {"keys": "img", "spatial_size": [3, 3, 3], "max_spatial_size": [5, -1, 4], "random_center": True, "random_size": True},
         (1, 4, 5, 6),
         (1, 4, 4, 3),
     ],
     [
-        {"keys": "img", "roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True},
+        {"keys": "img", "spatial_size": 3, "max_spatial_size": 4, "random_center": True, "random_size": True},
         (1, 4, 5, 6),
         (1, 3, 4, 3),
     ],
 ]
 
-func1 = {RandSpatialCropd: {"keys": "img", "roi_size": [8, 7, -1], "random_center": True, "random_size": False}}
+func1 = {RandSpatialCropd: {"keys": "img", "spatial_size": [8, 7, -1], "random_center": True, "random_size": False}}
 func2 = {RandScaleCropd: {"keys": "img", "roi_scale": [0.5, 0.6, -1.0], "random_center": True, "random_size": True}}
 func3 = {RandScaleCropd: {"keys": "img", "roi_scale": [1.0, 0.5, -1.0], "random_center": False, "random_size": False}}
 
@@ -106,6 +106,11 @@ class TestRandSpatialCropd(CropTest):
     @parameterized.expand(TESTS_COMBINE)
     def test_combine_ops(self, funcs, input_shape):
         self.crop_test_combine_ops(funcs, input_shape)
+
+
+    def test_deprecated_roi_size(self):
+        with self.assertWarns(FutureWarning):
+            RandSpatialCropd(keys=["img"], roi_size=[3, 3, 3], max_roi_size=[4, 4, 4], random_size=True)
 
 
 if __name__ == "__main__":

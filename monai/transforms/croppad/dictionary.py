@@ -50,7 +50,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, TraceKeys, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, TraceKeys, deprecated_arg, ensure_tuple_rep
 
 __all__ = [
     "Padd",
@@ -431,7 +431,7 @@ class SpatialCropd(Cropd):
         - a spatial center and size
         - the start and end coordinates of the ROI
 
-    ROI parameters (``roi_center``, ``roi_size``, ``roi_start``, ``roi_end``) can also be specified as
+    ROI parameters (``roi_center``, ``spatial_size``, ``roi_start``, ``roi_end``) can also be specified as
     string dictionary keys. When a string is provided, the actual coordinate values are read from the
     data dictionary at call time. This enables pipelines where coordinates are computed by earlier
     transforms (e.g., :py:class:`monai.transforms.TransformPointsWorldToImaged`) and stored in the
@@ -451,16 +451,24 @@ class SpatialCropd(Cropd):
     for more information.
     """
 
+    @deprecated_arg(
+        name="roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="spatial_size",
+        msg_suffix="please use `spatial_size` instead.",
+    )
     def __init__(
         self,
         keys: KeysCollection,
         roi_center: Sequence[int] | int | str | None = None,
-        roi_size: Sequence[int] | int | str | None = None,
+        spatial_size: Sequence[int] | int | str | None = None,
         roi_start: Sequence[int] | int | str | None = None,
         roi_end: Sequence[int] | int | str | None = None,
         roi_slices: Sequence[slice] | None = None,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        roi_size: Sequence[int] | int | str | None = None,
     ) -> None:
         """
         Args:
@@ -468,7 +476,7 @@ class SpatialCropd(Cropd):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             roi_center: voxel coordinates for center of the crop ROI, or a string key to look up
                 the coordinates from the data dictionary.
-            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
+            spatial_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
                 will not crop that dimension of the image. Can also be a string key.
             roi_start: voxel coordinates for start of the crop ROI, or a string key to look up
                 the coordinates from the data dictionary.
@@ -477,19 +485,25 @@ class SpatialCropd(Cropd):
             roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+            roi_size: deprecated argument in favor of ``spatial_size``.
+
+        .. deprecated:: 1.6.0rc1
+            ``roi_size`` is deprecated, use ``spatial_size`` instead.
         """
+        if spatial_size is None:
+            spatial_size = roi_size
         self._roi_center = roi_center
-        self._roi_size = roi_size
+        self._spatial_size = spatial_size
         self._roi_start = roi_start
         self._roi_end = roi_end
         self._roi_slices = roi_slices
-        self._has_str_roi = any(isinstance(v, str) for v in [roi_center, roi_size, roi_start, roi_end])
+        self._has_str_roi = any(isinstance(v, str) for v in [roi_center, spatial_size, roi_start, roi_end])
 
         if not self._has_str_roi:
             _roi_t: TypeAlias = Sequence[int] | int | None
             cropper = SpatialCrop(
                 cast(_roi_t, roi_center),
-                cast(_roi_t, roi_size),
+                cast(_roi_t, spatial_size),
                 cast(_roi_t, roi_start),
                 cast(_roi_t, roi_end),
                 roi_slices,
@@ -551,14 +565,14 @@ class SpatialCropd(Cropd):
 
         d = dict(data)
         roi_center = self._resolve_roi_param(self._roi_center, d)
-        roi_size = self._resolve_roi_param(self._roi_size, d)
+        spatial_size = self._resolve_roi_param(self._spatial_size, d)
         roi_start = self._resolve_roi_param(self._roi_start, d)
         roi_end = self._resolve_roi_param(self._roi_end, d)
 
         lazy_ = self.lazy if lazy is None else lazy
         cropper = SpatialCrop(
             roi_center=roi_center,
-            roi_size=roi_size,
+            spatial_size=spatial_size,
             roi_start=roi_start,
             roi_end=roi_end,
             roi_slices=self._roi_slices,
@@ -608,19 +622,35 @@ class CenterSpatialCropd(Cropd):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size: the size of the crop region e.g. [224,224,128]
+        spatial_size: the size of the crop region e.g. [224,224,128]
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
-            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+        roi_size: deprecated argument in favor of ``spatial_size``.
+
+    .. deprecated:: 1.6.0rc1
+        ``roi_size`` is deprecated, use ``spatial_size`` instead.
     """
 
+    @deprecated_arg(
+        name="roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="spatial_size",
+        msg_suffix="please use `spatial_size` instead.",
+    )
     def __init__(
-        self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False, lazy: bool = False
+        self,
+        keys: KeysCollection,
+        spatial_size: Sequence[int] | int,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
+        roi_size: Sequence[int] | int | None = None,
     ) -> None:
-        cropper = CenterSpatialCrop(roi_size, lazy=lazy)
+        cropper = CenterSpatialCrop(spatial_size, lazy=lazy)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
@@ -670,14 +700,14 @@ class RandSpatialCropd(RandCropd):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size: if `random_size` is True, it specifies the minimum crop region.
+        spatial_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
-            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
-        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
-            can specify the max crop region size. if None, defaults to the input image size.
+        max_spatial_size: if `random_size` is True and `spatial_size` specifies the min crop region size,
+            `max_spatial_size` can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
@@ -685,19 +715,46 @@ class RandSpatialCropd(RandCropd):
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+        roi_size: deprecated argument in favor of ``spatial_size``.
+        max_roi_size: deprecated argument in favor of ``max_spatial_size``.
+
+    .. deprecated:: 1.6.0rc1
+        ``roi_size`` and ``max_roi_size`` are deprecated, use ``spatial_size`` and ``max_spatial_size`` instead.
     """
 
+    @deprecated_arg(
+        name="max_roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="max_spatial_size",
+        msg_suffix="please use `max_spatial_size` instead.",
+    )
+    @deprecated_arg(
+        name="roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="spatial_size",
+        msg_suffix="please use `spatial_size` instead.",
+    )
     def __init__(
         self,
         keys: KeysCollection,
-        roi_size: Sequence[int] | int,
-        max_roi_size: Sequence[int] | int | None = None,
+        spatial_size: Sequence[int] | int | None = None,
+        max_spatial_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        roi_size: Sequence[int] | int | None = None,
+        max_roi_size: Sequence[int] | int | None = None,
     ) -> None:
-        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy=lazy)
+        if spatial_size is None:
+            spatial_size = roi_size
+        if spatial_size is None:
+            raise ValueError("`spatial_size` must be provided.")
+        if max_spatial_size is None:
+            max_spatial_size = max_roi_size
+        cropper = RandSpatialCrop(spatial_size, max_spatial_size, random_center, random_size, lazy=lazy)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
@@ -763,44 +820,71 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size: if `random_size` is True, it specifies the minimum crop region.
+        spatial_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
-            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         num_samples: number of samples (crop regions) to take in the returned list.
-        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
-            can specify the max crop region size. if None, defaults to the input image size.
+        max_spatial_size: if `random_size` is True and `spatial_size` specifies the min crop region size,
+            `max_spatial_size` can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
-            The actual size is sampled from `randint(roi_size, img_size)`.
+            The actual size is sampled from `randint(spatial_size, img_size)`.
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+        roi_size: deprecated argument in favor of ``spatial_size``.
+        max_roi_size: deprecated argument in favor of ``max_spatial_size``.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
+
+    .. deprecated:: 1.6.0rc1
+        ``roi_size`` and ``max_roi_size`` are deprecated, use ``spatial_size`` and ``max_spatial_size`` instead.
 
     """
 
     backend = RandSpatialCropSamples.backend
 
+    @deprecated_arg(
+        name="max_roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="max_spatial_size",
+        msg_suffix="please use `max_spatial_size` instead.",
+    )
+    @deprecated_arg(
+        name="roi_size",
+        since="1.6.0rc1",
+        removed="1.8.0",
+        new_name="spatial_size",
+        msg_suffix="please use `spatial_size` instead.",
+    )
     def __init__(
         self,
         keys: KeysCollection,
-        roi_size: Sequence[int] | int,
-        num_samples: int,
-        max_roi_size: Sequence[int] | int | None = None,
+        spatial_size: Sequence[int] | int | None = None,
+        num_samples: int = 1,
+        max_spatial_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        roi_size: Sequence[int] | int | None = None,
+        max_roi_size: Sequence[int] | int | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy)
+        if spatial_size is None:
+            spatial_size = roi_size
+        if spatial_size is None:
+            raise ValueError("`spatial_size` must be provided.")
+        if max_spatial_size is None:
+            max_spatial_size = max_roi_size
         self.cropper = RandSpatialCropSamples(
-            roi_size, num_samples, max_roi_size, random_center, random_size, lazy=lazy
+            spatial_size, num_samples, max_spatial_size, random_center, random_size, lazy=lazy
         )
 
     @LazyTransform.lazy.setter  # type: ignore

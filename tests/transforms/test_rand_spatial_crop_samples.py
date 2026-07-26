@@ -23,7 +23,7 @@ from tests.croppers import CropTest
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
-    {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},
+    {"spatial_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},
     (3, 4, 4, 4),
     [(3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3)],
     np.array(
@@ -48,7 +48,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"roi_size": [3, 3, 3], "num_samples": 8, "random_center": False, "random_size": True},
+    {"spatial_size": [3, 3, 3], "num_samples": 8, "random_center": False, "random_size": True},
     (3, 4, 4, 4),
     [(3, 4, 4, 3), (3, 4, 3, 3), (3, 3, 4, 4), (3, 4, 4, 4), (3, 3, 3, 4), (3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3)],
     np.array(
@@ -73,11 +73,11 @@ TEST_CASE_2 = [
 ]
 
 TEST_INVERSE_LIST = [
-    [(1, 2, 2), {"roi_size": (1, 1), "num_samples": 4, "random_size": False}],
-    [(1, 3, 2), {"roi_size": (1, 1), "num_samples": 100, "random_size": False}],
-    [(3, 10, 11, 12), {"roi_size": (3, 5, 4), "num_samples": 7, "random_size": False}],
-    [(3, 10, 11, 12), {"roi_size": (10, 11, 12), "num_samples": 3, "random_size": False}],
-    [(3, 10, 11, 12), {"roi_size": (3, 4, 5), "num_samples": 100, "random_size": False}],
+    [(1, 2, 2), {"spatial_size": (1, 1), "num_samples": 4, "random_size": False}],
+    [(1, 3, 2), {"spatial_size": (1, 1), "num_samples": 100, "random_size": False}],
+    [(3, 10, 11, 12), {"spatial_size": (3, 5, 4), "num_samples": 7, "random_size": False}],
+    [(3, 10, 11, 12), {"spatial_size": (10, 11, 12), "num_samples": 3, "random_size": False}],
+    [(3, 10, 11, 12), {"spatial_size": (3, 4, 5), "num_samples": 100, "random_size": False}],
 ]
 
 
@@ -122,6 +122,12 @@ class TestRandSpatialCropSamples(CropTest):
                 result = apply_pending(_pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
                 # compare
                 assert_allclose(result, expected[i], rtol=1e-5)
+
+
+    def test_deprecated_roi_size(self):
+        with self.assertWarns(FutureWarning):
+            sampler = RandSpatialCropSamples(roi_size=[3, 3, 3], num_samples=2, random_size=False)
+        self.assertEqual(sampler.cropper.spatial_size, [3, 3, 3])
 
 
 if __name__ == "__main__":

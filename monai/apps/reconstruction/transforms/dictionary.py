@@ -269,7 +269,7 @@ class ReferenceBasedSpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             image = d[key]
             roi_center = tuple(i // 2 for i in image.shape[1:])
-            cropper = SpatialCrop(roi_center=roi_center, roi_size=roi_size)
+            cropper = SpatialCrop(roi_center=roi_center, spatial_size=roi_size)
             d[key] = convert_to_tensor(cropper(d[key]))
         return d
 

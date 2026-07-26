@@ -621,15 +621,15 @@ if __name__ == "__main__":
     create_transform_im(SpatialPadd, dict(keys=keys, spatial_size=(300, 300, 300)), data)
     create_transform_im(BorderPad, dict(spatial_border=10), data)
     create_transform_im(BorderPadd, dict(keys=keys, spatial_border=10), data)
-    create_transform_im(SpatialCrop, dict(roi_center=(75, 75, 75), roi_size=(100, 100, 100)), data)
-    create_transform_im(SpatialCropd, dict(keys=keys, roi_center=(75, 75, 75), roi_size=(100, 100, 100)), data)
-    create_transform_im(CenterSpatialCrop, dict(roi_size=(100, 100, 100)), data)
-    create_transform_im(CenterSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100)), data)
-    create_transform_im(RandSpatialCrop, dict(roi_size=(100, 100, 100), random_size=False), data)
-    create_transform_im(RandSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100), random_size=False), data)
-    create_transform_im(RandSpatialCropSamples, dict(num_samples=4, roi_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(SpatialCrop, dict(roi_center=(75, 75, 75), spatial_size=(100, 100, 100)), data)
+    create_transform_im(SpatialCropd, dict(keys=keys, roi_center=(75, 75, 75), spatial_size=(100, 100, 100)), data)
+    create_transform_im(CenterSpatialCrop, dict(spatial_size=(100, 100, 100)), data)
+    create_transform_im(CenterSpatialCropd, dict(keys=keys, spatial_size=(100, 100, 100)), data)
+    create_transform_im(RandSpatialCrop, dict(spatial_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(RandSpatialCropd, dict(keys=keys, spatial_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(RandSpatialCropSamples, dict(num_samples=4, spatial_size=(100, 100, 100), random_size=False), data)
     create_transform_im(
-        RandSpatialCropSamplesd, dict(keys=keys, num_samples=4, roi_size=(100, 100, 100), random_size=False), data
+        RandSpatialCropSamplesd, dict(keys=keys, num_samples=4, spatial_size=(100, 100, 100), random_size=False), data
     )
     create_transform_im(
         RandWeightedCrop, dict(spatial_size=(100, 100, 100), num_samples=4, weight_map=data[CommonKeys.IMAGE] > 0), data

@@ -882,7 +882,7 @@ class BoxToMaskd(MapTransform):
                         prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
                         keep_size=True,padding_mode="zeros"
                     ),
-                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    RandSpatialCropd(keys=["image","box_mask"],spatial_size=128, random_size=False),
                     MaskToBoxd(
                         box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
@@ -965,7 +965,7 @@ class MaskToBoxd(MapTransform):
                         prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
                         keep_size=True,padding_mode="zeros"
                     ),
-                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    RandSpatialCropd(keys=["image","box_mask"],spatial_size=128, random_size=False),
                     MaskToBoxd(
                         box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
@@ -1197,7 +1197,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         for i, center in enumerate(self.centers):
             results[i] = deepcopy(d)
             # compute crop start and end, always crop, no padding
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            cropper = SpatialCrop(roi_center=tuple(center), spatial_size=self.spatial_size)
             crop_start = [max(s.start, 0) for s in cropper.slices]
             crop_end = [min(s.stop, image_size_a) for s, image_size_a in zip(cropper.slices, image_size)]
             crop_slices = [slice(int(s), int(e)) for s, e in zip(crop_start, crop_end)]

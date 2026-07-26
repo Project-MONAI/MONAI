@@ -440,7 +440,7 @@ class SpatialCropForegroundd(MapTransform):
         current_size = list(np.subtract(box_end, box_start).astype(int, copy=False))
 
         if np.all(np.less(current_size, self.spatial_size)):
-            cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
+            cropper = SpatialCrop(roi_center=center, spatial_size=self.spatial_size)
             box_start = [s.start for s in cropper.slices]
             box_end = [s.stop for s in cropper.slices]
         else:
@@ -677,7 +677,7 @@ class SpatialCropGuidanced(MapTransform):
             if len(center) == 3:
                 # 3D Deepgrow: set center to be middle of the depth dimension (D)
                 center[0] = spatial_size[0] // 2
-            cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
+            cropper = SpatialCrop(roi_center=center, spatial_size=spatial_size)
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
