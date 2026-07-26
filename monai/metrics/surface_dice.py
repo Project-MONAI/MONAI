@@ -270,8 +270,11 @@ def compute_surface_dice(
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
+    class_offset = 0 if include_background else 1
+
     for b, c in np.ndindex(batch_size, n_class):
-        warn_empty = ignore_index is None or c != ignore_index
+        absolute_c = c + class_offset
+        warn_empty = ignore_index is None or absolute_c != ignore_index
         (edges_pred, edges_gt), (distances_pred_gt, distances_gt_pred), areas = get_edge_surface_distance(  # type: ignore
             y_pred[b, c],
             y[b, c],

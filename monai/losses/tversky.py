@@ -145,8 +145,6 @@ class TverskyLoss(_Loss):
 
         if self.ignore_index is not None:
             mask = create_ignore_mask(original_target, self.ignore_index)
-            if mask is not None and mask.shape[1] != input.shape[1] and mask.shape[1] > input.shape[1]:
-                mask = mask[:, 1:]
             input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         if not self.include_background:

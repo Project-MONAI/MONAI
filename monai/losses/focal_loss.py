@@ -174,8 +174,6 @@ class FocalLoss(_Loss):
         mask = None
         if self.ignore_index is not None:
             mask = create_ignore_mask(original_target, self.ignore_index)
-            if mask is not None and mask.shape[1] != input.shape[1] and mask.shape[1] > input.shape[1]:
-                mask = mask[:, 1:]
 
         if target.shape != input.shape:
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
@@ -231,7 +229,12 @@ class FocalLoss(_Loss):
             # parameterize if necessary. (Or justify why the mean should be there)
             average_spatial_dims = True
             if average_spatial_dims:
-                loss = loss.mean(dim=list(range(2, len(target.shape))))
+                if mask is not None:
+                    spatial_dims = list(range(2, len(target.shape)))
+                    sum_mask = mask.sum(dim=spatial_dims, keepdim=True)
+                    loss = (loss * mask).sum(dim=spatial_dims, keepdim=True) / sum_mask.clamp(min=torch.finfo(mask.dtype).eps)
+                else:
+                    loss = loss.mean(dim=list(range(2, len(target.shape))))
             loss = loss.sum()
 
         elif self.reduction == LossReduction.MEAN.value:

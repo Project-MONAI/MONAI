@@ -116,6 +116,31 @@ class TestIgnoreIndexLosses(unittest.TestCase):
 
         torch.testing.assert_close(loss_base, loss_alt, atol=1e-5, rtol=1e-5)
 
+    def test_loss_ignore_zero_contribution(self):
+        """Ignored voxels contribute zero per-element loss in none reduction."""
+        loss_func = FocalLoss(ignore_index=255, use_softmax=False, reduction="none", to_onehot_y=True)
+        input_data = torch.zeros(1, 3, 2, 4)
+        target = torch.tensor([[[[255, 0, 1, 0], [1, 255, 0, 1]]]], dtype=torch.long)
+        loss = loss_func(input_data, target)
+        ignored_mask = (target[:, 0] == 255).unsqueeze(1).expand_as(loss)
+        torch.testing.assert_close(loss[ignored_mask], torch.zeros_like(loss[ignored_mask]))
+
+    @parameterized.expand(TEST_CASES)
+    def test_loss_ignore_masked_mean(self, loss_class, kwargs):
+        """Mean loss with ignore_index excludes ignored voxels from denominator."""
+        loss_ign = loss_class(ignore_index=255, **kwargs)
+        target = torch.tensor(
+            [[[[1, 0, 255, 255], [0, 1, 255, 255], [0, 1, 255, 255], [0, 1, 255, 255]]]], dtype=torch.float
+        )
+        input_base = torch.randn(1, 1, 4, 4)
+        input_alt = input_base.clone()
+        input_alt[:, :, :, :2] = input_base[:, :, :, :2]
+        input_alt[:, :, :, 2:] = input_base[:, :, :, 2:] + 10.0
+
+        loss1 = loss_ign(input_base, target)
+        loss2 = loss_ign(input_alt, target)
+        torch.testing.assert_close(loss1, loss2, atol=1e-5, rtol=1e-5)
+
 
 if __name__ == "__main__":
     unittest.main()

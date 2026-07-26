@@ -291,6 +291,10 @@ class DiceHelper:
         per_component: whether to compute the Dice metric per connected component. If `True`, the metric will be
             computed for each connected component in the ground truth, and then averaged. This requires binary
             segmentations with 2 channels (background + foreground) as input. This is a more fine-grained computation.
+        ignore_index: class index to ignore during calculation. If ``None``, no class is excluded.
+            For label-encoded inputs, the sentinel value is compared directly against the labels.
+            For one-hot inputs with a valid class index, that channel is zeroed.
+            For federated settings, ensure all clients use the same ignore_index for comparable values.
     """
 
     @deprecated_arg("softmax", "1.5", "1.7", "Use `apply_argmax` instead.", new_name="apply_argmax")

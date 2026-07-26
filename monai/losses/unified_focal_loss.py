@@ -76,9 +76,8 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
-        y_pred, y_true = mask_loss_inputs(y_pred, y_true, self.ignore_index, mask=mask)
-
         y_pred = torch.clamp(y_pred, self.epsilon, 1.0 - self.epsilon)
+        y_pred, y_true = mask_loss_inputs(y_pred, y_true, self.ignore_index, mask=mask)
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)

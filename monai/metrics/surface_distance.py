@@ -193,11 +193,14 @@ def compute_average_surface_distance(
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
+    class_offset = 0 if include_background else 1
+
     for b, c in np.ndindex(batch_size, n_class):
         yp = y_pred[b, c]
         yt = y[b, c]
 
-        warn_empty = ignore_index is None or c != ignore_index
+        absolute_c = c + class_offset
+        warn_empty = ignore_index is None or absolute_c != ignore_index
         _, distances, _ = get_edge_surface_distance(
             yp,
             yt,

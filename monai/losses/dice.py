@@ -190,8 +190,6 @@ class DiceLoss(_Loss):
                 input = input[:, 1:]
 
         mask = create_ignore_mask(original_target, self.ignore_index)
-        if mask is not None and mask.shape[1] != input.shape[1] and mask.shape[1] > input.shape[1]:
-            mask = mask[:, 1:]
 
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")

@@ -184,13 +184,6 @@ def get_confusion_matrix(
         mask = None
     else:
         mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
-        if (
-            mask is not None
-            and not include_background
-            and mask.shape[1] != y_pred.shape[1]
-            and mask.shape[1] > y_pred.shape[1]
-        ):
-            mask = mask[:, 1:]
 
     # convert to [BNS], where S is the number of pixels for one sample.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
