@@ -578,9 +578,10 @@ class MONAIEnvVars:
     def dicom_reader() -> str:
         """Preferred DICOM reader for :py:class:`monai.transforms.LoadImage`.
 
-        Supported values: ``itk`` (default), ``pydicom``, ``nvimgcodec``.
+        Supported values: ``itk``, ``pydicom``, ``nvimgcodec``.
+        Returns an empty string when unset or unsupported.
         """
-        return os.environ.get("MONAI_DICOM_READER", "itk").lower()
+        return os.environ.get("MONAI_DICOM_READER", "").lower()
 
 
 class ImageMetaKey:

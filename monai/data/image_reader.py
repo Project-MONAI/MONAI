@@ -74,15 +74,12 @@ __all__ = [
     "NvImgCodecPydicomReader",
     "NrrdReader",
     "DICOM_READER_ENV_MAP",
-    "NON_DICOM_READERS",
     "get_preferred_dicom_reader_key",
-    "get_default_reader_registration_order",
     "is_dicom_path",
 ]
 
+# Maps ``MONAI_DICOM_READER`` env values to keys in :py:data:`monai.transforms.io.array.SUPPORTED_READERS`.
 DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
-
-NON_DICOM_READERS = ["nrrdreader", "numpyreader", "pilreader", "nibabelreader"]
 
 
 class ImageReader(ABC):
@@ -1037,26 +1034,21 @@ def is_dicom_path(filename: Sequence[PathLike] | PathLike) -> bool:
 
 def get_preferred_dicom_reader_key() -> str:
     """
-    Return the :py:class:`LoadImage` registration key for the preferred DICOM reader.
+    Return the :py:class:`~monai.transforms.LoadImage` registration key for the preferred DICOM reader.
 
     Controlled by the ``MONAI_DICOM_READER`` environment variable. Supported values are
-    ``itk`` (default), ``pydicom``, and ``nvimgcodec``.
+    ``itk``, ``pydicom``, and ``nvimgcodec``. Returns an empty string when the variable is
+    unset or set to an unsupported value (in which case :py:data:`~monai.transforms.io.array.SUPPORTED_READERS`
+    dict order is used unchanged).
     """
-    pref = os.environ.get("MONAI_DICOM_READER", "itk").lower()
+    pref = os.environ.get("MONAI_DICOM_READER")
+    if pref is None:
+        return ""
+    pref = pref.lower()
     if pref not in DICOM_READER_ENV_MAP:
-        warnings.warn(f"Unknown MONAI_DICOM_READER='{pref}', falling back to 'itk'.")
-        return DICOM_READER_ENV_MAP["itk"]
+        warnings.warn(f"Unknown MONAI_DICOM_READER='{pref}', ignoring preference.")
+        return ""
     return DICOM_READER_ENV_MAP[pref]
-
-
-def get_default_reader_registration_order() -> list[str]:
-    """
-    Return the default reader registration order for :py:class:`LoadImage`.
-
-    Non-DICOM readers are registered first; the preferred DICOM reader is registered last so that
-    it is tried first during automatic reader selection.
-    """
-    return NON_DICOM_READERS + [get_preferred_dicom_reader_key()]
 
 
 @require_pkg(pkg_name="pydicom")

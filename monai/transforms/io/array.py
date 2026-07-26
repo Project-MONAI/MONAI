@@ -39,7 +39,7 @@ from monai.data.image_reader import (
     NvImgCodecPydicomReader,
     PILReader,
     PydicomReader,
-    get_default_reader_registration_order,
+    get_preferred_dicom_reader_key,
 )
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import is_no_channel
@@ -61,8 +61,12 @@ Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
 FileLock, has_filelock = optional_import("filelock", name="FileLock")
 
-__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
+__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS", "get_default_reader_registration_order"]
 
+# Default readers for :py:class:`LoadImage`. Dict insertion order is the registration order
+# (auto-select tries registered readers from last to first). Users may add custom readers here.
+# DICOM readers are listed first so that, by default, ``itkreader`` is tried before the other
+# DICOM readers; ``MONAI_DICOM_READER`` can promote a preferred DICOM reader to last (tried first).
 SUPPORTED_READERS = {
     "pydicomreader": PydicomReader,
     "nvimgcodecpydicomreader": NvImgCodecPydicomReader,
@@ -72,6 +76,22 @@ SUPPORTED_READERS = {
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
 }
+
+
+def get_default_reader_registration_order() -> list[str]:
+    """
+    Return the default reader registration order for :py:class:`LoadImage`.
+
+    Uses :py:data:`SUPPORTED_READERS` insertion order so user-added entries are included.
+    If ``MONAI_DICOM_READER`` resolves to a non-empty preferred key present in
+    ``SUPPORTED_READERS``, that key is moved to the end of the list so auto-selection
+    tries it first.
+    """
+    order = list(SUPPORTED_READERS)
+    preferred = get_preferred_dicom_reader_key()
+    if preferred and preferred in order:
+        order = [key for key in order if key != preferred] + [preferred]
+    return order
 
 
 def switch_endianness(data, new="<"):
@@ -119,9 +139,10 @@ class LoadImage(Transform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader by default).
-        - The default DICOM reader can be changed with the ``MONAI_DICOM_READER`` environment variable.
-          Supported values are ``itk`` (default), ``pydicom``, and ``nvimgcodec`` (GPU-accelerated decoding).
+          (npz, npy -> NumpyReader), (nrrd -> NrrdReader),
+          (DICOM file -> ITKReader first among DICOM readers by default).
+        - Optionally set ``MONAI_DICOM_READER`` to ``itk``, ``pydicom``, or ``nvimgcodec``
+          (GPU-accelerated decoding) to try that DICOM reader first.
 
     Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
     loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
@@ -263,21 +284,22 @@ class LoadImage(Transform):
             img = reader.read(filename)  # runtime specified reader
         else:
             for reader in self.readers[::-1]:
-                # Unified reader selection so auto-select also catches read failures and tries the next reader
-                # (same as the explicit-reader path)
-                if self.auto_select and not reader.verify_suffix(filename):
-                    continue
-                try:
-                    img = reader.read(filename)
-                except Exception as e:
-                    err.append(traceback.format_exc())
-                    logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
-                    logging.getLogger(self.__class__.__name__).info(
-                        f"{reader.__class__.__name__}: unable to load {filename}.\n"
-                    )
-                else:
-                    err = []
-                    break
+                if self.auto_select:  # rely on the filename extension to choose the reader
+                    if reader.verify_suffix(filename):
+                        img = reader.read(filename)
+                        break
+                else:  # try the user designated readers
+                    try:
+                        img = reader.read(filename)
+                    except Exception as e:
+                        err.append(traceback.format_exc())
+                        logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
+                        logging.getLogger(self.__class__.__name__).info(
+                            f"{reader.__class__.__name__}: unable to load {filename}.\n"
+                        )
+                    else:
+                        err = []
+                        break
 
         if img is None or reader is None:
             if isinstance(filename, Sequence) and len(filename) == 1:

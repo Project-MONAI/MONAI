@@ -17,11 +17,11 @@ from unittest.mock import patch
 
 from monai.data.image_reader import (
     DICOM_READER_ENV_MAP,
-    get_default_reader_registration_order,
     get_preferred_dicom_reader_key,
     is_dicom_path,
 )
 from monai.transforms import LoadImage
+from monai.transforms.io.array import SUPPORTED_READERS, get_default_reader_registration_order
 from tests.test_utils import SkipIfNoModule
 
 
@@ -34,31 +34,72 @@ class TestNvImgCodecPydicomPlugin(unittest.TestCase):
     def test_get_preferred_dicom_reader_key_default(self):
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("MONAI_DICOM_READER", None)
-            self.assertEqual(get_preferred_dicom_reader_key(), "itkreader")
+            self.assertEqual(get_preferred_dicom_reader_key(), "")
 
     def test_get_preferred_dicom_reader_key_env(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "nvimgcodec"}):
             self.assertEqual(get_preferred_dicom_reader_key(), "nvimgcodecpydicomreader")
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"}):
             self.assertEqual(get_preferred_dicom_reader_key(), "pydicomreader")
+        with patch.dict(os.environ, {"MONAI_DICOM_READER": "itk"}):
+            self.assertEqual(get_preferred_dicom_reader_key(), "itkreader")
 
     def test_get_preferred_dicom_reader_key_invalid(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "unknown"}):
-            self.assertEqual(get_preferred_dicom_reader_key(), "itkreader")
+            self.assertEqual(get_preferred_dicom_reader_key(), "")
+
+    def test_get_default_reader_registration_order_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            os.environ.pop("MONAI_DICOM_READER", None)
+            order = get_default_reader_registration_order()
+            self.assertEqual(
+                order,
+                [
+                    "pydicomreader",
+                    "nvimgcodecpydicomreader",
+                    "itkreader",
+                    "nrrdreader",
+                    "numpyreader",
+                    "pilreader",
+                    "nibabelreader",
+                ],
+            )
 
     def test_get_default_reader_registration_order(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"}):
             order = get_default_reader_registration_order()
             self.assertEqual(order[-1], "pydicomreader")
-            self.assertNotIn("itkreader", order)
-            self.assertNotIn("nvimgcodecpydicomreader", order)
+            self.assertIn("itkreader", order)
+            self.assertIn("nvimgcodecpydicomreader", order)
+            self.assertEqual(
+                order[:-1],
+                [
+                    "nvimgcodecpydicomreader",
+                    "itkreader",
+                    "nrrdreader",
+                    "numpyreader",
+                    "pilreader",
+                    "nibabelreader",
+                ],
+            )
 
     def test_get_default_reader_registration_order_nvimgcodec_env(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "nvimgcodec"}):
             order = get_default_reader_registration_order()
             self.assertEqual(order[-1], "nvimgcodecpydicomreader")
-            self.assertNotIn("pydicomreader", order)
-            self.assertNotIn("itkreader", order)
+            self.assertIn("pydicomreader", order)
+            self.assertIn("itkreader", order)
+
+    def test_custom_supported_reader_included_in_order(self):
+        class _DummyReader:
+            pass
+
+        with patch.dict(SUPPORTED_READERS, {"dummyreader": _DummyReader}):
+            with patch.dict(os.environ, {"MONAI_DICOM_READER": "itk"}):
+                order = get_default_reader_registration_order()
+                self.assertIn("dummyreader", order)
+                self.assertEqual(order[-1], "itkreader")
+                self.assertLess(order.index("dummyreader"), order.index("itkreader"))
 
     def test_dicom_reader_env_map_values(self):
         self.assertEqual(set(DICOM_READER_ENV_MAP.keys()), {"itk", "pydicom", "nvimgcodec"})
@@ -114,7 +155,8 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             loader = LoadImage(image_only=True)
             reader_types = [type(r).__name__ for r in loader.readers]
             self.assertEqual(reader_types[-1], "PydicomReader")
-            self.assertNotIn("ITKReader", reader_types)
+            # Other DICOM readers from SUPPORTED_READERS remain when their deps are available.
+            self.assertTrue(any(name != "PydicomReader" for name in reader_types))
 
     @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
@@ -129,7 +171,7 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=False)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_load_image_nvimgcodec_env_unavailable_auto_select(self, _mock_available, _mock_register):
-        """When nvimgcodec is unavailable, verify_suffix blocks auto-selection and no DICOM reader remains."""
+        """When nvimgcodec is unavailable, verify_suffix skips it and another DICOM reader can load."""
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "nvimgcodec"}):
             order = get_default_reader_registration_order()
             self.assertEqual(order[-1], "nvimgcodecpydicomreader")
@@ -137,15 +179,14 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             loader = LoadImage(image_only=True)
             reader_types = [type(r).__name__ for r in loader.readers]
             self.assertEqual(reader_types[-1], "NvImgCodecPydicomReader")
-            self.assertNotIn("ITKReader", reader_types)
-            self.assertNotIn("PydicomReader", reader_types)
+            self.assertIn("PydicomReader", reader_types)
 
             nv_reader = loader.readers[-1]
             self.assertFalse(nv_reader.verify_suffix("tests/testing_data/CT_DICOM"))
 
-            with self.assertRaises(RuntimeError) as err_ctx:
-                loader("tests/testing_data/CT_DICOM")
-            self.assertIn("cannot find a suitable reader", str(err_ctx.exception))
+            # Preferred reader is skipped; a later DICOM reader in the list should succeed.
+            img = loader("tests/testing_data/CT_DICOM")
+            self.assertIsNotNone(img)
 
 
 class TestNvImgCodecPluginRegistration(unittest.TestCase):

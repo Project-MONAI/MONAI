@@ -67,5 +67,5 @@ segment_anything @ https://github.com/facebookresearch/segment-anything/archive/
 onnx_graphsurgeon
 polygraphy
 pytest  # FIXME: added to get around cupy 14.1.0 creating the requirement through polygraphy and trt_compiler somehow
-cupy-cuda13x
-nvidia-nvimgcodec-cu13[all]>=0.8.0
+cupy-cuda13x[ctk]; platform_system == "Linux"
+nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == "Linux"
