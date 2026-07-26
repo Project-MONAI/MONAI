@@ -441,7 +441,7 @@ class DiceHelper:
         # Create global mask for ignored voxels if ignore_index is set
         mask = create_ignore_mask(y, self.ignore_index)
 
-        first_ch = 0 if self.include_background else 1
+        first_ch = 0 if self.include_background and not self.per_component else 1
         data = []
         for b in range(y_pred.shape[0]):
             if self.per_component:

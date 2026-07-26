@@ -258,6 +258,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if orig_pred_ch == 1 and self.ignore_index is not None:
             warnings.warn("single channel prediction, `ignore_index` is applied to label-encoded targets.")
 
+        if not (self.to_onehot_y and orig_pred_ch != 1):
+            if not (orig_pred_ch == 1 and y_true.shape[1] == 1):
+                if y_true.shape != y_pred.shape:
+                    raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
+
         # Preserve original target before any channel conversions so sentinel ignore
         # values (e.g., 255) are detected correctly on label-encoded inputs.
         original_y_true = y_true
@@ -265,15 +270,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         # Transform binary inputs to 2-channel space
         if y_pred.shape[1] == 1:
             y_pred = torch.cat([1 - y_pred, y_pred], dim=1)
-
-        # Early shape validation: if we are not about to convert `y_true` to one-hot,
-        # ensure shapes already match before any further tensor value operations.
-        # Allow the common binary case where `y_pred` is single-channel (expanded later)
-        # and `y_true` is label-encoded single-channel.
-        if not (self.to_onehot_y and orig_pred_ch != 1):
-            if not (orig_pred_ch == 1 and y_true.shape[1] == 1):
-                if y_true.shape != y_pred.shape:
-                    raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
         if self.to_onehot_y and orig_pred_ch != 1:
             if self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= self.num_classes):
