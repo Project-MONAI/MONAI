@@ -224,7 +224,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.num_folds = 5
         self.best_configuration: dict = {}
 
-    def convert_dataset(self):
+    def convert_dataset(self, testing=False):
         """Convert and make a copy the dataset to meet the requirements of nnU-Net workflow."""
         try:
             raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
@@ -256,7 +256,7 @@ class nnUNetV2Runner:  # noqa: N801
             if "training" in datalist_json:
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
-            else:
+            elif not testing:
                 logger.error("The datalist file has incorrect format: the `training` key is not found.")
                 return
 
@@ -277,7 +277,7 @@ class nnUNetV2Runner:  # noqa: N801
                 modality=modality,
                 num_foreground_classes=num_foreground_classes,
                 num_input_channels=num_input_channels,
-                num_training_data=len(datalist_json["training"]),
+                num_training_data=len(datalist_json.get("training", [])),
                 output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
             )
 
