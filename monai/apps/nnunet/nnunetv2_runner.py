@@ -267,7 +267,11 @@ class nnUNetV2Runner:  # noqa: N801
                 if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
                     os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
 
-            num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
+            num_input_channels, num_foreground_classes = self.input_info.get('num_input_channels'), self.input_info.get('num_foreground_classes')
+
+            if num_input_channels is None or num_foreground_classes is None:
+                # can't get num_foreground classes from the data, so should be inserted by user
+                num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
 
             modality = self.input_info.pop("modality")
             if not isinstance(modality, list):
