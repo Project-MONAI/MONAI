@@ -1014,6 +1014,23 @@ class nnUNetV2Runner:  # noqa: N801
                 plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
             )
 
+    def _determine_configs(self):
+        from nnunetv2.paths import nnUNet_preprocessed
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
+        preprocessed_dataset_folder_base = join(nnUNet_preprocessed, maybe_convert_to_dataset_name(self.dataset_name_or_id))
+        plans_file = join(preprocessed_dataset_folder_base, self.plans_identifier + '.json')
+
+        with open(plans_file, 'r') as f:
+            plans = json.load(f)
+
+        configurations = plans.get('configurations', [])
+        if not configurations:
+            raise ValueError(f"No configurations found in plans file: {plans_file}")
+        
+        config_names = list(configurations.keys())
+        return config_names
+
     def run(
         self,
         run_convert_dataset: bool = True,
@@ -1038,11 +1055,13 @@ class nnUNetV2Runner:  # noqa: N801
         if run_plan_and_process:
             self.plan_and_process()
 
+        configs = self._determine_configs()
+
         if run_train:
-            self.train()
+            self.train(configs=configs)
 
         if run_find_best_configuration:
-            self.find_best_configuration()
+            self.find_best_configuration(configs=configs)
 
         if run_predict_ensemble_postprocessing:
             self.predict_ensemble_postprocessing()
