@@ -82,6 +82,10 @@ def create_new_data_copy(
         if _key is None:
             continue
 
+        if _key not in datalist_json:
+            logger.warning(f"Key '{_key}' not found in datalist_json. Skipping this section.")
+            continue
+
         logger.info(f"converting data section: {_key}...")
         for _k in tqdm(range(len(datalist_json[_key]))) if has_tqdm else range(len(datalist_json[_key])):
             orig_img_name = (
