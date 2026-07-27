@@ -106,6 +106,11 @@ def create_ignore_mask(y: torch.Tensor, ignore_index: int | None) -> torch.Tenso
             values (e.g., -1): they are only meaningful class labels for label-encoded targets. For
             one-hot inputs, negative values fall through to the sentinel path (masking all-zero pixels).
 
+            For one-hot inputs with a valid class index, the mask zeroes all channels at pixels
+            where the ignored class is present (spatial masking). This differs from per-channel
+            exclusion — every pixel belonging to the ignored class is excluded from ALL class scores,
+            not just the score for that class.
+
     Returns:
         Mask tensor of shape (B, 1, H, W, [D]) where 1=valid, 0=ignore.
         Returns None if ignore_index is None.
@@ -460,6 +465,11 @@ def get_edge_surface_distance(
             areas = (areas[0], areas[0])
         elif len(areas) != 2:
             # Unexpected length, create empty tensors
+            warnings.warn(
+                f"Unexpected number of area tensors from get_mask_edges: {len(areas)}, expected 2. "
+                "Falling back to empty tensors.",
+                stacklevel=2,
+            )
             areas = (torch.tensor([], device=y_pred.device), torch.tensor([], device=y_pred.device))
 
     out = convert_to_tensor(((edges_pred, edges_gt), distances, tuple(areas)), device=y_pred.device)  # type: ignore[no-any-return]

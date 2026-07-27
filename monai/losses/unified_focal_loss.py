@@ -225,12 +225,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.gamma = gamma
         self.delta = delta
         self.weight: float = weight
-        self.asy_focal_loss = AsymmetricFocalLoss(
-            to_onehot_y=False, gamma=self.gamma, delta=self.delta, ignore_index=ignore_index
-        )
-        self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(
-            to_onehot_y=False, gamma=self.gamma, delta=self.delta, ignore_index=ignore_index
-        )
+        self.asy_focal_loss = AsymmetricFocalLoss(to_onehot_y=False, gamma=self.gamma, delta=self.delta)
+        self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(to_onehot_y=False, gamma=self.gamma, delta=self.delta)
         self.ignore_index = ignore_index
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
@@ -283,14 +279,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         mask = create_ignore_mask(original_y_true, self.ignore_index)
 
-        use_mask = self.ignore_index is not None and (self.ignore_index < 0 or self.ignore_index >= self.num_classes)
-        if use_mask:
-            y_pred_masked, y_true_masked = mask_loss_inputs(y_pred, y_true, self.ignore_index, mask=mask)
-        else:
-            y_pred_masked, y_true_masked = y_pred, y_true
+        if self.ignore_index is not None:
+            y_pred, y_true = mask_loss_inputs(y_pred, y_true, self.ignore_index, mask=mask)
 
-        asy_focal_loss = self.asy_focal_loss(y_pred_masked, y_true_masked)
-        asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred_masked, y_true_masked)
+        asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
+        asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
 
         loss: torch.Tensor = self.weight * asy_focal_loss + (1 - self.weight) * asy_focal_tversky_loss
 
