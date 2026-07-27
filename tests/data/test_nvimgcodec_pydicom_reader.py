@@ -15,6 +15,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+
 from monai.data.image_reader import DICOM_READER_ENV_MAP, get_preferred_dicom_reader_key, is_dicom_path
 from monai.transforms import LoadImage
 from monai.transforms.io.array import SUPPORTED_READERS, get_default_reader_registration_order
@@ -216,6 +218,87 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
 
 
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
+    @SkipIfNoModule("pydicom")
+    @SkipIfNoModule("pylibjpeg")
+    @SkipIfNoModule("openjpeg")  # pylibjpeg-openjpeg
+    @SkipIfNoModule("jpeg_ls")  # pyjpegls
+    @SkipIfNoModule("gdcm")  # python-gdcm
+    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
+    def test_pixels_match_pydicom_reader(self):
+        from pydicom import dcmread
+        from pydicom.data import get_testdata_file
+
+        from monai.data import NvImgCodecPydicomReader, PydicomReader
+        from monai.data.nvimgcodec_pydicom_plugin import (
+            NVIMGCODEC_PLUGIN_LABEL,
+            SUPPORTED_DECODER_CLASSES,
+            SUPPORTED_TRANSFER_SYNTAXES,
+            is_nvimgcodec_available,
+            unregister_as_decoder_plugin,
+        )
+
+        if not is_nvimgcodec_available():
+            self.skipTest("nvImageCodec with CUDA support is not available.")
+
+        # One bundled pydicom decoder test file for each nvImageCodec-supported
+        # transfer syntax for which pydicom ships a local sample.
+        test_files = (
+            "SC_rgb_jpeg_lossy_gdcm.dcm",  # JPEG Baseline
+            "SC_rgb_jpeg_gdcm.dcm",  # JPEG Lossless SV1
+            "MR_small_jp2klossless.dcm",  # JPEG 2000 Lossless
+            "JPEG2000.dcm",  # JPEG 2000 Lossy
+        )
+        supported_uids = {str(uid) for uid in SUPPORTED_TRANSFER_SYNTAXES}
+        tested = 0
+        pydicom_failures = []
+
+        for filename in test_files:
+            path = get_testdata_file(filename, download=False)
+            self.assertIsNotNone(path, f"{filename} is not bundled with pydicom")
+            transfer_syntax = str(dcmread(path, stop_before_pixels=True).file_meta.TransferSyntaxUID)
+            if transfer_syntax not in supported_uids:
+                continue
+
+            with self.subTest(filename=filename, transfer_syntax=transfer_syntax):
+                # Decode the reference before registering nvImageCodec, ensuring
+                # pydicom uses one of its standard compressed-pixel decoders.
+                unregister_as_decoder_plugin()
+                pydicom_reader = PydicomReader()
+                try:
+                    expected, _ = pydicom_reader.get_data(pydicom_reader.read(path))
+                except Exception as error:
+                    pydicom_failures.append(f"{filename}: {error}")
+                    continue
+
+                # Force nvImageCodec to be the only available plugin for its
+                # supported decoder classes, then restore the registry afterward.
+                old_available = {decoder.UID: decoder._available for decoder in SUPPORTED_DECODER_CLASSES}
+                try:
+                    for decoder in SUPPORTED_DECODER_CLASSES:
+                        decoder._available = {}
+
+                    nvimgcodec_reader = NvImgCodecPydicomReader()
+                    decoder = next(
+                        decoder for decoder in SUPPORTED_DECODER_CLASSES if str(decoder.UID) == transfer_syntax
+                    )
+                    self.assertIn(NVIMGCODEC_PLUGIN_LABEL, decoder._available)
+                    actual, _ = nvimgcodec_reader.get_data(nvimgcodec_reader.read(path))
+
+                    self.assertEqual(actual.shape, expected.shape)
+                    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=2)
+                finally:
+                    unregister_as_decoder_plugin()
+                    for decoder in SUPPORTED_DECODER_CLASSES:
+                        decoder._available = old_available[decoder.UID]
+                tested += 1
+
+        if not tested:
+            failure_details = "; ".join(pydicom_failures)
+            self.skipTest(
+                "pydicom could not decode any bundled samples for nvImageCodec-supported transfer syntaxes."
+                f" Failures: {failure_details}"
+            )
+
     @SkipIfNoModule("pydicom")
     @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     def test_load_dicom_with_pydicom_env(self):
