@@ -769,11 +769,15 @@ class nnUNetV2Runner:  # noqa: N801
                 ``env`` is the environment for that command.
 
         Each command is run in its original order with ``shell=False``, keeping its associated
-        environment. A non-zero exit status does not stop the remaining commands for the device,
-        matching the previous ``"; ".join(...)`` shell behavior.
+        environment. Neither a non-zero exit status nor a failure to launch the process (e.g.
+        ``OSError``/``FileNotFoundError``) stops the remaining commands for the device, matching
+        the previous ``"; ".join(...)`` shell behavior where each command ran independently.
         """
         for cmd, env in device_cmds:
-            subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, check=False)
+            try:
+                subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, check=False)
+            except OSError as error:
+                logger.error(f"Failed to run command {shlex.join(cmd)}: {error}")
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """

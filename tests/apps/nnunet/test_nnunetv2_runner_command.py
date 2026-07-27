@@ -108,6 +108,17 @@ class TestRunDeviceCommands(unittest.TestCase):
         for call in run.call_args_list:
             self.assertFalse(call.kwargs.get("check", False))
 
+    def test_continues_after_launch_error(self):
+        # a failure to launch (OSError/FileNotFoundError) for one command must be
+        # logged and must not skip the device's remaining commands.
+        device_cmds = [(["missing-binary"], {}), (["cmd", "1"], {})]
+        with mock.patch(
+            "monai.apps.nnunet.nnunetv2_runner.subprocess.run", side_effect=[FileNotFoundError("no such file"), None]
+        ) as run:
+            nnUNetV2Runner._run_device_commands(device_cmds)
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[1].args[0], ["cmd", "1"])
+
 
 if __name__ == "__main__":
     unittest.main()
