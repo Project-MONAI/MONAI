@@ -163,6 +163,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.input_info: dict = {}
         self.input_config_or_dict = input_config
         self.trainer_class_name = trainer_class_name
+        self.plans_identifier = "nnUNetPlans"
         self.export_validation_probabilities = export_validation_probabilities
         self.work_dir = work_dir
 
@@ -343,7 +344,7 @@ class nnUNetV2Runner:  # noqa: N801
         gpu_memory_target: float = 8,
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
     ) -> None:
         """
         Generate a configuration file that specifies the details of the experiment.
@@ -373,20 +374,22 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
         logger.info("Experiment planning...")
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
         plan_experiments(
             [int(self.dataset_name_or_id)],
             pl,
             gpu_memory_target,
             preprocessor_name,
             overwrite_target_spacing,
-            overwrite_plans_name,
+            plans_name,
         )
+        self.plans_identifier = plans_name
 
     def preprocess(
         self,
         c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
         verbose: bool = False,
     ) -> None:
         """
@@ -415,13 +418,16 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
         logger.info("Preprocessing...")
+
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
         preprocess(
             [int(self.dataset_name_or_id)],
-            overwrite_plans_name,
+            plans_name,
             configurations=c,
             num_processes=n_proc,
             verbose=verbose,
         )
+        self.plans_identifier = plans_name
 
     def plan_and_process(
         self,
@@ -434,7 +440,7 @@ class nnUNetV2Runner:  # noqa: N801
         gpu_memory_target: int = 8,
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
         c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
         verbose: bool = False,
@@ -491,11 +497,13 @@ class nnUNetV2Runner:  # noqa: N801
             verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
                 (Recommended for cluster environments).
         """
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
-        self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
+        self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, plans_name)
 
         if not no_pp:
-            self.preprocess(c, n_proc, overwrite_plans_name, verbose)
+            self.preprocess(c, n_proc, plans_name, verbose)
+        self.plans_identifier = plans_name
 
     def train_single_model(self, config: Any, fold: int, gpu_id: tuple | list | int | str = 0, **kwargs: Any) -> None:
         """
@@ -589,6 +597,8 @@ class nnUNetV2Runner:  # noqa: N801
             fold,
             "-tr",
             self.trainer_class_name,
+            "-p",
+            self.plans_identifier,
             "-num_gpus",
             num_gpus,
         ]
