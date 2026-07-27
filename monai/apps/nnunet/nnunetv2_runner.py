@@ -226,75 +226,71 @@ class nnUNetV2Runner:  # noqa: N801
 
     def convert_dataset(self, testing=False):
         """Convert and make a copy the dataset to meet the requirements of nnU-Net workflow."""
-        try:
-            raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
-            raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+        raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
+        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
 
-            # check if the dataset is created
-            subdirs = glob.glob(f"{self.nnunet_raw}/*")
-            dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
-            dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
-            if raw_data_foldername_prefix in dataset_ids:
-                logger.warning("Dataset with the same ID exists!")
-                return
-
-            data_dir = self.input_info.pop("dataroot")
-            if data_dir[-1] == os.sep:
-                data_dir = data_dir[:-1]
-
-            raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
-            raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
-            if not os.path.exists(raw_data_foldername):
-                os.makedirs(raw_data_foldername)
-
-            from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-
-            self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
-
-            datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
-
-            if "training" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
-                os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
-            elif not testing:
-                logger.error("The datalist file has incorrect format: the `training` key is not found.")
-                return
-
-            test_key = None
-            if "test" in datalist_json or "testing" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
-                test_key = "test" if "test" in datalist_json else "testing"
-                if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
-                    os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
-
-            num_input_channels, num_foreground_classes = self.input_info.get('num_input_channels'), self.input_info.get('num_foreground_classes')
-
-            if num_input_channels is None or num_foreground_classes is None:
-                # can't get num_foreground classes from the data, so should be inserted by user
-                num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
-
-            modality = self.input_info.pop("modality")
-            if not isinstance(modality, list):
-                modality = [modality]
-
-            create_new_dataset_json(
-                modality=modality,
-                num_foreground_classes=num_foreground_classes,
-                num_input_channels=num_input_channels,
-                num_training_data=len(datalist_json.get("training", [])),
-                output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
-            )
-
-            create_new_data_copy(
-                test_key=test_key,  # type: ignore
-                datalist_json=datalist_json,
-                data_dir=data_dir,
-                num_input_channels=num_input_channels,
-                output_datafolder=raw_data_foldername,
-            )
-        except Exception as err:
-            logger.warning(f"Input config may be incorrect. Detail info: error/exception message is:\n {err}")
+        # check if the dataset is created
+        subdirs = glob.glob(f"{self.nnunet_raw}/*")
+        dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
+        dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
+        if raw_data_foldername_prefix in dataset_ids:
+            logger.warning("Dataset with the same ID exists!")
             return
+
+        data_dir = self.input_info.pop("dataroot")
+        if data_dir[-1] == os.sep:
+            data_dir = data_dir[:-1]
+
+        raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
+        raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
+        if not os.path.exists(raw_data_foldername):
+            os.makedirs(raw_data_foldername)
+
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
+        self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
+
+        datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
+
+        if "training" in datalist_json:
+            os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
+            os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
+        elif not testing:
+            logger.error("The datalist file has incorrect format: the `training` key is not found.")
+            return
+
+        test_key = None
+        if "test" in datalist_json or "testing" in datalist_json:
+            os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
+            test_key = "test" if "test" in datalist_json else "testing"
+            if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
+                os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
+
+        num_input_channels, num_foreground_classes = self.input_info.get('num_input_channels'), self.input_info.get('num_foreground_classes')
+
+        if num_input_channels is None or num_foreground_classes is None:
+            # can't get num_foreground classes from the data, so should be inserted by user
+            num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
+
+        modality = self.input_info.pop("modality")
+        if not isinstance(modality, list):
+            modality = [modality]
+
+        create_new_dataset_json(
+            modality=modality,
+            num_foreground_classes=num_foreground_classes,
+            num_input_channels=num_input_channels,
+            num_training_data=len(datalist_json.get("training", [])),
+            output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
+        )
+
+        create_new_data_copy(
+            test_key=test_key,  # type: ignore
+            datalist_json=datalist_json,
+            data_dir=data_dir,
+            num_input_channels=num_input_channels,
+            output_datafolder=raw_data_foldername,
+        )
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
         """
