@@ -12,17 +12,12 @@
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 import unittest
-from subprocess import call
-from textwrap import dedent
 from unittest.mock import patch
 
-import monai
 from monai.apps import create_temp_dir
 from monai.utils import MONAIEnvVars
-from tests.test_utils import skip_if_quick
 
 MONAI_DATA_DIRECTORY = "MONAI_DATA_DIRECTORY"
 
