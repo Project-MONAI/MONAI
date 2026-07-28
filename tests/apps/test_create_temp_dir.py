@@ -62,30 +62,26 @@ class TestCreateTempDir(unittest.TestCase):
             self.assertTrue(os.path.isdir(selected_dir))
             self.assertEqual(test_dir, selected_dir)
 
-    @skip_if_quick
     def test_finalisation(self):
         """Test the temporary directory is deleted by finalisation using a subprocess."""
-        # this writes a script to a temporary directory which uses create_temp_dir, this is then called in a subprocess
-        # to verify the finalising behaviour
-        with tempfile.TemporaryDirectory() as temp_dir:
+        self.finaliser = None
+
+        def _register(func, /, *args, **kwargs):
+            self.finaliser = (func, args, kwargs)
+
+        with patch("atexit.register", new=_register), tempfile.TemporaryDirectory() as temp_dir:
             selected_dir = f"{temp_dir}/test_inner_dir"
-            script = f"""
-                import os
-                from monai.apps import create_temp_dir
-                test_dir = create_temp_dir({selected_dir!r}, True)
-                with open(test_dir+"/test_file", "w") as o:
-                    o.write("Test file data")
-                assert os.path.isdir(test_dir)
-            """
-            script_file = f"{temp_dir}/script.py"
-            with open(script_file, "w") as o:
-                o.write(dedent(script))
+            test_dir = create_temp_dir(selected_dir, True)
 
-            # add a PYTHONPATH value to the environment to find the current MONAI install
-            env = {**os.environ, "PYTHONPATH": f"{os.path.dirname(monai.__file__)}/.."}
-            retcode = call([sys.executable, "script.py"], cwd=temp_dir, env=env)
+            self.assertTrue(os.path.isdir(selected_dir))
+            self.assertIsNotNone(self.finaliser)
 
-            self.assertEqual(0, retcode)
+            with open(test_dir + "/test_file", "w") as o:
+                o.write("Test file data")
+
+            func, args, kwargs = self.finaliser
+            func(*args, **kwargs)
+
             self.assertFalse(os.path.exists(selected_dir))
 
 
