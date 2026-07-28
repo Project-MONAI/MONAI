@@ -459,6 +459,6 @@ def create_temp_dir(directory: str | None = None, delete_on_finalise: bool = Fal
     os.makedirs(directory, exist_ok=True)
 
     if delete_on_finalise:
-        atexit.register(shutil.rmtree, directory)
+        atexit.register(shutil.rmtree, directory, ignore_errors=True)
 
     return directory
