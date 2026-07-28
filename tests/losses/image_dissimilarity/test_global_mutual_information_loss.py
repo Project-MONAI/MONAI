@@ -174,7 +174,12 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
 
     @parameterized.expand(["prediction", "target"])
     def test_b_spline_single_constant_input_is_finite(self, constant_input):
-        """Verify either independently constant input yields finite gradients."""
+        """Verify either independently constant input yields finite gradients.
+
+        Args:
+            constant_input: Which input (``"prediction"`` or ``"target"``)
+                is held constant.
+        """
         varying = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8)
         if constant_input == "prediction":
             pred = torch.zeros_like(varying, requires_grad=True)
@@ -213,8 +218,14 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
             ("float16_large", torch.float16, 65000.0),
         ]
     )
-    def test_b_spline_nonzero_ranges_are_finite(self, _, dtype, maximum):
-        """Verify extreme nonzero ranges yield finite loss and gradients."""
+    def test_b_spline_nonzero_ranges_are_finite(self, case_name, dtype, maximum):
+        """Verify extreme nonzero ranges yield finite loss and gradients.
+
+        Args:
+            case_name: Descriptive label for the parameterized range case.
+            dtype: Tensor dtype used for the prediction and target.
+            maximum: Nonzero upper endpoint of the tested intensity range.
+        """
         values = torch.tensor([0.0, maximum, maximum, 0.0], dtype=dtype).reshape(1, 1, 2, 2)
         pred = values.clone().requires_grad_()
         target = torch.flip(values, dims=(-1,))
