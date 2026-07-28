@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import json
 import logging
@@ -29,7 +30,7 @@ from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
-from monai.utils import look_up_option, min_version, optional_import
+from monai.utils import MONAIEnvVars, look_up_option, min_version, optional_import
 
 requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
@@ -42,7 +43,15 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+    "create_temp_dir",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
@@ -422,3 +431,34 @@ def download_and_extract(
         filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
+
+
+def create_temp_dir(directory: str | None = None, delete_on_finalise: bool = False) -> str:
+    """
+    Creates or uses an existing temporary directory. If `directory` is given, this is used as the path to a directory
+    which is created if it doesn't exist already. If `directory` is None, the value of the environment variable
+    `MONAI_DATA_DIRECTORY` is used instead, if this is not present then a random temporary directory is chosen. If
+    `delete_on_finalise` is True, or a random temp directory was created, the directory and its contents will be deleted
+    when the process exits.
+
+    Args:
+        directory: path to desired temporary directory, or None to use MONAI_DATA_DIRECTORY or choose a random one.
+        delete_on_finalise: if True, the directory and its contents will be deleted when the process exits.
+
+    Returns:
+        The path to the existing or new temporary directory, if `directory` is given this will be returned, otherwise it
+        will be the value of MONAI_DATA_DIRECTORY if present or the chosen random directory. This directory will exist.
+
+    """
+    if directory is None:
+        directory = MONAIEnvVars.data_dir()
+        if directory is None:
+            directory = tempfile.mkdtemp()
+            delete_on_finalise = True
+
+    os.makedirs(directory, exist_ok=True)
+
+    if delete_on_finalise:
+        atexit.register(shutil.rmtree, directory)
+
+    return directory
