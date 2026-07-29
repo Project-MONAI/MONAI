@@ -130,7 +130,7 @@ jobs:
     - if: runner.os == 'Linux' and matrix.os != 'ubuntu-24.04-gpu'
       name: Clean unused tools
       run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \ || true;
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
