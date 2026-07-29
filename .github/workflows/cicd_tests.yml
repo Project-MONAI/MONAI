@@ -121,10 +121,13 @@ jobs:
 
     timeout-minutes: 40
     steps:
-    - if: runner.os == 'ubuntu-24.04-gpu'
-      run: nvidia-smi
+    - if: matrix.os == 'ubuntu-24.04-gpu'
+      name: Print GPU Info
+      run: |
+        nvidia-smi
+        python -c 'import torch; print(torch.rand(2,2).to("cuda:0"))'
       shell: bash
-    - if: runner.os == 'Linux'
+    - if: runner.os == 'Linux' and matrix.os != 'ubuntu-24.04-gpu'
       name: Clean unused tools
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \ || true;
@@ -150,12 +153,6 @@ jobs:
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
-      shell: bash
-    - if: matrix.os == 'linux-gpu-runner'
-      name: Print GPU Info
-      run: |
-        nvidia-smi
-        python -c 'import torch; print(torch.rand(2,2).to("cuda:0"))'
       shell: bash
     - name: Run quick tests
       run: |
