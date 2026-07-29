@@ -52,19 +52,20 @@ pip install monai
 MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
 
 ```text
-clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, metrics_reloaded, mlflow, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pytest, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
+clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, metrics_reloaded, mlflow, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
 ```
 
-which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `pytest`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
+which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
 
-Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages.
+Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy is omitted from `all` since the choice between
+Cuda 12 and 13 versions of the library can't be resolved when installing and must be manually installed.
 
 The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
 required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
 O(N log N) alternatives to windowed self-attention). Install with
 `pip install 'monai[hyena]'`.
 
-The command  `pip install 'monai[all,hyena,testing]'` installs all the optional dependencies.
+The command  `pip install 'monai[all,hyena,testing]'` installs almost all the optional dependencies.
 
 When installing MONAI, the compiled extensions are not compiled by default. Set the environment variable `BUILD_MONAI` to `1` when invoking `pip` to compile these, see below for details.
 
