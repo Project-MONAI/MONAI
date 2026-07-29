@@ -127,7 +127,7 @@ jobs:
     - if: runner.os == 'Linux'
       name: Clean unused tools
       run: |
-        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \ || true;
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
