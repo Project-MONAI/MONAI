@@ -291,7 +291,9 @@ class GlobalMutualInformationLoss(_Loss):
         # Note that there can still be non-zero bin values in the padded region,
         # it's just that these bins will never be a central bin for the Parzen
         # window.
-        compute_img = img.float() if img.dtype in (torch.float16, torch.bfloat16) else img
+        compute_img = (
+            img.float() if not torch.is_floating_point(img) or img.dtype in (torch.float16, torch.bfloat16) else img
+        )
         _max, _min = torch.max(compute_img), torch.min(compute_img)
         padding = 2
         interior_bins = self.num_bins - 2 * padding

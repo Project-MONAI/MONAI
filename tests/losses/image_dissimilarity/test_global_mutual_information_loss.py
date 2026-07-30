@@ -215,6 +215,19 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
 
+    def test_b_spline_integer_target_is_supported(self):
+        """Verify integer targets do not fail floating-point range validation."""
+        pred = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.arange(64, dtype=torch.int64).reshape(1, 1, 8, 8)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
     def test_b_spline_float16_small_range_preserves_signal(self):
         """Verify a small nonzero float16 range retains loss and gradient signal."""
         values = torch.linspace(0.0, 5e-4, 64, dtype=torch.float16).reshape(1, 1, 8, 8)
