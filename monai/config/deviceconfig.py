@@ -23,8 +23,6 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils.deprecate_utils import deprecated
-from monai.utils.enums import IgniteInfo as _IgniteInfo
 from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
@@ -114,8 +112,8 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         fprint(f"{k} version: {v}", file=file)
-    fprint(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}",file=file)
-    fprint(f"MONAI rev id: {monai.__revision_id__}",file=file)
+    fprint(f"MONAI flags: {HAS_EXT=}, {USE_COMPILED=}, {USE_META_DICT=}", file=file)
+    fprint(f"MONAI rev id: {monai.__revision_id__}", file=file)
     fprint(f"MONAI __file__: {monai.__file__}", file=file)
     fprint("\nOptional dependencies:", file=file)
     for k, v in get_optional_config_values().items():
