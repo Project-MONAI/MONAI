@@ -72,12 +72,13 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: PathLike):
+    def __init__(self, template_path: PathLike | None = None):
         """
         Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_path: path to a folder that contains the algorithm templates.
+            template_path: path to a folder that contains the algorithm templates. If this is not provided, it's value
+                must be loaded with `load_state_dict`.
                 Please check https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         """
@@ -264,8 +265,7 @@ class BundleAlgo(Algo):
                 look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
             except ValueError as err:
                 raise NotImplementedError(
-                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
-                    "Try modify BundleAlgo._run_cmd for your cluster."
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet. Try modify BundleAlgo._run_cmd for your cluster."
                 ) from err
 
             return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
@@ -379,6 +379,7 @@ class BundleAlgo(Algo):
             based on which path successfully imports the Algo class.
         """
         return {
+            "template_path": self.template_path,
             "data_stats_files": self.data_stats_files,
             "data_list_file": self.data_list_file,
             "mlflow_tracking_uri": self.mlflow_tracking_uri,

@@ -2,13 +2,15 @@
 name: premerge-gpu
 
 on:
-  # quick tests for pull requests and the releasing branches
-  push:
-    branches:
-      - main
-      - releasing/*
-  pull_request:
-    types: [opened, synchronize, closed]
+#   # quick tests for pull requests and the releasing branches
+#   push:
+#     branches:
+#       - main
+#       - releasing/*
+#   pull_request:
+#     types: [opened, synchronize, closed]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -44,7 +46,7 @@ jobs:
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: apt install
       if: github.event.pull_request.merged != true
       run: |
@@ -125,6 +127,6 @@ jobs:
       shell: bash
     - name: Upload coverage
       if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         files: ./coverage.xml

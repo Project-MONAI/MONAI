@@ -210,8 +210,12 @@ class PersistentDataset(Dataset):
 
         Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
         be converted to tensors, however any other object type returned by transforms will not be loadable since
-        `torch.load` will be used with `weights_only=True` to prevent loading of potentially malicious objects.
-        Legacy cache files may not be loadable and may need to be recomputed.
+        `torch.load` will be used with `weights_only=True` by default to prevent loading of potentially malicious
+        objects. Legacy cache files may not be loadable and may need to be recomputed. MetaTensor objects can be saved
+        and loaded with their metadata preserved if `track_meta` is True, however the objects stored in the metadata
+        must be acceptable as serialisable by `torch.load` by default or if they have been white-listed with
+        `torch.serialization.add_safe_globals`. Any other object type may be stored but will fail to load and force
+        a cache recompute.
 
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
@@ -245,8 +249,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
                 If `cache_dir` is `None`, there is effectively no caching.
-            hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.pickle_hashing`.
+            hash_func: a callable to compute hash from data items to be cached, defaults to
+                `monai.data.utils.pickle_hashing` which uses sha256 (previously md5 so old caches will not work).
             pickle_module: string representing the module used for pickling metadata and objects,
                 default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
                 we can't use `pickle` as arg directly, so here we use a string name instead.
@@ -266,17 +270,12 @@ class PersistentDataset(Dataset):
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
-            track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
-                default to `False`. Cannot be used with `weights_only=True`.
+            track_meta: whether to track the meta information, defaults to False. If `True`, converts to `MetaTensor`.
             weights_only: keyword argument passed to `torch.load` when reading cached files.
-                default to `True`. When set to `True`, `torch.load` restricts loading to tensors and
-                other safe objects. Setting this to `False` is required for loading `MetaTensor`
-                objects saved with `track_meta=True`, however this creates the possibility of remote
-                code execution through `torch.load` so be aware of the security implications of doing so.
-
-        Raises:
-            ValueError: When both `track_meta=True` and `weights_only=True`, since this combination
-                prevents cached MetaTensors from being reloaded and causes perpetual cache regeneration.
+                default to `True`. When `True`, `torch.load` restricts loading to tensors and other safe objects.
+                Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
+                eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
+                they intend to load before doing so.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -292,11 +291,6 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
-        if track_meta and weights_only:
-            raise ValueError(
-                "Invalid argument combination: `track_meta=True` cannot be used with `weights_only=True`. "
-                "To cache and reload MetaTensors, set `track_meta=True` and `weights_only=False`."
-            )
         self.track_meta = track_meta
         self.weights_only = weights_only
 
@@ -390,9 +384,9 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
@@ -609,24 +603,26 @@ class LMDBDataset(PersistentDataset):
         # the cache is created without multi-threading
         self._read_env: Any | None = None
         # this runs on the primary thread/process
-        self._fill_cache_start_reader(show_progress=self.progress)
-        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+        read_env = self._fill_cache_start_reader(show_progress=self.progress)
+        read_env.close()
 
     def set_data(self, data: Sequence):
         """
         Set the input data and delete all the out-dated cache content.
-
         """
+        self.close()
         super().set_data(data=data)
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
     def _safe_serialize(self, val):
+        """Serialize the tensor/array `val` using the pickle protocol, and return its bytes object."""
         out = BytesIO()
         torch.save(convert_to_tensor(val), out, pickle_protocol=self.pickle_protocol)
         out.seek(0)
         return out.read()
 
     def _safe_deserialize(self, val):
+        """Load the object from the given bytes data, this must be loadable as weights only using `torch.load`."""
         return torch.load(BytesIO(val), map_location="cpu", weights_only=True)
 
     def _fill_cache_start_reader(self, show_progress=True):
@@ -637,6 +633,12 @@ class LMDBDataset(PersistentDataset):
         Args:
             show_progress: whether to show the progress bar if possible.
         """
+        # Close any open read environment before attempting write-mode access
+        # to prevent "environment already open" errors when multiple LMDBDataset
+        # instances target the same db file
+        if self._read_env is not None:
+            self._read_env.close()
+            self._read_env = None
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
@@ -664,7 +666,7 @@ class LMDBDataset(PersistentDataset):
                         size = env.info()["map_size"]
                         new_size = size * 2
                         warnings.warn(
-                            f"Resizing the cache database from {int(size) >> 20}MB" f" to {int(new_size) >> 20}MB."
+                            f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB."
                         )
                         env.set_mapsize(new_size)
                     except lmdb.MapResizedError:
@@ -687,10 +689,7 @@ class LMDBDataset(PersistentDataset):
         return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
     def _cachecheck(self, item_transformed):
-        """
-        if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
-
-        """
+        """If the item is not found in the lmdb file, resolves to the persistent cache default behaviour."""
         if self._read_env is None:
             # this runs on multiple processes, each one should have its own env.
             self._read_env = self._fill_cache_start_reader(show_progress=False)
@@ -715,7 +714,14 @@ class LMDBDataset(PersistentDataset):
         out = dict(self._read_env.info())
         out["size"] = len(self.data)
         out["filename"] = f"{self.db_file.absolute()}"
+        self.close()
         return out
+
+    def close(self):
+        """Close the read environment and set it to None, if it exists."""
+        if self._read_env:
+            self._read_env.close()
+            self._read_env = None
 
 
 class CacheDataset(Dataset):
@@ -1612,9 +1618,9 @@ class GDSDataset(PersistentDataset):
         hashfile = None
         # compute a cache id
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):

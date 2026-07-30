@@ -116,6 +116,13 @@ Metrics
 .. autoclass:: SurfaceDiceMetric
     :members:
 
+`Absolute volume difference`
+----------------------------
+.. autofunction:: compute_absolute_volume_difference
+
+.. autoclass:: AbsoluteVolumeDifferenceMetric
+    :members:
+
 `PanopticQualityMetric`
 -----------------------
 .. autofunction:: compute_panoptic_quality

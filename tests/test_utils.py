@@ -64,6 +64,8 @@ hf_local_entry_error, _has_hf_local = optional_import("huggingface_hub.errors", 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
 _test_data_config: dict = {}
+# Fix dynamic warningregistry logs noise in python unit/pytest configurations
+warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 
@@ -241,7 +243,7 @@ def is_tf32_env():
                 a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
-            except BaseException:
+            except Exception:
                 pass
         print(f"tf32 enabled: {_tf32_enabled}")
     return _tf32_enabled

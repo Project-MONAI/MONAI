@@ -53,6 +53,7 @@ doMypyFormat=false
 doCleanup=false
 doDistTests=false
 doPrecommit=false
+testTimeout=0
 
 NUM_PARALLEL=1
 
@@ -109,6 +110,8 @@ function print_usage {
     echo "    -v, --version     : show MONAI and system version information and exit"
     echo "    -p, --path        : specify the path used for formatting, default is the current dir if unspecified"
     echo "    --formatfix       : format code using \"isort\" and \"black\" for user specified directories"
+    echo "    --timeout [secs]  : per-test timeout in seconds; tests exceeding this are marked as errors and skipped"
+    echo "                        (default: 180s when flag is given without a value; 0 = disabled)"
     echo ""
     echo "${separator}For bug reports and feature requests, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
@@ -343,6 +346,15 @@ do
         -p|--path)
             testdir=$2
             shift
+        ;;
+        --timeout)
+            # Accept an optional numeric value; default to 180s if none given.
+            if (("$2" > 0)); then
+                testTimeout=$2
+                shift
+            else
+                testTimeout=180
+            fi
         ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"
@@ -695,7 +707,11 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$"  # excluding integration/dist/perceptual_loss tests
+    timeoutArg=""
+    if (("$testTimeout" > 0)); then
+        timeoutArg="--timeout $testTimeout"
+    fi
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$" $timeoutArg  # excluding integration/dist/perceptual_loss tests
 fi
 
 # distributed test only
