@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import sys
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -30,9 +29,8 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.data.meta_obj import MetaObj
+from monai.data.meta_obj import _DEFAULT_SPATIAL_NDIM, MetaObj
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -93,7 +91,6 @@ __all__ = [
     "remove_keys",
     "remove_extra_metadata",
     "get_extra_metadata_keys",
-    "PICKLE_KEY_SUFFIX",
     "is_no_channel",
 ]
 
@@ -418,32 +415,6 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
-PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
-
-
-def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
-    """
-    Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
-
-    Args:
-        data: a list or dictionary with substructures to be pickled/unpickled.
-        key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
-        is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
-    """
-    if isinstance(data, Mapping):
-        data = dict(data)
-        for k in data:
-            if f"{k}".endswith(key):
-                if is_encode and not isinstance(data[k], bytes):
-                    data[k] = pickle.dumps(data[k], 0)
-                if not is_encode and isinstance(data[k], bytes):
-                    data[k] = pickle.loads(data[k])
-        return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
-    elif isinstance(data, (list, tuple)):
-        return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
-    return data
-
-
 def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     """
     Collate a sequence of meta tensor into a single batched metatensor. This is called by `collage_meta_tensor`
@@ -460,6 +431,9 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     collated.meta = default_collate(meta_dicts)
     collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
     collated.is_batch = True
+    collated.spatial_ndim = min(
+        min(getattr(t, "spatial_ndim", _DEFAULT_SPATIAL_NDIM) for t in batch), max(collated.ndim - 1, 1)
+    )
     return collated
 
 
@@ -500,8 +474,8 @@ def list_data_collate(batch: Sequence):
     key = None
     collate_fn = default_collate
     try:
-        if config.USE_META_DICT:
-            data = pickle_operations(data)  # bc 0.9.0
+        # if config.USE_META_DICT:
+        # data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
@@ -625,11 +599,12 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
     ):
         return batch
+    # if scalar tensor/array, return the item itself.
+    if getattr(batch, "ndim", -1) == 0 and hasattr(batch, "item"):
+        return batch.item() if detach else batch
     if isinstance(batch, torch.Tensor):
         if detach:
             batch = batch.detach()
-        if batch.ndim == 0:
-            return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
         if isinstance(batch, MetaObj):
@@ -654,15 +629,17 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
         ret = [dict(zip(deco, item)) for item in _gen]
-        if not config.USE_META_DICT:
-            return ret
-        return pickle_operations(ret, is_encode=False)  # bc 0.9.0
+        # if not config.USE_META_DICT:
+        # return ret
+        # return pickle_operations(ret, is_encode=False)  # bc 0.9.0
+        return ret
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
         ret_list = [list(item) for item in _gen]
-        if not config.USE_META_DICT:
-            return ret_list
-        return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
+        # if not config.USE_META_DICT:
+        # return ret_list
+        # return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
+        return ret_list
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
@@ -753,7 +730,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
     else:
-        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))  # type: ignore[operator]
     if suppress_zeros:
         spacing[spacing == 0] = 1.0
     spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
@@ -906,7 +883,7 @@ def compute_shape_offset(
             Default is False, using option 1 to compute the shape and offset.
 
     """
-    shape = np.array(spatial_shape, copy=True, dtype=float)
+    shape = np.array(tuple(spatial_shape), copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
@@ -1392,13 +1369,8 @@ def json_hashing(item) -> bytes:
 
     """
     # TODO: Find way to hash transforms content as part of the cache
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = json.dumps(item, sort_keys=True).encode("utf-8")
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 
@@ -1413,13 +1385,8 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     Returns: the corresponding hash key
 
     """
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = pickle.dumps(sorted_dict(item), protocol=protocol)
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 
@@ -1473,7 +1440,7 @@ def convert_tables_to_dicts(
     # parse row indices
     rows: list[int | str] = []
     if row_indices is None:
-        rows = slice(df.shape[0])  # type: ignore
+        rows = df.index.tolist()
     else:
         for i in row_indices:
             if isinstance(i, (tuple, list)):

@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any
+from typing import Any, cast
 from warnings import warn
 
 import numpy as np
@@ -26,6 +26,7 @@ import torch
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import get_spatial_ndim
 from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
@@ -353,17 +354,14 @@ class StdShiftIntensity(Transform):
         self.dtype = dtype
 
     def _stdshift(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        ones: Callable
         std: Callable
         if isinstance(img, torch.Tensor):
-            ones = torch.ones
             std = partial(torch.std, unbiased=False)
         else:
-            ones = np.ones
             std = np.std
 
-        slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
-        if slices.any():
+        slices = (img != 0) if self.nonzero else ()
+        if not self.nonzero or (isinstance(slices, (np.ndarray, torch.Tensor)) and slices.any()):
             offset = self.factor * std(img[slices])
             img[slices] = img[slices] + offset
         return img
@@ -602,6 +600,7 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         fixed_mean: bool = True,
         preserve_range: bool = False,
         dtype: DtypeLike = np.float32,
+        channel_wise: bool = False,
     ) -> None:
         """
         Args:
@@ -610,10 +609,10 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
             preserve_range: clips the output array/tensor to the range of the input array/tensor
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
-            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -626,17 +625,25 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         self.factor = self.factors[0]
         self.fixed_mean = fixed_mean
         self.preserve_range = preserve_range
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
         self.scaler = ScaleIntensityFixedMean(
-            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
+            factor=self.factor,
+            fixed_mean=self.fixed_mean,
+            preserve_range=self.preserve_range,
+            channel_wise=self.channel_wise,
+            dtype=self.dtype,
         )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        if self.channel_wise:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1], size=data.shape[:1])  # type: ignore
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -644,10 +651,24 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
+
+        if self.channel_wise:
+            out: list[torch.Tensor] = []
+            for i, d in enumerate(img):
+                scale_trans = ScaleIntensityFixedMean(
+                    factor=float(self.factor[i]),  # type: ignore[index]
+                    fixed_mean=self.fixed_mean,
+                    preserve_range=self.preserve_range,
+                    dtype=self.dtype,
+                )
+                out.append(scale_trans(d[None]))  # type: ignore[arg-type]
+            ret: NdarrayOrTensor = torch.cat(out)
+            ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img.dtype)[0]
+            return ret
 
         return self.scaler(img, self.factor)
 
@@ -900,27 +921,28 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t: torch.Tensor = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore[assignment]
         dtype = self.dtype or img.dtype
+        img_len = len(img_t)
         if self.channel_wise:
-            if self.subtrahend is not None and len(self.subtrahend) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
-            if self.divisor is not None and len(self.divisor) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+            if self.subtrahend is not None and len(self.subtrahend) != img_len:
+                raise ValueError(f"img has {img_len} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != img_len:
+                raise ValueError(f"img has {img_len} channels, but divisor has {len(self.divisor)} components.")
 
-            if not img.dtype.is_floating_point:
-                img, *_ = convert_data_type(img, dtype=torch.float32)
+            if not img_t.dtype.is_floating_point:
+                img_t, *_ = convert_data_type(img_t, dtype=torch.float32)
 
-            for i, d in enumerate(img):
-                img[i] = self._normalize(  # type: ignore
+            for i, d in enumerate(img_t):
+                img_t[i] = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
                 )
         else:
-            img = self._normalize(img, self.subtrahend, self.divisor)
+            img_t = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
 
-        out = convert_to_dst_type(img, img, dtype=dtype)[0]
+        out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
         return out
 
 
@@ -1579,7 +1601,7 @@ class MedianSmooth(Transform):
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
-        spatial_dims = img_t.ndim - 1
+        spatial_dims = get_spatial_ndim(img)
         r = ensure_tuple_rep(self.radius, spatial_dims)
         median_filter_instance = MedianFilter(r, spatial_dims=spatial_dims)
         out_t: torch.Tensor = median_filter_instance(img_t)
@@ -1615,7 +1637,7 @@ class GaussianSmooth(Transform):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
         else:
             sigma = torch.as_tensor(self.sigma, device=img_t.device)
-        gaussian_filter = GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx)
+        gaussian_filter = GaussianFilter(get_spatial_ndim(img), sigma, approx=self.approx)
         out_t: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
         out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
 
@@ -1672,7 +1694,7 @@ class RandGaussianSmooth(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=img.ndim - 1)
+        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=get_spatial_ndim(img))
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
@@ -1722,7 +1744,7 @@ class GaussianSharpen(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
-            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
+            GaussianFilter(get_spatial_ndim(img), sigma, approx=self.approx).to(img_t.device)
             for sigma in (self.sigma1, self.sigma2)
         )
         blurred_f = gf1(img_t.unsqueeze(0))
@@ -1810,8 +1832,9 @@ class RandGaussianSharpen(RandomizableTransform):
 
         if self.x2 is None or self.y2 is None or self.z2 is None or self.a is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
-        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        _sp = get_spatial_ndim(img)
+        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=_sp)
+        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=_sp)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
@@ -1848,7 +1871,7 @@ class RandHistogramShift(RandomizableTransform):
         ns = torch if isinstance(x, torch.Tensor) else np
         if isinstance(x, np.ndarray):
             # approx 2x faster than code below for ndarray
-            return np.interp(x, xp, fp)
+            return cast(np.ndarray, np.interp(x, xp, fp))
 
         m = (fp[1:] - fp[:-1]) / (xp[1:] - xp[:-1])
         b = fp[:-1] - (m * xp[:-1])
@@ -1856,7 +1879,7 @@ class RandHistogramShift(RandomizableTransform):
         indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
         indices = ns.clip(indices, 0, len(m) - 1)
 
-        f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
+        f: NdarrayOrTensor = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
         f[x < xp[0]] = fp[0]
         f[x > xp[-1]] = fp[-1]
         return f
@@ -2764,7 +2787,7 @@ class ComputeHoVerMaps(Transform):
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor):
-        instance_mask = convert_data_type(mask, np.ndarray)[0]
+        instance_mask: np.ndarray = convert_data_type(mask, np.ndarray)[0]  # type: ignore[assignment]
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)

@@ -4,6 +4,207 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+* `HyenaMixer`, `HyenaTransformerBlock`, and `DepthwiseFFTConv{2,3}d` in `monai.networks.blocks`: subquadratic O(N log N) alternatives to windowed self-attention, backed by the HyenaND operator from the optional `nvsubquadratic` package.
+* `HyenaNDUNETR` (`monai.networks.nets.HyenaNDUNETR`): thin `SwinUNETR` subclass with a `get_variant(name)` classmethod for the three Hyena variants (`HHHH`, `HAHA`, `HHAA`) from the NeurIPS 2026 paper "Native Multi-Dimensional Subquadratic Operators via Input Dependent Long Convolutions" (paper id 26539).
+* `SwinUNETR.use_hyena` and `SwinUNETR.hyena_stages` kwargs to thread HyenaND blocks through any subset of Swin stages. Default `use_hyena=False` preserves bit-identical forward behavior of the existing code path.
+* New `[hyena]` extras_require in setup.cfg (`pip install monai[hyena]`).
+
+## [1.6.0] - 2026-06-12
+
+## What's Changed
+### Added
+* Add `MAPEMetric` for regression evaluation (#8686)
+* Add `CalibrationErrorMetric` and `CalibrationError` handler (#8707)
+* Add `AUC-Margin Loss` for AUROC optimization (#8719)
+* Add `MCCLoss` (Matthews Correlation Coefficient loss) (#8785)
+* Add `EmbeddingCollapseMetric` for detecting representational collapse (#8815)
+* Add 3D support and confusion matrix output to `PanopticQualityMetric` (#8684)
+* Add `GradientAccumulation` utility for `SupervisedTrainer` (#8763)
+* Add nested dot-notation access to `ConfigParser` (#8858)
+* Add `allow_pickle` argument to relevant loaders (#8875)
+* Add configurable GD-enhancing tumor label in `ConvertToMultiChannelBasedOnBratsClasses` (#8779)
+* Enable global coordinates in spatial crop transforms (#8794)
+* Generalize `TestTimeAugmentation` to non-spatial predictions (#8715)
+* Add parameter to `DiceMetric` and `DiceHelper` classes (#8774)
+* Support additional dtypes in `pad_nd` (#8672)
+
+### Fixed
+* Fix `Invertd` transform (#8651)
+* Fix `PerceptualLoss` errors out after hitting maximum number of downloads (#8652)
+* Prevent implicit conversion of `MetaTensor` to numpy array (#8654)
+* Fix weights in alpha for `FocalLoss` (#8665)
+* Fix align_corners mismatch in `AffineTransform` (#8690)
+* Fix multi-axis shear transform to compose individual shear matrices (#8778)
+* Fix incorrect `truncated` parameter in `make_gaussian_kernel` causing corrupted `LocalNormalizedCrossCorrelationLoss` (#8781, #8783)
+* Fix batch size broadcasting bug in `GeneralizedWassersteinDiceLoss` (#8744)
+* Fix `AutoencoderKLMaisi` forcing CUDA transfer on CPU inputs (#8736)
+* Fix `TrainableBilateralFilter` 3D input validation (#8729)
+* Fix GPU memory leak by checking both image and label tensors for CUDA device (#8708)
+* Fix `compute_shape_offset` non-tuple indexing for PyTorch >=2.9 (#8776, #8812)
+* Fix memory leak in `optional_import` traceback handling (#8782)
+* Fix nested `Compose` `map_items` in forward and inverse paths (#8787)
+* Fix `JukeboxLoss.forward` swapped `input_amplitude` and `target_amplitude` (#8821)
+* Fix `EnsureChannelFirst` to pass `meta_data` when `track_meta` is False (#8835)
+* Fix `RandSimulateLowResolution` to not alter `track_meta` state (#8837)
+* Fix incomplete activation validation in `HausdorffDTLoss` (#8841)
+* Fix `CrossAttentionBlock` instantiated unconditionally (#8848)
+* Fix `GlobalMutualInformationLoss` bin_centers registered as buffer (#8869)
+* Fix `SoftclDiceLoss` and `SoftDiceclDiceLoss` with `DiceLoss`-compatible API (#8703)
+* Fix execution order of activation and masking in `MaskedDiceLoss` (#8704)
+* Fix `load_old_state_dict` key mapping in `AutoencoderKL` (#8786)
+* Fix missing `channel_wise` parameter in `RandScaleIntensityFixedMean` (#8741)
+* Fix NibabelReader eager C-order copy (#8825)
+* Fix `nnUNetV2Runner` to support MIG UUID and respect `CUDA_VISIBLE_DEVICES` (#8716)
+* Fix Auto3DSeg device handling and safe no-grad cleanup (#8801, #8803)
+* Replace deprecated `cuda.cudart` with `cuda.bindings.runtime` (#8790)
+* Replace `Tensor | None` with `Optional[Tensor]` for TorchScript compatibility (#8879)
+* Fix for [GHSA-rghg-q7wp-9767](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-rghg-q7wp-9767) (#8885)
+
+### Changed
+* Replace `pickle` with JSON in Auto3DSeg algo serialization (#8695)
+* Replace `flake8` with `ruff` and update lint rules (#8692, #8694)
+* Modernize build commands for setuptools 80+ compatibility (#8728)
+* Replace direct `np.random.*` calls with `np.random.RandomState` instances (#8798)
+* Replace `BaseException` with `Exception` across codebase (#8859)
+* Update base Docker image to 25.12 (#8738)
+* Various performance improvements in engine utilities and core data structures (#8747, #8748, #8751)
+* FFT utilities cleanup and update (#8762)
+
+## [1.5.2] - 2026-01-28
+
+## What's Changed
+### Fixed
+* Fix Zip Slip vulnerability in NGC private bundle download (#8682)
+
+## [1.5.1] - 2025-09-22
+
+## What's Changed
+### Added
+* PyTorch 2.7 and 2.8 support (#8429, #8530)
+* Create SECURITY.md (#8546)
+* Add kwargs in array and functional file (#8508)
+* Add .coderabbit.yaml File (#8513)
+* Add input validation to ImageStats class (#8501)
+* Add support for optional conditioning in PatchInferer, SliceInferer, and SlidingWindowInferer (#8400)
+* Add classifier free guidance unconditioned value (#8562)
+* Improved `DiffusionModelEncoder` to support output linear layers of different dimensions (#8578, #8580)
+
+### Fixed
+* Fix for insecure zip file extraction to address [GHSA-x6ww-pf9m-m73m](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6ww-pf9m-m73m) (#8568)
+* Fix for insecure use of `torch.load` and `pickle` to address [GHSA-6vm5-6jv9-rjpj](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-6vm5-6jv9-rjpj) and [GHSA-p8cm-mm2v-gwjm](https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-p8cm-mm2v-gwjm) (#8566)
+* Torchvision fix for loading pretrained weights using current syntax (#8563)
+* Fix bug in MAISI vae (#8517)
+* Throw exception on invalid images in retinanet detector (#8515)
+* Fix: HistogramNormalized doc (#8543)
+* Fix build failure by pinning pyamg to versions below 5.3.0 (#8548)
+* Fix hardcoded input dim in DiffusionModelEncoder (#8514)
+* Fix for gdown downloading fails (#8576)
+
+### Changed
+* Update README badges to add research paper citations number (#8494)
+* CI: Add custom timeout to ci job in order to save resources (#8504)
+* Improve documentation on the datalist format (#8539)
+* Tests Cleanup and refactor (#8405, #8535)
+* Improve Orientation transform to use the "space" (LPS vs RAS) of a metatensor by default (#8473)
+* Updated supported version of Huggingface Transformers (#8574)
+
+## [1.5.0] - 2025-06-13
+
+## What's Changed
+### Added
+* Add platform-specific constraints to setup.cfg (#8260)
+* Add PythonicWorkflow (#8151)
+* Add SM architecture version check (#8199)
+* Add MedNext implementation (#8004)
+* Added a top button to CONSTRIBUTING.md (#8163)
+* Adding CODEOWNERS (#8457)
+* Restormer Implementation (#8312)
+* Add rectified flow noise scheduler for accelerated diffusion model (#8374)
+* Add prediction type for rflow scheduler (#8386)
+* Add Average Precision to metrics (#8089)
+* Implementation of a Masked Autoencoder for representation learning (#8152)
+* Implement TorchIO transforms wrapper analogous to TorchVision transfo… (#7579)
+* 8328 nnunet bundle integration (#8329)
+* Adding Support Policy + Doc Updates (#8458)
+* Classifier free guidance (#8460)
+
+### Fixed
+* Fix Ruff Numpy2 deprecation rules (#8179)
+* Fix `torch.load()` frequently warning in PersistentDataset and GDSDataset (#8177)
+* Fix the logging of a nested dictionary metric in MLflow (#8169)
+* Fix ImageFilter to allow Gaussian filter without filter_size (#8189)
+* Fix fold_constants, test_handler switched to onnx (#8211)
+* Fix TypeError in meshgrid (#8252)
+* Fix PatchMerging duplicate merging (#8285)
+* Fix test load image issue (#8297)
+* Fix bundle download error from ngc source (#8307)
+* Fix deprecated usage in zarr (#8313, #8477)
+* Fix DataFrame subsets indexing in CSVDataset() (#8351)
+* Fix `packaging` imports in version comparison logic (#8347)
+* Fix CommonKeys docstring (#8342)
+* Fix: correctly apply fftshift to real-valued data inputs (#8407)
+* Fix OptionalImportError: required package `openslide` is not installed (#8419)
+* Fix cosine noise scheduler (#8427)
+* Fix AutoencoderKL docstrings. (#8445)
+* Inverse Threading Fix (#8418)
+* Fix normalize intensity (#8286)
+* Fix path at test onnx trt export (#8361)
+* Fix broken urls (#8481, #8483)
+
+### Changed
+* [DOC] Update README.md (#8157)
+* Streamlined Rearrange in SpatialAttentionBlock (#8130)
+* Optimize VISTA3D (#8123)
+* Skip torch trt convert test with torch newer than or equal to 2.5.0 (#8165)
+* Enable redirection of all loggers by configuring a FileHandler within the bundle (#8142)
+* Apply pyupgrade fixes for Python 3.9+ syntax (#8150)
+* Update base image to 2410 (#8164)
+* TRT support for MAISI (#8153)
+* 8134 Add unit test for responsive inference (#8146)
+* SwinUNETR refactor to accept additional parameters (#8212)
+* Allow an arbitrary mask to be used in the self attention (#8235)
+* Bump codecov/codecov-action from 4 to 5 (#8245)
+* Docs: update brats classes description (#8246)
+* Change default value of `patch_norm` to False in `SwinUNETR` (#8249)
+* Modify Dice, Jaccard and Tversky losses (#8138)
+* Modify Workflow to Allow IterableDataset Inputs (#8263)
+* Enhance download_and_extract (#8216)
+* Relax gpu load check (#8282, #8275)
+* Using LocalStore in Zarr v3 (#8299)
+* Enable gpu load nifti (#8188)
+* update pydicom reader to enable gpu load (#8283)
+* Zarr compression tests only with versions before 3.0 (#8319)
+* Changing utils.py to test_utils.py (#8335)
+* Refactor testd (#8231)
+* Recursive Item Mapping for Nested Lists in Compose  (#8187)
+* Bump min torch to 1.13.1 to mitigate CVE-2022-45907 unsafe usage of eval (#8296)
+* Inferer modification - save_intermediates clashes with latent shape adjustment in latent diffusion inferers (#8343)
+* Solves path problem in test_bundle_trt_export.py (#8357)
+* Modify ControlNet inferer so that it takes in context when the diffus… (#8360)
+* Update monaihosting download method (#8364)
+* Bump torch minimum to mitigate CVE-2024-31580 & CVE-2024-31583 and enable numpy 2 compatibility (#8368)
+* Auto3DSeg algo_template hash update (#8378)
+* Enable Pytorch 2.6 (#8309)
+* Auto3DSeg algo_template hash update (#8393, #8397)
+* Update Dice Metric Docs (#8388)
+* Auto3DSeg algo_template hash update (#8406)
+* Update bundle download API (#8403)
+* Add Skip test in TestTranschex (#8416)
+* Update get latest bundle version function (#8420)
+* Temporarily Restrict setuptools Version to 79.0.1 (#8441)
+* Update default overlap value in occlusion_sensitivity to 0.6 (#8446)
+* Enable code coverage comments on PRs in codecov configuration (#8402)
+* Migrate to modern Python Logger API (#8449)
+
+### Deprecated
+### Removed
+* Remove deprecated functionality for v1.5 (#8430)
+* Remove deprecated `return_state_dict ` in bundle `load` (#8454)
+* Remove deprecated `net_name` in test file (#8461)
+* Remove unused test cases in bundle load (#8463)
+* selfattention block: Remove the fc linear layer if it is not used (#8325)
+* Removed outdated `torch` version checks from transform functions (#8359)
 
 ## [1.4.0] - 2024-10-17
 ## What's Changed
@@ -1132,7 +1333,11 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/Project-MONAI/MONAI/compare/1.5.2...1.6.0
+[1.5.2]: https://github.com/Project-MONAI/MONAI/compare/1.5.1...1.5.2
+[1.5.1]: https://github.com/Project-MONAI/MONAI/compare/1.5.0...1.5.1
+[1.5.0]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...1.4.0
 [1.3.2]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1

@@ -38,7 +38,7 @@ def update_fname(d):
 class TestResampleToMatchd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(__class__, cls).setUpClass()
+        super().setUpClass()
         cls.fnames = []
         cls.tmpdir = tempfile.mkdtemp()
         for key in ("0000_t2_tse_tra_4", "0000_ep2d_diff_tra_7"):
@@ -52,7 +52,7 @@ class TestResampleToMatchd(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmpdir)
-        super(__class__, cls).tearDownClass()
+        super().tearDownClass()
 
     def test_correct(self):
         transforms = Compose(

@@ -574,7 +574,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 model_path = os.path.join(self.bundle_root, cast(str, self.model_filepaths[model_type]))
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
-                weights = torch.load(model_path, map_location="cpu")
+                weights = torch.load(model_path, map_location="cpu", weights_only=True)
                 # if weights contain several state dicts, use the one defined by `save_dict_key`
                 if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)

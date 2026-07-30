@@ -36,7 +36,7 @@ from monai.auto3dseg.utils import (
     _prepare_cmd_torchrun,
     _run_cmd_bcprun,
     _run_cmd_torchrun,
-    algo_to_pickle,
+    algo_to_json,
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
@@ -72,12 +72,13 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: PathLike):
+    def __init__(self, template_path: PathLike | None = None):
         """
         Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_path: path to a folder that contains the algorithm templates.
+            template_path: path to a folder that contains the algorithm templates. If this is not provided, it's value
+                must be loaded with `load_state_dict`.
                 Please check https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         """
@@ -208,7 +209,7 @@ class BundleAlgo(Algo):
         config_files = []
         if os.path.isdir(config_dir):
             for file in sorted(os.listdir(config_dir)):
-                if file.endswith("yaml") or file.endswith("json"):
+                if file.endswith(("yaml", "json")):
                     # Python Fire may be confused by single-quoted WindowsPath
                     config_files.append(Path(os.path.join(config_dir, file)).as_posix())
 
@@ -264,8 +265,7 @@ class BundleAlgo(Algo):
                 look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
             except ValueError as err:
                 raise NotImplementedError(
-                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
-                    "Try modify BundleAlgo._run_cmd for your cluster."
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet. Try modify BundleAlgo._run_cmd for your cluster."
                 ) from err
 
             return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
@@ -367,6 +367,40 @@ class BundleAlgo(Algo):
         """Returns the algo output paths to find the algo scripts and configs."""
         return self.output_path
 
+    def state_dict(self) -> dict:
+        """
+        Return state for serialization.
+
+        Returns:
+            A dictionary containing the BundleAlgo state to serialize.
+
+        Note:
+            template_path is excluded as it is determined dynamically at load time
+            based on which path successfully imports the Algo class.
+        """
+        return {
+            "template_path": self.template_path,
+            "data_stats_files": self.data_stats_files,
+            "data_list_file": self.data_list_file,
+            "mlflow_tracking_uri": self.mlflow_tracking_uri,
+            "mlflow_experiment_name": self.mlflow_experiment_name,
+            "output_path": self.output_path,
+            "name": self.name,
+            "best_metric": self.best_metric,
+            "fill_records": self.fill_records,
+            "device_setting": self.device_setting,
+        }
+
+    def load_state_dict(self, state: dict) -> None:
+        """
+        Restore state from a dictionary.
+
+        Args:
+            state: A dictionary containing the state to restore.
+        """
+        for key, value in state.items():
+            setattr(self, key, value)
+
 
 # path to download the algo_templates
 default_algo_zip = (
@@ -396,7 +430,7 @@ def _download_algos_url(url: str, at_path: str) -> dict[str, dict[str, str]]:
         try:
             download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
         except Exception as e:
-            msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
+            msg = f"Download and extract of {url} failed, attempt {i + 1}/{download_attempts}."
             if i < download_attempts - 1:
                 warnings.warn(msg)
                 time.sleep(i)
@@ -659,7 +693,7 @@ class BundleGen(AlgoGen):
                 else:
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
 
-                algo_to_pickle(gen_algo, template_path=algo.template_path)
+                algo_to_json(gen_algo, template_path=algo.template_path)
                 self.history.append(
                     {AlgoKeys.ID: name, AlgoKeys.ALGO: gen_algo}
                 )  # track the previous, may create a persistent history

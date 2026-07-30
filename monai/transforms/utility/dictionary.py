@@ -30,7 +30,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
+from monai.transforms.traits import MultiSampleTrait, RandomizableTrait, ReduceTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddCoordinateChannels,
@@ -45,6 +45,7 @@ from monai.transforms.utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -191,6 +192,15 @@ __all__ = [
     "ApplyTransformToPointsd",
     "ApplyTransformToPointsD",
     "ApplyTransformToPointsDict",
+    "TransformPointsWorldToImaged",
+    "TransformPointsWorldToImageD",
+    "TransformPointsWorldToImageDict",
+    "TransformPointsImageToWorldd",
+    "TransformPointsImageToWorldD",
+    "TransformPointsImageToWorldDict",
+    "FlattenSequenced",
+    "FlattenSequenceD",
+    "FlattenSequenceDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -626,6 +636,13 @@ class ToPILd(MapTransform):
 class Transposed(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
+
+    .. note::
+        This transform does not update the affine matrix in the metadata. As a result,
+        affine-dependent transforms applied after (e.g. :py:class:`monai.transforms.Spacingd`)
+        may produce unexpected results, because the affine no longer corresponds to the
+        transposed data. To reorient medical images in an affine-aware way, use
+        :py:class:`monai.transforms.Orientationd` instead.
     """
 
     backend = Transpose.backend
@@ -1293,19 +1310,27 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
-    Convert labels to multi channels based on brats18 classes:
+    Convert labels to multi channels based on brats classes:
     label 1 is the necrotic and non-enhancing tumor core
     label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
+    the specified `et_label` (default 4) is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        et_label: the label used for the GD-enhancing tumor (ET).
+            - Use 4 for BraTS 2018-2022.
+            - Use 3 for BraTS 2023.
+            Defaults to 4.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ConvertToMultiChannelBasedOnBratsClasses.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, et_label: int = 4):
         super().__init__(keys, allow_missing_keys)
-        self.converter = ConvertToMultiChannelBasedOnBratsClasses()
+        self.converter = ConvertToMultiChannelBasedOnBratsClasses(et_label=et_label)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1906,6 +1931,108 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         return d
 
 
+class TransformPointsWorldToImaged(ApplyTransformToPointsd):
+    """
+    Dictionary-based transform to convert points from world coordinates to image coordinates.
+
+    This is a convenience subclass of :py:class:`monai.transforms.ApplyTransformToPointsd` with
+    ``invert_affine=True``, which transforms world-space coordinates into the coordinate space of a
+    reference image by inverting the image's affine matrix.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_keys: The key of the reference image used to derive the affine transformation.
+            This is required because the affine must come from a reference image.
+            It can also be a sequence of keys, in which case each refers to the affine applied
+            to the matching points in ``keys``.
+        dtype: The desired data type for the output.
+        affine_lps_to_ras: Defaults to ``False``. Set to ``True`` if your point data is in the RAS
+            coordinate system or you're using ``ITKReader`` with ``affine_lps_to_ras=True``.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        refer_keys: KeysCollection,
+        dtype: DtypeLike | torch.dtype = torch.float64,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(
+            keys=keys,
+            refer_keys=refer_keys,
+            dtype=dtype,
+            affine=None,
+            invert_affine=True,
+            affine_lps_to_ras=affine_lps_to_ras,
+            allow_missing_keys=allow_missing_keys,
+        )
+
+
+class TransformPointsImageToWorldd(ApplyTransformToPointsd):
+    """
+    Dictionary-based transform to convert points from image coordinates to world coordinates.
+
+    This is a convenience subclass of :py:class:`monai.transforms.ApplyTransformToPointsd` with
+    ``invert_affine=False``, which transforms image-space coordinates into world-space coordinates
+    by applying the reference image's affine matrix directly.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_keys: The key of the reference image used to derive the affine transformation.
+            This is required because the affine must come from a reference image.
+            It can also be a sequence of keys, in which case each refers to the affine applied
+            to the matching points in ``keys``.
+        dtype: The desired data type for the output.
+        affine_lps_to_ras: Defaults to ``False``. Set to ``True`` if your point data is in the RAS
+            coordinate system or you're using ``ITKReader`` with ``affine_lps_to_ras=True``.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        refer_keys: KeysCollection,
+        dtype: DtypeLike | torch.dtype = torch.float64,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(
+            keys=keys,
+            refer_keys=refer_keys,
+            dtype=dtype,
+            affine=None,
+            invert_affine=False,
+            affine_lps_to_ras=affine_lps_to_ras,
+            allow_missing_keys=allow_missing_keys,
+        )
+
+
+class FlattenSequenced(MapTransform, ReduceTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FlattenSequence`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, **kwargs) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.flatten_sequence = FlattenSequence(**kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.flatten_sequence(d[key])  # type: ignore[assignment]
+        return d
+
+
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
@@ -1949,3 +2076,6 @@ RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
 ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd
+TransformPointsWorldToImageD = TransformPointsWorldToImageDict = TransformPointsWorldToImaged
+TransformPointsImageToWorldD = TransformPointsImageToWorldDict = TransformPointsImageToWorldd
+FlattenSequenceD = FlattenSequenceDict = FlattenSequenced

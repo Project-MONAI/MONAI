@@ -21,7 +21,7 @@ from monai.utils import set_determinism
 
 class TestMultiScaleSSIMMetric(unittest.TestCase):
 
-    def test2d_gaussian(self):
+    def test_2d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(1, 1, 64, 64))
         target = torch.abs(torch.randn(1, 1, 64, 64))
@@ -32,9 +32,9 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.023176
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
-    def test2d_uniform(self):
+    def test_2d_uniform(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(1, 1, 64, 64))
         target = torch.abs(torch.randn(1, 1, 64, 64))
@@ -45,9 +45,9 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.022655
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
-    def test3d_gaussian(self):
+    def test_3d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(1, 1, 64, 64, 64))
         target = torch.abs(torch.randn(1, 1, 64, 64, 64))
@@ -58,21 +58,21 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.061796
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
-    def input_ill_input_shape2d(self):
+    def test_input_ill_input_shape2d(self):
         metric = MultiScaleSSIMMetric(spatial_dims=3, weights=[0.5, 0.5])
 
         with self.assertRaises(ValueError):
             metric(torch.randn(1, 1, 64, 64), torch.randn(1, 1, 64, 64))
 
-    def input_ill_input_shape3d(self):
+    def test_input_ill_input_shape3d(self):
         metric = MultiScaleSSIMMetric(spatial_dims=2, weights=[0.5, 0.5])
 
         with self.assertRaises(ValueError):
             metric(torch.randn(1, 1, 64, 64, 64), torch.randn(1, 1, 64, 64, 64))
 
-    def small_inputs(self):
+    def test_small_inputs(self):
         metric = MultiScaleSSIMMetric(spatial_dims=2)
 
         with self.assertRaises(ValueError):

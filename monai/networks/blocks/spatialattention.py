@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -46,7 +44,7 @@ class SpatialAttentionBlock(nn.Module):
         num_head_channels: int | None = None,
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
-        attention_dtype: Optional[torch.dtype] = None,
+        attention_dtype: torch.dtype | None = None,
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,

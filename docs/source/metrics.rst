@@ -98,7 +98,6 @@ Metrics
 `Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
-.. autofunction:: compute_percent_hausdorff_distance
 
 .. autoclass:: HausdorffDistanceMetric
     :members:
@@ -115,6 +114,13 @@ Metrics
 .. autofunction:: compute_surface_dice
 
 .. autoclass:: SurfaceDiceMetric
+    :members:
+
+`Absolute volume difference`
+----------------------------
+.. autofunction:: compute_absolute_volume_difference
+
+.. autoclass:: AbsoluteVolumeDifferenceMetric
     :members:
 
 `PanopticQualityMetric`
@@ -144,6 +150,11 @@ Metrics
 .. autoclass:: PSNRMetric
     :members:
 
+`Mean absolute percentage error`
+---------------------------------
+.. autoclass:: MAPEMetric
+    :members:
+
 `Structural similarity index measure`
 -------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
@@ -154,6 +165,13 @@ Metrics
 
 `Fréchet Inception Distance`
 ------------------------------
+`Embedding Collapse`
+------------------------------
+.. autofunction:: compute_embedding_collapse
+
+.. autoclass:: EmbeddingCollapseMetric
+    :members:
+
 .. autofunction:: compute_frechet_distance
 
 .. autoclass:: FIDMetric
@@ -181,6 +199,15 @@ Metrics
 .. autoclass:: MetricsReloadedCategorical
     :members:
 
+`Calibration Error`
+-------------------
+.. autofunction:: calibration_binning
+
+.. autoclass:: CalibrationReduction
+    :members:
+
+.. autoclass:: CalibrationErrorMetric
+    :members:
 
 
 Utilities

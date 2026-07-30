@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -41,7 +41,7 @@ class SABlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         rel_pos_embedding: str | None = None,
-        input_size: Tuple | None = None,
+        input_size: tuple | None = None,
         attention_dtype: torch.dtype | None = None,
         include_fc: bool = True,
         use_combined_linear: bool = True,
@@ -67,6 +67,13 @@ class SABlock(nn.Module):
             use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
             use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
                 (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if ``causal`` is True and ``sequence_length`` is not provided.
+            ValueError: if both ``save_attn`` and ``use_flash_attention`` are True.
+            ValueError: if ``rel_pos_embedding`` is not None and ``use_flash_attention`` is True.
 
         """
 
@@ -101,12 +108,16 @@ class SABlock(nn.Module):
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        self.out_proj: nn.Linear | nn.Identity
+        if include_fc:
+            self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        else:
+            self.out_proj = nn.Identity()
 
-        self.qkv: Union[nn.Linear, nn.Identity]
-        self.to_q: Union[nn.Linear, nn.Identity]
-        self.to_k: Union[nn.Linear, nn.Identity]
-        self.to_v: Union[nn.Linear, nn.Identity]
+        self.qkv: nn.Linear | nn.Identity
+        self.to_q: nn.Linear | nn.Identity
+        self.to_k: nn.Linear | nn.Identity
+        self.to_v: nn.Linear | nn.Identity
 
         if use_combined_linear:
             self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
@@ -149,7 +160,7 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
+    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):  # noqa: UP045
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C

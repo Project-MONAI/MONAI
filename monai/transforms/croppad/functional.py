@@ -22,7 +22,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
@@ -91,23 +91,27 @@ def pad_nd(
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
+    Raises:
+        ValueError: If `value` is provided when `mode` is not ``"constant"``.
     """
+    if mode != "constant" and "value" in kwargs:
+        raise ValueError("'value' argument is only valid when mode='constant'")
     if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     try:
         _pad = _np_pad
-        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and img.dtype not in {
-            torch.int16,
-            torch.int64,
-            torch.bool,
-            torch.uint8,
-        }:
+        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"}:
+            # Try PyTorch pad for these modes; fallback to NumPy on error.
             _pad = _pt_pad
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
+    except NotImplementedError:
+        # PyTorch does not support this combination, fall back to NumPy
+        return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
-        if isinstance(err, NotImplementedError) or any(
-            k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
-        ):
+        # PyTorch may raise generic errors for unsupported modes/dtypes or kwargs.
+        # Since there are no stable exception types for these cases, we fall back
+        # to NumPy by matching known error message patterns.
+        if any(k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
         raise ValueError(
             f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"
@@ -128,7 +132,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
         mode: the padding mode.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
     """
-    ndim = len(img.shape) - 1
+    ndim = get_spatial_ndim(img)
     matrix_np = np.round(to_affine_nd(ndim, convert_to_numpy(translation_mat, wrap_sequence=True).copy()))
     matrix_np = to_affine_nd(len(spatial_size), matrix_np)
     cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))
@@ -144,7 +148,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
         _mode = _convert_pt_pad_mode(mode)
         img = pad_nd(img, to_pad, mode=_mode, **kwargs)
     if do_crop:
-        img = img[to_crop]
+        img = img[tuple(to_crop)]
     return img
 
 

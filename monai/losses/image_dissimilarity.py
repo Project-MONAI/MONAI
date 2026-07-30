@@ -15,7 +15,7 @@ import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.layers import gaussian_1d, separable_filtering
+from monai.networks.layers import separable_filtering
 from monai.utils import LossReduction
 from monai.utils.module import look_up_option
 
@@ -34,11 +34,11 @@ def make_triangular_kernel(kernel_size: int) -> torch.Tensor:
 
 
 def make_gaussian_kernel(kernel_size: int) -> torch.Tensor:
-    sigma = torch.tensor(kernel_size / 3.0)
-    kernel = gaussian_1d(sigma=sigma, truncated=kernel_size // 2, approx="sampled", normalize=False) * (
-        2.5066282 * sigma
-    )
-    return kernel[:kernel_size]
+    sigma = kernel_size / 3.0
+    half = kernel_size // 2
+    x = torch.arange(-half, half + 1, dtype=torch.float)
+    kernel = torch.exp(-0.5 / (sigma * sigma) * x**2)
+    return kernel
 
 
 kernel_dict = {
@@ -51,6 +51,7 @@ kernel_dict = {
 class LocalNormalizedCrossCorrelationLoss(_Loss):
     """
     Local squared zero-normalized cross-correlation.
+
     The loss is based on a moving kernel/window over the y_true/y_pred,
     within the window the square of zncc is calculated.
     The kernel can be a rectangular / triangular / gaussian window.
@@ -59,6 +60,35 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
     Adapted from:
         https://github.com/voxelmorph/voxelmorph/blob/legacy/src/losses.py
         DeepReg (https://github.com/DeepRegNet/DeepReg)
+
+    Args:
+        spatial_dims: number of spatial dimensions, {``1``, ``2``, ``3``}. Defaults to 3.
+        kernel_size: kernel spatial size, must be odd.
+        kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``}
+            Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+            - ``"none"``: no reduction will be applied.
+            - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+            - ``"sum"``: the output will be summed.
+        smooth_nr: a small constant added to the numerator to avoid nan.
+        smooth_dr: a small constant added to the denominator to avoid nan.
+
+    Returns:
+        torch.Tensor: The computed loss value. The output range is approximately [-1, 0], where:
+            - Values closer to -1 indicate higher correlation (better match)
+            - Values closer to 0 indicate lower correlation (worse match)
+            - This loss should be **minimized** during optimization
+
+    Note:
+        The implementation computes the squared normalized cross-correlation coefficient
+        and then negates it, transforming the correlation maximization problem into a
+        loss minimization problem suitable for standard PyTorch optimizers.
+
+        Interpretation:
+            - Loss ≈ -1: Perfect correlation between images
+            - Loss ≈ 0: No correlation between images
+            - Lower (more negative) values indicate better alignment
     """
 
     def __init__(
@@ -70,21 +100,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         smooth_nr: float = 0.0,
         smooth_dr: float = 1e-5,
     ) -> None:
-        """
-        Args:
-            spatial_dims: number of spatial dimensions, {``1``, ``2``, ``3``}. Defaults to 3.
-            kernel_size: kernel spatial size, must be odd.
-            kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
-            reduction: {``"none"``, ``"mean"``, ``"sum"``}
-                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
-
-                - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-                - ``"sum"``: the output will be summed.
-            smooth_nr: a small constant added to the numerator to avoid nan.
-            smooth_dr: a small constant added to the denominator to avoid nan.
-
-        """
         super().__init__(reduction=LossReduction(reduction).value)
 
         self.ndim = spatial_dims
@@ -96,14 +111,16 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
         _kernel = look_up_option(kernel_type, kernel_dict)
-        self.kernel = _kernel(self.kernel_size)
-        self.kernel.require_grads = False
-        self.kernel_vol = self.get_kernel_vol()
+        self.kernel: torch.Tensor
+        self.kernel_vol: torch.Tensor
+        self.register_buffer("kernel", _kernel(self.kernel_size), persistent=False)
+        self.register_buffer("kernel_vol", self.get_kernel_vol(), persistent=False)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def get_kernel_vol(self):
+    def get_kernel_vol(self) -> torch.Tensor:
+        assert self.kernel is not None
         vol = self.kernel
         for _ in range(self.ndim - 1):
             vol = torch.matmul(vol.unsqueeze(-1), self.kernel.unsqueeze(0))
@@ -123,6 +140,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
         t2, p2, tp = target * target, pred * pred, target * pred
+        assert self.kernel is not None
+        assert self.kernel_vol is not None
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         kernels = [kernel] * self.ndim
         # sum over kernel
@@ -208,15 +227,20 @@ class GlobalMutualInformationLoss(_Loss):
         """
         super().__init__(reduction=LossReduction(reduction).value)
         if num_bins <= 0:
-            raise ValueError("num_bins must > 0, got {num_bins}")
+            raise ValueError(f"num_bins must > 0, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
-        self.kernel_type = kernel_type
+        # declared as buffers so they move with the module (e.g. ``.to(device)``); only populated for the
+        # gaussian kernel, hence the ``Tensor`` annotation reflects the type at the use sites in that path.
+        self.preterm: torch.Tensor | None
+        self.bin_centers: torch.Tensor | None
+        self.register_buffer("preterm", None, persistent=False)
+        self.register_buffer("bin_centers", None, persistent=False)
         if self.kernel_type == "gaussian":
-            self.preterm = 1 / (2 * sigma**2)
-            self.bin_centers = bin_centers[None, None, ...]
+            self.register_buffer("preterm", 1 / (2 * sigma**2), persistent=False)
+            self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
@@ -295,6 +319,8 @@ class GlobalMutualInformationLoss(_Loss):
         """
         img = torch.clamp(img, 0, 1)
         img = img.reshape(img.shape[0], -1, 1)  # (batch, num_sample, 1)
+        if self.bin_centers is None or self.preterm is None:
+            raise ValueError("bin_centers and preterm must be defined for gaussian parzen windowing.")
         weight = torch.exp(
             -self.preterm.to(img) * (img - self.bin_centers.to(img)) ** 2
         )  # (batch, num_sample, num_bin)

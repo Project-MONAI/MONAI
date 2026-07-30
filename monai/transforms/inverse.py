@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import threading
 import warnings
 from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
@@ -21,7 +22,7 @@ import torch
 from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import to_affine_nd
+from monai.data.utils import affine_to_spacing, to_affine_nd
 from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import Transform
 from monai.utils import (
@@ -66,15 +67,41 @@ class TraceableTransform(Transform):
     The information in the stack of applied transforms must be compatible with the
     default collate, by only storing strings, numbers and arrays.
 
-    `tracing` could be enabled by `self.set_tracing` or setting
+    `tracing` could be enabled by assigning to `self.tracing` or setting
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = MONAIEnvVars.trace_transform() != "0"
+    def _init_trace_threadlocal(self):
+        """Create a `_tracing` instance member to store the thread-local tracing state value."""
+        # needed since this class is meant to be a trait with no constructor
+        if not hasattr(self, "_tracing"):
+            self._tracing = threading.local()
 
-    def set_tracing(self, tracing: bool) -> None:
-        """Set whether to trace transforms."""
-        self.tracing = tracing
+        # This is True while the above initialising _tracing is False when this is
+        # called from a different thread than the one initialising _tracing.
+        if not hasattr(self._tracing, "value"):
+            self._tracing.value = MONAIEnvVars.trace_transform() != "0"
+
+    def __getstate__(self):
+        """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
+        _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
+        _slots = {k: getattr(self, k) for k in getattr(self, "__slots__", [])}
+        _dict.pop("_tracing", None)  # remove tracing
+        return _dict if len(_slots) == 0 else (_dict, _slots)
+
+    @property
+    def tracing(self) -> bool:
+        """
+        Returns the tracing state, which is thread-local and initialised to `MONAIEnvVars.trace_transform() != "0"`.
+        """
+        self._init_trace_threadlocal()
+        return bool(self._tracing.value)
+
+    @tracing.setter
+    def tracing(self, val: bool):
+        """Sets the thread-local tracing state to `val`."""
+        self._init_trace_threadlocal()
+        self._tracing.value = val
 
     @staticmethod
     def trace_key(key: Hashable = None):
@@ -92,6 +119,8 @@ class TraceableTransform(Transform):
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
         """
+        self._init_trace_threadlocal()
+
         vals = (
             self.__class__.__name__,
             id(self),
@@ -186,7 +215,7 @@ class TraceableTransform(Transform):
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
             try:
-                affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+                affine = orig_affine @ to_affine_nd(orig_affine.shape[-1] - 1, affine, dtype=torch.float64)
             except RuntimeError as e:
                 if orig_affine.ndim > 2:
                     if data_t.is_batch:
@@ -197,6 +226,9 @@ class TraceableTransform(Transform):
                 else:
                     raise
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
+            if MetaKeys.PIXDIM in out_obj.meta:
+                spacing = affine_to_spacing(out_obj.meta[MetaKeys.AFFINE])
+                out_obj.meta[MetaKeys.PIXDIM][1 : 1 + len(spacing)] = spacing
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
@@ -250,8 +282,8 @@ class TraceableTransform(Transform):
                     msg += f" for key {key}"
 
                 pend = out_obj.pending_operations[-1]
-                statuses = pend.get(TraceKeys.STATUSES, dict())
-                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, list())
+                statuses = pend.get(TraceKeys.STATUSES, {})
+                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, [])
                 messages.append(msg)
                 statuses[TraceStatusKeys.PENDING_DURING_APPLY] = messages
                 info[TraceKeys.STATUSES] = statuses
@@ -270,28 +302,48 @@ class TraceableTransform(Transform):
         return out_obj
 
     def check_transforms_match(self, transform: Mapping) -> None:
-        """Check transforms are of same instance."""
+        """Check whether a traced transform entry matches this transform.
+
+        When multiprocessing uses ``spawn``, transform instances are recreated,
+        so matching can fall back to the transform class name instead of the
+        original instance ID.
+        """
+        if self._transforms_match(transform):
+            return
+
         xform_id = transform.get(TraceKeys.ID, "")
-        if xform_id == id(self):
-            return
-        # TraceKeys.NONE to skip the id check
-        if xform_id == TraceKeys.NONE:
-            return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         warning_msg = transform.get(TraceKeys.EXTRA_INFO, {}).get("warn")
         if warning_msg:
             warnings.warn(warning_msg)
-        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
-            return
         raise RuntimeError(
             f"Error {self.__class__.__name__} getting the most recently "
             f"applied invertible transform {xform_name} {xform_id} != {id(self)}."
         )
 
+    def _transforms_match(self, transform: Mapping) -> bool:
+        """Return whether a traced transform entry matches this transform.
+
+        Matching succeeds when the traced ID matches this instance, when the ID
+        check is explicitly disabled with ``TraceKeys.NONE``, or when
+        multiprocessing uses ``spawn`` and the traced class name matches this
+        transform class.
+        """
+        xform_id = transform.get(TraceKeys.ID, "")
+        if xform_id == id(self):
+            return True
+        # TraceKeys.NONE to skip the id check
+        if xform_id == TraceKeys.NONE:
+            return True
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
+        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn" and xform_name == self.__class__.__name__:
+            return True
+        return False
+
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
-        Get most recent transform for the stack.
+        Get most recent matching transform for the current class from the sequence of applied operations.
 
         Args:
             data: dictionary of data or `MetaTensor`.
@@ -316,9 +368,20 @@ class TraceableTransform(Transform):
                 all_transforms = data.get(self.trace_key(key), MetaTensor.get_default_applied_operations())
         else:
             raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
+
+        if not all_transforms:
+            raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
+
+        match_idx = len(all_transforms) - 1
         if check:
-            self.check_transforms_match(all_transforms[-1])
-        return all_transforms.pop() if pop else all_transforms[-1]
+            for idx in range(len(all_transforms) - 1, -1, -1):
+                if self._transforms_match(all_transforms[idx]):
+                    match_idx = idx
+                    break
+            else:
+                self.check_transforms_match(all_transforms[-1])
+
+        return all_transforms.pop(match_idx) if pop else all_transforms[match_idx]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """

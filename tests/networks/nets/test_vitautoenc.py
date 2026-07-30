@@ -17,32 +17,29 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.test_utils import skip_if_quick, skip_if_windows
+from tests.test_utils import dict_product, skip_if_quick, skip_if_windows
 
-TEST_CASE_Vitautoenc = []
-for in_channels in [1, 4]:
-    for img_size in [64, 96, 128]:
-        for patch_size in [16]:
-            for proj_type in ["conv", "perceptron"]:
-                for nd in [2, 3]:
-                    test_case = [
-                        {
-                            "in_channels": in_channels,
-                            "img_size": (img_size,) * nd,
-                            "patch_size": (patch_size,) * nd,
-                            "hidden_size": 768,
-                            "mlp_dim": 3072,
-                            "num_layers": 4,
-                            "num_heads": 12,
-                            "proj_type": proj_type,
-                            "dropout_rate": 0.6,
-                            "spatial_dims": nd,
-                        },
-                        (2, in_channels, *([img_size] * nd)),
-                        (2, 1, *([img_size] * nd)),
-                    ]
-
-                    TEST_CASE_Vitautoenc.append(test_case)
+TEST_CASE_Vitautoenc = [
+    [
+        {
+            "in_channels": params["in_channels"],
+            "img_size": (params["img_size"],) * params["nd"],
+            "patch_size": (params["patch_size"],) * params["nd"],
+            "hidden_size": 768,
+            "mlp_dim": 3072,
+            "num_layers": 4,
+            "num_heads": 12,
+            "proj_type": params["proj_type"],
+            "dropout_rate": 0.6,
+            "spatial_dims": params["nd"],
+        },
+        (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+        (2, 1, *([params["img_size"]] * params["nd"])),
+    ]
+    for params in dict_product(
+        in_channels=[1, 4], img_size=[64, 96, 128], patch_size=[16], proj_type=["conv", "perceptron"], nd=[2, 3]
+    )
+]
 
 TEST_CASE_Vitautoenc.append(
     [
@@ -106,6 +103,33 @@ class TestVitAutoenc(unittest.TestCase):
                 proj_type=proj_type,
                 dropout_rate=dropout_rate,
             )
+
+    def test_load_old_state_dict_drops_stale_cross_attn_keys(self):
+        # simulate an old checkpoint where CrossAttentionBlock was always instantiated
+        net = ViTAutoEnc(
+            in_channels=1,
+            img_size=(32, 32),
+            patch_size=(16, 16),
+            hidden_size=64,
+            mlp_dim=128,
+            num_layers=2,
+            num_heads=4,
+            spatial_dims=2,
+        )
+        old_state = {k: torch.rand_like(v) for k, v in net.state_dict().items()}
+        # inject stale cross_attn keys that the new model no longer has
+        old_state["blocks.0.cross_attn.to_q.weight"] = torch.randn(64, 64)
+        old_state["blocks.0.cross_attn.out_proj.weight"] = torch.randn(64, 64)
+        old_state["blocks.1.cross_attn.to_v.weight"] = torch.randn(64, 64)
+
+        # save expected values before the call since load_old_state_dict pops matching keys
+        expected = {k: v.clone() for k, v in old_state.items() if k in net.state_dict()}
+        net.load_old_state_dict(old_state)
+
+        # all current model keys should be loaded from old_state; stale keys silently dropped
+        loaded = net.state_dict()
+        for k in loaded:
+            self.assertTrue(torch.allclose(loaded[k], expected[k]))
 
 
 if __name__ == "__main__":

@@ -71,14 +71,13 @@ from .itk_torch_bridge import (
     monai_to_itk_ddf,
 )
 from .meta_obj import MetaObj, get_track_meta, set_track_meta
-from .meta_tensor import MetaTensor
+from .meta_tensor import MetaTensor, get_spatial_ndim
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .torchscript_utils import load_net_with_metadata, save_net_with_metadata
 from .utils import (
-    PICKLE_KEY_SUFFIX,
     affine_to_spacing,
     compute_importance_map,
     compute_shape_offset,
@@ -119,7 +118,7 @@ from .utils import (
 from .wsi_datasets import MaskedPatchWSIDataset, PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, TiffFileWSIReader, WSIReader
 
-with contextlib.suppress(BaseException):
+with contextlib.suppress(Exception):
     from multiprocessing.reduction import ForkingPickler
 
     def _rebuild_meta(cls, storage, dtype, metadata):

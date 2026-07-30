@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -56,6 +56,13 @@ else:
 
 cp, has_cp = optional_import("cupy")
 kvikio, has_kvikio = optional_import("kvikio")
+
+if TYPE_CHECKING:
+    import cupy
+
+    NdarrayOrCupy: TypeAlias = np.ndarray | cupy.ndarray
+else:
+    NdarrayOrCupy: TypeAlias = Any
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -580,7 +587,7 @@ class PydicomReader(ImageReader):
         shape = first_array.shape
         spacing = getattr(first_slice, "PixelSpacing", [1.0] * len(shape))
         prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
-        stack_array = [first_array]
+        stack_array_list: list = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx][0], slices[idx][1])
             slc_shape = slc_array.shape
@@ -592,22 +599,24 @@ class PydicomReader(ImageReader):
                 warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
             average_distance += abs(prev_pos - slc_pos)
             prev_pos = slc_pos
-            stack_array.append(slc_array)
+            stack_array_list.append(slc_array)
 
         if len(slices) > 1:
             average_distance /= len(slices) - 1
             spacing.append(average_distance)
             if self.to_gpu:
-                stack_array = cp.stack(stack_array, axis=-1)
+                stack_array = cp.stack(stack_array_list, axis=-1)
             else:
-                stack_array = np.stack(stack_array, axis=-1)
+                stack_array = np.stack(stack_array_list, axis=-1)
+
+            del stack_array_list[:]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             if hasattr(slices[-1][0], "ImagePositionPatient"):
                 stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1][0].ImagePositionPatient)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
-            stack_array = stack_array[0]
+            stack_array = stack_array_list[0]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape
@@ -661,10 +670,7 @@ class PydicomReader(ImageReader):
                     metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
-        # TODO: the actual type is list[np.ndarray | cp.ndarray]
-        # should figure out how to define correct types without having cupy not found error
-        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
-        img_array: list[np.ndarray] = []
+        img_array: list[NdarrayOrCupy] = []
         compatible_meta: dict = {}
 
         for data_array, metadata in ensure_tuple(dicom_data):
@@ -729,9 +735,22 @@ class PydicomReader(ImageReader):
             metadata: metadata with dict type.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Warns:
+            UserWarning: when ImageOrientationPatient (00200037) or ImagePositionPatient
+                (00200032) is missing from metadata. The affine matrix is set to identity,
+                which may be incorrect. Common with multiframe DICOM files.
+
         """
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
+            warnings.warn(
+                "PydicomReader: ImageOrientationPatient (0020,0037) and/or "
+                "ImagePositionPatient (0020,0032) tags are missing, so the affine "
+                "matrix cannot be derived and defaults to the identity. The image "
+                "orientation and spacing may be incorrect (e.g. for multi-frame "
+                "Enhanced DICOM); consider using ITKReader for such files.",
+                stacklevel=2,
+            )
             return affine
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
@@ -755,10 +774,10 @@ class PydicomReader(ImageReader):
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
-            k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
-            affine[0, 2] = k1
-            affine[1, 2] = k2
-            affine[2, 2] = k3
+            if n > 1:
+                affine[0, 2] = (t1n - sx) / (n - 1)
+                affine[1, 2] = (t2n - sy) / (n - 1)
+                affine[2, 2] = (t3n - sz) / (n - 1)
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -1096,20 +1115,20 @@ class NibabelReader(ImageReader):
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the metadata of the first image is used to present the output metadata.
+        and the metadata of the first image is used to present the output metadata. The returned arrays
+        preserve the ordering in the original data, typically this is F-ordering for NIfTI files.
 
         Args:
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        # TODO: the actual type is list[np.ndarray | cp.ndarray]
-        # should figure out how to define correct types without having cupy not found error
-        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
-        img_array: list[np.ndarray] = []
+        img_array: list[NdarrayOrCupy] = []
         compatible_meta: dict = {}
 
         for i, filename in zip(ensure_tuple(img), self.filenames):
             header = self._get_meta_dict(i)
+            if MetaKeys.PIXDIM in header:
+                header[MetaKeys.ORIGINAL_PIXDIM] = np.array(header[MetaKeys.PIXDIM], copy=True)
             header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header["as_closest_canonical"] = self.as_closest_canonical
@@ -1212,7 +1231,7 @@ class NibabelReader(ImageReader):
             data_offset = img.dataobj.offset
             data_dtype = img.dataobj.dtype
             return image[data_offset:].view(data_dtype).reshape(data_shape, order="F")
-        return np.asanyarray(img.dataobj, order="C")
+        return np.asanyarray(img.dataobj)
 
 
 class NumpyReader(ImageReader):
@@ -1225,17 +1244,26 @@ class NumpyReader(ImageReader):
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
         channel_dim: if not None, explicitly specify the channel dim, otherwise, treat the array as no channel.
+        allow_pickle: if True, allows loading pickled contents from NPY/NPZ files. Note that the default value of False
+            prevents the risk of remote code execution, set this to True only for loading known trusted data. If this
+            argument is False and pickled data is loaded, a ValueError will be raised.
         kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
             https://numpy.org/doc/stable/reference/generated/numpy.load.html
-
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
+    def __init__(
+        self,
+        npz_keys: KeysCollection | None = None,
+        channel_dim: str | int | None = None,
+        allow_pickle: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
+        self.allow_pickle = allow_pickle
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1261,6 +1289,8 @@ class NumpyReader(ImageReader):
                 More details about available args:
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
+        Raises:
+            ValueError: when `self.allow_pickle` is False but loaded data contains pickled objects.
         """
         img_: list[Nifti1Image] = []
 
@@ -1268,7 +1298,16 @@ class NumpyReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **kwargs_)
+            try:
+                img = np.load(name, allow_pickle=self.allow_pickle, **kwargs_)
+            except ValueError as e:
+                # if a ValueError is raised, this is likely about pickle loading so raise an exception about this
+                raise ValueError(
+                    "MONAI default value for argument `allow_pickle` of `np.load` changed to `False`, "
+                    "explicitly pass `allow_pickle=True` as a constructor argument to NumpyReader "
+                    "to enable pickle loading."
+                ) from e
+
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys

@@ -21,15 +21,15 @@ jobs:
     if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - shell: bash
         run: |
           git describe
@@ -37,7 +37,7 @@ jobs:
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -53,11 +53,11 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         ref: dev
     - name: Download version
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: _version.py
     - name: docker_build

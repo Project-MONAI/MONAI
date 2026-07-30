@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import numpy as np
 import torch
@@ -65,7 +65,7 @@ def softplus(x: NdarrayOrTensor) -> NdarrayOrTensor:
         Softplus of the input.
     """
     if isinstance(x, np.ndarray):
-        return np.logaddexp(np.zeros_like(x), x)
+        return cast(np.ndarray, np.logaddexp(np.zeros_like(x), x))
     return torch.logaddexp(torch.zeros_like(x), x)
 
 
@@ -216,7 +216,7 @@ def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
     if isinstance(a, torch.Tensor):
         return torch.floor_divide(a, b)
     else:
-        return np.floor_divide(a, b)
+        return np.asarray(np.floor_divide(a, b))
 
 
 def unravel_index(idx, shape) -> NdarrayOrTensor:

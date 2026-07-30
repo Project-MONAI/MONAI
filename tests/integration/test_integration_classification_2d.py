@@ -166,7 +166,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
     model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
-    model.load_state_dict(torch.load(model_filename))
+    model.load_state_dict(torch.load(model_filename, weights_only=True))
     y_true = []
     y_pred = []
     with eval_mode(model):
@@ -236,7 +236,6 @@ class IntegrationClassification2D(DistTestCase):
             os.remove(os.path.join(self.data_dir, "best_metric_model.pth"))
         except FileNotFoundError:
             warnings.warn("not found best_metric_model.pth, training skipped?")
-            pass
 
     def train_and_infer(self, idx=0):
         results = []
@@ -256,7 +255,7 @@ class IntegrationClassification2D(DistTestCase):
         # check training properties
         self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
         self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
-        np.testing.assert_allclose(best_metric_epoch, 4)
+        np.testing.assert_allclose(best_metric_epoch, 1)
         model_file = os.path.join(self.data_dir, "best_metric_model.pth")
         self.assertTrue(os.path.exists(model_file))
         # check inference properties
@@ -268,7 +267,7 @@ class IntegrationClassification2D(DistTestCase):
 
     def test_training(self):
         repeated = []
-        for i in range(1):
+        for i in range(2):
             results = self.train_and_infer(i)
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])

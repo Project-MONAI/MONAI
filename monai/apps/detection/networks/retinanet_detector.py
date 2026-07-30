@@ -180,7 +180,7 @@ class RetinaNetDetector(nn.Module):
                 nesterov=True,
             )
             torch.save(detector.network.state_dict(), 'model.pt')  # save model
-            detector.network.load_state_dict(torch.load('model.pt'))  # load model
+            detector.network.load_state_dict(torch.load('model.pt', weights_only=True))  # load model
     """
 
     def __init__(
@@ -342,8 +342,7 @@ class RetinaNetDetector(nn.Module):
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
-                "Require fg_iou_thresh >= bg_iou_thresh. "
-                f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
+                f"Required condition fg_iou_thresh >= bg_iou_thresh not met ({fg_iou_thresh=}, {bg_iou_thresh=})."
             )
         self.proposal_matcher = Matcher(
             fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
@@ -357,7 +356,7 @@ class RetinaNetDetector(nn.Module):
             num_candidates: number of positions to select candidates from.
                 Smaller value will result in a higher matcher threshold and less matched candidates.
             center_in_gt: If False (default), matched anchor center points do not need
-                to lie withing the ground truth box. Recommend False for small objects.
+                to lie within the ground truth box. Recommend False for small objects.
                 If True, will result in a strict matcher and less matched candidates.
         """
         self.proposal_matcher = ATSSMatcher(num_candidates, self.box_overlap_metric, center_in_gt, debug=self.debug)
@@ -519,7 +518,7 @@ class RetinaNetDetector(nn.Module):
         else:
             if self.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
+                    "`self.inferer` is not defined. Please refer to function self.set_sliding_window_inferer(*)."
                 )
             head_outputs = predict_with_inferer(
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
@@ -611,7 +610,7 @@ class RetinaNetDetector(nn.Module):
             elif self.spatial_dims == 3:
                 reshaped_result_map = reshaped_result_map.permute(0, 3, 4, 5, 1, 2)
             else:
-                ValueError("Images can only be 2D or 3D.")
+                raise ValueError("Images can only be 2D or 3D.")
 
             # reshaped_result_map will become (B, HWA, num_channel) or (B, HWDA, num_channel)
             reshaped_result_map = reshaped_result_map.reshape(batch_size, -1, num_channel)
@@ -787,7 +786,7 @@ class RetinaNetDetector(nn.Module):
                 )
 
             if self.debug:
-                print(f"Max box overlap between anchors and gt boxes: {torch.max(match_quality_matrix,dim=1)[0]}.")
+                print(f"Max box overlap between anchors and gt boxes: {torch.max(match_quality_matrix, dim=1)[0]}.")
 
             if torch.max(matched_idxs_per_image) < 0:
                 warnings.warn(

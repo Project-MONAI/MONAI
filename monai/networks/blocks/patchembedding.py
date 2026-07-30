@@ -19,14 +19,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import LayerNorm
 
-from monai.networks.blocks.pos_embed_utils import build_sincos_position_embedding
+from monai.networks.blocks.pos_embed_utils import build_fourier_position_embedding, build_sincos_position_embedding
 from monai.networks.layers import Conv, trunc_normal_
 from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 SUPPORTED_PATCH_EMBEDDING_TYPES = {"conv", "perceptron"}
-SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos"}
+SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos", "fourier"}
 
 
 class PatchEmbeddingBlock(nn.Module):
@@ -53,6 +53,7 @@ class PatchEmbeddingBlock(nn.Module):
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        pos_embed_kwargs: dict | None = None,
     ) -> None:
         """
         Args:
@@ -65,6 +66,14 @@ class PatchEmbeddingBlock(nn.Module):
             pos_embed_type: position embedding layer type.
             dropout_rate: fraction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            pos_embed_kwargs: additional arguments for position embedding. For `sincos`, it can contain
+                              `temperature` and for fourier it can contain `scales`.
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if any dimension of ``patch_size`` is larger than the corresponding ``img_size`` dimension.
+            ValueError: if ``proj_type`` is ``"perceptron"`` and ``patch_size`` does not evenly divide ``img_size``.
         """
 
         super().__init__()
@@ -98,12 +107,14 @@ class PatchEmbeddingBlock(nn.Module):
             chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
             from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
             to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
-            axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
+            axes_len = {f"p{i + 1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
                 Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
             )
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
+
+        pos_embed_kwargs = {} if pos_embed_kwargs is None else pos_embed_kwargs
 
         if self.pos_embed_type == "none":
             pass
@@ -114,7 +125,17 @@ class PatchEmbeddingBlock(nn.Module):
             for in_size, pa_size in zip(img_size, patch_size):
                 grid_size.append(in_size // pa_size)
 
-            self.position_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
+            self.position_embeddings = build_sincos_position_embedding(
+                grid_size, hidden_size, spatial_dims, **pos_embed_kwargs
+            )
+        elif self.pos_embed_type == "fourier":
+            grid_size = []
+            for in_size, pa_size in zip(img_size, patch_size):
+                grid_size.append(in_size // pa_size)
+
+            self.position_embeddings = build_fourier_position_embedding(
+                grid_size, hidden_size, spatial_dims, **pos_embed_kwargs
+            )
         else:
             raise ValueError(f"pos_embed_type {self.pos_embed_type} not supported.")
 

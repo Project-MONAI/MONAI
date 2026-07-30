@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
 
 _, has_torchvision = optional_import("torchvision")
 TEST_CASES = [
@@ -73,7 +73,6 @@ TEST_CASES = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestPerceptualLoss(unittest.TestCase):
@@ -116,6 +115,16 @@ class TestPerceptualLoss(unittest.TestCase):
     def test_medicalnet_on_2d_data(self, network_type):
         with self.assertRaises(ValueError):
             PerceptualLoss(spatial_dims=2, network_type=network_type)
+
+    @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
+    def test_channel_wise_with_non_medicalnet(self, network_type):
+        with self.assertRaises(ValueError):
+            PerceptualLoss(spatial_dims=2, network_type=network_type, channel_wise=True)
+
+    @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
+    def test_non_medicalnet_3d_without_fake_3d(self, network_type):
+        with self.assertRaises(ValueError):
+            PerceptualLoss(spatial_dims=3, network_type=network_type, is_fake_3d=False)
 
 
 if __name__ == "__main__":

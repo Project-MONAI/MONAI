@@ -109,6 +109,16 @@ Blocks
 .. autoclass:: SABlock
     :members:
 
+`CABlock Block`
+~~~~~~~~~~~~~~~
+.. autoclass:: CABlock
+    :members:
+
+`FeedForward Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FeedForward
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -117,6 +127,23 @@ Blocks
 `Transformer Block`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TransformerBlock
+    :members:
+
+`Hyena Mixer`
+~~~~~~~~~~~~~
+.. autoclass:: HyenaMixer
+    :members:
+
+`Hyena Transformer Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HyenaTransformerBlock
+    :members:
+
+`Depthwise FFT Convolution`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DepthwiseFFTConv2d
+    :members:
+.. autoclass:: DepthwiseFFTConv3d
     :members:
 
 `UNETR Block`
@@ -172,6 +199,16 @@ Blocks
     :members:
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
+
+`Downsampling`
+~~~~~~~~~~~~~~
+.. autoclass:: DownSample
+    :members:
+.. autoclass:: Downsample
+.. autoclass:: SubpixelDownsample
+    :members:
+.. autoclass:: Subpixeldownsample
+.. autoclass:: SubpixelDownSample
 
 `Registration Residual Conv Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -571,6 +608,11 @@ Nets
 .. autoclass:: SwinUNETR
     :members:
 
+`HyenaNDUNETR`
+~~~~~~~~~~~~~~
+.. autoclass:: HyenaNDUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -623,6 +665,11 @@ Nets
 `ViT`
 ~~~~~
 .. autoclass:: ViT
+  :members:
+
+`Restormer`
+~~~~~~~~~~~
+.. autoclass:: restormer
   :members:
 
 `ViTAutoEnc`
@@ -749,4 +796,39 @@ Utilities
   :members:
 
 .. automodule:: monai.apps.reconstruction.networks.nets.utils
+  :members:
+
+Noise Schedulers
+----------------
+.. automodule:: monai.networks.schedulers
+.. currentmodule:: monai.networks.schedulers
+
+`Scheduler`
+~~~~~~~~~~~
+.. autoclass:: Scheduler
+  :members:
+
+`NoiseSchedules`
+~~~~~~~~~~~~~~~~
+.. autoclass:: NoiseSchedules
+  :members:
+
+`DDPMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDPMScheduler
+  :members:
+
+`DDIMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDIMScheduler
+  :members:
+
+`PNDMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: PNDMScheduler
+  :members:
+
+`RFlowScheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RFlowScheduler
   :members:

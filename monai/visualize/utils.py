@@ -116,15 +116,15 @@ def matshow3d(
 
     if channel_dim is not None:  # move the expected dim to construct frames with `B` dim
         vol = np.moveaxis(vol, frame_dim, -4)  # type: ignore
-        vol = vol.reshape((-1, vol.shape[-3], vol.shape[-2], vol.shape[-1]))
+        vol = vol.reshape((-1, vol.shape[-3], vol.shape[-2], vol.shape[-1]))  # type: ignore[assignment]
     else:
         vol = np.moveaxis(vol, frame_dim, -3)  # type: ignore
-        vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
+        vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))  # type: ignore[assignment]
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
 
     # subsample every_n-th frame of the 3D volume
-    vol = vol[:: max(every_n, 1)]
+    vol = vol[:: max(every_n, 1)]  # type: ignore[assignment]
     if not frames_per_row:
         frames_per_row = int(np.ceil(np.sqrt(len(vol))))
     # create the grid of frames

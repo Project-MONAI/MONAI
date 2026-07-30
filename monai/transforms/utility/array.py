@@ -18,10 +18,10 @@ import logging
 import sys
 import time
 import warnings
-from collections.abc import Hashable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -30,7 +30,7 @@ import torch.nn as nn
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, get_spatial_ndim
 from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
@@ -43,7 +43,7 @@ from monai.networks.layers.simplelayers import (
     median_filter,
 )
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.traits import MultiSampleTrait, ReduceTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     apply_affine_to_points,
@@ -110,6 +110,7 @@ __all__ = [
     "ImageFilter",
     "RandImageFilter",
     "ApplyTransformToPoints",
+    "FlattenSequence",
 ]
 
 
@@ -313,23 +314,28 @@ class SplitDim(Transform, MultiSampleTrait):
         """
         Apply the transform to `img`.
         """
-        n_out = img.shape[self.dim]
+        dim = self.dim if self.dim >= 0 else self.dim + img.ndim
+        n_out = img.shape[dim]
         if isinstance(img, torch.Tensor):
-            outputs = list(torch.split(img, 1, self.dim))
+            outputs = list(torch.split(img, 1, dim))
         else:
-            outputs = np.split(img, n_out, self.dim)
+            outputs = np.split(img, n_out, dim)
         for idx, item in enumerate(outputs):
             if not self.keepdim:
-                outputs[idx] = item.squeeze(self.dim)
+                outputs[idx] = item.squeeze(dim)
             if self.update_meta and isinstance(img, MetaTensor):
-                if not isinstance(item, MetaTensor):
-                    item = MetaTensor(item, meta=img.meta)
-                if self.dim == 0:  # don't update affine if channel dim
+                out = outputs[idx]
+                if not isinstance(out, MetaTensor):
+                    out = MetaTensor(out, meta=img.meta)
+                    outputs[idx] = out
+                if dim == 0:  # don't update affine if channel dim
+                    if not self.keepdim:
+                        out.spatial_ndim = _normalize_spatial_ndim(out.spatial_ndim, out.ndim)
                     continue
-                ndim = len(item.affine)
-                shift = torch.eye(ndim, device=item.affine.device, dtype=item.affine.dtype)
-                shift[self.dim - 1, -1] = idx
-                item.affine = item.affine @ shift
+                ndim = len(out.affine)
+                shift = torch.eye(ndim, device=out.affine.device, dtype=out.affine.dtype)
+                shift[dim - 1, -1] = idx
+                out.affine = out.affine @ shift
         return outputs
 
 
@@ -570,6 +576,13 @@ class ToPIL(Transform):
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
+
+    .. note::
+        This transform does not update the affine matrix in the metadata. As a result,
+        affine-dependent transforms applied after (e.g. :py:class:`monai.transforms.Spacing`)
+        may produce unexpected results, because the affine no longer corresponds to the
+        transposed data. To reorient medical images in an affine-aware way, use
+        :py:class:`monai.transforms.Orientation` instead.
     """
 
     backend = [TransformBackends.TORCH]
@@ -701,7 +714,7 @@ class DataStats(Transform):
                 # if the root log level is higher than INFO, set a separate stream handler to record
                 console = logging.StreamHandler(sys.stdout)
                 console.setLevel(logging.INFO)
-                console.is_data_stats_handler = True  # type:ignore[attr-defined]
+                console.is_data_stats_handler = True  # type: ignore[attr-defined]
                 _logger.addHandler(console)
 
     def __call__(
@@ -941,7 +954,7 @@ class LabelToMask(Transform):
             data = where(in1d(img, select_labels), True, False).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
-            return data.any(0)[None]
+            return data.any(0)[None]  # type: ignore
 
         return data
 
@@ -1048,19 +1061,34 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
     label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
     label 2 is the peritumoral edema, which is counted only under WT subregion,
-    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+    the specified `et_label` (default 4) is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
+
+    Args:
+        et_label: the label used for the GD-enhancing tumor (ET).
+        - Use 4 for BraTS 2018-2022.
+        - Use 3 for BraTS 2023.
+        Defaults to 4.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, et_label: int = 4) -> None:
+        if et_label in (1, 2):
+            raise ValueError(f"et_label cannot be 1 or 2, as these are reserved. Got {et_label}.")
+        self.et_label = et_label
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = img.squeeze(0)
 
-        result = [(img == 1) | (img == 4), (img == 1) | (img == 4) | (img == 2), img == 4]
-        # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        # label 4 is ET
+        result = [
+            (img == 1) | (img == self.et_label),
+            (img == 1) | (img == self.et_label) | (img == 2),
+            img == self.et_label,
+        ]
+        # merge labels 1 (tumor non-enh) and self.et_label (tumor enh) and 2 (large edema) to WT
+        # self.et_label is ET (4 or 3)
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 
@@ -1216,7 +1244,7 @@ class TorchIO(Transform):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
@@ -1248,7 +1276,7 @@ class RandTorchIO(Transform, RandomizableTrait):
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+    def __call__(self, img: NdarrayOrTensor | Mapping[Hashable, NdarrayOrTensor]):
         """
         Args:
             img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
@@ -1505,8 +1533,9 @@ class AddCoordinateChannels(Transform):
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
-        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
-            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
+        _sp = get_spatial_ndim(img)
+        if max(self.spatial_dims) > _sp - 1 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {_sp - 1}]")
 
         spatial_size = img.shape[1:]
         coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
@@ -1674,7 +1703,7 @@ class ImageFilter(Transform):
             applied_operations = img.applied_operations
 
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
-        ndim = img_.ndim - 1  # assumes channel first format
+        ndim = get_spatial_ndim(img)
 
         if isinstance(self.filter, str):
             self.filter = self._get_filter_from_string(self.filter, self.filter_size, ndim)  # type: ignore
@@ -1949,4 +1978,40 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
 
+        return data
+
+
+class FlattenSequence(Transform, ReduceTrait):
+    """
+    Flatten a nested sequence (list or tuple) by one level.
+    If the input is a sequence of sequences, it will flatten them into a single sequence.
+    Non-nested sequences and other data types are returned unchanged.
+
+    For example:
+
+    .. code-block:: python
+
+        flatten = FlattenSequence()
+        data = [[1, 2], [3, 4], [5, 6]]
+        print(flatten(data))
+        [1, 2, 3, 4, 5, 6]
+
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, data: list | tuple | Any) -> list | tuple | Any:
+        """
+        Flatten a nested sequence by one level.
+        Args:
+            data: Input data, can be a nested sequence.
+        Returns:
+            Flattened list if input is a nested sequence, otherwise returns data unchanged.
+        """
+        if isinstance(data, (list, tuple)):
+            if len(data) == 0:
+                return data
+            if all(isinstance(item, (list, tuple)) for item in data):
+                return [item for sublist in data for item in sublist]
         return data

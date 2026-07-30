@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -150,7 +149,7 @@ class UpCat(nn.Module):
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
         self.is_pad = is_pad
 
-    def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
+    def forward(self, x: torch.Tensor, x_e: torch.Tensor | None):
         """
 
         Args:
@@ -236,7 +235,6 @@ class BasicUNet(nn.Module):
         """
         super().__init__()
         fea = ensure_tuple_rep(features, 6)
-        print(f"BasicUNet features: {fea}.")
 
         self.conv_0 = TwoConv(spatial_dims, in_channels, features[0], act, norm, bias, dropout)
         self.down_1 = Down(spatial_dims, fea[0], fea[1], act, norm, bias, dropout)

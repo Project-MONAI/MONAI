@@ -18,45 +18,39 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vit import ViT
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.test_utils import dict_product, skip_if_quick, test_script_save
 
-TEST_CASE_Vit = []
-for dropout_rate in [0.6]:
-    for in_channels in [4]:
-        for hidden_size in [768]:
-            for img_size in [96, 128]:
-                for patch_size in [16]:
-                    for num_heads in [12]:
-                        for mlp_dim in [3072]:
-                            for num_layers in [4]:
-                                for num_classes in [8]:
-                                    for proj_type in ["conv", "perceptron"]:
-                                        for classification in [False, True]:
-                                            for nd in (2, 3):
-                                                test_case = [
-                                                    {
-                                                        "in_channels": in_channels,
-                                                        "img_size": (img_size,) * nd,
-                                                        "patch_size": (patch_size,) * nd,
-                                                        "hidden_size": hidden_size,
-                                                        "mlp_dim": mlp_dim,
-                                                        "num_layers": num_layers,
-                                                        "num_heads": num_heads,
-                                                        "proj_type": proj_type,
-                                                        "classification": classification,
-                                                        "num_classes": num_classes,
-                                                        "dropout_rate": dropout_rate,
-                                                    },
-                                                    (2, in_channels, *([img_size] * nd)),
-                                                    (2, (img_size // patch_size) ** nd, hidden_size),
-                                                ]
-                                                if nd == 2:
-                                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                                    if classification:
-                                                        test_case[0]["post_activation"] = False  # type: ignore
-                                                if test_case[0]["classification"]:  # type: ignore
-                                                    test_case[2] = (2, test_case[0]["num_classes"])  # type: ignore
-                                                TEST_CASE_Vit.append(test_case)
+TEST_CASE_Vit = [
+    (
+        [
+            {
+                **{k: v for k, v in params.items() if k not in ["nd"]},
+                **({"spatial_dims": 2} if params["nd"] == 2 else {}),
+                **({"post_activation": False} if params["nd"] == 2 and params["classification"] else {}),
+            },
+            (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+            (
+                (2, params["num_classes"])
+                if params["classification"]
+                else (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"])
+            ),
+        ]
+    )
+    for params in dict_product(
+        dropout_rate=[0.6],
+        in_channels=[4],
+        hidden_size=[768],
+        img_size=[96, 128],
+        patch_size=[16],
+        num_heads=[12],
+        mlp_dim=[3072],
+        num_layers=[4],
+        num_classes=[8],
+        proj_type=["conv", "perceptron"],
+        classification=[False, True],
+        nd=[2, 3],
+    )
+]
 
 
 @skip_if_quick
@@ -105,7 +99,6 @@ class TestViT(unittest.TestCase):
             )
 
     @parameterized.expand(TEST_CASE_Vit[:1])
-    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = ViT(**(input_param))
         net.eval()
@@ -133,6 +126,33 @@ class TestViT(unittest.TestCase):
         matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size, save_attn=True)
         matrix_acess_blk(torch.randn(in_shape))
         assert matrix_acess_blk.blocks[0].attn.att_mat.shape == (in_shape[0], 12, 216, 216)
+
+    def test_load_old_state_dict_drops_stale_cross_attn_keys(self):
+        # simulate an old checkpoint where CrossAttentionBlock was always instantiated
+        net = ViT(
+            in_channels=1,
+            img_size=(32, 32),
+            patch_size=(16, 16),
+            hidden_size=64,
+            mlp_dim=128,
+            num_layers=2,
+            num_heads=4,
+            spatial_dims=2,
+        )
+        old_state = {k: torch.rand_like(v) for k, v in net.state_dict().items()}
+        # inject stale cross_attn keys that the new model no longer has
+        old_state["blocks.0.cross_attn.to_q.weight"] = torch.randn(64, 64)
+        old_state["blocks.0.cross_attn.out_proj.weight"] = torch.randn(64, 64)
+        old_state["blocks.1.cross_attn.to_v.weight"] = torch.randn(64, 64)
+
+        # save expected values before the call since load_old_state_dict pops matching keys
+        expected = {k: v.clone() for k, v in old_state.items() if k in net.state_dict()}
+        net.load_old_state_dict(old_state)
+
+        # all current model keys should be loaded from old_state; stale keys silently dropped
+        loaded = net.state_dict()
+        for k in loaded:
+            self.assertTrue(torch.allclose(loaded[k], expected[k]))
 
 
 if __name__ == "__main__":

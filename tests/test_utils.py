@@ -28,12 +28,13 @@ import time
 import traceback
 import unittest
 import warnings
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from functools import partial, reduce
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Callable, Literal
+from typing import Any
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -55,12 +56,37 @@ from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 http_error, has_req = optional_import("requests", name="HTTPError")
+file_url_error, has_gdown = optional_import("gdown.exceptions", name="FileURLRetrievalError")
+hf_http_error, has_hf_hub = optional_import("huggingface_hub.errors", name="HfHubHTTPError")
+hf_local_entry_error, _has_hf_local = optional_import("huggingface_hub.errors", name="LocalEntryNotFoundError")
+
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
 _test_data_config: dict = {}
+# Fix dynamic warningregistry logs noise in python unit/pytest configurations
+warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
+
+DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, HTTPError, ConnectionError)
+if has_req:
+    DOWNLOAD_EXCEPTS += (http_error,)
+if has_gdown:
+    DOWNLOAD_EXCEPTS += (file_url_error,)
+if has_hf_hub:
+    DOWNLOAD_EXCEPTS += (hf_http_error, hf_local_entry_error)
+
+DOWNLOAD_FAIL_MSGS = (
+    "unexpected EOF",  # incomplete download
+    "network issue",
+    "gdown dependency",  # gdown not installed
+    "md5 check",
+    "limit",  # HTTP Error 503: Egress is over the account limit
+    "authenticate",
+    "timed out",  # urlopen error [Errno 110] Connection timed out
+    "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
+)
 
 
 def testing_data_config(*keys):
@@ -141,31 +167,54 @@ def assert_allclose(
 
 @contextmanager
 def skip_if_downloading_fails():
+    """
+    Skips a test if downloading something raises an exception recognised to indicate a download has failed.
+    """
+
     try:
         yield
-    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_req else () as e:  # noqa: B030
-        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except DOWNLOAD_EXCEPTS as e:
+        raise unittest.SkipTest(f"Error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
             raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except (RuntimeError, OSError) as rt_e:
         err_str = str(rt_e)
-        if any(
-            k in err_str
-            for k in (
-                "unexpected EOF",  # incomplete download
-                "network issue",
-                "gdown dependency",  # gdown not installed
-                "md5 check",
-                "limit",  # HTTP Error 503: Egress is over the account limit
-                "authenticate",
-                "timed out",  # urlopen error [Errno 110] Connection timed out
-                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
-            )
-        ):
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
+        if any(k in err_str for k in DOWNLOAD_FAIL_MSGS):
+            raise unittest.SkipTest(f"Error while downloading: {rt_e}") from rt_e  # incomplete download
 
         raise rt_e
+
+
+SAMPLE_TIFF = "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1.tiff"
+SAMPLE_TIFF_HASH = "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+SAMPLE_TIFF_HASH_TYPE = "sha256"
+
+
+class TestDownloadUrl(unittest.TestCase):
+    """Exercise ``download_url`` success and hash-mismatch paths."""
+
+    def test_download_url(self):
+        """Download a sample TIFF and validate hash handling.
+
+        Raises:
+            RuntimeError: When the downloaded file's hash does not match.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            with skip_if_downloading_fails():
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model.tiff"),
+                    hash_val=SAMPLE_TIFF_HASH,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
+            with self.assertRaises(RuntimeError):
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model_bad.tiff"),
+                    hash_val="0" * 64,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -194,7 +243,7 @@ def is_tf32_env():
                 a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
-            except BaseException:
+            except Exception:
                 pass
         print(f"tf32 enabled: {_tf32_enabled}")
     return _tf32_enabled
@@ -517,7 +566,7 @@ class DistCall:
                 time.sleep(0.1)
             results.put(True)
         except Exception as e:
-            results.put(False)
+            results.put(str(e))
             raise e
         finally:
             os.environ.clear()
@@ -546,15 +595,17 @@ class DistCall:
             results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
+
             for proc_rank in range(self.nproc_per_node):
-                p = tmp.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
-                )
+                run_args = (func, proc_rank, args, kwargs, results)
+                p = tmp.Process(target=self.run_process, args=run_args, daemon=self.daemon)
                 p.start()
                 processes.append(p)
+
             for p in processes:
                 p.join()
-                assert results.get(), "Distributed call failed."
+                pr = results.get(block=False)
+                assert pr is True, f"Distributed call failed: {pr}"
             _del_original_func(obj)
 
         return _wrapper
@@ -864,18 +915,24 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 
-def dict_product(trailing=False, format: Literal["list", "dict"] = "dict", **items):
+def dict_product(**items: Iterable[Any]) -> list[dict]:
+    """Create cartesian product, equivalent to a nested for-loop, combinations of the items dict.
+
+    Args:
+        items: dict of items to be combined.
+
+    Returns:
+        list: list of dictionaries with the combinations of the input items.
+
+    Example:
+        >>> dict_product(x=[1, 2], y=[3, 4])
+        [{'x': 1, 'y': 3}, {'x': 1, 'y': 4}, {'x': 2, 'y': 3}, {'x': 2, 'y': 4}]
+    """
     keys = items.keys()
     values = items.values()
-    for pvalues in product(*values):
-        dict_comb = dict(zip(keys, pvalues))
-        if format == "dict":
-            if trailing:
-                yield [dict_comb] + list(pvalues)
-            else:
-                yield dict_comb
-        else:
-            yield pvalues
+    prod_values = product(*values)
+    prod_dict = [dict(zip(keys, v)) for v in prod_values]
+    return prod_dict
 
 
 if __name__ == "__main__":

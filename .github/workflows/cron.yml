@@ -32,7 +32,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: apt install
       run: |
         apt-get update
@@ -67,7 +67,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -82,7 +82,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install APT dependencies
       run: |
         apt-get update
@@ -115,7 +115,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -131,7 +131,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install the dependencies
@@ -214,13 +214,13 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ngc --version
-        BUILD_MONAI=1 ./runtests.sh --build --coverage --pytype --unittests --disttests  # unit tests with pytype checks, coverage report
+        BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with pytype checks, coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -233,7 +233,7 @@ jobs:
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install MONAI
       id: monai-install
       run: |

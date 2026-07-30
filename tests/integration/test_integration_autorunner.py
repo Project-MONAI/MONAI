@@ -23,13 +23,7 @@ from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
-    get_testing_algo_template_path,
-    skip_if_downloading_fails,
-    skip_if_no_cuda,
-    skip_if_quick,
-)
+from tests.test_utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nni = optional_import("nni")
@@ -68,7 +62,6 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 11, 1))  # for mem_get_info
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:

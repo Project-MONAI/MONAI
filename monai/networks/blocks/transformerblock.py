@@ -25,6 +25,11 @@ class TransformerBlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
+    # Treat ``with_cross_attention`` as a TorchScript constant so the cross-attention branch in
+    # ``forward`` is pruned when it is False. Otherwise scripting tries to compile the
+    # ``self.cross_attn(..., context=context)`` call against ``nn.Identity`` and fails.
+    __constants__ = ["with_cross_attention"]
+
     def __init__(
         self,
         hidden_size: int,
@@ -48,10 +53,19 @@ class TransformerBlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias(bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            causal (bool, optional): whether to apply causal masking in self-attention. Defaults to False.
+            sequence_length (int | None, optional): sequence length required for causal masking. Defaults to None.
+            with_cross_attention (bool, optional): whether to include cross-attention layers that attend to an
+                external context tensor. When False, cross_attn is set to nn.Identity() so that the attribute
+                always exists for typing and checkpoint compatibility. Defaults to False.
             use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
                 (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
             include_fc: whether to include the final linear layer. Default to True.
             use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+
+        Raises:
+            ValueError: if dropout_rate is not in [0, 1].
+            ValueError: if hidden_size is not divisible by num_heads.
 
         """
 
@@ -81,17 +95,24 @@ class TransformerBlock(nn.Module):
         self.with_cross_attention = with_cross_attention
 
         self.norm_cross_attn = nn.LayerNorm(hidden_size)
-        self.cross_attn = CrossAttentionBlock(
-            hidden_size=hidden_size,
-            num_heads=num_heads,
-            dropout_rate=dropout_rate,
-            qkv_bias=qkv_bias,
-            causal=False,
-            use_flash_attention=use_flash_attention,
-        )
+        self.cross_attn: CrossAttentionBlock | nn.Identity
+        if with_cross_attention:
+            self.cross_attn = CrossAttentionBlock(
+                hidden_size=hidden_size,
+                num_heads=num_heads,
+                dropout_rate=dropout_rate,
+                qkv_bias=qkv_bias,
+                causal=False,
+                use_flash_attention=use_flash_attention,
+            )
+        else:
+            self.cross_attn = nn.Identity()
 
     def forward(
-        self, x: torch.Tensor, context: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        context: Optional[torch.Tensor] = None,  # noqa: UP045
+        attn_mask: Optional[torch.Tensor] = None,  # noqa: UP045
     ) -> torch.Tensor:
         x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         if self.with_cross_attention:

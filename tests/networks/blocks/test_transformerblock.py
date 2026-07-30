@@ -16,31 +16,26 @@ from unittest import skipUnless
 
 import numpy as np
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
 from monai.networks import eval_mode
+from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.utils import optional_import
+from tests.test_utils import dict_product
 
 einops, has_einops = optional_import("einops")
-TEST_CASE_TRANSFORMERBLOCK = []
-for dropout_rate in np.linspace(0, 1, 4):
-    for hidden_size in [360, 480, 600, 768]:
-        for num_heads in [4, 8, 12]:
-            for mlp_dim in [1024, 3072]:
-                for cross_attention in [False, True]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "mlp_dim": mlp_dim,
-                            "dropout_rate": dropout_rate,
-                            "with_cross_attention": cross_attention,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_TRANSFORMERBLOCK.append(test_case)
+TEST_CASE_TRANSFORMERBLOCK = [
+    [params, (2, 512, params["hidden_size"]), (2, 512, params["hidden_size"])]
+    for params in dict_product(
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 8, 12],
+        mlp_dim=[1024, 3072],
+        with_cross_attention=[False, True],
+    )
+]
 
 
 class TestTransformerBlock(unittest.TestCase):
@@ -59,6 +54,36 @@ class TestTransformerBlock(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_cross_attention_is_identity_when_disabled(self):
+        block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=False)
+        # attributes always exist for typing and checkpoint compatibility
+        self.assertTrue(hasattr(block, "cross_attn"))
+        self.assertTrue(hasattr(block, "norm_cross_attn"))
+        # cross_attn is nn.Identity (no parameters) when disabled
+        self.assertIsInstance(block.cross_attn, nn.Identity)
+        param_names = [name for name, _ in block.named_parameters()]
+        self.assertFalse(any(n.startswith("cross_attn") for n in param_names))
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_cross_attention_params_registered_when_enabled(self):
+        block = TransformerBlock(hidden_size=128, mlp_dim=256, num_heads=4, with_cross_attention=True)
+        self.assertIsInstance(block.cross_attn, CrossAttentionBlock)
+        self.assertTrue(hasattr(block, "norm_cross_attn"))
+        param_names = [name for name, _ in block.named_parameters()]
+        self.assertTrue(any(n.startswith("cross_attn.") for n in param_names))
+        self.assertTrue(any("norm_cross_attn" in n for n in param_names))
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_cross_attention_forward_with_context(self):
+        hidden_size = 128
+        block = TransformerBlock(hidden_size=hidden_size, mlp_dim=256, num_heads=4, with_cross_attention=True)
+        x = torch.randn(2, 16, hidden_size)
+        context = torch.randn(2, 8, hidden_size)
+        with eval_mode(block):
+            out = block(x, context=context)
+        self.assertEqual(out.shape, x.shape)
 
     @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):

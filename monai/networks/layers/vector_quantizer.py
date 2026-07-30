@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -87,7 +87,7 @@ class EMAQuantizer(nn.Module):
             range(1, self.spatial_dims + 1)
         )
 
-    def quantize(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def quantize(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Given an input it projects it to the quantized space and returns additional tensors needed for EMA loss.
 
@@ -100,7 +100,7 @@ class EMAQuantizer(nn.Module):
             torch.Tensor: Quantization indices of shape [B,H,W,D,1]
 
         """
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.autocast("cuda", enabled=False):
             encoding_indices_view = list(inputs.shape)
             del encoding_indices_view[1]
 
@@ -138,7 +138,7 @@ class EMAQuantizer(nn.Module):
         Returns:
             torch.Tensor: Quantize space representation of encoding_indices in channel first format.
         """
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.autocast("cuda", enabled=False):
             embedding: torch.Tensor = (
                 self.embedding(embedding_indices).permute(self.quantization_permutation).contiguous()
             )
@@ -164,7 +164,7 @@ class EMAQuantizer(nn.Module):
         else:
             pass
 
-    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         flat_input, encodings, encoding_indices = self.quantize(inputs)
         quantized = self.embed(encoding_indices)
 
@@ -211,7 +211,7 @@ class VectorQuantizer(torch.nn.Module):
 
         self.perplexity: torch.Tensor = torch.rand(1)
 
-    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         quantized, loss, encoding_indices = self.quantizer(inputs)
         # Perplexity calculations
         avg_probs = (

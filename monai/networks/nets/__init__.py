@@ -53,6 +53,7 @@ from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
+from .hyena_nd_unetr import HyenaNDUNETR
 from .masked_autoencoder_vit import MaskedAutoEncoderViT
 from .mednext import (
     MedNeXt,

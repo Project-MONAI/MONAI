@@ -337,7 +337,7 @@ class WorkflowProfiler:
 
         class _Iterable:
 
-            def __iter__(_self):  # noqa: B902, N805 pylint: disable=E0213
+            def __iter__(_self):  # noqa: N805 pylint: disable=E0213
                 do_iter = True
                 orig_iter = iter(iterable)
                 caller = getframeinfo(stack()[1][0])
@@ -377,8 +377,6 @@ class WorkflowProfiler:
 
     def get_times_summary_pd(self, times_in_s=True):
         """Returns the same information as `get_times_summary` but in a Pandas DataFrame."""
-        import pandas as pd
-
         summ = self.get_times_summary(times_in_s)
         suffix = "s" if times_in_s else "ns"
         columns = ["Count", f"Total Time ({suffix})", "Avg", "Std", "Min", "Max"]

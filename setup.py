@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import warnings
+from typing import Any, cast
 
 from packaging import version
 from setuptools import find_packages, setup
@@ -103,6 +104,19 @@ def get_extensions():
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
+        # Embed the maximum compute capability from TORCH_CUDA_ARCH_LIST
+        _torch_cuda_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST", "")
+        _max_cc = 0
+        if _torch_cuda_arch_list:
+            for _maj, _min in re.findall(r"([0-9]+)\.([0-9]+)", _torch_cuda_arch_list):
+                try:
+                    _cc = int(_maj) * 100 + int(_min)
+                    if _cc > _max_cc:
+                        _max_cc = _cc
+                except ValueError:
+                    pass
+        if _max_cc > 0:
+            define_macros += [("MONAI_MAX_COMPUTE_CAPABILITY", _max_cc)]
         extra_compile_args = {"cxx": [], "nvcc": []}
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()
@@ -144,8 +158,8 @@ jit_extension_source = [os.path.join("..", path) for path in jit_extension_sourc
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
-    packages=find_packages(exclude=("docs", "examples", "tests")),
+    packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
-    package_data={"monai": ["py.typed", *jit_extension_source]},
+    package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
     ext_modules=get_extensions(),
 )

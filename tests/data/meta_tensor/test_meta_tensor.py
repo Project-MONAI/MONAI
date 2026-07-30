@@ -32,13 +32,13 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from tests.test_utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
+from tests.test_utils import TEST_DEVICES, assert_allclose, dict_product, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
-TESTS = []
-for _device in TEST_DEVICES:
-    for _dtype in DTYPES:
-        TESTS.append((*_device, *_dtype))  # type: ignore
+
+# Replace nested loops with dict_product
+
+TESTS = [(*params["device"], *params["dtype"]) for params in dict_product(device=TEST_DEVICES, dtype=DTYPES)]
 
 
 def rand_string(min_len=5, max_len=10):
@@ -68,6 +68,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def check_meta(self, a: MetaTensor, b: MetaTensor) -> None:
         self.assertEqual(a.is_batch, b.is_batch)
+        self.assertEqual(a.spatial_ndim, b.spatial_ndim)
         meta_a, meta_b = a.meta, b.meta
         # need to split affine from rest of metadata
         aff_a = meta_a.get("affine", None)
@@ -245,7 +246,7 @@ class TestMetaTensor(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "im.pt")
             torch.save(m, fname)
-            m2 = torch.load(fname)
+            m2 = torch.load(fname, weights_only=False)
         self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
@@ -256,7 +257,7 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv2d(im.shape[1], 5, 3)
         conv.to(device)
         im_conv = conv(im)
-        with torch.cuda.amp.autocast():
+        with torch.autocast("cuda"):
             im_conv2 = conv(im)
         self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
 
@@ -297,7 +298,6 @@ class TestMetaTensor(unittest.TestCase):
             self.check(im, ims[i], ids=True)
 
     @parameterized.expand(DTYPES)
-    @SkipIfBeforePyTorchVersion((1, 8))
     def test_dataloader(self, dtype):
         batch_size = 5
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
@@ -314,7 +314,6 @@ class TestMetaTensor(unittest.TestCase):
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
             self.assertEqual(len(batch.applied_operations), batch_size)
 
-    @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):
         """
         Check the metadata is returned in the expected format depending on whether
@@ -406,7 +405,6 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
 
     @parameterized.expand(DTYPES)
-    @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
         batch_size = 3
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
@@ -437,8 +435,12 @@ class TestMetaTensor(unittest.TestCase):
         for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.uint16):
             self.assertIsInstance(t.astype(np_types), np.ndarray)
         for pt_types in ("torch.float", torch.float, "torch.float64"):
-            self.assertIsInstance(t.astype(pt_types), torch.Tensor)
-        self.assertIsInstance(t.astype("torch.float", device="cpu"), torch.Tensor)
+            result = t.astype(pt_types)
+            self.assertIsInstance(result, MetaTensor)
+            self.assertEqual(result.meta.get("fname"), "filename")
+        result = t.astype("torch.float", device="cpu")
+        self.assertIsInstance(result, MetaTensor)
+        self.assertEqual(result.meta.get("fname"), "filename")
 
     def test_transforms(self):
         key = "im"

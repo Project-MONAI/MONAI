@@ -26,7 +26,7 @@ from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import get_boxmode
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
@@ -52,6 +52,47 @@ cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
 __all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+
+
+def _compiled_unsupported(device: torch.device) -> bool:
+    """
+    Return True if ``monai._C`` (the compiled C extension providing ``grid_pull``) is not
+    compiled with support for the given CUDA device's compute capability.
+
+    Args:
+        device: The torch device to check for compiled extension support.
+
+    Returns:
+        True if the device is CUDA with compute capability major >= 12 (Blackwell+),
+        False otherwise. Always returns False for CPU devices.
+
+    Note:
+        ``monai._C`` is built at install time against a fixed set of CUDA architectures.
+        NVIDIA Blackwell GPUs (sm_120, compute capability 12.x) and newer were not included in
+        the default ``TORCH_CUDA_ARCH_LIST`` when the MONAI slim image was originally built,
+        so executing ``grid_pull`` on those devices produces incorrect results.  Falling back to
+        the PyTorch-native ``affine_grid`` + ``grid_sample`` path (``USE_COMPILED=False``) gives
+        correct output on all architectures.
+
+        The threshold (``major >= 12``) matches the first architecture family (Blackwell, sm_120)
+        that shipped after the highest sm supported in the current default build list (sm_90,
+        Hopper).  Adjust this constant when ``monai._C`` is rebuilt with sm_120+ support.
+    """
+    if device.type != "cuda":
+        return False
+    try:
+        from monai._C import max_compute_capability as _max_cc_func
+
+        max_cc = _max_cc_func()
+        if max_cc == 0:
+            # No architecture info embedded (older build), fall back to heuristic
+            return bool(torch.cuda.get_device_properties(device).major >= 12)
+        device_cc = (
+            torch.cuda.get_device_properties(device).major * 100 + torch.cuda.get_device_properties(device).minor
+        )
+        return bool(device_cc > max_cc)
+    except (ImportError, AttributeError):
+        return bool(torch.cuda.get_device_properties(device).major >= 12)
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
@@ -99,9 +140,10 @@ def spatial_resample(
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta())
     # ensure spatial rank is <= 3
-    spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+    max_rank = max(int(img.ndim) - 1, 1)
+    spatial_rank = min(get_spatial_ndim(img), max_rank, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-        spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
+        spatial_rank = min(len(ensure_tuple(spatial_size)), max_rank, 3)  # infer spatial rank based on spatial_size
     src_affine = to_affine_nd(spatial_rank, src_affine).to(torch.float64)
     dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
     dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
@@ -158,7 +200,8 @@ def spatial_resample(
         xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
-    if isinstance(mode, int) or USE_COMPILED:
+    _use_compiled = USE_COMPILED and not _compiled_unsupported(img.device)
+    if isinstance(mode, int) or _use_compiled:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
         affine_xform = monai.transforms.Affine(
@@ -304,7 +347,7 @@ def resize(
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=scale_affine(orig_size, out_size),
+        affine=scale_affine(orig_size, out_size, align_corners=align_corners if align_corners is not None else False),
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
@@ -340,7 +383,9 @@ def resize(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def rotate(
+    img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info, rotate_order="XYZ"
+):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -362,6 +407,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
             the output data type is always ``float32``.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+        rotate_order: the order in which the axes are rotated about for 3D inputs, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See :py:func:`monai.transforms.utils.create_rotate`.
+            Defaults to ``"XYZ"`` (the legacy behaviour). Ignored for 2D inputs.
 
     """
 
@@ -370,7 +418,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    transform = create_rotate(input_ndim, _angle)
+    transform = create_rotate(input_ndim, _angle, rotate_order=rotate_order)
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore
@@ -411,7 +459,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info, **kwargs):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
@@ -439,7 +487,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
-    xform = scale_affine(im_shape, output_size)
+    xform = scale_affine(im_shape, output_size, align_corners=align_corners if align_corners is not None else False)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -450,7 +498,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     if keep_size:
         do_pad_crop = not np.allclose(output_size, im_shape)
         if do_pad_crop and lazy:  # update for lazy evaluation
-            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode, **kwargs)
             _pad_crop.lazy = True
             _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
             _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
@@ -486,7 +534,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         out = out.copy_meta_from(meta_info)
     do_pad_crop = not np.allclose(output_size, zoomed.shape[1:])
     if do_pad_crop:
-        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
+        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode, **kwargs)
         out = _pad_crop(out)
     if get_track_meta() and do_pad_crop:
         padcrop_xform = out.applied_operations.pop()

@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Optional, Sequence, Tuple
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -243,14 +244,10 @@ class VISTA3D(nn.Module):
         _logits = logits[mapping_index]
         inside = []
         for i in range(_logits.shape[0]):
-            inside.append(
-                np.any(
-                    [
-                        _logits[i, 0, p[0], p[1], p[2]].item() > 0
-                        for p in point_coords[i].cpu().numpy().round().astype(int)
-                    ]
-                )
-            )
+            p_coord = point_coords[i].cpu().numpy().round().astype(int)
+            inside_p = [_logits[i, 0, p[0], p[1], p[2]].item() > 0 for p in p_coord]
+            inside.append(int(np.any(inside_p)))  # convert to int to avoid typing problems with Numpy
+
         inside_tensor = torch.tensor(inside).to(logits.device)
         nan_mask = torch.isnan(_logits)
         # _logits are converted to binary [B1, 1, H, W, D]
@@ -315,7 +312,7 @@ class VISTA3D(nn.Module):
         """
         if auto_freeze != self.auto_freeze:
             if hasattr(self.image_encoder, "set_auto_grad"):
-                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)
+                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)  # type: ignore[operator]
             else:
                 for param in self.image_encoder.parameters():
                     param.requires_grad = (not auto_freeze) and (not point_freeze)
@@ -325,7 +322,7 @@ class VISTA3D(nn.Module):
 
         if point_freeze != self.point_freeze:
             if hasattr(self.image_encoder, "set_auto_grad"):
-                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)
+                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)  # type: ignore[operator]
             else:
                 for param in self.image_encoder.parameters():
                     param.requires_grad = (not auto_freeze) and (not point_freeze)
@@ -543,10 +540,10 @@ class PointMappingSAM(nn.Module):
         point_embedding = self.pe_layer.forward_with_coords(points, out_shape)  # type: ignore
         point_embedding[point_labels == -1] = 0.0
         point_embedding[point_labels == -1] += self.not_a_point_embed.weight
-        point_embedding[point_labels == 0] += self.point_embeddings[0].weight
-        point_embedding[point_labels == 1] += self.point_embeddings[1].weight
-        point_embedding[point_labels == 2] += self.point_embeddings[0].weight + self.special_class_embed.weight
-        point_embedding[point_labels == 3] += self.point_embeddings[1].weight + self.special_class_embed.weight
+        point_embedding[point_labels == 0] += self.point_embeddings[0].weight  # type: ignore[arg-type]
+        point_embedding[point_labels == 1] += self.point_embeddings[1].weight  # type: ignore[arg-type]
+        point_embedding[point_labels == 2] += self.point_embeddings[0].weight + self.special_class_embed.weight  # type: ignore[operator]
+        point_embedding[point_labels == 3] += self.point_embeddings[1].weight + self.special_class_embed.weight  # type: ignore[operator]
         output_tokens = self.mask_tokens.weight
 
         output_tokens = output_tokens.unsqueeze(0).expand(point_embedding.size(0), -1, -1)
@@ -691,7 +688,7 @@ class TwoWayTransformer(nn.Module):
 
     def forward(
         self, image_embedding: torch.Tensor, image_pe: torch.Tensor, point_embedding: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             image_embedding: image to attend to. Should be shape
@@ -768,7 +765,7 @@ class TwoWayAttentionBlock(nn.Module):
 
     def forward(
         self, queries: torch.Tensor, keys: torch.Tensor, query_pe: torch.Tensor, key_pe: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # Self attention block
         if self.skip_first_layer_pe:
             queries = self.self_attn(q=queries, k=queries, v=queries)
@@ -872,7 +869,7 @@ class PositionEmbeddingRandom(nn.Module):
         scale: the scale of the positional encoding.
     """
 
-    def __init__(self, num_pos_feats: int = 64, scale: Optional[float] = None) -> None:
+    def __init__(self, num_pos_feats: int = 64, scale: float | None = None) -> None:
         super().__init__()
         if scale is None or scale <= 0.0:
             scale = 1.0
@@ -884,13 +881,13 @@ class PositionEmbeddingRandom(nn.Module):
         coords = 2 * coords - 1
         # [bs=1,N=2,2] @ [2,128]
         # [bs=1, N=2, 128]
-        coords = coords @ self.positional_encoding_gaussian_matrix
+        coords = coords @ self.positional_encoding_gaussian_matrix  # type: ignore[operator]
         coords = 2 * np.pi * coords
         # outputs d_1 x ... x d_n x C shape
         # [bs=1, N=2, 128+128=256]
         return torch.cat([torch.sin(coords), torch.cos(coords)], dim=-1)
 
-    def forward(self, size: Tuple[int, int, int]) -> torch.torch.Tensor:
+    def forward(self, size: tuple[int, int, int]) -> torch.torch.Tensor:
         """Generate positional encoding for a grid of the specified size."""
         h, w, d = size
         device: Any = self.positional_encoding_gaussian_matrix.device
@@ -906,7 +903,7 @@ class PositionEmbeddingRandom(nn.Module):
         return pe.permute(3, 0, 1, 2)
 
     def forward_with_coords(
-        self, coords_input: torch.torch.Tensor, image_size: Tuple[int, int, int]
+        self, coords_input: torch.torch.Tensor, image_size: tuple[int, int, int]
     ) -> torch.torch.Tensor:
         """Positionally encode points that are not normalized to [0,1]."""
         coords = coords_input.clone()

@@ -457,7 +457,7 @@ class COCOMetric:
                 dt_ignores = np.concatenate([r["dtIgnore"][:, 0:max_det] for r in results], axis=1)[:, inds]
                 self.check_number_of_iou(dt_matches, dt_ignores)
                 gt_ignore = np.concatenate([r["gtIgnore"] for r in results])
-                num_gt = np.count_nonzero(gt_ignore == 0)  # number of ground truth boxes (non ignored)
+                num_gt = int(np.count_nonzero(gt_ignore == 0))  # number of ground truth boxes (non ignored)
                 if num_gt == 0:
                     logger.warning(f"WARNING, no gt found for coco metric for class {cls_i}")
                     continue
@@ -523,13 +523,12 @@ def _compute_stats_single_threshold(
         recall = 0
 
     # array where precision values nearest to given recall th are saved
-    precision = np.zeros((num_recall_th,))
+    precision = [0.0] * num_recall_th
     # save scores for corresponding recall value in here
     th_scores = np.zeros((num_recall_th,))
     # numpy is slow without cython optimization for accessing elements
     # use python array gets significant speed improvement
     pr = pr.tolist()
-    precision = precision.tolist()
 
     # smooth precision curve (create box shape)
     for i in range(len(tp) - 1, 0, -1):
@@ -542,7 +541,7 @@ def _compute_stats_single_threshold(
         for save_idx, array_index in enumerate(inds):
             precision[save_idx] = pr[array_index]
             th_scores[save_idx] = dt_scores_sorted[array_index]
-    except BaseException:
+    except Exception:
         pass
 
     return recall, np.array(precision), np.array(th_scores)

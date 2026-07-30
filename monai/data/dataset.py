@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import collections.abc
 import math
-import pickle
 import shutil
 import sys
 import tempfile
@@ -22,10 +21,11 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
-from inspect import signature
+from io import BytesIO
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from pickle import UnpicklingError
 from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -139,7 +139,7 @@ class DatasetFunc(Dataset):
     """
 
     def __init__(self, data: Any, func: Callable, **kwargs) -> None:
-        super().__init__(data=None, transform=None)  # type:ignore
+        super().__init__(data=None, transform=None)  # type: ignore
         self.src = data
         self.func = func
         self.kwargs = kwargs
@@ -208,6 +208,15 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
+        Cached data is expected to be tensors, primitives, or dictionaries keying to these values. Numpy arrays will
+        be converted to tensors, however any other object type returned by transforms will not be loadable since
+        `torch.load` will be used with `weights_only=True` by default to prevent loading of potentially malicious
+        objects. Legacy cache files may not be loadable and may need to be recomputed. MetaTensor objects can be saved
+        and loaded with their metadata preserved if `track_meta` is True, however the objects stored in the metadata
+        must be acceptable as serialisable by `torch.load` by default or if they have been white-listed with
+        `torch.serialization.add_safe_globals`. Any other object type may be stored but will fail to load and force
+        a cache recompute.
+
     Lazy Resampling:
         If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
         its documentation to familiarize yourself with the interaction between `PersistentDataset` and
@@ -225,6 +234,8 @@ class PersistentDataset(Dataset):
         pickle_protocol: int = DEFAULT_PROTOCOL,
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
+        track_meta: bool = False,
+        weights_only: bool = True,
     ) -> None:
         """
         Args:
@@ -238,8 +249,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
                 If `cache_dir` is `None`, there is effectively no caching.
-            hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.pickle_hashing`.
+            hash_func: a callable to compute hash from data items to be cached, defaults to
+                `monai.data.utils.pickle_hashing` which uses sha256 (previously md5 so old caches will not work).
             pickle_module: string representing the module used for pickling metadata and objects,
                 default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
                 we can't use `pickle` as arg directly, so here we use a string name instead.
@@ -249,8 +260,8 @@ class PersistentDataset(Dataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: can be specified to override the default protocol, default to `2`.
-                this arg is used by `torch.save`, for more details, please check:
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
@@ -259,7 +270,12 @@ class PersistentDataset(Dataset):
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
-
+            track_meta: whether to track the meta information, defaults to False. If `True`, converts to `MetaTensor`.
+            weights_only: keyword argument passed to `torch.load` when reading cached files.
+                default to `True`. When `True`, `torch.load` restricts loading to tensors and other safe objects.
+                Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
+                eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
+                they intend to load before doing so.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -275,6 +291,8 @@ class PersistentDataset(Dataset):
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
+        self.track_meta = track_meta
+        self.weights_only = weights_only
 
     def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -366,21 +384,18 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                if "weights_only" in signature(torch.load).parameters:
-                    return torch.load(hashfile, weights_only=False)
-                else:
-                    return torch.load(hashfile)
+                return torch.load(hashfile, weights_only=self.weights_only)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
-            except RuntimeError as e:
-                if "Invalid magic number; corrupt file" in str(e):
+            except (UnpicklingError, RuntimeError) as e:  # corrupt or unloadable cached files are recomputed
+                if "Invalid magic number; corrupt file" in str(e) or isinstance(e, UnpicklingError):
                     warnings.warn(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
                     hashfile.unlink()
                 else:
@@ -396,7 +411,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=_item_transformed,
+                    obj=convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -459,8 +474,8 @@ class CacheNTransDataset(PersistentDataset):
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
-            pickle_protocol: can be specified to override the default protocol, default to `2`.
-                this arg is used by `torch.save`, for more details, please check:
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
@@ -535,7 +550,7 @@ class LMDBDataset(PersistentDataset):
         hash_func: Callable[..., bytes] = pickle_hashing,
         db_name: str = "monai_cache",
         progress: bool = True,
-        pickle_protocol=pickle.HIGHEST_PROTOCOL,
+        pickle_protocol=DEFAULT_PROTOCOL,
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
         lmdb_kwargs: dict | None = None,
@@ -555,8 +570,9 @@ class LMDBDataset(PersistentDataset):
                 defaults to `monai.data.utils.pickle_hashing`.
             db_name: lmdb database file name. Defaults to "monai_cache".
             progress: whether to display a progress bar.
-            pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
-                https://docs.python.org/3/library/pickle.html#pickle-protocols
+            pickle_protocol: specifies pickle protocol when saving, with `torch.save`.
+                Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
@@ -587,16 +603,27 @@ class LMDBDataset(PersistentDataset):
         # the cache is created without multi-threading
         self._read_env: Any | None = None
         # this runs on the primary thread/process
-        self._fill_cache_start_reader(show_progress=self.progress)
-        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+        read_env = self._fill_cache_start_reader(show_progress=self.progress)
+        read_env.close()
 
     def set_data(self, data: Sequence):
         """
         Set the input data and delete all the out-dated cache content.
-
         """
+        self.close()
         super().set_data(data=data)
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
+
+    def _safe_serialize(self, val):
+        """Serialize the tensor/array `val` using the pickle protocol, and return its bytes object."""
+        out = BytesIO()
+        torch.save(convert_to_tensor(val), out, pickle_protocol=self.pickle_protocol)
+        out.seek(0)
+        return out.read()
+
+    def _safe_deserialize(self, val):
+        """Load the object from the given bytes data, this must be loadable as weights only using `torch.load`."""
+        return torch.load(BytesIO(val), map_location="cpu", weights_only=True)
 
     def _fill_cache_start_reader(self, show_progress=True):
         """
@@ -606,6 +633,12 @@ class LMDBDataset(PersistentDataset):
         Args:
             show_progress: whether to show the progress bar if possible.
         """
+        # Close any open read environment before attempting write-mode access
+        # to prevent "environment already open" errors when multiple LMDBDataset
+        # instances target the same db file
+        if self._read_env is not None:
+            self._read_env.close()
+            self._read_env = None
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
@@ -623,7 +656,8 @@ class LMDBDataset(PersistentDataset):
                             continue
                         if val is None:
                             val = self._pre_transform(deepcopy(item))  # keep the original hashed
-                            val = pickle.dumps(val, protocol=self.pickle_protocol)
+                            # val = pickle.dumps(val, protocol=self.pickle_protocol)
+                            val = self._safe_serialize(val)
                         with env.begin(write=True) as txn:
                             txn.put(key, val)
                         done = True
@@ -632,7 +666,7 @@ class LMDBDataset(PersistentDataset):
                         size = env.info()["map_size"]
                         new_size = size * 2
                         warnings.warn(
-                            f"Resizing the cache database from {int(size) >> 20}MB" f" to {int(new_size) >> 20}MB."
+                            f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB."
                         )
                         env.set_mapsize(new_size)
                     except lmdb.MapResizedError:
@@ -655,10 +689,7 @@ class LMDBDataset(PersistentDataset):
         return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
     def _cachecheck(self, item_transformed):
-        """
-        if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
-
-        """
+        """If the item is not found in the lmdb file, resolves to the persistent cache default behaviour."""
         if self._read_env is None:
             # this runs on multiple processes, each one should have its own env.
             self._read_env = self._fill_cache_start_reader(show_progress=False)
@@ -668,7 +699,8 @@ class LMDBDataset(PersistentDataset):
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
             return super()._cachecheck(item_transformed)
         try:
-            return pickle.loads(data)
+            # return pickle.loads(data)
+            return self._safe_deserialize(data)
         except Exception as err:
             raise RuntimeError("Invalid cache value, corrupted lmdb file?") from err
 
@@ -682,7 +714,14 @@ class LMDBDataset(PersistentDataset):
         out = dict(self._read_env.info())
         out["size"] = len(self.data)
         out["filename"] = f"{self.db_file.absolute()}"
+        self.close()
         return out
+
+    def close(self):
+        """Close the read environment and set it to None, if it exists."""
+        if self._read_env:
+            self._read_env.close()
+            self._read_env = None
 
 
 class CacheDataset(Dataset):
@@ -1357,7 +1396,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         return len(self.dataset)
 
     def randomize(self, data: Any | None = None) -> None:
-        self._seed = self.R.randint(MAX_SEED, dtype="uint32")
+        self._seed = int(self.R.randint(MAX_SEED, dtype="uint32"))
 
     def __getitem__(self, index: int):
         self.randomize()
@@ -1579,9 +1618,9 @@ class GDSDataset(PersistentDataset):
         hashfile = None
         # compute a cache id
         if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            data_item_md5 += self.transform_hash
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
@@ -1602,7 +1641,7 @@ class GDSDataset(PersistentDataset):
                         return (_data, _meta)
                     return _data
                 else:
-                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type:ignore
+                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type: ignore
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
                             meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
@@ -1654,7 +1693,7 @@ class GDSDataset(PersistentDataset):
                 meta_hash_file = self.cache_dir / meta_hash_file_name
                 temp_hash_file = Path(tmpdirname) / meta_hash_file_name
                 torch.save(
-                    obj=self._meta_cache[meta_hash_file_name],
+                    obj=convert_to_tensor(self._meta_cache[meta_hash_file_name], convert_numeric=False),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -1674,7 +1713,4 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            if "weights_only" in signature(torch.load).parameters:
-                return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
-            else:
-                return torch.load(self.cache_dir / meta_hash_file_name)
+            return torch.load(self.cache_dir / meta_hash_file_name, weights_only=True)

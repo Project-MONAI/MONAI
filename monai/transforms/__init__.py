@@ -293,6 +293,7 @@ from .post.array import (
     AsDiscrete,
     DistanceTransformEDT,
     FillHoles,
+    GenerateHeatmap,
     Invert,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -319,6 +320,9 @@ from .post.dictionary import (
     FillHolesD,
     FillHolesd,
     FillHolesDict,
+    GenerateHeatmapd,
+    GenerateHeatmapD,
+    GenerateHeatmapDict,
     InvertD,
     Invertd,
     InvertDict,
@@ -506,7 +510,7 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .spatial.functional import spatial_resample
-from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
+from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ReduceTrait, ThreadUnsafe
 from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddCoordinateChannels,
@@ -521,6 +525,7 @@ from .utility.array import (
     EnsureChannelFirst,
     EnsureType,
     FgBgToIndices,
+    FlattenSequence,
     Identity,
     ImageFilter,
     IntensityStats,
@@ -593,6 +598,9 @@ from .utility.dictionary import (
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
+    FlattenSequenced,
+    FlattenSequenceD,
+    FlattenSequenceDict,
     FlattenSubKeysd,
     FlattenSubKeysD,
     FlattenSubKeysDict,
@@ -668,6 +676,12 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
+    TransformPointsImageToWorldd,
+    TransformPointsImageToWorldD,
+    TransformPointsImageToWorldDict,
+    TransformPointsWorldToImaged,
+    TransformPointsWorldToImageD,
+    TransformPointsWorldToImageDict,
     Transposed,
     TransposeD,
     TransposeDict,

@@ -78,6 +78,11 @@ Segmentation Losses
 .. autoclass:: BarlowTwinsLoss
     :members:
 
+`BoundaryLoss`
+~~~~~~~~~~~~~~
+.. autoclass:: BoundaryLoss
+    :members:
+
 `HausdorffDTLoss`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: HausdorffDTLoss
@@ -96,6 +101,11 @@ Segmentation Losses
 `NACLLoss`
 ~~~~~~~~~~
 .. autoclass:: NACLLoss
+    :members:
+
+`MCCLoss`
+~~~~~~~~~
+.. autoclass:: MCCLoss
     :members:
 
 Registration Losses
