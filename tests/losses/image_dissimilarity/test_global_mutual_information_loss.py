@@ -140,6 +140,11 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "num_bins must be greater than 4"):
             GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=4)
 
+    def test_gaussian_num_bins_must_allow_spacing(self):
+        """Verify Gaussian bin counts allow a finite bin-centre spacing."""
+        with self.assertRaisesRegex(ValueError, "num_bins must be greater than 1"):
+            GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=1)
+
     @parameterized.expand(
         [
             (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims
