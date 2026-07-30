@@ -1,7 +1,7 @@
 
 [build-system]
 requires = [
-  "setuptools",
+  "setuptools>=78.1.1",
   "wheel",
   "versioneer[toml]",
   "more-itertools>=8.0",
@@ -71,7 +71,7 @@ all = [
   "lpips==0.1.4",
   "matplotlib>=3.6.3",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
-  "mlflow>=2.12.2,<3.13",
+  "mlflow>=3.14.0",
   "nibabel",
   "ninja",
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
@@ -103,7 +103,7 @@ all = [
   "torchio",
   "torchvision",
   "tqdm>=4.47.0",
-  "transformers>=4.53.0, <5.0",
+  "transformers>=5.5.0",
   "zarr"
 ]
 clearml = ["clearml>=1.10.0rc0"]
@@ -126,7 +126,7 @@ lmdb = ["lmdb"]
 lpips = ["lpips==0.1.4"]
 matplotlib = ["matplotlib>=3.6.3"]
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
-mlflow = ["mlflow>=2.12.2,<3.13"]
+mlflow = ["mlflow>=3.14.0"]
 nibabel = ["nibabel"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
@@ -155,7 +155,7 @@ tifffile = ["tifffile; platform_system == 'Linux' or platform_system == 'Darwin'
 torchio = ["torchio"]
 torchvision = ["torchvision"]
 tqdm = ["tqdm>=4.47.0"]
-transformers = ["transformers>=4.53.0, <5.0"]  # 5.x references torch.float8_e8m0fnu absent in older PyTorch builds
+transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/BertConfig updates; re-verify the NGC image float8 concern
 zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [

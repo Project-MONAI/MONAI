@@ -17,7 +17,7 @@ import shutil
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 from ignite.engine import Engine, Events
@@ -26,7 +26,7 @@ from parameterized import parameterized
 from monai.apps import download_and_extract
 from monai.bundle import ConfigWorkflow, download
 from monai.handlers import MLFlowHandler
-from monai.utils import optional_import, path_to_uri
+from monai.utils import optional_import, path_to_sqlite_uri, path_to_uri
 from tests.test_utils import skip_if_downloading_fails, skip_if_quick
 
 _, has_dataset_tracking = optional_import("mlflow", "2.4.0")
@@ -55,7 +55,7 @@ def dummy_train(tracking_folder):
     handler = MLFlowHandler(
         iteration_log=False,
         epoch_log=True,
-        tracking_uri=path_to_uri(test_path),
+        tracking_uri=path_to_sqlite_uri(test_path),
         state_attributes=["test"],
         close_on_complete=True,
     )
@@ -95,7 +95,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler = MLFlowHandler(
                     iteration_log=False,
                     epoch_log=True,
-                    tracking_uri=path_to_uri(test_path),
+                    tracking_uri=path_to_sqlite_uri(test_path),
                     state_attributes=["test"],
                     close_on_complete=True,
                 )
@@ -105,6 +105,117 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler.close()
             # the run count should equal to the times of creating engine
             self.assertEqual(create_engine_times, run_cnt)
+
+    def test_default_tracking_uri_is_sqlite(self):
+        # when no tracking_uri is provided, the handler should default to a local SQLite backend
+        # rather than the filesystem (file store) backend, which raises on mlflow 3.13+.
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            handler = None
+            try:
+                handler = MLFlowHandler(iteration_log=False, epoch_log=False)
+                self.assertTrue(handler.client.tracking_uri.startswith("sqlite:///"))
+                self.assertTrue(handler.client.tracking_uri.endswith("mlruns.db"))
+                # artifacts should still default to a `./mlruns`-style directory
+                self.assertIsNotNone(handler.artifact_location)
+                self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
+                os.chdir(cwd)
+
+    def test_explicit_tracking_uri_is_preserved(self):
+        # an explicitly provided tracking_uri must be passed through unchanged, including file paths.
+        with tempfile.TemporaryDirectory() as tempdir:
+            explicit_uri = path_to_uri(os.path.join(tempdir, "mlflow_explicit"))
+            handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=explicit_uri)
+            self.assertEqual(handler.client.tracking_uri, explicit_uri)
+            self.assertIsNone(handler.artifact_location)
+
+    def test_remote_tracking_uri_leaves_artifact_location_unset(self):
+        # a non-local (e.g. remote) tracking_uri must not get a local artifact_location injected,
+        # so the remote backend keeps deciding where artifacts go.
+        handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri="http://localhost:5000")
+        self.assertEqual(handler.client.tracking_uri, "http://localhost:5000")
+        self.assertIsNone(handler.artifact_location)
+
+    def test_explicit_sqlite_tracking_uri_colocates_artifacts(self):
+        # an explicit local SQLite tracking_uri should still co-locate artifacts next to the db.
+        with tempfile.TemporaryDirectory() as tempdir:
+            uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
+            handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
+            try:
+                self.assertEqual(handler.client.tracking_uri, uri)
+                self.assertIsNotNone(handler.artifact_location)
+                self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            finally:
+                handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_env_var_sqlite_tracking_uri_colocates_artifacts(self):
+        # a SQLite `MLFLOW_TRACKING_URI` env var should co-locate artifacts next to the db, the
+        # same as an explicit `tracking_uri` argument. The env var itself is left for MLflow to
+        # resolve, so the handler does not pass it to the client.
+        with tempfile.TemporaryDirectory() as tempdir:
+            uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
+            handler = None
+            with patch.dict(os.environ, {"MLFLOW_TRACKING_URI": uri}):
+                try:
+                    handler = MLFlowHandler(iteration_log=False, epoch_log=False)
+                    self.assertTrue(handler.client.tracking_uri.endswith("mlruns.db"))
+                    self.assertIsNotNone(handler.artifact_location)
+                    self.assertTrue(handler.artifact_location.endswith("mlruns"))
+                    # co-located with the db file (the `sub` dir), not a cwd-relative `./mlruns`
+                    self.assertIn("sub", handler.artifact_location)
+                finally:
+                    if handler is not None:
+                        handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_explicit_artifact_location_is_used(self):
+        # an explicitly provided artifact_location should be kept even with the default SQLite
+        # backend, so callers (e.g. the bundle defaults) can co-locate artifacts with the db.
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            handler = None
+            try:
+                art = path_to_uri(os.path.join(tempdir, "artifacts"))
+                handler = MLFlowHandler(iteration_log=False, epoch_log=False, artifact_location=art)
+                self.assertEqual(handler.artifact_location, art)
+            finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
+                os.chdir(cwd)
+
+    def test_default_sqlite_run_flow(self):
+        # a basic log/run flow should work with the default SQLite backend (no tracking_uri given).
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            try:
+
+                def _train_func(engine, batch):
+                    return [batch + 1.0]
+
+                engine = Engine(_train_func)
+
+                @engine.on(Events.EPOCH_COMPLETED)
+                def _update_metric(engine):
+                    current_metric = engine.state.metrics.get("acc", 0.1)
+                    engine.state.metrics["acc"] = current_metric + 0.1
+
+                # close_on_complete=False so cur_run stays available after the run for the metric
+                # check below; the run is closed explicitly afterwards.
+                handler = MLFlowHandler(iteration_log=False, epoch_log=True, close_on_complete=False)
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=2)
+                cur_run = handler.client.get_run(handler.cur_run.info.run_id)
+                self.assertTrue("acc" in cur_run.data.metrics.keys())
+                handler.close()
+                # the default backend should have created a SQLite database file in the cwd
+                self.assertTrue(os.path.exists(os.path.join(tempdir, "mlruns.db")))
+            finally:
+                os.chdir(cwd)
 
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
@@ -137,7 +248,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=True,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
@@ -173,7 +284,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=epoch_log,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -212,7 +323,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=iteration_log,
                 epoch_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -271,7 +382,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                     final_id="finalize",
                 )
 
-                tracking_path = os.path.join(bundle_root, "eval")
+                tracking_path = os.path.join(tempdir, "mlflow_dataset.db")
                 workflow.bundle_root = bundle_root
                 workflow.dataset_dir = data_dir
                 workflow.initialize()
@@ -280,7 +391,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                     iteration_log=False,
                     epoch_log=False,
                     dataset_dict={"test": infer_dataset},
-                    tracking_uri=path_to_uri(tracking_path),
+                    tracking_uri=path_to_sqlite_uri(tracking_path),
                 )
                 mlflow_handler.attach(workflow.evaluator)
                 workflow.run()

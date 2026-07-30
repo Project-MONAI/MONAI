@@ -69,6 +69,7 @@ __all__ = [
     "save_obj",
     "label_union",
     "path_to_uri",
+    "path_to_sqlite_uri",
     "pprint_edges",
     "check_key_duplicates",
     "CheckKeyDuplicatesYamlLoader",
@@ -725,6 +726,21 @@ def path_to_uri(path: PathLike) -> str:
 
     """
     return Path(path).absolute().as_uri()
+
+
+def path_to_sqlite_uri(path: PathLike) -> str:
+    """
+    Convert a database file path to a SQLite connection URI, e.g. for use as an MLflow
+    ``tracking_uri``. If not an absolute path, it is converted to an absolute path first.
+
+    A forward-slash (POSIX) path is used so the URI is valid on Windows as well as POSIX:
+    on Windows this yields ``sqlite:///C:/path/db.sqlite`` and on POSIX ``sqlite:////path/db.sqlite``.
+
+    Args:
+        path: input database file path, can be a string or `Path` object.
+
+    """
+    return f"sqlite:///{Path(path).absolute().as_posix()}"
 
 
 def pprint_edges(val: Any, n_lines: int = 20) -> str:
