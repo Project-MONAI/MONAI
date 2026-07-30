@@ -25,6 +25,14 @@ from monai.utils import optional_import
 pd, _ = optional_import("pandas")
 
 
+def _source_shards_by_worker(data: Iterable[Any]) -> bool:
+    """Return whether the source declares that its iterator partitions by worker."""
+    for source_type in type(data).__mro__:
+        if "__iter__" in source_type.__dict__:
+            return bool(source_type.__dict__.get("_shards_by_worker", False))
+    return False
+
+
 class IterableDataset(_TorchIterableDataset):
     """
     A generic dataset for iterable data source and an optional callable data transform
@@ -39,6 +47,8 @@ class IterableDataset(_TorchIterableDataset):
     process-safe from data source or DataLoader.
 
     """
+
+    _shards_by_worker = True
 
     def __init__(self, data: Iterable[Any], transform: Callable | None = None) -> None:
         """
@@ -77,9 +87,11 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         epochs: number of epochs to iterate over the dataset, default to 1, -1 means infinite epochs.
         source_shards_by_worker: whether ``data`` already partitions its stream
             using ``torch.utils.data.get_worker_info``. ``None`` automatically
-            recognizes MONAI ``IterableDataset`` sources, ``True`` avoids a
-            second worker partition for any worker-aware source, and ``False``
-            preserves the outer partition for unsharded iterable datasets.
+            recognizes built-in MONAI sources that declare worker partitioning.
+            A subclass that overrides iteration without declaring that capability
+            is treated as unsharded. ``True`` avoids a second worker partition
+            for any worker-aware source, and ``False`` preserves the outer
+            partition for unsharded iterable datasets.
 
     Note:
         Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
@@ -102,6 +114,8 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     """
 
+    _shards_by_worker = True
+
     def __init__(
         self,
         data,
@@ -121,14 +135,15 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             epochs: number of source iterations, where ``-1`` means infinite.
             source_shards_by_worker: whether ``data`` already partitions its
                 stream using ``torch.utils.data.get_worker_info``. ``None``
-                automatically recognizes MONAI ``IterableDataset`` sources.
+                automatically recognizes built-in MONAI sources that declare
+                worker partitioning.
         """
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
         self.epochs = epochs
         self.source_shards_by_worker = (
-            isinstance(data, IterableDataset) if source_shards_by_worker is None else source_shards_by_worker
+            _source_shards_by_worker(data) if source_shards_by_worker is None else source_shards_by_worker
         )
         self._idx = 0
 
@@ -231,6 +246,8 @@ class CSVIterableDataset(IterableDataset):
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
+
+    _shards_by_worker = True
 
     def __init__(
         self,

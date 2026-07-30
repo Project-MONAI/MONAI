@@ -90,18 +90,24 @@ class TestShuffleBuffer(unittest.TestCase):
             self.assertEqual(len(outputs), 40)
             self.assertEqual(set(outputs), set(range(40, 80)))
 
-    def test_explicit_unsharded_source_keeps_outer_worker_partition(self):
-        """Verify explicit unsharded mode preserves outer worker partitioning."""
-        outputs = []
-        for worker_id in range(2):
-            source = _UnshardedMonaiIterable(range(40))
-            buffer = ShuffleBuffer(source, buffer_size=8, seed=7, source_shards_by_worker=False)
-            worker_info = SimpleNamespace(num_workers=2, id=worker_id)
-            with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
-                outputs.extend(buffer)
+    def test_unsharded_monai_subclass_keeps_outer_worker_partition(self):
+        """Verify default and explicit unsharded modes preserve outer partitioning."""
+        for source_shards_by_worker in (None, False):
+            outputs = []
+            for worker_id in range(2):
+                source = _UnshardedMonaiIterable(range(40))
+                buffer = ShuffleBuffer(
+                    source,
+                    buffer_size=8,
+                    seed=7,
+                    source_shards_by_worker=source_shards_by_worker,
+                )
+                worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+                with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                    outputs.extend(buffer)
 
-        self.assertEqual(len(outputs), 40)
-        self.assertEqual(set(outputs), set(range(40)))
+            self.assertEqual(len(outputs), 40)
+            self.assertEqual(set(outputs), set(range(40)))
 
     def test_epochs(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0, epochs=2)
