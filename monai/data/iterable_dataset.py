@@ -178,6 +178,9 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
         Yields:
             Items from the shuffled source after applying the optional transform.
+
+        Raises:
+            RuntimeError: When the optional transform raises an exception.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync

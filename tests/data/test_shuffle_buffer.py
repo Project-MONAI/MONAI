@@ -28,6 +28,11 @@ class _UnshardedMonaiIterable(IterableDataset):
     """MONAI iterable subclass that intentionally does not partition itself."""
 
     def __iter__(self):
+        """Yield every item from the unsharded source.
+
+        Yields:
+            Items from ``self.data``.
+        """
         yield from self.data
 
 
@@ -38,6 +43,11 @@ class _WorkerShardedTorchIterable(TorchIterableDataset):
         self.size = size
 
     def __iter__(self):
+        """Yield the integer indices assigned to the current worker.
+
+        Yields:
+            Integer indices from the worker's partition of ``range(self.size)``.
+        """
         worker_info = iterable_dataset_module.get_worker_info()
         num_workers = worker_info.num_workers if worker_info is not None else 1
         worker_id = worker_info.id if worker_info is not None else 0

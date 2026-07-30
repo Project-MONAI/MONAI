@@ -31,6 +31,14 @@ class _OneShotChunks:
         self.iterations = 0
 
     def __iter__(self):
+        """Yield the source's single DataFrame chunk.
+
+        Yields:
+            A DataFrame containing two test records.
+
+        Raises:
+            RuntimeError: When the source is iterated more than once.
+        """
         self.iterations += 1
         if self.iterations > 1:
             raise RuntimeError("one-shot source reused")
