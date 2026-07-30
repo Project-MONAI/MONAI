@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from io import StringIO
 import unittest
 
 from monai.config import print_debug_info
@@ -19,7 +20,9 @@ from monai.config import print_debug_info
 class TestPrintInfo(unittest.TestCase):
 
     def test_print_info(self):
-        print_debug_info()
+        out = StringIO()
+        print_debug_info(file=out)
+        self.assertGreater(out.tell(), 0)
 
 
 if __name__ == "__main__":
