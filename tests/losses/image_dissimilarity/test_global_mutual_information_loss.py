@@ -163,13 +163,38 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
         with self.assertRaisesRegex(expected_exception, expected_message):
             GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
 
+    @parameterized.expand(
+        [
+            (1, 0.5, "num_bins >= 2"),
+            (23, 0.0, "finite, positive sigma_ratio"),
+            (23, -0.5, "finite, positive sigma_ratio"),
+            (23, float("nan"), "finite, positive sigma_ratio"),
+            (23, float("inf"), "finite, positive sigma_ratio"),
+            (23, float("-inf"), "finite, positive sigma_ratio"),
+        ]
+    )
+    def test_ill_gaussian_parameters(self, num_bins, sigma_ratio, expected_message):
+        """Verify invalid Gaussian parameters fail during construction.
+
+        Args:
+            num_bins: number of histogram bins to test.
+            sigma_ratio: Gaussian kernel width ratio to test.
+            expected_message: text expected in the validation error.
+        """
+        with self.assertRaisesRegex(ValueError, expected_message):
+            GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=num_bins, sigma_ratio=sigma_ratio)
+
 
 class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
     """Test stable Gaussian mutual information in reduced-precision modes."""
 
     @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
     def test_half_precision_gaussian_weights_with_many_bins_are_finite(self, dtype):
-        """Verify many-bin Parzen outputs remain finite and preserve metadata."""
+        """Verify many-bin Parzen outputs remain finite and preserve metadata.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
         image = torch.zeros((1, 1, 2), dtype=dtype)
         loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256)
 
@@ -281,7 +306,11 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
 
     @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
     def test_half_precision_large_constant_volume_is_finite(self, dtype):
-        """Verify reduced-precision loss and gradients remain finite."""
+        """Verify reduced-precision loss and gradients remain finite.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
         pred = torch.zeros((1, 1, 48, 48, 48), dtype=dtype, requires_grad=True)
         target = torch.zeros_like(pred)
         loss = GlobalMutualInformationLoss(kernel_type="gaussian")

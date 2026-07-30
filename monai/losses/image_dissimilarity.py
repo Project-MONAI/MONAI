@@ -226,13 +226,22 @@ class GlobalMutualInformationLoss(_Loss):
                 - ``"sum"``: the output will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
+
+        Raises:
+            ValueError: if ``num_bins`` is not positive, or if the Gaussian kernel
+                has fewer than two bins or a non-finite, non-positive ``sigma_ratio``.
         """
         super().__init__(reduction=LossReduction(reduction).value)
+        self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         if num_bins <= 0:
             raise ValueError(f"num_bins must > 0, got {num_bins}")
+        if self.kernel_type == "gaussian":
+            if num_bins < 2:
+                raise ValueError(f"Gaussian kernel requires num_bins >= 2, got {num_bins}")
+            if not math.isfinite(sigma_ratio) or sigma_ratio <= 0.0:
+                raise ValueError(f"Gaussian kernel requires a finite, positive sigma_ratio, got {sigma_ratio}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
-        self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         # declared as buffers so they move with the module (e.g. ``.to(device)``); only populated for the
         # gaussian kernel, hence the ``Tensor`` annotation reflects the type at the use sites in that path.
