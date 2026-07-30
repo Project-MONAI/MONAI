@@ -330,4 +330,5 @@ class CSVIterableDataset(IterableDataset):
                 data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, seed=self.seed
             )
             yield from buffer
-        yield from IterableDataset(data=self._flattened(), transform=self.transform)
+        else:
+            yield from IterableDataset(data=self._flattened(), transform=self.transform)
