@@ -257,6 +257,29 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
         self.assertTrue(torch.isfinite(pred.grad).all())
 
     @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_weak_mutual_information_matches_float32(self, dtype):
+        """Verify weak reduced-precision mutual information tracks float32.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        generator = torch.Generator().manual_seed(19)
+        pred_float = torch.rand((1, 1, 4096), generator=generator)
+        target_float = torch.rand((1, 1, 4096), generator=generator)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=8)
+        expected = loss(pred_float, target_float)
+        pred = pred_float.to(dtype=dtype).requires_grad_()
+        target = target_float.to(dtype=dtype)
+
+        result = loss(pred, target)
+
+        self.assertEqual(result.dtype, dtype)
+        torch.testing.assert_close(result.float(), expected, rtol=1e-2, atol=1e-6)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
     def test_half_precision_large_constant_volume_is_finite(self, dtype):
         """Verify reduced-precision loss and gradients remain finite."""
         pred = torch.zeros((1, 1, 48, 48, 48), dtype=dtype, requires_grad=True)

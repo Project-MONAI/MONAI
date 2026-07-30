@@ -255,11 +255,26 @@ class GlobalMutualInformationLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
 
     def parzen_windowing(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, restore_input_dtype: bool = True
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Apply the configured Parzen window to both inputs.
+
+        Args:
+            pred: the prediction tensor.
+            target: the target tensor.
+            restore_input_dtype: whether Gaussian weights and probabilities
+                should use the input dtype.
+
+        Returns:
+            The prediction weights and probabilities followed by the target
+            weights and probabilities.
+
+        Raises:
+            ValueError: if the configured kernel type is unsupported.
+        """
         if self.kernel_type == "gaussian":
-            pred_weight, pred_probability = self.parzen_windowing_gaussian(pred)
-            target_weight, target_probability = self.parzen_windowing_gaussian(target)
+            pred_weight, pred_probability = self.parzen_windowing_gaussian(pred, restore_input_dtype)
+            target_weight, target_probability = self.parzen_windowing_gaussian(target, restore_input_dtype)
         elif self.kernel_type == "b-spline":
             # a third order BSpline kernel is used for the pred image intensity PDF.
             pred_weight, pred_probability = self.parzen_windowing_b_spline(pred, order=3)
@@ -320,12 +335,16 @@ class GlobalMutualInformationLoss(_Loss):
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bins)
         return weight, probability
 
-    def parzen_windowing_gaussian(self, img: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_gaussian(
+        self, img: torch.Tensor, restore_input_dtype: bool = True
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with gaussian kernel (adapted from DeepReg implementation)
         Note: the input is expected to range between 0 and 1
         Args:
             img: the shape should be B[NDHW].
+            restore_input_dtype: whether weights and probabilities should use
+                the input dtype.
 
         Returns:
             A tuple containing per-sample Gaussian bin weights and the
@@ -350,7 +369,7 @@ class GlobalMutualInformationLoss(_Loss):
         weight = torch.exp(-preterm * (img - bin_centers) ** 2)  # (batch, num_sample, num_bin)
         weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bin)
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bin)
-        if output_dtype in (torch.float16, torch.bfloat16):
+        if restore_input_dtype and output_dtype in (torch.float16, torch.bfloat16):
             weight = weight.to(dtype=output_dtype)
             probability = probability.to(dtype=output_dtype)
         return weight, probability
@@ -370,14 +389,16 @@ class GlobalMutualInformationLoss(_Loss):
         """
         if target.shape != pred.shape:
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
-        wa, pa, wb, pb = self.parzen_windowing(pred, target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
+        wa, pa, wb, pb = self.parzen_windowing(
+            pred, target, restore_input_dtype=False
+        )  # (batch, num_sample, num_bin), (batch, 1, num_bin)
 
         # A half-precision matrix product can overflow while accumulating the
         # unnormalized joint histogram. Eager execution disables autocast for
         # this operation. TorchScript cannot compile a dynamic autocast device,
         # so it computes the normalized histogram directly by scaling both
         # operands by sqrt(N).
-        output_dtype = wa.dtype
+        output_dtype = pred.dtype if self.kernel_type == "gaussian" else wa.dtype
         compute_dtype = torch.float32 if wa.dtype in (torch.float16, torch.bfloat16) else wa.dtype
         wa = wa.to(dtype=compute_dtype)
         wb = wb.to(wa)
