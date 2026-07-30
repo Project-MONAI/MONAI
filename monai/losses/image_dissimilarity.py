@@ -294,10 +294,10 @@ class GlobalMutualInformationLoss(_Loss):
         interior_bins = self.num_bins - 2 * padding
         value_range = _max - _min
         raw_bin_size = value_range / interior_bins
-        # Smaller bins either underflow the compute dtype or require a
-        # normalization slope that cannot be represented by the input dtype.
-        minimum_bin_size = max(torch.finfo(compute_img.dtype).tiny, 1.0 / torch.finfo(img.dtype).max)
-        bin_size = torch.where(raw_bin_size >= minimum_bin_size, raw_bin_size, torch.ones_like(raw_bin_size))
+        # Fall back only when the promoted bin size is non-finite or too small
+        # to remain a nonzero normal value in the compute dtype.
+        valid_bin_size = torch.isfinite(raw_bin_size) & (raw_bin_size >= torch.finfo(compute_img.dtype).tiny)
+        bin_size = torch.where(valid_bin_size, raw_bin_size, torch.ones_like(raw_bin_size))
         norm_min = torch.div(_min, bin_size) - padding
 
         # assign bin/window index to each voxel

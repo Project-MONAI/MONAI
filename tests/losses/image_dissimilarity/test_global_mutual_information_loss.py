@@ -210,6 +210,21 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
 
+    def test_b_spline_float16_small_range_preserves_signal(self):
+        """Verify a small nonzero float16 range retains loss and gradient signal."""
+        values = torch.linspace(0.0, 5e-4, 64, dtype=torch.float16).reshape(1, 1, 8, 8)
+        pred = values.clone().requires_grad_()
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
+
+        result = loss(pred, values)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertLess(result.item(), -1.0)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertGreater(torch.count_nonzero(pred.grad).item(), 0)
+
     @parameterized.expand(
         [
             ("float16_tiny", torch.float16, torch.finfo(torch.float16).tiny / 2),
