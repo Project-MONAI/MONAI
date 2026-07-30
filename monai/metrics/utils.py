@@ -15,7 +15,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from functools import cache, partial
 from types import ModuleType
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 import torch
@@ -38,6 +38,11 @@ from monai.utils import (
 binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
+KDTree, has_scipy_kdtree = optional_import("scipy.spatial", name="KDTree")
+
+scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
+cupy, has_cupy = optional_import("cupy")
+cupy_ndimage, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
 
 __all__ = [
     "ignore_background",
@@ -51,7 +56,17 @@ __all__ = [
 ]
 
 
-def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]: ...
+
+
+@overload
+def ignore_background(y_pred: NdarrayTensor, y: None = ...) -> tuple[NdarrayTensor, None]: ...
+
+
+def ignore_background(
+    y_pred: NdarrayTensor, y: NdarrayTensor | None = None
+) -> tuple[NdarrayTensor, NdarrayTensor | None]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -59,11 +74,12 @@ def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayT
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
-        y: ground truth, the first dim is batch.
+        y: optional ground truth, the first dim is batch.
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    if y is not None:
+        y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
@@ -254,7 +270,8 @@ def get_surface_distance(
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
 
-            - ``"euclidean"``, uses Exact Euclidean distance transform.
+            - ``"euclidean"``, the exact Euclidean distance (a KD-tree over the edge voxels on
+              CPU, or the cuCIM distance transform when the inputs are on a CUDA device).
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
@@ -276,6 +293,27 @@ def get_surface_distance(
             dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
+            # The euclidean surface distance only needs the distance from each `seg_pred`
+            # edge voxel to the nearest `seg_gt` edge voxel. CPU and GPU favour different
+            # algorithms for this:
+            #   * On CPU, a KD-tree over the (sparse) edge-voxel coordinates avoids the dense
+            #     full-volume distance transform, and handles outlier points that expand the
+            #     bounding box.
+            #   * On GPU, the dense EDT is embarrassingly parallel and significantly faster than
+            #     cupy's KDTree (as of this writing anyway)
+            # When scipy's KDTree is unavailable we fall back to the dense distance transform.
+            on_gpu = isinstance(seg_gt, torch.Tensor) and seg_gt.device.type == "cuda"
+            if not on_gpu and has_scipy_kdtree:
+                gt_coords = np.argwhere(convert_to_numpy(seg_gt)).astype(np.float64)
+                pred_coords = np.argwhere(convert_to_numpy(seg_pred)).astype(np.float64)
+                if spacing is not None:
+                    scale = np.asarray(spacing, dtype=np.float64)
+                    gt_coords *= scale
+                    pred_coords *= scale
+                # leafsize larger than the default (16) is faster here: we build the tree
+                # for a single batched query rather than amortizing it over many queries.
+                surface_distance = KDTree(gt_coords, leafsize=32).query(pred_coords, k=1)[0]
+                return convert_to_dst_type(surface_distance, seg_pred, dtype=lib.float32)[0]
             dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(convert_to_numpy(~seg_gt), metric=distance_metric)
@@ -320,18 +358,20 @@ def get_edge_surface_distance(
     edges_spacing = None
     if use_subvoxels:
         edges_spacing = spacing if spacing is not None else ([1] * len(y_pred.shape))
-    (edges_pred, edges_gt, *areas) = get_mask_edges(
+    edges_pred, edges_gt, *areas = get_mask_edges(
         y_pred, y, crop=True, spacing=edges_spacing, always_return_as_numpy=False
     )
     if not edges_gt.any():
         warnings.warn(
             f"the ground truth of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-            " this may result in nan/inf distance."
+            " this may result in nan/inf distance.",
+            stacklevel=2,
         )
     if not edges_pred.any():
         warnings.warn(
             f"the prediction of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-            " this may result in nan/inf distance."
+            " this may result in nan/inf distance.",
+            stacklevel=2,
         )
     distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
     if symmetric:
@@ -360,7 +400,7 @@ def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
     if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
-        warnings.warn(f"{name} should be a binarized tensor.")
+        warnings.warn(f"{name} should be a binarized tensor.", stacklevel=2)
 
 
 def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
@@ -460,6 +500,60 @@ def prepare_spacing(
     raise ValueError(
         f"`spacing` should either be a number, a sequence of numbers or a sequence of sequences, got {spacing}."
     )
+
+
+def compute_voronoi_regions_fast(labels: np.ndarray | torch.Tensor) -> torch.Tensor:
+    """
+    Voronoi assignment to connected components (CPU, single EDT) without cc3d.
+    Returns the ID of the nearest component for each voxel.
+
+    Args:
+        labels (np.ndarray | torch.Tensor): Label map where values > 0 are seeds.
+
+    Raises:
+        RuntimeError: when `scipy.ndimage` is not available.
+        ValueError: when `labels` has fewer than two dimensions.
+
+    Returns:
+        torch.Tensor: Voronoi region IDs (int32) on CPU.
+    """
+    if isinstance(labels, torch.Tensor) and labels.is_cuda and has_cupy and has_cupy_ndimage:
+        xp = cupy
+        nd_distance_transform_edt = cupy_ndimage.distance_transform_edt
+        nd_generate_binary_structure = cupy_ndimage.generate_binary_structure
+        nd_label = cupy_ndimage.label
+        x = cupy.asarray(labels.detach())
+    else:
+        xp = np
+        nd_distance_transform_edt = scipy_ndimage.distance_transform_edt
+        nd_generate_binary_structure = scipy_ndimage.generate_binary_structure
+        nd_label = scipy_ndimage.label
+
+        if not has_scipy_ndimage:
+            raise RuntimeError("scipy.ndimage is required for per_component Dice computation.")
+
+        if isinstance(labels, torch.Tensor):
+            warnings.warn(
+                "Voronoi computation is running on CPU. "
+                "To accelerate, move the input tensor to GPU and ensure 'cupy' with 'cupyx.scipy.ndimage' is installed.",
+                stacklevel=2,
+            )
+            x = labels.cpu().numpy()
+        else:
+            x = np.asarray(labels)
+    rank = conn_rank = x.ndim
+    structure = nd_generate_binary_structure(rank=rank, connectivity=conn_rank)
+    cc, num = nd_label(x > 0, structure=structure)
+    if num == 0:
+        return torch.zeros_like(torch.from_numpy(x), dtype=torch.int32)
+    edt_input = xp.ones(cc.shape, dtype=xp.uint8)
+    edt_input[cc > 0] = 0
+    indices = nd_distance_transform_edt(edt_input, sampling=None, return_distances=False, return_indices=True)
+    voronoi = cc[tuple(indices)]
+    if xp is cupy:
+        return torch.as_tensor(cupy.asnumpy(voronoi), dtype=torch.int32)
+    else:
+        return torch.as_tensor(voronoi, dtype=torch.int32)
 
 
 ENCODING_KERNEL = {2: [[8, 4], [2, 1]], 3: [[[128, 64], [32, 16]], [[8, 4], [2, 1]]]}

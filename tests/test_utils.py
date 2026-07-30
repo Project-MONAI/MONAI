@@ -28,13 +28,13 @@ import time
 import traceback
 import unittest
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from functools import partial, reduce
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Callable
+from typing import Any
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -64,6 +64,8 @@ hf_local_entry_error, _has_hf_local = optional_import("huggingface_hub.errors", 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
 _test_data_config: dict = {}
+# Fix dynamic warningregistry logs noise in python unit/pytest configurations
+warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 
@@ -184,6 +186,37 @@ def skip_if_downloading_fails():
         raise rt_e
 
 
+SAMPLE_TIFF = "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1.tiff"
+SAMPLE_TIFF_HASH = "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+SAMPLE_TIFF_HASH_TYPE = "sha256"
+
+
+class TestDownloadUrl(unittest.TestCase):
+    """Exercise ``download_url`` success and hash-mismatch paths."""
+
+    def test_download_url(self):
+        """Download a sample TIFF and validate hash handling.
+
+        Raises:
+            RuntimeError: When the downloaded file's hash does not match.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            with skip_if_downloading_fails():
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model.tiff"),
+                    hash_val=SAMPLE_TIFF_HASH,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
+            with self.assertRaises(RuntimeError):
+                download_url(
+                    url=SAMPLE_TIFF,
+                    filepath=os.path.join(tempdir, "model_bad.tiff"),
+                    hash_val="0" * 64,
+                    hash_type=SAMPLE_TIFF_HASH_TYPE,
+                )
+
+
 def test_pretrained_networks(network, input_param, device):
     with skip_if_downloading_fails():
         return network(**input_param).to(device)
@@ -210,7 +243,7 @@ def is_tf32_env():
                 a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
                 _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
-            except BaseException:
+            except Exception:
                 pass
         print(f"tf32 enabled: {_tf32_enabled}")
     return _tf32_enabled
@@ -533,7 +566,7 @@ class DistCall:
                 time.sleep(0.1)
             results.put(True)
         except Exception as e:
-            results.put(False)
+            results.put(str(e))
             raise e
         finally:
             os.environ.clear()
@@ -562,15 +595,17 @@ class DistCall:
             results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
+
             for proc_rank in range(self.nproc_per_node):
-                p = tmp.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
-                )
+                run_args = (func, proc_rank, args, kwargs, results)
+                p = tmp.Process(target=self.run_process, args=run_args, daemon=self.daemon)
                 p.start()
                 processes.append(p)
+
             for p in processes:
                 p.join()
-                assert results.get(), "Distributed call failed."
+                pr = results.get(block=False)
+                assert pr is True, f"Distributed call failed: {pr}"
             _del_original_func(obj)
 
         return _wrapper

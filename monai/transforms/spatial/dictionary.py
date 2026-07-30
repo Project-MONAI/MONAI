@@ -917,6 +917,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         align_corners: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         """
         Args:
@@ -969,6 +970,10 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
+            rotate_order: for 3D inputs, the order in which the axes are rotated about when building the rotation
+                from ``rotate_params``, following the convention of
+                :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+                :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
@@ -988,6 +993,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             dtype=dtype,  # type: ignore
             align_corners=align_corners,
             lazy=lazy,
+            rotate_order=rotate_order,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1061,7 +1067,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -1246,7 +1252,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -1396,7 +1402,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
-                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -1752,6 +1758,9 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        rotate_order: for 3D inputs, the order in which the axes are rotated about, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+            :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
     """
 
     backend = Rotate.backend
@@ -1767,10 +1776,11 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy=lazy)
-        self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy)
+        self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy, rotate_order=rotate_order)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))

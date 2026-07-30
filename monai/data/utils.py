@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import sys
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -31,7 +30,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.data.meta_obj import MetaObj
+from monai.data.meta_obj import _DEFAULT_SPATIAL_NDIM, MetaObj
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -432,6 +431,9 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     collated.meta = default_collate(meta_dicts)
     collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
     collated.is_batch = True
+    collated.spatial_ndim = min(
+        min(getattr(t, "spatial_ndim", _DEFAULT_SPATIAL_NDIM) for t in batch), max(collated.ndim - 1, 1)
+    )
     return collated
 
 
@@ -881,7 +883,7 @@ def compute_shape_offset(
             Default is False, using option 1 to compute the shape and offset.
 
     """
-    shape = np.array(spatial_shape, copy=True, dtype=float)
+    shape = np.array(tuple(spatial_shape), copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
@@ -1367,13 +1369,8 @@ def json_hashing(item) -> bytes:
 
     """
     # TODO: Find way to hash transforms content as part of the cache
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = json.dumps(item, sort_keys=True).encode("utf-8")
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 
@@ -1388,13 +1385,8 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     Returns: the corresponding hash key
 
     """
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = pickle.dumps(sorted_dict(item), protocol=protocol)
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 

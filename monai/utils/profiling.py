@@ -377,8 +377,6 @@ class WorkflowProfiler:
 
     def get_times_summary_pd(self, times_in_s=True):
         """Returns the same information as `get_times_summary` but in a Pandas DataFrame."""
-        import pandas as pd
-
         summ = self.get_times_summary(times_in_s)
         suffix = "s" if times_in_s else "ns"
         columns = ["Count", f"Total Time ({suffix})", "Avg", "Std", "Min", "Max"]

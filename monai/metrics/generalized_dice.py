@@ -181,7 +181,6 @@ def compute_generalized_dice(
     else:
         numer = 2.0 * (intersection * w)
         denom = denominator * w
-        y_pred_o = y_pred_o
 
     # Compute the score
     generalized_dice_score = numer / denom

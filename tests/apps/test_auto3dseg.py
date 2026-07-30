@@ -53,7 +53,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-from monai.utils.enums import DataStatsKeys
+from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from tests.test_utils import skip_if_no_cuda
 
 device = "cpu"
@@ -77,6 +77,13 @@ SIM_CPU_TEST_CASES = [
 ]
 
 SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32), "label_key": "label"}], [{"sim_dim": (32, 32, 32), "label_key": None}]]
+
+LABEL_STATS_DEVICE_TEST_CASES = [
+    [{"image_device": "cpu", "label_device": "cpu", "image_meta": False}],
+    [{"image_device": "cuda", "label_device": "cuda", "image_meta": True}],
+    [{"image_device": "cpu", "label_device": "cuda", "image_meta": True}],
+    [{"image_device": "cuda", "label_device": "cpu", "image_meta": False}],
+]
 
 
 def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, image_only: bool = False, **kwargs) -> None:
@@ -315,6 +322,47 @@ class TestDataAnalyzer(unittest.TestCase):
             report_format = analyzer.get_report_format()
             assert verify_report_format(d["image_stats"], report_format)
 
+    def test_image_stats_uses_precomputed_nda_croppeds(self):
+        """Verify ImageStats uses valid pre-computed foreground crops."""
+        analyzer = ImageStats(image_key="image")
+        image = torch.arange(64.0, dtype=torch.float32).reshape(1, 4, 4, 4)
+        nda_croppeds = [torch.ones((2, 2, 2), dtype=torch.float32)]
+
+        result = analyzer({"image": image, "nda_croppeds": nda_croppeds})
+        report = result["image_stats"]
+
+        assert verify_report_format(report, analyzer.get_report_format())
+        assert report[ImageStatsKeys.CROPPED_SHAPE] == [[2, 2, 2]]
+        self.assertAlmostEqual(report[ImageStatsKeys.INTENSITY][0]["mean"], 1.0)
+
+    def test_image_stats_validates_precomputed_nda_croppeds(self):
+        """Verify ImageStats rejects malformed pre-computed foreground crops."""
+        analyzer = ImageStats(image_key="image")
+        image = torch.ones((2, 4, 4, 4), dtype=torch.float32)
+        invalid_cases = [
+            ("wrong_type", torch.ones((2, 2, 2), dtype=torch.float32)),
+            ("wrong_length", [torch.ones((2, 2, 2), dtype=torch.float32)]),
+        ]
+
+        for name, nda_croppeds in invalid_cases:
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(ValueError, "one entry per image channel"):
+                    analyzer({"image": image, "nda_croppeds": nda_croppeds})
+
+    def test_image_stats_preserves_grad_state_after_call(self):
+        """Verify ImageStats preserves caller grad state on successful execution."""
+        analyzer = ImageStats(image_key="image")
+        data = {"image": MetaTensor(torch.rand(1, 10, 10, 10))}
+        original_grad_state = torch.is_grad_enabled()
+        try:
+            for grad_enabled in (True, False):
+                with self.subTest(grad_enabled=grad_enabled):
+                    torch.set_grad_enabled(grad_enabled)
+                    analyzer(data)
+                    self.assertEqual(torch.is_grad_enabled(), grad_enabled)
+        finally:
+            torch.set_grad_enabled(original_grad_state)
+
     def test_foreground_image_stats_cases_analyzer(self):
         analyzer = FgImageStats(image_key="image", label_key="label")
         transform_list = [
@@ -359,6 +407,86 @@ class TestDataAnalyzer(unittest.TestCase):
             d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
             assert verify_report_format(d["label_stats"], report_format)
+
+    @parameterized.expand(LABEL_STATS_DEVICE_TEST_CASES)
+    def test_label_stats_mixed_device_analyzer(self, input_params):
+        image_device = torch.device(input_params["image_device"])
+        label_device = torch.device(input_params["label_device"])
+
+        if (image_device.type == "cuda" or label_device.type == "cuda") and not torch.cuda.is_available():
+            self.skipTest("CUDA is not available for mixed-device LabelStats tests.")
+
+        analyzer = LabelStats(image_key="image", label_key="label")
+
+        image_tensor = torch.tensor(
+            [
+                [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+                [[[11.0, 12.0], [13.0, 14.0]], [[15.0, 16.0], [17.0, 18.0]]],
+            ],
+            dtype=torch.float32,
+        ).to(image_device)
+        label_tensor = torch.tensor([[[0, 1], [1, 0]], [[0, 1], [0, 1]]], dtype=torch.int64).to(label_device)
+
+        if input_params["image_meta"]:
+            image_tensor = MetaTensor(image_tensor)
+        label_tensor = MetaTensor(label_tensor)
+
+        result = analyzer({"image": image_tensor, "label": label_tensor})
+        report = result["label_stats"]
+
+        # Verify report format and computation succeeded despite mixed/unified devices
+        assert verify_report_format(report, analyzer.get_report_format())
+        assert report[LabelStatsKeys.LABEL_UID] == [0, 1]
+
+        label_stats = report[LabelStatsKeys.LABEL]
+        self.assertAlmostEqual(label_stats[0][LabelStatsKeys.PIXEL_PCT], 0.5)
+        self.assertAlmostEqual(label_stats[1][LabelStatsKeys.PIXEL_PCT], 0.5)
+
+        label0_intensity = label_stats[0][LabelStatsKeys.IMAGE_INTST]
+        label1_intensity = label_stats[1][LabelStatsKeys.IMAGE_INTST]
+        self.assertAlmostEqual(label0_intensity[0]["mean"], 4.25)
+        self.assertAlmostEqual(label1_intensity[0]["mean"], 4.75)
+        self.assertAlmostEqual(label0_intensity[1]["mean"], 14.25)
+        self.assertAlmostEqual(label1_intensity[1]["mean"], 14.75)
+
+        foreground_stats = report[LabelStatsKeys.IMAGE_INTST]
+        self.assertAlmostEqual(foreground_stats[0]["mean"], 4.75)
+        self.assertAlmostEqual(foreground_stats[1]["mean"], 14.75)
+
+    def test_case_analyzers_restore_grad_state_on_exception(self):
+        """Verify analyzer calls restore caller grad state after exceptions."""
+        cases = [
+            (
+                "image_stats",
+                ImageStats(image_key="image"),
+                {"image": torch.randn(2, 4, 4, 4), "nda_croppeds": [torch.ones((2, 2, 2))]},
+                ValueError,
+            ),
+            (
+                "fg_image_stats",
+                FgImageStats(image_key="image", label_key="label"),
+                {"image": torch.randn(1, 4, 4, 4), "label": torch.ones(3, 4, 4)},
+                ValueError,
+            ),
+            (
+                "label_stats",
+                LabelStats(image_key="image", label_key="label"),
+                {"image": MetaTensor(torch.randn(1, 4, 4, 4)), "label": MetaTensor(torch.ones(3, 4, 4))},
+                ValueError,
+            ),
+        ]
+
+        original_grad_state = torch.is_grad_enabled()
+        try:
+            for name, analyzer, data, error in cases:
+                for grad_enabled in (True, False):
+                    with self.subTest(analyzer=name, grad_enabled=grad_enabled):
+                        torch.set_grad_enabled(grad_enabled)
+                        with self.assertRaises(error):
+                            analyzer(data)
+                        self.assertEqual(torch.is_grad_enabled(), grad_enabled)
+        finally:
+            torch.set_grad_enabled(original_grad_state)
 
     def test_filename_case_analyzer(self):
         analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)

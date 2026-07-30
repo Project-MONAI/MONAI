@@ -146,13 +146,13 @@ class FocalLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
@@ -184,9 +184,8 @@ class FocalLoss(_Loss):
             else:
                 if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
-                        """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include
-                        the background category class 0."""
+                        "The length of the `weight` sequence should be the same as the number of classes. "
+                        "If `include_background=False`, the weight should not include the background category class 0."
                     )
             if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")

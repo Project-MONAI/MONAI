@@ -59,7 +59,15 @@ Please refer to [the installation guide](https://monai.readthedocs.io/en/latest/
 
 Examples and notebook tutorials are located at [Project-MONAI/tutorials](https://github.com/Project-MONAI/tutorials).
 
-Technical documentation is available at [docs.monai.io](https://docs.monai.io).
+Technical documentation is available at [monai.readthedocs.io](https://monai.readthedocs.io).
+
+## Docker
+
+The MONAI Docker image is available from [Dockerhub](https://hub.docker.com/r/projectmonai/monai),
+tagged as `latest` for the latest state of `dev` or with a release version. A slimmed down image can also be built
+locally using `Dockerfile.slim`, see that file for instructions.
+
+To get started with the latest MONAI, use `docker run -ti --rm --gpus all projectmonai/monai:latest /bin/bash`.
 
 ## Citation
 

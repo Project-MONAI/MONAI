@@ -116,6 +116,13 @@ Metrics
 .. autoclass:: SurfaceDiceMetric
     :members:
 
+`Absolute volume difference`
+----------------------------
+.. autofunction:: compute_absolute_volume_difference
+
+.. autoclass:: AbsoluteVolumeDifferenceMetric
+    :members:
+
 `PanopticQualityMetric`
 -----------------------
 .. autofunction:: compute_panoptic_quality
@@ -158,6 +165,13 @@ Metrics
 
 `Fréchet Inception Distance`
 ------------------------------
+`Embedding Collapse`
+------------------------------
+.. autofunction:: compute_embedding_collapse
+
+.. autoclass:: EmbeddingCollapseMetric
+    :members:
+
 .. autofunction:: compute_frechet_distance
 
 .. autoclass:: FIDMetric

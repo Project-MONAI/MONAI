@@ -68,6 +68,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def check_meta(self, a: MetaTensor, b: MetaTensor) -> None:
         self.assertEqual(a.is_batch, b.is_batch)
+        self.assertEqual(a.spatial_ndim, b.spatial_ndim)
         meta_a, meta_b = a.meta, b.meta
         # need to split affine from rest of metadata
         aff_a = meta_a.get("affine", None)
@@ -245,7 +246,7 @@ class TestMetaTensor(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "im.pt")
             torch.save(m, fname)
-            m2 = torch.load(fname, weights_only=True)
+            m2 = torch.load(fname, weights_only=False)
         self.check(m2, m, ids=False)
 
     @skip_if_no_cuda

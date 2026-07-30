@@ -19,7 +19,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.9) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
@@ -117,6 +117,22 @@ To build the extensions, if the system environment already has a version of Pyto
 BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
 ```
 
+On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by
+`cmd.exe` or PowerShell. Set the environment variable first, then run either
+install command shown above:
+
+```bat
+:: cmd.exe
+set BUILD_MONAI=1
+pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
+```powershell
+# PowerShell
+$env:BUILD_MONAI="1"
+pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
 this command will download and install the current `dev` branch of [MONAI from
 GitHub](https://github.com/Project-MONAI/MONAI).
 
@@ -145,6 +161,22 @@ cd MONAI/
 BUILD_MONAI=1 pip install -e .
 # for MacOS
 BUILD_MONAI=1 CC=clang CXX=clang++ pip install -e .
+```
+
+On Windows set the environment variable before running `pip install -e .`:
+
+```bat
+:: cmd.exe
+cd MONAI/
+set BUILD_MONAI=1
+pip install -e .
+```
+
+```powershell
+# PowerShell
+cd MONAI/
+$env:BUILD_MONAI="1"
+pip install -e .
 ```
 
 To uninstall the package please run:
@@ -245,7 +277,7 @@ this will install PyTorch as well as `pytorch-cuda`, please follow https://pytor
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-conda create -n <name> python=<ver>  # eg 3.9
+conda create -n <name> python=<ver>  # eg 3.10
 conda env update -n <name> -f environment-dev.yml
 ```
 
@@ -254,10 +286,15 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 - The options are
 
 ```
-[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr, lpips, pynvml, huggingface_hub]
+[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr, lpips, pynvml, huggingface_hub, hyena]
 ```
 
 which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub` and `pyamg` respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub`, `pyamg`, and `nvsubquadratic` respectively.
+
+The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
+required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
+O(N log N) alternatives to windowed self-attention). Install with
+`pip install 'monai[hyena]'`.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.
