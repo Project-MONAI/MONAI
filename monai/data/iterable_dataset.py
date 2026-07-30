@@ -26,7 +26,16 @@ pd, _ = optional_import("pandas")
 
 
 def _source_shards_by_worker(data: Iterable[Any]) -> bool:
-    """Return whether the source declares that its iterator partitions by worker."""
+    """Return whether the source declares that its iterator partitions by worker.
+
+    Args:
+        data: iterable source to inspect through its type's method resolution order.
+
+    Returns:
+        ``True`` if the first class defining ``__iter__`` declares a truthy
+        ``_shards_by_worker`` value on itself, or ``False`` if the declaration
+        is missing or false.
+    """
     for source_type in type(data).__mro__:
         if "__iter__" in source_type.__dict__:
             return bool(source_type.__dict__.get("_shards_by_worker", False))
