@@ -338,9 +338,10 @@ class GlobalMutualInformationLoss(_Loss):
     def parzen_windowing_gaussian(
         self, img: torch.Tensor, restore_input_dtype: bool = True
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Parzen windowing with gaussian kernel (adapted from DeepReg implementation)
-        Note: the input is expected to range between 0 and 1
+        """Apply Gaussian Parzen windowing adapted from DeepReg.
+
+        The input is expected to range between 0 and 1.
+
         Args:
             img: the shape should be B[NDHW].
             restore_input_dtype: whether weights and probabilities should use
