@@ -277,9 +277,10 @@ class PersistentDataset(Dataset):
                 Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
                 eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
                 they intend to load before doing so.
-            in_memory: if `True`, keep the pre-processed data in an in-memory dictionary after first access.
-                This combines the benefits of persistent storage (data survives restarts) with faster RAM access.
-                When data is accessed, it is first loaded from disk cache and then stored in memory.
+            in_memory: if `True`, also keep the pre-processed data in RAM after first access, so that later
+                epochs skip the disk cache entirely. This combines the benefits of persistent storage (data
+                survives restarts) with faster RAM access. Note the cache is unbounded, so the whole dataset
+                is eventually held in memory; use `CacheDataset` or `SmartCacheDataset` if that does not fit.
                 Default to `False`.
         """
         super().__init__(data=data, transform=transform)
@@ -299,7 +300,7 @@ class PersistentDataset(Dataset):
         self.track_meta = track_meta
         self.weights_only = weights_only
         self.in_memory = in_memory
-        self._memory_cache: dict[str, Any] = {}
+        self._memory_cache: dict[int, Any] = {}
 
     @property
     def memory_cache_size(self) -> int:
@@ -396,24 +397,14 @@ class PersistentDataset(Dataset):
 
         """
         hashfile = None
-        # compute cache key once for both disk and memory caching
-        data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-        data_item_md5 += self.transform_hash
-        cache_key = f"{data_item_md5}.pt"
-
         if self.cache_dir is not None:
-            hashfile = self.cache_dir / cache_key
-
-        # check in-memory cache first
-        if self.in_memory and cache_key in self._memory_cache:
-            return self._memory_cache[cache_key]
+            data_item_hash = self.hash_func(item_transformed).decode("utf-8")
+            data_item_hash += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_hash}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                _item_transformed = torch.load(hashfile, weights_only=self.weights_only)
-                if self.in_memory:
-                    self._memory_cache[cache_key] = _item_transformed
-                return _item_transformed
+                return torch.load(hashfile, weights_only=self.weights_only)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -426,11 +417,7 @@ class PersistentDataset(Dataset):
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:
-            if self.in_memory:
-                self._memory_cache[cache_key] = _item_transformed
             return _item_transformed
-        # Convert to tensor for disk storage (and memory cache consistency)
-        _item_converted = convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta)
         try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
@@ -438,7 +425,7 @@ class PersistentDataset(Dataset):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(
-                    obj=_item_converted,
+                    obj=convert_to_tensor(_item_transformed, convert_numeric=False, track_meta=self.track_meta),
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -452,13 +439,14 @@ class PersistentDataset(Dataset):
                         pass
         except PermissionError:  # project-monai/monai issue #3613
             pass
-        if self.in_memory:
-            self._memory_cache[cache_key] = _item_converted
         return _item_transformed
 
     def _transform(self, index: int):
-        pre_random_item = self._cachecheck(self.data[index])
-        return self._post_transform(pre_random_item)
+        if not self.in_memory:
+            return self._post_transform(self._cachecheck(self.data[index]))
+        if index not in self._memory_cache:
+            self._memory_cache[index] = self._cachecheck(self.data[index])
+        return self._post_transform(self._memory_cache[index])
 
 
 class CacheNTransDataset(PersistentDataset):
