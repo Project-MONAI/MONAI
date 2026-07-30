@@ -304,7 +304,11 @@ class PersistentDataset(Dataset):
 
     @property
     def memory_cache_size(self) -> int:
-        """Return the number of items currently stored in the in-memory cache."""
+        """
+        Returns:
+            The number of items currently stored in the in-memory cache.
+
+        """
         return len(self._memory_cache)
 
     def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
@@ -442,11 +446,22 @@ class PersistentDataset(Dataset):
         return _item_transformed
 
     def _transform(self, index: int):
+        """
+        Fetch the pre-random-transform item for `index` and apply the random transforms to it.
+
+        Args:
+            index: index of the item in `self.data`.
+
+        Returns:
+            The fully transformed data element.
+
+        """
         if not self.in_memory:
             return self._post_transform(self._cachecheck(self.data[index]))
         if index not in self._memory_cache:
             self._memory_cache[index] = self._cachecheck(self.data[index])
-        return self._post_transform(self._memory_cache[index])
+        # copy so that the random transforms, or the caller, cannot mutate the cached item
+        return self._post_transform(deepcopy(self._memory_cache[index]))
 
 
 class CacheNTransDataset(PersistentDataset):

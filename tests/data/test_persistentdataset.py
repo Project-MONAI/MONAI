@@ -238,6 +238,20 @@ class TestDataset(unittest.TestCase):
             ds2.set_data(items[:3])
             self.assertEqual(ds2.memory_cache_size, 0)
 
+    def test_in_memory_mutation_isolation(self):
+        """Mutating a returned item must not corrupt the RAM-cached copy used by later reads."""
+        items = [[list(range(i))] for i in range(3)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            for cache_dir in (None, tempdir):
+                with self.subTest(cache_dir=cache_dir):
+                    ds = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=cache_dir, in_memory=True)
+                    first = ds[2]
+                    self.assertEqual(first, [[np.pi, 1]])
+
+                    first[0].append(999)  # caller mutates the item it was handed
+                    self.assertEqual(ds[2], [[np.pi, 1]])
+
     def test_in_memory_without_cache_dir(self):
         """Test in_memory caching works even without a cache_dir (pure RAM cache)."""
         items = [[list(range(i))] for i in range(3)]
