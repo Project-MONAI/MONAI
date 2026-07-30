@@ -148,16 +148,10 @@ jobs:
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
-    - if: matrix.os == 'linux-gpu-runner'
-      name: Print GPU Info
-      run: |
-        nvidia-smi
-        python -c 'import torch; print(torch.rand(2,2).to("cuda:0"))'
-      shell: bash
     - name: Run quick tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
+        nvidia-smi || true
+        python monai/config/check_env.py --env --monai
         ./runtests.sh --min
       shell: bash
       env:
@@ -229,19 +223,18 @@ jobs:
       run: |
         python -m pip uninstall -y monai
         BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
+
+        nvidia-smi || true
+        python monai/config/check_env.py --env --monai
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
         python -m unittest -v
       shell: bash
     - if: runner.os == 'macOS'
       name: Run min tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
         # TODO: enable large range of macOS tests which don't take a very long time
         ./runtests.sh --min
       shell: bash
@@ -351,8 +344,7 @@ jobs:
       run: |
         # install from wheel
         python -m pip install monai*.whl --extra-index-url https://download.pytorch.org/whl/cpu
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
+        python monai/config/check_env.py --env --monai
         python -m pip uninstall -y monai
         rm monai*.whl
     - name: Install source archive
@@ -361,5 +353,4 @@ jobs:
         for name in *.tar.gz; do break; done
         echo $name
         python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
+        python monai/config/check_env.py --env --monai
