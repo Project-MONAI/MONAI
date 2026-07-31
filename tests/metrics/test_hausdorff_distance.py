@@ -119,6 +119,25 @@ TEST_CASES = [
     ],
     [
         [
+            # percentile=0 is the 0th-percentile (minimum) surface distance, not the max
+            create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
+            create_spherical_seg_3d(radius=20, centre=(19, 19, 19)),
+            None,
+            0,
+        ],
+        [0, 0, 0, 0, 0, 0],
+    ],
+    [
+        [
+            create_spherical_seg_3d(radius=15, centre=(20, 33, 22), im_spacing=test_spacing),
+            create_spherical_seg_3d(radius=30, centre=(20, 33, 22), im_spacing=test_spacing),
+            test_spacing,
+            0,
+        ],
+        [5.099999904632568, 5.099999904632568, 6, 6, 6, 6],
+    ],
+    [
+        [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20), im_spacing=test_spacing),
             create_spherical_seg_3d(radius=20, centre=(19, 19, 19), im_spacing=test_spacing),
             test_spacing,
@@ -171,6 +190,15 @@ for test_case in TEST_CASES:
 def _describe_test_case(test_func, test_number, params):
     _device, metric, directed, test_input, test_output = params.args
     return f"device: {_device} metric: {metric} directed:{directed} expected: {test_output}"
+
+
+TEST_CASES_PERCENTILE = [
+    [[0.0, 3.0], None, 3.0],
+    [[0.0, 3.0], 0, 0.0],
+    [[np.inf, np.inf, np.inf], 0, np.inf],
+    [[1.0, 2.0, 3.0], 50, 2.0],
+    [[], 0, np.nan],
+]
 
 
 class TestHausdorffDistance(unittest.TestCase):
@@ -235,6 +263,18 @@ class TestHausdorffDistance(unittest.TestCase):
         surface_distance = torch.full((7,), float("inf"))
         result = _compute_percentile_hausdorff_distance(surface_distance, percentile)
         self.assertTrue(torch.isinf(result), f"expected inf, got {result}")
+
+    @parameterized.expand(TEST_CASES_PERCENTILE)
+    def test_percentile(self, surface_distances, percentile, expected_value):
+        surface_distance = torch.tensor(surface_distances, dtype=torch.float)
+        result = _compute_percentile_hausdorff_distance(surface_distance, percentile)
+        np.testing.assert_allclose(expected_value, result, rtol=1e-7)
+
+    def test_percentile_out_of_range(self):
+        for percentile in [-1, 101]:
+            with self.subTest(percentile=percentile):
+                with self.assertRaises(ValueError):
+                    _compute_percentile_hausdorff_distance(torch.tensor([1.0, 2.0, 3.0]), percentile)
 
 
 if __name__ == "__main__":
