@@ -52,64 +52,64 @@ class _MiniReader:
         return np.zeros((1, 1, 1)), {"name": "my test"}
 
 
-TEST_CASE_1 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_1 = [{}, ["test_image.nii.gz"], (32, 32, 32)]
 
-TEST_CASE_2 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_2 = [{}, ["test_image.nii.gz"], (32, 32, 32)]
 
-TEST_CASE_3 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
+TEST_CASE_3 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 32, 32, 32)]
 
 TEST_CASE_3_1 = [  # .mgz format
     {"reader": "nibabelreader"},
     ["test_image.mgz", "test_image2.mgz", "test_image3.mgz"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
-TEST_CASE_4 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
+TEST_CASE_4 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 32, 32, 32)]
 
 TEST_CASE_4_1 = [  # additional parameter
     {"mmap": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
-TEST_CASE_5 = [{"reader": NibabelReader(mmap=False)}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_5 = [{"reader": NibabelReader(mmap=False)}, ["test_image.nii.gz"], (32, 32, 32)]
 
-TEST_CASE_GPU_1 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_GPU_1 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii.gz"], (32, 32, 32)]
 
-TEST_CASE_GPU_2 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii"], (128, 128, 128)]
+TEST_CASE_GPU_2 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii"], (32, 32, 32)]
 
 TEST_CASE_GPU_3 = [
     {"reader": "nibabelreader", "to_gpu": True},
     ["test_image.nii", "test_image2.nii", "test_image3.nii"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
 TEST_CASE_GPU_4 = [
     {"reader": "nibabelreader", "to_gpu": True},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
-TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (32, 32, 32)]
 
-TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (32, 32, 32)]
 
 TEST_CASE_8 = [
     {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
 TEST_CASE_8_1 = [
     {"reader": ITKReader(channel_dim=0) if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (384, 128, 128),
+    (96, 32, 32),
 ]
 
 TEST_CASE_9 = [
     {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
+    (3, 32, 32, 32),
 ]
 
 TEST_CASE_10 = [
@@ -128,24 +128,24 @@ TEST_CASE_12 = [
     (4, 16, 16),
 ]
 
-TEST_CASE_13 = [{"reader": "nibabelreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+TEST_CASE_13 = [{"reader": "nibabelreader", "channel_dim": 0}, "test_image.nii.gz", (3, 32, 32, 32)]
 
 TEST_CASE_14 = [
     {"reader": "nibabelreader", "channel_dim": -1, "ensure_channel_first": True},
     "test_image.nii.gz",
-    (128, 128, 128, 3),
+    (32, 32, 32, 3),
 ]
 
-TEST_CASE_15 = [{"reader": "nibabelreader", "channel_dim": 2}, "test_image.nii.gz", (128, 128, 3, 128)]
+TEST_CASE_15 = [{"reader": "nibabelreader", "channel_dim": 2}, "test_image.nii.gz", (32, 32, 3, 32)]
 
-TEST_CASE_16 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+TEST_CASE_16 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 32, 32, 32)]
 
-TEST_CASE_17 = [{"reader": "monai.data.ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+TEST_CASE_17 = [{"reader": "monai.data.ITKReader", "channel_dim": -1}, "test_image.nii.gz", (32, 32, 32, 3)]
 
 TEST_CASE_18 = [
     {"reader": "ITKReader", "channel_dim": 2, "ensure_channel_first": True},
     "test_image.nii.gz",
-    (128, 128, 3, 128),
+    (32, 32, 3, 32),
 ]
 
 # test same dicom data with PydicomReader
@@ -180,8 +180,8 @@ TEST_CASE_GPU_6 = [
 
 TESTS_META = []
 for track_meta in (False, True):
-    TESTS_META.append([{}, (128, 128, 128), track_meta])
-    TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
+    TESTS_META.append([{}, (32, 32, 32), track_meta])
+    TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (32, 32, 32), track_meta])
 
 
 @unittest.skipUnless(has_itk, "itk not installed")
@@ -209,7 +209,7 @@ class TestLoadImage(unittest.TestCase):
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
     )
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
-        test_image = np.random.rand(128, 128, 128)
+        test_image = np.random.rand(32, 32, 32)
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
@@ -229,9 +229,9 @@ class TestLoadImage(unittest.TestCase):
         if torch.__version__.endswith("nv24.8"):
             # related issue: https://github.com/Project-MONAI/MONAI/issues/8274
             # for this version, use randint test case to avoid the issue
-            test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
+            test_image = torch.randint(0, 256, (32, 32, 32), dtype=torch.uint8).numpy()
         else:
-            test_image = np.random.rand(128, 128, 128)
+            test_image = np.random.rand(32, 32, 32)
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
@@ -251,7 +251,7 @@ class TestLoadImage(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
-        test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
+        test_image = torch.randint(0, 256, (32, 32, 32), dtype=torch.uint8).numpy()
         print("Test image value range:", test_image.min(), test_image.max())
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
@@ -462,7 +462,7 @@ class TestLoadImage(unittest.TestCase):
             result = LoadImage(image_only=True, **input_param)(filename)  # with itk, meta has 'qto_xyz': itkMatrixF44
 
         self.assertTupleEqual(
-            result.shape, (3, 128, 128, 128) if input_param.get("ensure_channel_first", False) else expected_shape
+            result.shape, (3, 32, 32, 32) if input_param.get("ensure_channel_first", False) else expected_shape
         )
         self.assertEqual(result.meta["original_channel_dim"], input_param["channel_dim"])
 
@@ -473,7 +473,7 @@ class TestLoadImageMeta(unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.tmpdir = tempfile.mkdtemp()
-        test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.rand(32, 32, 32), np.eye(4))
         nib.save(test_image, os.path.join(cls.tmpdir, "im.nii.gz"))
         cls.test_data = os.path.join(cls.tmpdir, "im.nii.gz")
 
@@ -502,7 +502,7 @@ class TestLoadImageMeta(unittest.TestCase):
         try:
             set_track_meta(False)
             r = LoadImage(image_only=True, ensure_channel_first=True)(self.test_data)
-            self.assertTupleEqual(r.shape, (1, 128, 128, 128))
+            self.assertTupleEqual(r.shape, (1, 32, 32, 32))
             self.assertIsInstance(r, torch.Tensor)
             self.assertNotIsInstance(r, MetaTensor)
         finally:
