@@ -204,8 +204,11 @@ def _compute_percentile_hausdorff_distance(
     if surface_distance.shape == (0,):
         return torch.tensor(np.nan, dtype=torch.float, device=surface_distance.device)
 
-    if not percentile:
+    if percentile is None:
         return surface_distance.max()
+
+    if percentile == 0:
+        return surface_distance.min()
 
     if 0 <= percentile <= 100:
         return torch.quantile(surface_distance, percentile / 100)
