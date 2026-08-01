@@ -31,15 +31,16 @@ This can also be used remotely with only Python installed to get current environ
     curl https://raw.githubusercontent.com/Project-MONAI/MONAI/refs/heads/dev/monai/config/check_env.py | python
 """
 
-from io import StringIO
-import os
-import sys
-import platform
-import multiprocessing
-import subprocess
-import shutil
+from __future__ import annotations
+
 import argparse
 import getpass
+import multiprocessing
+import os
+import platform
+import shutil
+import subprocess
+import sys
 from functools import partial
 
 DESC = """
@@ -47,7 +48,6 @@ Script for checking various elements of the runtime environment and printing a l
 This is used for debugging your environment by printing out various system statistics and diagnostic information. It
 checks PyTorch and MONAI are installed and functioning. A typical use case is with the `--env` and `--monai` options.
 """
-
 
 USER = getpass.getuser()
 HOST = platform.node()
@@ -143,10 +143,7 @@ def check_monai():
     try:
         import monai
 
-        out = StringIO()
-        monai.config.deviceconfig.print_debug_info(file=out)
-        out.seek(0)
-        fprint(out.read())
+        monai.config.print_debug_info()
         return True
     except ImportError:
         efprint("MONAI not installed")

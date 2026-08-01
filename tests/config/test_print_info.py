@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from io import StringIO
 import unittest
+from io import StringIO
 
 from monai.config import print_debug_info
 
