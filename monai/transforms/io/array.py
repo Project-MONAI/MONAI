@@ -163,6 +163,10 @@ class LoadImage(Transform):
             expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
+         Raises:
+            OptionalImportError: If an explicitly selected reader dependency is unavailable.
+
+        
 
         Note:
 
