@@ -209,15 +209,30 @@ class LoadImage(Transform):
                     the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
-                except OptionalImportError:
-                    warnings.warn(
-                        f"required package for reader {_r} is not installed, or the version doesn't match requirement."
-                    )
+                except OptionalImportError as e:
+                    raise RuntimeError(
+                        f"The required package for reader '{_r}' is not installed, or the version doesn't match "
+                        f"the requirement. If you want to use '{_r}', please install the required package. "
+                        f"If you want to use an alternative reader, do not specify the `reader` argument."
+                    ) from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
-                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
+                    warn_msg = f"{_r} is not supported with the given parameters {args} {kwargs}."
+                    warnings.warn(warn_msg, stacklevel=2)
                     self.register(the_reader())
             elif inspect.isclass(_r):
-                self.register(_r(*args, **kwargs))
+                try:
+                    self.register(_r(*args, **kwargs))
+                except OptionalImportError as e:
+                    reader_name = getattr(_r, "__name__", str(_r))
+                    raise RuntimeError(
+                        f"The required package for reader '{reader_name}' is not installed, or the version doesn't match "
+                        f"the requirement. If you want to use '{reader_name}', please install the required package. "
+                        f"If you want to use an alternative reader, do not specify the `reader` argument."
+                    ) from e
+                except TypeError:  # the reader doesn't have the corresponding args/kwargs
+                    warn_msg = f"{_r.__name__} is not supported with the given parameters {args} {kwargs}."
+                    warnings.warn(warn_msg, stacklevel=2)
+                    self.register(_r())
             else:
                 self.register(_r)  # reader instance, ignoring the constructor args/kwargs
         return
@@ -231,7 +246,8 @@ class LoadImage(Transform):
 
         """
         if not isinstance(reader, ImageReader):
-            warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
+            warn_msg = f"Preferably the reader should inherit ImageReader, but got {type(reader)}."
+            warnings.warn(warn_msg, stacklevel=3)
         self.readers.append(reader)
 
     def __call__(self, filename: Sequence[PathLike] | PathLike, reader: ImageReader | None = None):

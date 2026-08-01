@@ -16,6 +16,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import nibabel as nib
 import numpy as np
@@ -28,7 +29,7 @@ from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
-from monai.utils import optional_import
+from monai.utils import OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -507,6 +508,70 @@ class TestLoadImageMeta(unittest.TestCase):
             self.assertNotIsInstance(r, MetaTensor)
         finally:
             set_track_meta(_previous_meta)
+
+
+class TestLoadImageMissingReader(unittest.TestCase):
+    """Test that LoadImage raises RuntimeError when a user-specified reader is not installed."""
+
+    def test_explicit_reader_not_installed_raises_runtime_error(self):
+        """When the user explicitly names a reader whose package is missing, a RuntimeError must be raised."""
+        # Patch the reader class so that instantiation raises OptionalImportError,
+        # simulating a missing optional dependency (e.g. itk not installed).
+        with patch("monai.data.ITKReader.__init__", side_effect=OptionalImportError("itk")):
+            with self.assertRaises(RuntimeError) as ctx:
+                LoadImage(reader="ITKReader")
+        self.assertIn("ITKReader", str(ctx.exception))
+        self.assertIn("not installed", str(ctx.exception))
+
+    def test_explicit_class_reader_not_installed_raises_runtime_error(self):
+        """Explicit class reader raises RuntimeError when package is missing."""
+        # This tests the class path (not string path) to ensure consistent behavior
+        with patch("monai.data.ITKReader.__init__", side_effect=OptionalImportError("itk")):
+            with self.assertRaises(RuntimeError) as ctx:
+                LoadImage(reader=ITKReader)
+            self.assertIn("ITKReader", str(ctx.exception))
+            self.assertIn("not installed", str(ctx.exception))
+
+    def test_unspecified_reader_falls_back_silently(self):
+        """When no reader is specified, missing optional readers should be silently skipped (no exception)."""
+        # Force the fallback path by simulating missing optional dependencies.
+        # Patch the constructor to raise OptionalImportError for some readers,
+        # then verify LoadImage still instantiates and logs warnings.
+        from monai.transforms.io.array import SUPPORTED_READERS
+
+        # Patch a few readers to fail (e.g., ITKReader)
+        try:
+            original_itk = SUPPORTED_READERS.get("itkreader")
+
+            def failing_reader(*args, **kwargs):
+                raise OptionalImportError("itk not installed")
+
+            # Temporarily replace ITKReader with a failing version
+            SUPPORTED_READERS["itkreader"] = failing_reader
+
+            # Capture log output to verify warn-and-skip was invoked
+            with self.assertLogs("LoadImage", level="DEBUG") as cm:
+                loader = LoadImage()
+                self.assertIsInstance(loader, LoadImage)
+
+            # Verify we got the expected debug log about skipping the missing reader
+            self.assertTrue(
+                any("not installed" in msg for msg in cm.output),
+                f"Expected 'not installed' in debug logs, got: {cm.output}",
+            )
+        finally:
+            # Restore or remove the reader depending on whether it existed originally
+            if original_itk is not None:
+                SUPPORTED_READERS["itkreader"] = original_itk
+            else:
+                # Remove the entry if it didn't exist originally
+                SUPPORTED_READERS.pop("itkreader", None)
+
+    def test_explicit_reader_available_succeeds(self):
+        """When the user explicitly names a reader whose package IS installed, no exception is raised."""
+        # NibabelReader is always available (nibabel is a core dep)
+        loader = LoadImage(reader="NibabelReader")
+        self.assertIsInstance(loader, LoadImage)
 
 
 if __name__ == "__main__":

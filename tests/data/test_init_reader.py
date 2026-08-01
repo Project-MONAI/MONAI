@@ -30,9 +30,9 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
-            self.assertIsInstance(inst, LoadImaged)
+        # Test with None (auto-select) - should always work
+        inst = LoadImaged("image", reader=None)
+        self.assertIsInstance(inst, LoadImaged)
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
