@@ -45,7 +45,6 @@ __all__ = [
     "print_debug_info",
     "USE_COMPILED",
     "USE_META_DICT",
-    "IgniteInfo",
 ]
 
 USER = getpass.getuser()
