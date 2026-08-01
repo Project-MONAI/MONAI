@@ -221,9 +221,14 @@ class TestLoadImage(unittest.TestCase):
             assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @SkipIfNoModule("nibabel")
-    @SkipIfNoModule("cupy")
-    @SkipIfNoModule("kvikio")
+
+    def test_reader_not_installed_raises(self):
+        from unittest.mock import patch
+        from monai.utils import OptionalImportError
+
+        with patch("monai.data.ITKReader", side_effect=OptionalImportError("itk not installed")):
+            with self.assertRaises(OptionalImportError):
+                LoadImage(reader="ITKReader")
     @parameterized.expand([TEST_CASE_GPU_1, TEST_CASE_GPU_2, TEST_CASE_GPU_3, TEST_CASE_GPU_4])
     def test_nibabel_reader_gpu(self, input_param, filenames, expected_shape):
         if torch.__version__.endswith("nv24.8"):
