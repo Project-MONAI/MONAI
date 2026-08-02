@@ -143,7 +143,7 @@ def check_monai():
     try:
         import monai
 
-        monai.config.print_debug_info()
+        monai.config.print_debug_info()  # type: ignore
         return True
     except ImportError:
         efprint("MONAI not installed")
