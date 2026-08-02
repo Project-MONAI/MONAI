@@ -344,7 +344,7 @@ jobs:
       run: |
         # install from wheel
         python -m pip install monai*.whl --extra-index-url https://download.pytorch.org/whl/cpu
-        python monai/config/check_env.py --env --monai
+        python -m monai.config
         python -m pip uninstall -y monai
         rm monai*.whl
     - name: Install source archive
@@ -353,4 +353,4 @@ jobs:
         for name in *.tar.gz; do break; done
         echo $name
         python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
-        python monai/config/check_env.py --env --monai
+        python monai.config
