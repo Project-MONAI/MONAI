@@ -159,6 +159,8 @@ class DatasetSummary:
             label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             image_foreground = image[torch.where(label > foreground_threshold)]
+            if image_foreground.numel() == 0:
+                continue
 
             voxel_max.append(image_foreground.max().item())
             voxel_min.append(image_foreground.min().item())
@@ -166,6 +168,11 @@ class DatasetSummary:
             voxel_sum += image_foreground.sum()
             voxel_square_sum += torch.square(image_foreground).sum()
 
+        if voxel_ct == 0:
+            raise ValueError(
+                f"no foreground voxels found in any sample with foreground_threshold={foreground_threshold}; "
+                "set foreground_threshold=-1 to compute statistics over whole images."
+            )
         self.data_max, self.data_min = max(voxel_max), min(voxel_min)
         self.data_mean = (voxel_sum / voxel_ct).item()
         self.data_std = (torch.sqrt(voxel_square_sum / voxel_ct - self.data_mean**2)).item()
@@ -204,11 +211,17 @@ class DatasetSummary:
             label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             intensities = image[torch.where(label > foreground_threshold)].tolist()
-            if sampling_flag:
-                intensities = intensities[::interval]
-            all_intensities.append(intensities)
+            if intensities:
+                if sampling_flag:
+                    intensities = intensities[::interval]
+                all_intensities.append(intensities)
 
         all_intensities = list(chain(*all_intensities))
+        if not all_intensities:
+            raise ValueError(
+                f"no foreground voxels found in any sample with foreground_threshold={foreground_threshold}; "
+                "set foreground_threshold=-1 to compute statistics over whole images."
+            )
         self.data_min_percentile, self.data_max_percentile = np.percentile(
             all_intensities, [min_percentile, max_percentile]
         )
