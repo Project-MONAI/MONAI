@@ -12,4 +12,4 @@
 if __name__ == "__main__":
     import monai
 
-    monai.config.print_debug_info()
+    monai.config.print_debug_info()  # type: ignore
