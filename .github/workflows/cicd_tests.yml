@@ -353,4 +353,4 @@ jobs:
         for name in *.tar.gz; do break; done
         echo $name
         python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
-        python monai.config
+        python -m monai.config
