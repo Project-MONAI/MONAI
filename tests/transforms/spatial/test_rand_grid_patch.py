@@ -66,6 +66,8 @@ TEST_CASE_13 = [
     A,
     [A[:, 1:3, 1:3]],
 ]
+TEST_CASE_14 = [{"patch_size": (0, 2)}, A, [A[:, :, :2], A[:, :, 2:]]]
+TEST_CASE_15 = [{"patch_size": (None, 2)}, A, [A[:, :, :2], A[:, :, 2:]]]
 
 TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
@@ -102,6 +104,8 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_11])
     TEST_SINGLE.append([p, *TEST_CASE_12])
     TEST_SINGLE.append([p, *TEST_CASE_13])
+    TEST_SINGLE.append([p, *TEST_CASE_14])
+    TEST_SINGLE.append([p, *TEST_CASE_15])
 
 
 class TestRandGridPatch(unittest.TestCase):
