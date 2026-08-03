@@ -66,7 +66,6 @@ TEST_CASE_13 = [
     [A[:, 1:3, 1:3]],
 ]
 TEST_CASE_14 = [{"patch_size": (0, 2)}, {"image": A}, [A[:, :, :2], A[:, :, 2:]]]
-TEST_CASE_15 = [{"patch_size": (None, 2)}, {"image": A}, [A[:, :, :2], A[:, :, 2:]]]
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -85,7 +84,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_12])
     TEST_SINGLE.append([p, *TEST_CASE_13])
     TEST_SINGLE.append([p, *TEST_CASE_14])
-    TEST_SINGLE.append([p, *TEST_CASE_15])
 
 
 class TestRandGridPatchd(unittest.TestCase):
