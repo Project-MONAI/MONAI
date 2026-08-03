@@ -164,6 +164,10 @@ class LoadImage(Transform):
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
+        Raises:
+            OptionalImportError: if a user-specified reader requires a package
+                that is not installed or has an incompatible version.
+
         Note:
 
             - The transform returns a MetaTensor, unless `set_track_meta(False)` has been used, in which case, a
@@ -209,10 +213,10 @@ class LoadImage(Transform):
                     the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
-                except OptionalImportError:
-                    warnings.warn(
+                except OptionalImportError as e:
+                    raise OptionalImportError(
                         f"required package for reader {_r} is not installed, or the version doesn't match requirement."
-                    )
+                    ) from e
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
