@@ -192,6 +192,12 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     }
     ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
+    if not (torch.is_floating_point(img) or torch.is_complex(img)):
+        warnings.warn(
+            f"Lazy resampling computes in floating point and converts the input of dtype {img.dtype} to "
+            "float32; the original data type is not preserved. For integer data such as label maps, set "
+            "`lazy=False` for the affected transforms (or cast back afterwards) if the data type must be preserved."
+        )
     init_affine = monai.data.to_affine_nd(ndim, img.affine)
     spatial_size = kwargs.get(LazyAttr.SHAPE, None)
     out_spatial_size = img.peek_pending_shape() if spatial_size is None else spatial_size
