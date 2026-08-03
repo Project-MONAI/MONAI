@@ -271,6 +271,7 @@ class TestBoxUtilsDtype(unittest.TestCase):
         self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
 
     def test_large_coordinates_are_not_dropped(self):
+        """Verify large-coordinate boxes are preserved by cropping and clipping."""
         boxes = torch.tensor([[41000.0, 5000.0, 45000.0, 15000.0]], dtype=torch.float32)
 
         cropped_boxes, keep = spatial_crop_boxes(
