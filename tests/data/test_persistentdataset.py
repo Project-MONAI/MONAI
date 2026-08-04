@@ -268,6 +268,30 @@ class TestDataset(unittest.TestCase):
         _ = list(ds)
         self.assertEqual(ds.memory_cache_size, 3)
 
+    def test_in_memory_type_consistency(self):
+        """The RAM cache applies the same convert_to_tensor(..., track_meta=...) normalization as the disk
+        round-trip, so repeated reads of the same index return a tensor type regardless of `in_memory`."""
+
+        class _ToNumpyXform(Transform):
+            def __call__(self, data):
+                data["image"] = np.zeros((2, 2), dtype=np.float32)
+                return data
+
+        data = [dict() for _ in range(2)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            cache_dirs = {"memory": None, "disk": tempdir}
+            for label, cache_dir in cache_dirs.items():
+                with self.subTest(cache_dir=label):
+                    ds = PersistentDataset(
+                        data=data, transform=_ToNumpyXform(), cache_dir=cache_dir, in_memory=True, track_meta=True
+                    )
+                    # the pre-random transform only ever produces numpy arrays; with in_memory enabled the
+                    # normalized type must match the disk-cache round-trip on every read (not just the first)
+                    types = [type(ds[0]["image"]) for _ in range(3)]
+                    self.assertTrue(all(t is types[0] for t in types), types)
+                    self.assertIsInstance(ds[0]["image"], torch.Tensor, types)
+
     def test_metatensor_loading(self):
         """
         Thorough test of metadata loading correctly with MetaTensor. This will store a MetaTensor with safe object types

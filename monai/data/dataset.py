@@ -459,7 +459,9 @@ class PersistentDataset(Dataset):
         if not self.in_memory:
             return self._post_transform(self._cachecheck(self.data[index]))
         if index not in self._memory_cache:
-            self._memory_cache[index] = self._cachecheck(self.data[index])
+            self._memory_cache[index] = convert_to_tensor(
+                self._cachecheck(self.data[index]), convert_numeric=False, track_meta=self.track_meta
+            )
         # copy so that the random transforms, or the caller, cannot mutate the cached item
         return self._post_transform(deepcopy(self._memory_cache[index]))
 
