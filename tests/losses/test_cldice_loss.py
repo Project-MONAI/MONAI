@@ -114,6 +114,29 @@ class TestSoftclDiceLoss(unittest.TestCase):
         with self.assertRaises(ValueError):
             SoftclDiceLoss(iter_=-1)
 
+    def test_zero_input_is_finite(self):
+        loss = SoftclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        result = loss(torch.zeros((1, 2, 4, 4)), torch.zeros((1, 2, 4, 4)))
+        self.assertTrue(torch.isfinite(result).all())
+
+    def test_non_default_smooth_dr_changes_result(self):
+        input_tensor = torch.zeros((1, 2, 4, 4))
+        target = torch.zeros((1, 2, 4, 4))
+        loss_a = SoftclDiceLoss(smooth=1e-7, smooth_dr=1e-3)
+        loss_b = SoftclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        result_a = loss_a(input_tensor, target)
+        result_b = loss_b(input_tensor, target)
+        self.assertTrue(torch.isfinite(result_a).all())
+        self.assertTrue(torch.isfinite(result_b).all())
+        self.assertNotAlmostEqual(result_a.item(), result_b.item(), places=5)
+
+    def test_non_overlapping_input_is_finite(self):
+        loss = SoftclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        input_tensor = torch.tensor([[[[1.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]])
+        target = torch.tensor([[[[0.0, 0.0], [0.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]]]])
+        result = loss(input_tensor, target)
+        self.assertTrue(torch.isfinite(result).all())
+
 
 class TestSoftDiceclDiceLoss(unittest.TestCase):
     @parameterized.expand(COMBINED_CASES)
@@ -145,6 +168,29 @@ class TestSoftDiceclDiceLoss(unittest.TestCase):
     def test_invalid_alpha_negative(self):
         with self.assertRaises(ValueError):
             SoftDiceclDiceLoss(alpha=-0.5)
+
+    def test_zero_input_is_finite(self):
+        loss = SoftDiceclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        result = loss(torch.zeros((1, 2, 4, 4)), torch.zeros((1, 2, 4, 4)))
+        self.assertTrue(torch.isfinite(result).all())
+
+    def test_non_default_smooth_dr_changes_result(self):
+        input_tensor = torch.zeros((1, 2, 4, 4))
+        target = torch.zeros((1, 2, 4, 4))
+        loss_a = SoftDiceclDiceLoss(smooth=1e-7, smooth_dr=1e-3)
+        loss_b = SoftDiceclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        result_a = loss_a(input_tensor, target)
+        result_b = loss_b(input_tensor, target)
+        self.assertTrue(torch.isfinite(result_a).all())
+        self.assertTrue(torch.isfinite(result_b).all())
+        self.assertNotAlmostEqual(result_a.item(), result_b.item(), places=5)
+
+    def test_non_overlapping_input_is_finite(self):
+        loss = SoftDiceclDiceLoss(smooth=1e-7, smooth_dr=1e-5)
+        input_tensor = torch.tensor([[[[1.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]])
+        target = torch.tensor([[[[0.0, 0.0], [0.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]]]])
+        result = loss(input_tensor, target)
+        self.assertTrue(torch.isfinite(result).all())
 
 
 if __name__ == "__main__":
