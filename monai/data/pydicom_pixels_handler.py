@@ -32,8 +32,8 @@ DEPENDENCIES = {"numpy": ("https://numpy.org/", "NumPy")}
 
 def is_available() -> bool:
     try:
-        import numpy  # noqa: F401
-        from pydicom.pixels import pixel_array  # noqa: F401
+        import numpy
+        from pydicom.pixels import pixel_array
 
         return True
     except ImportError:
@@ -50,7 +50,7 @@ def supports_transfer_syntax(transfer_syntax: UID) -> bool:
     return True
 
 
-def needs_to_convert_to_RGB(ds: Dataset) -> bool:
+def needs_to_convert_to_RGB(ds: Dataset) -> bool:  # noqa: N802
     return False
 
 

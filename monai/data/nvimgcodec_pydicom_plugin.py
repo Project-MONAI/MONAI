@@ -50,9 +50,23 @@ else:  # pragma: no cover - optional dependency not installed
 
 def is_nvimgcodec_available() -> bool:
     """Return ``True`` if nvImageCodec with CUDA support is available."""
-    if not has_pydicom_plugin or getattr(pydicom_plugin, "nvimgcodec", None) is None or not has_cp:
-        _logger.debug("nvimgcodec pydicom plugin, nvimgcodec module, or CuPy missing.")
+    if not has_pydicom_plugin or not has_cp:
+        _logger.debug("nvimgcodec pydicom plugin or CuPy missing.")
         return False
+
+    nvimgcodec = getattr(pydicom_plugin, "nvimgcodec", None)
+    if nvimgcodec is None:
+        _logger.debug("nvimgcodec module missing.")
+        return False
+    # An incomplete install leaves ``nvidia/nvimgcodec`` importable as an empty namespace
+    # package, so require the binding that actually decodes frames.
+    if not hasattr(nvimgcodec, "Decoder"):
+        _logger.warning(
+            "nvidia.nvimgcodec is importable but provides no 'Decoder'; the installation is incomplete. "
+            "Reinstall with: pip install --force-reinstall 'nvidia-nvimgcodec-cu13[all]'"
+        )
+        return False
+
     try:
         if not cp.cuda.is_available():
             _logger.debug("CUDA device not found.")
@@ -91,6 +105,31 @@ def register_pixels_handler_for_wsidicom() -> None:
         pydicom_config.pixel_data_handlers.insert(0, pydicom_pixels_handler)
 
 
+def prefer_pydicom_decoder_in_wsidicom() -> bool:
+    """
+    Select wsidicom's pydicom decoder so tile decoding goes through pydicom's plugin stack.
+
+    wsidicom renamed this setting from ``prefered_decoder`` to ``preferred_decoder``. Since
+    ``Settings`` accepts arbitrary attributes, writing the name absent in the installed
+    version would silently do nothing and leave a faster CPU decoder selected.
+
+    Returns:
+        ``True`` if the setting was applied.
+    """
+    wsidicom_config, has_wsidicom = optional_import("wsidicom", name="config")
+    if not has_wsidicom:
+        return False
+
+    settings = wsidicom_config.settings
+    for name in ("preferred_decoder", "prefered_decoder"):
+        if hasattr(type(settings), name):
+            setattr(settings, name, "pydicom")
+            return True
+
+    _logger.warning("wsidicom settings expose no preferred-decoder option; tiles may not decode through pydicom.")
+    return False
+
+
 def configure_wsidicom_pydicom_decoder(
     *, register_nvimgcodec: bool = True, prefer_pydicom_decoder: bool = True
 ) -> None:
@@ -99,13 +138,11 @@ def configure_wsidicom_pydicom_decoder(
 
     This registers the nvImageCodec pydicom decoder plugin (when requested and available),
     prepends a legacy ``pixel_data_handlers`` bridge that delegates to pydicom 3's ``pixels``
-    backend, and optionally sets ``wsidicom.config.settings.prefered_decoder`` to ``"pydicom"``.
+    backend, and optionally selects wsidicom's pydicom decoder.
     """
     if register_nvimgcodec:
         register_as_decoder_plugin()
     register_pixels_handler_for_wsidicom()
 
     if prefer_pydicom_decoder:
-        wsidicom_config, has_wsidicom = optional_import("wsidicom", name="config")
-        if has_wsidicom:
-            wsidicom_config.settings.prefered_decoder = "pydicom"
+        prefer_pydicom_decoder_in_wsidicom()
