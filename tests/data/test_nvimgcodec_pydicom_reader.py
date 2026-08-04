@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -215,6 +216,22 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
             from monai.data.nvimgcodec_pydicom_plugin import SUPPORTED_TRANSFER_SYNTAXES, is_available
 
             self.assertTrue(is_available(SUPPORTED_TRANSFER_SYNTAXES[0]))
+
+    def test_is_nvimgcodec_unavailable_without_decoder_binding(self):
+        """An incomplete install imports as an empty namespace package and cannot decode."""
+        import monai.data.nvimgcodec_pydicom_plugin as plugin_module
+
+        namespace_package = ModuleType("nvidia.nvimgcodec")
+        stub_plugin = SimpleNamespace(nvimgcodec=namespace_package)
+
+        with (
+            patch.object(plugin_module, "has_pydicom_plugin", True),
+            patch.object(plugin_module, "pydicom_plugin", stub_plugin),
+            patch.object(plugin_module, "has_cp", True),
+        ):
+            self.assertFalse(hasattr(namespace_package, "Decoder"))
+            with self.assertLogs("monai.data.nvimgcodec_pydicom_plugin", level="WARNING"):
+                self.assertFalse(plugin_module.is_nvimgcodec_available())
 
 
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):

@@ -37,7 +37,14 @@ from monai.utils.misc import ConvertUnits
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
-__all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader", "OpenSlideWSIReader", "TiffFileWSIReader", "WsiDicomWSIReader"]
+__all__ = [
+    "BaseWSIReader",
+    "WSIReader",
+    "CuCIMWSIReader",
+    "OpenSlideWSIReader",
+    "TiffFileWSIReader",
+    "WsiDicomWSIReader",
+]
 
 
 class BaseWSIReader(ImageReader):
@@ -1629,8 +1636,7 @@ class WsiDicomWSIReader(BaseWSIReader):
             from monai.data.nvimgcodec_pydicom_plugin import configure_wsidicom_pydicom_decoder
 
             configure_wsidicom_pydicom_decoder(
-                register_nvimgcodec=register_nvimgcodec,
-                prefer_pydicom_decoder=prefer_pydicom_decoder,
+                register_nvimgcodec=register_nvimgcodec, prefer_pydicom_decoder=prefer_pydicom_decoder
             )
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1745,7 +1751,7 @@ class WsiDicomWSIReader(BaseWSIReader):
         kwargs_.update(kwargs)
         for filename in filenames:
             wsi = wsi_dicom_cls.open(filename, **kwargs_)
-            setattr(wsi, "_monai_file_path", abspath(str(filename)))
+            wsi._monai_file_path = abspath(str(filename))
             wsi_list.append(wsi)
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]

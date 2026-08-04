@@ -63,23 +63,50 @@ class TestWsiDicomWSIReader(unittest.TestCase):
         WsiDicomWSIReader(register_nvimgcodec=False, prefer_pydicom_decoder=False)
         mock_configure.assert_not_called()
 
-    def test_configure_wsidicom_prefers_pydicom_decoder(self):
-        mock_settings = SimpleNamespace(prefered_decoder=None)
-
-        with patch(
-            "monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True
-        ) as mock_register_plugin, patch(
-            "monai.data.nvimgcodec_pydicom_plugin.register_pixels_handler_for_wsidicom"
-        ) as mock_register_handler, patch(
-            "monai.data.nvimgcodec_pydicom_plugin.optional_import",
-            return_value=(SimpleNamespace(settings=mock_settings), True),
+    def _configure_with_settings(self, settings):
+        """Run ``configure_wsidicom_pydicom_decoder`` against a stand-in wsidicom settings."""
+        with (
+            patch(
+                "monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True
+            ) as mock_register_plugin,
+            patch("monai.data.nvimgcodec_pydicom_plugin.register_pixels_handler_for_wsidicom") as mock_register_handler,
+            patch(
+                "monai.data.nvimgcodec_pydicom_plugin.optional_import",
+                return_value=(SimpleNamespace(settings=settings), True),
+            ),
         ):
             from monai.data.nvimgcodec_pydicom_plugin import configure_wsidicom_pydicom_decoder
 
             configure_wsidicom_pydicom_decoder()
             mock_register_plugin.assert_called_once()
             mock_register_handler.assert_called_once()
-            self.assertEqual(mock_settings.prefered_decoder, "pydicom")
+
+    def test_configure_wsidicom_prefers_pydicom_decoder(self):
+        # Declared on the class, as wsidicom exposes it as a property. An instance-only
+        # stand-in would accept any attribute name and hide a misspelling.
+        class Settings:
+            preferred_decoder = None
+
+        settings = Settings()
+        self._configure_with_settings(settings)
+        self.assertEqual(settings.preferred_decoder, "pydicom")
+
+    def test_configure_wsidicom_supports_legacy_decoder_setting_name(self):
+        class LegacySettings:
+            prefered_decoder = None
+
+        settings = LegacySettings()
+        self._configure_with_settings(settings)
+        self.assertEqual(settings.prefered_decoder, "pydicom")
+
+    def test_configure_wsidicom_does_not_invent_decoder_setting(self):
+        class UnknownSettings:
+            pass
+
+        settings = UnknownSettings()
+        with self.assertLogs("monai.data.nvimgcodec_pydicom_plugin", level="WARNING"):
+            self._configure_with_settings(settings)
+        self.assertEqual(vars(settings), {})
 
     @patch("monai.data.wsi_reader.optional_import")
     @patch("monai.utils.module.optional_import", side_effect=_optional_import_with_wsidicom)
@@ -97,14 +124,7 @@ class TestWsiDicomWSIReader(unittest.TestCase):
         wsi.mpp = SimpleNamespace(height=0.25, width=0.25)
         wsi.read_region.return_value = Image.new("RGB", (128, 64), color=(1, 2, 3))
 
-        patch = reader._get_patch(
-            wsi,
-            location=(200, 400),
-            size=(64, 128),
-            level=1,
-            dtype=np.uint8,
-            mode="RGB",
-        )
+        patch = reader._get_patch(wsi, location=(200, 400), size=(64, 128), level=1, dtype=np.uint8, mode="RGB")
 
         wsi.read_region.assert_called_once_with((100, 50), 1, (128, 64), threads=1)
         self.assertEqual(patch.shape, (3, 64, 128))
