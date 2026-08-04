@@ -281,6 +281,9 @@ class PersistentDataset(Dataset):
                 epochs skip the disk cache entirely. This combines the benefits of persistent storage (data
                 survives restarts) with faster RAM access. Note the cache is unbounded, so the whole dataset
                 is eventually held in memory; use `CacheDataset` or `SmartCacheDataset` if that does not fit.
+                The RAM cache is per-process, so with `DataLoader(num_workers>0, persistent_workers=False)`
+                the cache is rebuilt every epoch; use `persistent_workers=True` (or `num_workers=0`) to retain
+                it across epochs, otherwise most of the benefit is lost.
                 Default to `False`.
         """
         super().__init__(data=data, transform=transform)
