@@ -38,11 +38,20 @@ class TestSafeEval(unittest.TestCase):
         result = safe_eval(expr, globals_vars, locals_vars)
         self.assertEqual(result, expected)
 
+    @parameterized.expand(GOOD_EXPRS)
+    def test_good_exprs_np(self, expr, globals_vars, locals_vars, expected):
+        """Test valid expressions with globals/locals evaluate to correct values with Numpy wrapping."""
+        result = safe_eval(expr, globals_vars, locals_vars, rewrite_np=True)
+        self.assertEqual(result, expected)
+
     @parameterized.expand(BAD_EXPRS)
     def test_bad_exprs(self, expr):
         """Test bad expressions correctly raise ValueError."""
         with self.assertRaises(ValueError):
             safe_eval(expr)
+
+        with self.assertRaises(ValueError):
+            safe_eval(expr, rewrite_np=True)
 
     def test_allowed_types(self):
         """Test restricting the allowed list of types."""

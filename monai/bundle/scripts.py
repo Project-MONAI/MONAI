@@ -162,7 +162,7 @@ def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, 
                 for c in _get_var_names(i):
                     if c not in ["p", "n"]:
                         raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
-                ret.append(safe_eval(i, {"p": p, "n": n}))
+                ret.append(safe_eval(i, {"p": p, "n": n}, rewrite_np=True))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
