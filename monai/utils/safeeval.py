@@ -41,6 +41,7 @@ SAFE_TYPES: Sequence[type] = (
 
 class _RewriteConstNp(ast.NodeTransformer):
     """Replaces int and float constants in the tree with those wrapped in Numpy types."""
+
     def __init__(self, int_type_str: str, float_type_str: str):
         self.int_type_str = int_type_str
         self.float_type_str = float_type_str
