@@ -21,10 +21,12 @@ work and produce useful information. Only standard libraries are needed in case 
 
 This can be run as a program with the following options to see all outputs:
 
-    python check_env.py --env --envvars --monai
+    python check_env.py --env --monai
 
 With no options at all this can be used to test that PyTorch is installed and can move a tensor to a device. This is
 useful when creating a fresh test environment and MONAI isn't present yet but it's good practice to valid PyTorch.
+Environment variables can be printed by using `--envars` with `--env`, however the output from this is not checked for
+secrets so users
 
 This can also be used remotely with only Python installed to get current environment diagnostic info:
 
@@ -121,11 +123,12 @@ def check_torch_cuda():
     """
     import torch
 
-    dcount = torch.cuda.device_count()
     fprint("CUDA version:", torch.version.cuda)
-    fprint("PyTorch GPU Count:", dcount)
 
     try:
+        dcount = torch.cuda.device_count()
+        fprint("PyTorch GPU Count:", dcount)
+
         for d in range(dcount):
             fprint(f"  {torch.cuda.get_device_properties(d)}")
             t = torch.rand(2, 3).to(torch.device(f"cuda:{d}")) * 5
