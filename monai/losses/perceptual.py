@@ -112,7 +112,7 @@ class PerceptualLoss(nn.Module):
                 )
             if not channel_wise:
                 warnings.warn(
-                    "MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
+                    "MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
                 )
 
         # Channel-wise only for MedicalNet
@@ -127,7 +127,8 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
             # raise a warning that this may change the default cache dir for all torch.hub calls
             warnings.warn(
-                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls."
+                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls.",
+                stacklevel=2,
             )
 
         self.spatial_dims = spatial_dims
