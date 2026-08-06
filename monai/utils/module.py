@@ -195,6 +195,7 @@ def load_submodules(
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
                 msg = (
+                    f"\nError on import of {name}\n"
                     "\nMultiple versions of MONAI may have been installed?\n"
                     "Please see the installation guide: https://monai.readthedocs.io/en/stable/installation.html\n"
                 )  # issue project-monai/monai#5193

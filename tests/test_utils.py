@@ -64,6 +64,8 @@ hf_local_entry_error, _has_hf_local = optional_import("huggingface_hub.errors", 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
 _test_data_config: dict = {}
+# Fix dynamic warningregistry logs noise in python unit/pytest configurations
+warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 

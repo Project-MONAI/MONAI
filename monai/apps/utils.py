@@ -253,7 +253,7 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-                if "fuzzy" not in gdown_kwargs:
+                if "fuzzy" not in gdown_kwargs and not min_version(gdown, "6.0.0"):  # "fuzzy" dropped in gdown 6.0.0
                     gdown_kwargs["fuzzy"] = True  # default to true for flexible url
                 gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
             elif urlparse(url).netloc == "cloud-api.yandex.net":
