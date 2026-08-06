@@ -433,7 +433,7 @@ def download_and_extract(
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
 
 
-def create_temp_dir(directory: str | None = None, delete_on_finalise: bool = False) -> str:
+def create_temp_dir(directory: PathLike | None = None, delete_on_finalise: bool = False) -> str:
     """
     Creates or uses an existing temporary directory. If `directory` is given, this is used as the path to a directory
     which is created if it doesn't exist already. If `directory` is None, the value of the environment variable
@@ -455,6 +455,8 @@ def create_temp_dir(directory: str | None = None, delete_on_finalise: bool = Fal
         if directory is None:
             directory = tempfile.mkdtemp()
             delete_on_finalise = True
+    else:
+        directory = str(directory)  # convert Path if given
 
     os.makedirs(directory, exist_ok=True)
 

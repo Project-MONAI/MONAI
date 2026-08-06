@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from monai.apps import create_temp_dir
@@ -25,13 +27,15 @@ MONAI_DATA_DIRECTORY = "MONAI_DATA_DIRECTORY"
 class TestCreateTempDir(unittest.TestCase):
     def test_basic_use(self):
         """Test basic usage which should create a new random temporary directory."""
+
+        data_dir = os.environ.pop(MONAI_DATA_DIRECTORY, None)  # ignore the environment variable if present
         try:
-            data_dir = os.environ.pop(MONAI_DATA_DIRECTORY, None)  # ignore the environment variable if present
+            with patch("atexit.register") as mock_reg:
+                test_dir = create_temp_dir()
 
-            test_dir = create_temp_dir()
+                self.assertTrue(os.path.isdir(test_dir))
 
-            self.assertTrue(os.path.isdir(test_dir))
-
+                mock_reg.assert_called_once_with(shutil.rmtree, test_dir, ignore_errors=True)
         finally:
             if data_dir is not None:
                 os.environ[MONAI_DATA_DIRECTORY] = data_dir
@@ -51,21 +55,33 @@ class TestCreateTempDir(unittest.TestCase):
     def test_given_dir(self):
         """Test giving a directory to the function, ensuring it creates the directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            selected_dir = f"{temp_dir}/test_inner_dir"
+            selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
+
             test_dir = create_temp_dir(selected_dir)
+
+            self.assertTrue(os.path.isdir(selected_dir))
+            self.assertEqual(test_dir, selected_dir)
+            self.assertEqual(test_dir, selected_dir)
+
+    def test_given_dir_path(self):
+        """Test giving a directory as a Path object to the function, ensuring it creates the directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
+
+            test_dir = create_temp_dir(Path(selected_dir))
 
             self.assertTrue(os.path.isdir(selected_dir))
             self.assertEqual(test_dir, selected_dir)
 
     def test_finalisation(self):
-        """Test the temporary directory is deleted by finalisation using a subprocess."""
+        """Test the temporary directory is deleted by finalisation."""
         self.finaliser = None
 
         def _register(func, /, *args, **kwargs):
             self.finaliser = (func, args, kwargs)
 
         with patch("atexit.register", new=_register), tempfile.TemporaryDirectory() as temp_dir:
-            selected_dir = f"{temp_dir}/test_inner_dir"
+            selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
             test_dir = create_temp_dir(selected_dir, True)
 
             self.assertTrue(os.path.isdir(selected_dir))
