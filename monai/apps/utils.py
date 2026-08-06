@@ -42,7 +42,20 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "HashMismatchError",
+    "SUPPORTED_HASH_TYPES",
+]
+
+
+class HashMismatchError(RuntimeError):
+    """Raised when the hash of a downloaded file does not match the expected value."""
+
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
@@ -213,7 +226,7 @@ def download_url(
             https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` existing file fails.
+        HashMismatchError: When the hash validation of the ``filepath`` existing file fails.
         RuntimeError: When a network issue or denied permission prevents the
             file download from ``url`` to ``filepath``.
         URLError: See urllib.request.urlretrieve.
@@ -268,7 +281,7 @@ def download_url(
         pass
     logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
+        raise HashMismatchError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
             f"filepath={filepath}, expected {hash_type}={hash_val}."
         )

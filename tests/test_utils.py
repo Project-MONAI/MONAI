@@ -41,7 +41,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-from monai.apps.utils import download_url
+from monai.apps.utils import HashMismatchError, download_url
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
@@ -81,7 +81,6 @@ DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
     "network issue",
     "gdown dependency",  # gdown not installed
-    "md5 check",
     "limit",  # HTTP Error 503: Egress is over the account limit
     "authenticate",
     "timed out",  # urlopen error [Errno 110] Connection timed out
@@ -173,6 +172,8 @@ def skip_if_downloading_fails():
 
     try:
         yield
+    except HashMismatchError:
+        raise
     except DOWNLOAD_EXCEPTS as e:
         raise unittest.SkipTest(f"Error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
@@ -208,7 +209,7 @@ class TestDownloadUrl(unittest.TestCase):
                     hash_val=SAMPLE_TIFF_HASH,
                     hash_type=SAMPLE_TIFF_HASH_TYPE,
                 )
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(HashMismatchError):
                 download_url(
                     url=SAMPLE_TIFF,
                     filepath=os.path.join(tempdir, "model_bad.tiff"),
