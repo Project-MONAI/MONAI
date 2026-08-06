@@ -64,7 +64,6 @@ class TestCreateTempDir(unittest.TestCase):
 
             self.assertTrue(os.path.isdir(selected_dir))
             self.assertEqual(test_dir, selected_dir)
-            self.assertEqual(test_dir, selected_dir)
 
     def test_given_dir_path(self):
         """Test giving a directory as a Path object to the function, ensuring it creates the directory."""
