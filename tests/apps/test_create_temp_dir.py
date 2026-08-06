@@ -29,6 +29,7 @@ class TestCreateTempDir(unittest.TestCase):
         """Test basic usage which should create a new random temporary directory."""
 
         data_dir = os.environ.pop(MONAI_DATA_DIRECTORY, None)  # ignore the environment variable if present
+        test_dir = None
         try:
             with patch("atexit.register") as mock_reg:
                 test_dir = create_temp_dir()
@@ -39,6 +40,8 @@ class TestCreateTempDir(unittest.TestCase):
         finally:
             if data_dir is not None:
                 os.environ[MONAI_DATA_DIRECTORY] = data_dir
+            if test_dir is not None:
+                shutil.rmtree(test_dir, ignore_errors=True)
 
     def test_data_dir(self):
         """Test using a mocked MONAI_DATA_DIRECTORY, which should be returned by the function."""
