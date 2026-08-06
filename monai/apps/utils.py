@@ -226,7 +226,7 @@ def download_url(
             https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` existing file fails.
+        HashMismatchError: When the hash validation of the ``filepath`` existing file fails.
         RuntimeError: When a network issue or denied permission prevents the
             file download from ``url`` to ``filepath``.
         URLError: See urllib.request.urlretrieve.
