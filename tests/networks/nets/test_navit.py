@@ -146,15 +146,52 @@ class TestNaViT(unittest.TestCase):
         result = net(flat_images, group_images=True, group_max_seq_len=32)
         self.assertEqual(result.shape, (4, 5))
 
-    def test_token_dropout_callable(self):
-        """Token dropout with a callable should produce correctly shaped output in train mode."""
+    def test_token_dropout_callable_invoked_during_training(self):
+        """Token dropout callable is invoked during training and produces correct shape."""
+        call_log: list[tuple] = []
+
+        def recording_dropout(h, w):
+            call_log.append((h, w))
+            return 0.25
+
         net = NaViT(
             **{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
-            token_dropout_prob=lambda h, w: 0.1 if h > 48 else 0.0,
+            token_dropout_prob=recording_dropout,
         )
         net.train()
         result = net([[torch.randn(1, 64, 64)]])
         self.assertEqual(result.shape, (1, 5))
+        self.assertGreater(len(call_log), 0, "Token dropout callable was not invoked during training.")
+
+    def test_token_dropout_callable_not_invoked_during_eval(self):
+        """Token dropout callable is NOT invoked during eval."""
+        call_log: list[tuple] = []
+
+        def recording_dropout(h, w):
+            call_log.append((h, w))
+            return 0.25
+
+        net = NaViT(
+            **{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
+            token_dropout_prob=recording_dropout,
+        )
+        net.eval()
+        net([[torch.randn(1, 64, 64)]])
+        self.assertEqual(len(call_log), 0, "Token dropout callable was invoked during eval mode.")
+
+    def test_token_dropout_produces_different_outputs_in_training(self):
+        """With token dropout, different RNG seeds produce different training outputs."""
+        net = NaViT(**{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1}, token_dropout_prob=0.5)
+        net.train()
+        input_data = [[torch.randn(1, 64, 64)]]
+        torch.manual_seed(0)
+        out1 = net(input_data)
+        torch.manual_seed(42)
+        out2 = net(input_data)
+        self.assertFalse(
+            torch.allclose(out1, out2),
+            "Token dropout should produce different outputs with different RNG seeds during training.",
+        )
 
     def test_token_dropout_disabled_in_eval(self):
         """Token dropout should not be applied during eval, producing deterministic output."""
