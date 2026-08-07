@@ -347,9 +347,7 @@ class NaViT(nn.Module):
         image_size_t = ensure_tuple_rep(image_size, spatial_dims)
         for i, img_d in enumerate(image_size_t):
             if img_d % patch_size != 0:
-                raise ValueError(
-                    f"image_size dimension {i} ({img_d}) must be divisible by patch_size ({patch_size})."
-                )
+                raise ValueError(f"image_size dimension {i} ({img_d}) must be divisible by patch_size ({patch_size}).")
         self.pos_embed_axes = nn.ParameterList(
             [nn.Parameter(torch.randn(img_d // patch_size, hidden_size)) for img_d in image_size_t]
         )

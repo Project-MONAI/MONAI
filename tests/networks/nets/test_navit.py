@@ -49,36 +49,17 @@ DEFAULT_3D_KWARGS = {
 # batched_images_spec is a list of groups; each group is a list of image shape tuples.
 TEST_CASES_SHAPE = [
     # 2D single image
-    (
-        DEFAULT_2D_KWARGS,
-        [[(3, 64, 64)]],
-        (1, 10),
-    ),
+    (DEFAULT_2D_KWARGS, [[(3, 64, 64)]], (1, 10)),
     # 2D multiple images in one group
-    (
-        {**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
-        [[(1, 64, 64), (1, 32, 32), (1, 64, 32)]],
-        (3, 5),
-    ),
+    ({**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1}, [[(1, 64, 64), (1, 32, 32), (1, 64, 32)]], (3, 5)),
     # 2D multiple groups
     (
-        {
-            **DEFAULT_2D_KWARGS,
-            "image_size": 96,
-            "num_classes": 8,
-            "hidden_size": 192,
-            "mlp_dim": 384,
-            "num_heads": 6,
-        },
+        {**DEFAULT_2D_KWARGS, "image_size": 96, "num_classes": 8, "hidden_size": 192, "mlp_dim": 384, "num_heads": 6},
         [[(3, 96, 96), (3, 64, 64)], [(3, 80, 80)]],
         (3, 8),
     ),
     # 3D single volume
-    (
-        DEFAULT_3D_KWARGS,
-        [[(1, 64, 64, 64)]],
-        (1, 2),
-    ),
+    (DEFAULT_3D_KWARGS, [[(1, 64, 64, 64)]], (1, 2)),
     # 3D multiple volumes, multiple groups
     (
         {**DEFAULT_3D_KWARGS, "image_size": 96, "num_classes": 3},
@@ -86,29 +67,13 @@ TEST_CASES_SHAPE = [
         (3, 3),
     ),
     # token dropout (float)
-    (
-        {**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1, "token_dropout_prob": 0.2},
-        [[(1, 64, 64)]],
-        (1, 5),
-    ),
+    ({**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1, "token_dropout_prob": 0.2}, [[(1, 64, 64)]], (1, 5)),
     # custom dim_head
-    (
-        {**DEFAULT_2D_KWARGS, "num_classes": 4, "in_channels": 1, "dim_head": 64},
-        [[(1, 64, 64)]],
-        (1, 4),
-    ),
+    ({**DEFAULT_2D_KWARGS, "num_classes": 4, "in_channels": 1, "dim_head": 64}, [[(1, 64, 64)]], (1, 4)),
     # qkv_bias enabled
-    (
-        {**DEFAULT_2D_KWARGS, "num_classes": 3, "in_channels": 1, "qkv_bias": True},
-        [[(1, 64, 64)]],
-        (1, 3),
-    ),
+    ({**DEFAULT_2D_KWARGS, "num_classes": 3, "in_channels": 1, "qkv_bias": True}, [[(1, 64, 64)]], (1, 3)),
     # anisotropic image_size 2D
-    (
-        {**DEFAULT_2D_KWARGS, "image_size": (64, 128), "num_classes": 4, "in_channels": 1},
-        [[(1, 64, 128)]],
-        (1, 4),
-    ),
+    ({**DEFAULT_2D_KWARGS, "image_size": (64, 128), "num_classes": 4, "in_channels": 1}, [[(1, 64, 128)]], (1, 4)),
     # anisotropic image_size 3D
     (
         {**DEFAULT_3D_KWARGS, "image_size": (64, 64, 96), "hidden_size": 192, "mlp_dim": 384, "num_heads": 6},
@@ -193,10 +158,7 @@ class TestNaViT(unittest.TestCase):
 
     def test_token_dropout_disabled_in_eval(self):
         """Token dropout should not be applied during eval, producing deterministic output."""
-        net = NaViT(
-            **{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
-            token_dropout_prob=0.5,
-        )
+        net = NaViT(**{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1}, token_dropout_prob=0.5)
         net.eval()
         input_data = [[torch.randn(1, 64, 64)]]
         out1 = net(input_data)
