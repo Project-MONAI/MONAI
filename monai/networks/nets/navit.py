@@ -214,8 +214,7 @@ class _NaViTTransformerBlock(nn.Module):
             Tensor of shape ``(B, N, C)``.
         """
         x = self.attn(x, attn_mask=attn_mask) + x
-        x = self.norm(x)
-        x = self.mlp(x) + x
+        x = self.mlp(self.norm(x)) + x
         return x
 
 
@@ -318,6 +317,8 @@ class NaViT(nn.Module):
             raise ValueError("dropout_rate should be between 0 and 1.")
         if not (0 <= emb_dropout_rate <= 1):
             raise ValueError("emb_dropout_rate should be between 0 and 1.")
+        if num_heads <= 0:
+            raise ValueError("num_heads must be a positive integer.")
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
 
@@ -344,6 +345,11 @@ class NaViT(nn.Module):
 
         # --- factorized positional embeddings (one table per spatial axis) ---
         image_size_t = ensure_tuple_rep(image_size, spatial_dims)
+        for i, img_d in enumerate(image_size_t):
+            if img_d % patch_size != 0:
+                raise ValueError(
+                    f"image_size dimension {i} ({img_d}) must be divisible by patch_size ({patch_size})."
+                )
         self.pos_embed_axes = nn.ParameterList(
             [nn.Parameter(torch.randn(img_d // patch_size, hidden_size)) for img_d in image_size_t]
         )
@@ -444,6 +450,12 @@ class NaViT(nn.Module):
         Returns:
             Tensor of shape ``(total_images, num_classes)`` containing one logit vector per image
             across all groups in the batch.
+
+        Raises:
+            ValueError: If an image does not have the expected number of dimensions
+                (``spatial_dims + 1``).
+            ValueError: If an image's channel count does not match ``in_channels``.
+            ValueError: If any spatial dimension of an image is not divisible by ``patch_size``.
         """
         device = self.device
         pad_sequence = partial(orig_pad_sequence, batch_first=True)
@@ -489,8 +501,8 @@ class NaViT(nn.Module):
 
                 seq, pos = self._image_to_patches(image)  # (N, patch_dim), (N, spatial_dims)
 
-                # optional token dropout
-                if self.calc_token_dropout is not None:
+                # optional token dropout (training only)
+                if self.calc_token_dropout is not None and self.training:
                     dropout_frac = self.calc_token_dropout(*spatial)
                     num_keep = max(1, int(seq.shape[0] * (1.0 - dropout_frac)))
                     keep_idx = torch.randn(seq.shape[0], device=device).topk(num_keep).indices
