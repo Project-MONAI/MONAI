@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -43,6 +44,9 @@ MlflowException, _ = optional_import(
 )
 pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
 tqdm, _ = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+SystemMetricsMonitor, has_system_metrics = optional_import(
+    "mlflow.system_metrics.system_metrics_monitor", name="SystemMetricsMonitor"
+)
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -136,6 +140,18 @@ class MLFlowHandler:
             or the ``MLFLOW_TRACKING_URI`` environment variable), it defaults to an ``mlruns`` directory
             next to the database file; for other backends ``None`` lets MLflow decide based on the
             ``tracking_uri``. Has no effect if the experiment already exists.
+        log_system_metrics: whether to record system resource usage (CPU, memory, disk, network and GPU)
+            while the workflow runs, default to False. The metrics are sampled in a background thread by
+            MLflow itself and stored in the same run as the workflow metrics, under the `system/` prefix.
+            Requires `psutil`, and `pynvml` in addition for the GPU metrics. Note that MLflow reads the
+            run through the global tracking URI to sample it, so enabling this sets the global tracking
+            URI to `tracking_uri`; a process that tracks to several URIs at the same time should keep
+            this disabled.
+        system_metrics_sampling_interval: seconds between two samples of the system metrics, default to
+            `None`, which keeps the MLflow default (10 seconds). Only used if `log_system_metrics` is True.
+        system_metrics_samples_before_logging: number of samples to aggregate before they are logged,
+            default to `None`, which keeps the MLflow default (1 sample). Only used if `log_system_metrics`
+            is True.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -143,6 +159,10 @@ class MLFlowHandler:
 
     # parameters that are logged at the start of training
     default_tracking_params = ["max_epochs", "epoch_length"]
+
+    # runs whose system metrics are being sampled, so that handlers sharing a run sample it once
+    _monitored_run_ids: set[str] = set()
+    _system_metrics_lock = threading.Lock()
 
     def __init__(
         self,
@@ -165,6 +185,9 @@ class MLFlowHandler:
         optimizer_param_names: str | Sequence[str] = "lr",
         close_on_complete: bool = False,
         artifact_location: str | None = None,
+        log_system_metrics: bool = False,
+        system_metrics_sampling_interval: int | None = None,
+        system_metrics_samples_before_logging: int | None = None,
     ) -> None:
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
@@ -210,11 +233,19 @@ class MLFlowHandler:
                 f"tracking_uri={effective_tracking_uri!r}. Use a SQLite URI "
                 "(sqlite:///<path>/mlruns.db) or a remote tracking URI instead."
             )
+        # The system metrics monitor reads the run through the global tracking uri,
+        # so remember the uri that was actually settled on rather than the argument.
+        self.tracking_uri = effective_tracking_uri
         # Only the argument is passed to the client; when `MLFLOW_TRACKING_URI` took priority it
         # is left None so MLflow resolves the environment variable itself.
         self.client = mlflow.MlflowClient(tracking_uri=None if env_tracking_uri else tracking_uri)
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
+        self.log_system_metrics = log_system_metrics
+        self.system_metrics_sampling_interval = system_metrics_sampling_interval
+        self.system_metrics_samples_before_logging = system_metrics_samples_before_logging
+        self.system_metrics_monitor = None
+        self._monitored_run_id: str | None = None
         self.experiment = None
         self.cur_run = None
         self.dataset_dict = dataset_dict
@@ -294,6 +325,66 @@ class MLFlowHandler:
             self.dataset_logger(self.dataset_dict)
         else:
             self._default_dataset_log(self.dataset_dict)
+
+        if self.log_system_metrics:
+            self._start_system_metrics_monitor()
+
+    def _start_system_metrics_monitor(self) -> None:
+        """
+        Start sampling the system resource usage of the current run, if it is not sampled yet.
+
+        A workflow attaches one handler per engine, and those handlers share a run, so the run is
+        sampled by the first handler that starts and left alone by the other ones.
+        """
+        if self.system_metrics_monitor is not None or self.cur_run is None:
+            return
+
+        if not has_system_metrics:
+            warnings.warn("Please install mlflow>=2.8.0 to record the system metrics.")
+            return
+
+        run_id = self.cur_run.info.run_id
+        with MLFlowHandler._system_metrics_lock:
+            if run_id in MLFlowHandler._monitored_run_ids:
+                return
+
+            # mlflow reads the run to sample through the global tracking URI, not through the client
+            if self.tracking_uri:
+                mlflow.set_tracking_uri(self.tracking_uri)
+
+            kwargs = {}
+            if self.system_metrics_sampling_interval is not None:
+                kwargs["sampling_interval"] = self.system_metrics_sampling_interval
+            if self.system_metrics_samples_before_logging is not None:
+                kwargs["samples_before_logging"] = self.system_metrics_samples_before_logging
+
+            try:
+                monitor = SystemMetricsMonitor(run_id, **kwargs)
+                monitor.start()
+            except Exception as e:
+                # a workflow should not fail because its resource usage cannot be recorded
+                warnings.warn(f"Failed to record the system metrics: {e}")
+                return
+
+            MLFlowHandler._monitored_run_ids.add(run_id)
+            self.system_metrics_monitor = monitor
+            self._monitored_run_id = run_id
+
+    def _stop_system_metrics_monitor(self) -> None:
+        """
+        Stop sampling the system resource usage, if this handler is the one sampling it.
+        """
+        if self.system_metrics_monitor is None:
+            return
+
+        with MLFlowHandler._system_metrics_lock:
+            try:
+                self.system_metrics_monitor.finish()
+            except Exception as e:
+                warnings.warn(f"Failed to stop recording the system metrics: {e}")
+            MLFlowHandler._monitored_run_ids.discard(self._monitored_run_id)
+            self.system_metrics_monitor = None
+            self._monitored_run_id = None
 
     def _set_experiment(self):
         experiment = self.experiment
@@ -394,6 +485,8 @@ class MLFlowHandler:
         """
         Handler for train or validation/evaluation completed Event.
         """
+        self._stop_system_metrics_monitor()
+
         if self.artifacts and self.cur_run:
             artifact_list = self._parse_artifacts()
             for artifact in artifact_list:
@@ -430,6 +523,8 @@ class MLFlowHandler:
         Stop current running logger of MLFlow and release local SQLite resources.
 
         """
+        self._stop_system_metrics_monitor()
+
         try:
             if self.cur_run:
                 self.client.set_terminated(self.cur_run.info.run_id, self.run_finish_status)

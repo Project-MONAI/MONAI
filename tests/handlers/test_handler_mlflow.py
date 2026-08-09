@@ -335,6 +335,87 @@ class TestHandlerMLFlow(unittest.TestCase):
             else:
                 self.assertEqual(handler._default_iteration_log.call_count, 2)  # 2 = len([1, 3]) from event_filter
 
+    def test_system_metrics_disabled_by_default(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            def _train_func(engine, batch):
+                return [batch + 1.0]
+
+            engine = Engine(_train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_off")
+            handler = MLFlowHandler(iteration_log=False, tracking_uri=path_to_uri(test_path), close_on_complete=True)
+            handler.attach(engine)
+            engine.run(range(3), max_epochs=1)
+
+            self.assertIsNone(handler.system_metrics_monitor)
+            run = handler.client.get_run(handler.cur_run.info.run_id) if handler.cur_run else None
+            self.assertIsNone(run)
+
+    def test_system_metrics_monitor_life_cycle(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            def _train_func(engine, batch):
+                return [batch + 1.0]
+
+            engine = Engine(_train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_uri(test_path),
+                log_system_metrics=True,
+                system_metrics_sampling_interval=1,
+                system_metrics_samples_before_logging=1,
+                close_on_complete=True,
+            )
+            monitor = MagicMock()
+            with patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class:
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=1)
+
+            # the monitor samples the run of the handler, with the requested sampling settings
+            monitor_class.assert_called_once()
+            self.assertEqual(monitor_class.call_args.kwargs["sampling_interval"], 1)
+            self.assertEqual(monitor_class.call_args.kwargs["samples_before_logging"], 1)
+            monitor.start.assert_called_once()
+            # the sampling is stopped when the workflow completes
+            monitor.finish.assert_called_once()
+            self.assertIsNone(handler.system_metrics_monitor)
+
+    def test_system_metrics_monitor_shared_by_handlers(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            def _train_func(engine, batch):
+                return [batch + 1.0]
+
+            engine = Engine(_train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_shared")
+            # a workflow attaches one handler per engine, all of them sharing a run
+            handlers = [
+                MLFlowHandler(
+                    iteration_log=False, tracking_uri=path_to_uri(test_path), run_name="shared", log_system_metrics=True
+                )
+                for _ in range(3)
+            ]
+            monitor = MagicMock()
+            with patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class:
+                for handler in handlers:
+                    handler.start(engine)
+
+                # the run is sampled by the first handler only
+                monitor_class.assert_called_once()
+
+                # the handlers that do not sample the run leave it running when they complete
+                for handler in handlers[1:]:
+                    handler.complete()
+                monitor.finish.assert_not_called()
+
+                # the sampling stops when the handler that started it completes
+                handlers[0].complete()
+                monitor.finish.assert_called_once()
+
+            for handler in handlers:
+                handler.close()
+
     def test_multi_thread(self):
         test_uri_list = ["monai_mlflow_test1", "monai_mlflow_test2"]
         with tempfile.TemporaryDirectory() as tempdir:
