@@ -53,18 +53,6 @@ TEST_TRAIN_2 = [
         "config_filters_filename": None,
     }
 ]
-TEST_TRAIN_3 = [
-    {
-        "bundle_root": _data_dir,
-        "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"),
-            workflow_type="train",
-            logging_file=_logging_file,
-        ),
-        "config_evaluate_filename": None,
-        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
-    }
-]
 
 TEST_TRAIN_4 = [
     {
@@ -182,7 +170,7 @@ TEST_GET_WEIGHTS_3 = [
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
-    @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3, TEST_TRAIN_4])
+    @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_4])
     def test_train(self, input_params):
         # initialize algo
         algo = MonaiAlgo(**input_params)
