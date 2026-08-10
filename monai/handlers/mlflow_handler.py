@@ -242,6 +242,12 @@ class MLFlowHandler:
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
         self.log_system_metrics = log_system_metrics
+        for name, value in (
+            ("system_metrics_sampling_interval", system_metrics_sampling_interval),
+            ("system_metrics_samples_before_logging", system_metrics_samples_before_logging),
+        ):
+            if value is not None and value <= 0:
+                raise ValueError(f"`{name}` must be a positive number, got {value}.")
         self.system_metrics_sampling_interval = system_metrics_sampling_interval
         self.system_metrics_samples_before_logging = system_metrics_samples_before_logging
         self.system_metrics_monitor = None
@@ -348,10 +354,6 @@ class MLFlowHandler:
             if run_id in MLFlowHandler._monitored_run_ids:
                 return
 
-            # mlflow reads the run to sample through the global tracking URI, not through the client
-            if self.tracking_uri:
-                mlflow.set_tracking_uri(self.tracking_uri)
-
             kwargs = {}
             if self.system_metrics_sampling_interval is not None:
                 kwargs["sampling_interval"] = self.system_metrics_sampling_interval
@@ -359,6 +361,10 @@ class MLFlowHandler:
                 kwargs["samples_before_logging"] = self.system_metrics_samples_before_logging
 
             try:
+                # mlflow reads the run to sample through the global tracking URI,
+                # not through the client
+                if self.tracking_uri:
+                    mlflow.set_tracking_uri(self.tracking_uri)
                 monitor = SystemMetricsMonitor(run_id, **kwargs)
                 monitor.start()
             except Exception as e:

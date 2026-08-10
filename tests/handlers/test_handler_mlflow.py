@@ -336,6 +336,9 @@ class TestHandlerMLFlow(unittest.TestCase):
                 self.assertEqual(handler._default_iteration_log.call_count, 2)  # 2 = len([1, 3]) from event_filter
 
     def test_system_metrics_disabled_by_default(self):
+        """
+        Test that a handler left at its default settings does not sample the system metrics.
+        """
         with tempfile.TemporaryDirectory() as tempdir:
 
             def _train_func(engine, batch):
@@ -352,6 +355,10 @@ class TestHandlerMLFlow(unittest.TestCase):
             self.assertIsNone(run)
 
     def test_system_metrics_monitor_life_cycle(self):
+        """
+        Test that the monitor samples the run of the handler with the requested settings,
+        and stops when the workflow completes.
+        """
         with tempfile.TemporaryDirectory() as tempdir:
 
             def _train_func(engine, batch):
@@ -382,6 +389,10 @@ class TestHandlerMLFlow(unittest.TestCase):
             self.assertIsNone(handler.system_metrics_monitor)
 
     def test_system_metrics_monitor_shared_by_handlers(self):
+        """
+        Test that handlers sharing a run sample it once, and that the run keeps being sampled
+        until the handler that started the sampling completes.
+        """
         with tempfile.TemporaryDirectory() as tempdir:
 
             def _train_func(engine, batch):
@@ -415,6 +426,19 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             for handler in handlers:
                 handler.close()
+
+    def test_system_metrics_settings_are_validated(self):
+        """
+        Test that a sampling setting that mlflow does not define a behaviour for is rejected.
+        """
+        for kwargs in (
+            {"system_metrics_sampling_interval": 0},
+            {"system_metrics_sampling_interval": -1},
+            {"system_metrics_samples_before_logging": 0},
+            {"system_metrics_samples_before_logging": -5},
+        ):
+            with self.assertRaises(ValueError):
+                MLFlowHandler(log_system_metrics=True, **kwargs)
 
     def test_multi_thread(self):
         test_uri_list = ["monai_mlflow_test1", "monai_mlflow_test2"]
