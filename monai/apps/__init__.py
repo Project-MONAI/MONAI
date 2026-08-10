@@ -15,6 +15,7 @@ from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset, TciaDat
 from .mmars import MODEL_DESC, RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from .utils import (
     SUPPORTED_HASH_TYPES,
+    HashCheckError,
     check_hash,
     create_temp_dir,
     download_and_extract,
