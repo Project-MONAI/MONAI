@@ -153,6 +153,48 @@ class TestDints(unittest.TestCase):
         self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
+class TestDintsArchCode(unittest.TestCase):
+    """arch_code entries loaded with `torch.load(..., weights_only=True)` are tensors, not numpy arrays."""
+
+    def setUp(self):
+        self.grid_params = {
+            "channel_mul": 0.2,
+            "num_blocks": 6,
+            "num_depths": 3,
+            "device": "cpu",
+            "use_downsample": False,
+            "spatial_dims": 3,
+        }
+        _cell = Cell(1, 1, 0, spatial_dims=self.grid_params["spatial_dims"])
+        num_paths = 3 * self.grid_params["num_depths"] - 2
+        self.arch_code_a = np.ones((self.grid_params["num_blocks"], num_paths))
+        self.arch_code_c = np.random.randint(len(_cell.OPS), size=(self.grid_params["num_blocks"], num_paths))
+
+    def test_tensor_arch_code_matches_numpy(self):
+        grid_np = TopologyInstance(arch_code=[self.arch_code_a, self.arch_code_c], **self.grid_params)
+        grid_pt = TopologyInstance(
+            arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
+        )
+        torch.testing.assert_close(grid_pt.arch_code_a, grid_np.arch_code_a)
+        torch.testing.assert_close(grid_pt.arch_code_c, grid_np.arch_code_c)
+        self.assertEqual(set(grid_pt.cell_tree.keys()), set(grid_np.cell_tree.keys()))
+
+    def test_dints_forward_tensor_arch_code(self):
+        grid = TopologyInstance(
+            arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
+        )
+        net = DiNTS(
+            dints_space=grid,
+            in_channels=1,
+            num_classes=2,
+            spatial_dims=3,
+            use_downsample=False,
+            node_a=torch.ones((self.grid_params["num_blocks"] + 1, self.grid_params["num_depths"])),
+        )
+        result = net(torch.randn(1, 1, 16, 16, 16))
+        self.assertEqual(result.shape, (1, 2, 16, 16, 16))
+
+
 class TestDintsTS(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):

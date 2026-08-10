@@ -519,7 +519,8 @@ class TopologyConstruction(nn.Module):
     The base class for `TopologyInstance` and `TopologySearch`.
 
     Args:
-        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
+        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays or torch tensors. The architecture codes defining
+            the model.
             For example, for a ``num_depths=4, num_blocks=12`` search space:
 
             - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
@@ -605,8 +606,8 @@ class TopologyConstruction(nn.Module):
             arch_code_a = torch.ones((self.num_blocks, len(self.arch_code2out))).to(self.device)
             arch_code_c = torch.ones((self.num_blocks, len(self.arch_code2out), self.num_cell_ops)).to(self.device)
         else:
-            arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
+            arch_code_a = torch.as_tensor(arch_code[0]).to(self.device)
+            arch_code_c = F.one_hot(torch.as_tensor(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
 
         self.arch_code_a = arch_code_a
         self.arch_code_c = arch_code_c
