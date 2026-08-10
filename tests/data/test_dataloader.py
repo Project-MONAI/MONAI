@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import sys
+import types
 import unittest
 
 import numpy as np
@@ -97,6 +98,37 @@ class TestLoaderRandom(unittest.TestCase):
             for batch in dataloader:
                 output.extend([convert_to_numpy(batch, wrap_sequence=False)])
         assert_allclose(np.stack(output).flatten()[:7], np.array([594, 170, 594, 170, 594, 170, 524]))
+
+
+class _CyclicConfigDataset(torch.utils.data.Dataset):
+    """
+    Dataset holding an attribute whose object graph contains a reference cycle.
+
+    This mirrors OmegaConf/Hydra configs, whose child nodes hold a back-reference
+    to their parent node. Seeding such a dataset used to recurse forever in
+    ``monai.data.utils.set_rnd`` (see issue #8087).
+    """
+
+    def __init__(self):
+        parent = types.SimpleNamespace()
+        child = types.SimpleNamespace()
+        parent.child = child
+        child.parent = parent  # reference cycle, as in an OmegaConf parent/child graph
+        self.cfg = parent
+
+    def __len__(self):
+        return 4
+
+    def __getitem__(self, index):
+        return torch.tensor([index])
+
+
+class TestLoaderRecursion(unittest.TestCase):
+    def test_cyclic_reference_no_recursion(self):
+        # Constructing the loader seeds the dataset (num_workers=0). A reference cycle in the
+        # dataset's attributes must not raise RecursionError while walking the object graph.
+        dataloader = DataLoader(_CyclicConfigDataset(), batch_size=1, num_workers=0, shuffle=False)
+        self.assertEqual(len(list(dataloader)), 4)
 
 
 if __name__ == "__main__":
