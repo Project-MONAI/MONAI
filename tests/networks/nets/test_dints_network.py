@@ -157,6 +157,12 @@ class TestDintsArchCode(unittest.TestCase):
     """arch_code entries loaded with `torch.load(..., weights_only=True)` are tensors, not numpy arrays."""
 
     def setUp(self):
+        """Create a small CPU search space and numpy architecture codes shared by the tests.
+
+        Builds ``grid_params`` for a ``num_blocks=6, num_depths=3`` topology, a binary
+        ``arch_code_a`` path-activation matrix of ones, and a random integer ``arch_code_c``
+        cell-operation matrix valid for the ``Cell`` operation set.
+        """
         self.grid_params = {
             "channel_mul": 0.2,
             "num_blocks": 6,
@@ -171,6 +177,11 @@ class TestDintsArchCode(unittest.TestCase):
         self.arch_code_c = np.random.randint(len(_cell.OPS), size=(self.grid_params["num_blocks"], num_paths))
 
     def test_tensor_arch_code_matches_numpy(self):
+        """Tensor arch codes yield the same topology as the equivalent numpy arch codes.
+
+        Constructs ``TopologyInstance`` from numpy and from tensor inputs and asserts that
+        ``arch_code_a``, ``arch_code_c``, and the instantiated cell tree are identical.
+        """
         grid_np = TopologyInstance(arch_code=[self.arch_code_a, self.arch_code_c], **self.grid_params)
         grid_pt = TopologyInstance(
             arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
@@ -180,6 +191,11 @@ class TestDintsArchCode(unittest.TestCase):
         self.assertEqual(set(grid_pt.cell_tree.keys()), set(grid_np.cell_tree.keys()))
 
     def test_dints_forward_tensor_arch_code(self):
+        """DiNTS built from tensor arch codes runs a forward pass with the expected output shape.
+
+        Feeds a random ``(1, 1, 16, 16, 16)`` volume through the network and asserts the
+        segmentation output shape is ``(1, 2, 16, 16, 16)``.
+        """
         grid = TopologyInstance(
             arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
         )
