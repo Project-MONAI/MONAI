@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+import warnings
 from unittest.case import skipIf, skipUnless
 from unittest.mock import patch
 
@@ -515,7 +516,7 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             marker = os.path.join(tempdir, "PWNED")
             name = self._stage_malicious_bundle(tempdir, marker)
-            with self.assertWarns(UserWarning):
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
                 with self.assertRaises(AttributeError):
                     # the malicious config is missing metadata.json and returns a plain `int` for
                     # `network_def`, so the workflow construction fails after the payload has already
@@ -528,7 +529,9 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
             marker = os.path.join(tempdir, "PWNED")
             name = self._stage_malicious_bundle(tempdir, marker)
             model = nets.UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2,))
-            load(name=name, model=model, bundle_dir=tempdir, source="github", repo="attacker/repo")
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                load(name=name, model=model, bundle_dir=tempdir, source="github", repo="attacker/repo")
             self.assertFalse(os.path.exists(marker))
 
     def test_run_warns_on_config_execution(self):
@@ -538,7 +541,7 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
             with open(config_file, "w") as f:
                 payload = f"$__import__('os').system({('echo pwned > ' + marker)!r})"
                 json.dump({"initialize": [payload]}, f)
-            with self.assertWarns(UserWarning):
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
                 with self.assertRaises(ValueError):
                     # no "run" ID is defined, so `workflow.run()` fails after `initialize()` has
                     # already evaluated the payload above.
