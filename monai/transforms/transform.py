@@ -161,10 +161,8 @@ def apply_transform(
         if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             if isinstance(log_stats, str):
-                # pyrefly: ignore [implicit-import]
                 datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=log_stats)
             else:
-                # pyrefly: ignore [implicit-import]
                 datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
             logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")

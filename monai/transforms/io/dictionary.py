@@ -279,7 +279,6 @@ class SaveImaged(MapTransform):
         output_format: str = "",
         writer: type[image_writer.ImageWriter] | str | None = None,
         output_name_formatter: Callable[[dict, Transform], dict] | None = None,
-        # pyrefly: ignore [implicit-import]
         folder_layout: monai.data.FolderLayoutBase | None = None,
         savepath_in_metadict: bool = False,
     ) -> None:

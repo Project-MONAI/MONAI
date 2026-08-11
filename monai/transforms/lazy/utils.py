@@ -178,7 +178,6 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     """
     if not Affine.is_affine_shaped(matrix):
         raise NotImplementedError(f"Calling the dense grid resample API directly not implemented, {matrix.shape}.")
-    # pyrefly: ignore [implicit-import]
     if isinstance(data, monai.data.MetaTensor) and data.pending_operations:
         warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = kwargs or {}
@@ -192,9 +191,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         "align_corners": kwargs.get(LazyAttr.ALIGN_CORNERS, False),
     }
     ndim = len(matrix) - 1
-    # pyrefly: ignore [implicit-import]
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
-    # pyrefly: ignore [implicit-import]
     init_affine = monai.data.to_affine_nd(ndim, img.affine)
     spatial_size = kwargs.get(LazyAttr.SHAPE, None)
     out_spatial_size = img.peek_pending_shape() if spatial_size is None else spatial_size

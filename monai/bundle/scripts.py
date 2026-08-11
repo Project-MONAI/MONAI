@@ -590,7 +590,6 @@ def download(
                 _download_from_monaihosting(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
-            # pyrefly: ignore [implicit-import]
             except urllib.error.HTTPError:
                 # if also cannot download from ngc monaihosting, download according to bundle_info
                 _download_from_bundle_info(

@@ -20,7 +20,6 @@ from monai.data.utils import create_file_basename
 __all__ = ["FolderLayoutBase", "FolderLayout", "default_name_formatter"]
 
 
-# pyrefly: ignore [implicit-import]
 def default_name_formatter(metadict: dict, saver: monai.transforms.Transform) -> dict:
     """Returns a kwargs dict for :py:meth:`FolderLayout.filename`,
     according to the input metadata and SaveImage transform."""

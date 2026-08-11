@@ -240,7 +240,6 @@ class VISTA3D(nn.Module):
             mapping_index: [B].
             thred: the threshold to convert logits to binary.
         """
-        # pyrefly: ignore [implicit-import]
         logits = logits.as_tensor() if isinstance(logits, monai.data.MetaTensor) else logits
         _logits = logits[mapping_index]
         inside = []
@@ -298,7 +297,6 @@ class VISTA3D(nn.Module):
             1, keepdims=True
         )
         weight[weight < 0] = 0
-        # pyrefly: ignore [implicit-import]
         logits = logits.as_tensor() if isinstance(logits, monai.data.MetaTensor) else logits
         logits[mapping_index] *= weight
         logits[mapping_index] += (1 - weight) * point_logits

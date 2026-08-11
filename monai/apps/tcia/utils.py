@@ -100,7 +100,6 @@ def download_tcia_series_instance(
     query_name = "getImageWithMD5Hash" if check_md5 else "getImage"
     download_url = f"{BASE_URL}{query_name}?SeriesInstanceUID={series_uid}"
 
-    # pyrefly: ignore [implicit-import]
     monai.apps.utils.download_and_extract(
         url=download_url,
         filepath=os.path.join(download_dir, f"{series_uid}.zip"),
@@ -112,7 +111,6 @@ def download_tcia_series_instance(
             raise ValueError("pandas package is necessary, please install it.")
         hashes_df = pd.read_csv(os.path.join(output_dir, hashes_filename))
         for dcm, md5hash in hashes_df.values:
-            # pyrefly: ignore [implicit-import]
             monai.apps.utils.check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
 
 

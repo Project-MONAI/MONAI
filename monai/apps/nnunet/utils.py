@@ -23,7 +23,6 @@ from monai.utils import StrEnum, ensure_tuple, optional_import
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
 
-# pyrefly: ignore [implicit-import]
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["analyze_data", "create_new_data_copy", "create_new_dataset_json", "NNUNETMode"]
@@ -44,7 +43,6 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
         datalist_json: original data list .json (required by most monai tutorials).
         data_dir: raw data directory.
     """
-    # pyrefly: ignore [implicit-import]
     img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
         os.path.join(data_dir, datalist_json["training"][0]["image"])
     )
@@ -53,7 +51,6 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
 
     num_foreground_classes = 0
     for _i in range(len(datalist_json["training"])):
-        # pyrefly: ignore [implicit-import]
         seg = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
             os.path.join(data_dir, datalist_json["training"][_i]["label"])
         )
@@ -96,7 +93,6 @@ def create_new_data_copy(
             _index += 1
 
             # copy image
-            # pyrefly: ignore [implicit-import]
             nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                 os.path.join(data_dir, orig_img_name)
             )
@@ -109,7 +105,6 @@ def create_new_data_copy(
 
             # copy label
             if isinstance(datalist_json[_key][_k], dict) and "label" in datalist_json[_key][_k]:
-                # pyrefly: ignore [implicit-import]
                 nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                     os.path.join(data_dir, datalist_json[_key][_k]["label"])
                 )

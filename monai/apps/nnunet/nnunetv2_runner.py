@@ -31,7 +31,6 @@ join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations"
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
 
-# pyrefly: ignore [implicit-import]
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["nnUNetV2Runner"]

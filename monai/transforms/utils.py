@@ -371,7 +371,6 @@ def check_non_lazy_pending_ops(
         name: an optional name to be included in the error message.
         raise_error: whether to raise an error, default to False, a warning message will be issued instead.
     """
-    # pyrefly: ignore [implicit-import]
     if isinstance(input_array, monai.data.MetaTensor) and input_array.pending_operations:
         msg = (
             "The input image is a MetaTensor and has pending operations,\n"
@@ -430,7 +429,6 @@ def map_and_generate_sampling_centers(
 
     if label_spatial_shape is not None:
         _shape = label_spatial_shape
-    # pyrefly: ignore [implicit-import]
     elif isinstance(label, monai.data.MetaTensor):
         _shape = label.peek_pending_shape()
     else:
@@ -535,7 +533,6 @@ def map_classes_to_indices(
         if img_flat is not None:
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        # pyrefly: ignore [implicit-import]
         output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
         cls_indices: NdarrayOrTensor = convert_data_type(
             nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
@@ -1511,7 +1508,6 @@ def remove_small_objects(
     if by_measure:
         # pyrefly: ignore [missing-attribute]
         sr = len(img.shape[1:])
-        # pyrefly: ignore [implicit-import]
         if isinstance(img, monai.data.MetaTensor):
             # pyrefly: ignore [missing-attribute]
             _pixdim = img.pixdim
@@ -1862,7 +1858,6 @@ def reset_ops_id(data):
     """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
-    # pyrefly: ignore [implicit-import]
     if isinstance(data, monai.data.MetaTensor):
         data.applied_operations = reset_ops_id(data.applied_operations)
         return data
@@ -2029,7 +2024,6 @@ def get_transform_backends():
     """
     backends = {}
     unique_transforms = []
-    # pyrefly: ignore [implicit-import]
     for n, obj in getmembers(monai.transforms):
         # skip aliases
         if obj in unique_transforms:
@@ -2221,20 +2215,15 @@ def sync_meta_info(key, data_dict, t: bool = True):
     # update meta dicts
     meta_dict_key = PostFix.meta(key)
     if meta_dict_key not in d:
-        # pyrefly: ignore [implicit-import]
         d[meta_dict_key] = monai.data.MetaTensor.get_default_meta()
-    # pyrefly: ignore [implicit-import]
     if not isinstance(d[key], monai.data.MetaTensor):
-        # pyrefly: ignore [implicit-import]
         d[key] = monai.data.MetaTensor(data_dict[key])
         d[key].meta = d[meta_dict_key]
     d[meta_dict_key].update(d[key].meta)  # prefer metatensor's data
 
     # update xform info
-    # pyrefly: ignore [implicit-import]
     xform_key = monai.transforms.TraceableTransform.trace_key(key)
     if xform_key not in d:
-        # pyrefly: ignore [implicit-import]
         d[xform_key] = monai.data.MetaTensor.get_default_applied_operations()
     from_meta, from_dict = d[key].applied_operations, d[xform_key]
     if not from_meta:  # avoid []
@@ -2491,7 +2480,6 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
             _, reasons = has_status_keys(d, status_key, default_message)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
-    # pyrefly: ignore [implicit-import]
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
             status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))
