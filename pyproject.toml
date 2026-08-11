@@ -85,6 +85,9 @@ extend-ignore = [
 [tool.ruff.lint.mccabe]
 max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.pytype]
 # Space-separated list of files or directories to exclude.
 exclude = ["versioneer.py", "_version.py"]

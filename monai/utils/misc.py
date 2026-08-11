@@ -574,6 +574,15 @@ class MONAIEnvVars:
         """
         return str2bool(os.environ.get("MONAI_ALLOW_PICKLE", "0"))
 
+    @staticmethod
+    def dicom_reader() -> str:
+        """Preferred DICOM reader for :py:class:`monai.transforms.LoadImage`.
+
+        Supported values: ``itk``, ``pydicom``, ``nvimgcodec``.
+        Returns an empty string when unset or unsupported.
+        """
+        return os.environ.get("MONAI_DICOM_READER", "").lower()
+
 
 class ImageMetaKey:
     """

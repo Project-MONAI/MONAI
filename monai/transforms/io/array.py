@@ -36,8 +36,10 @@ from monai.data.image_reader import (
     NibabelReader,
     NrrdReader,
     NumpyReader,
+    NvImgCodecPydicomReader,
     PILReader,
     PydicomReader,
+    get_preferred_dicom_reader_key,
 )
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import is_no_channel
@@ -59,16 +61,37 @@ Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
 FileLock, has_filelock = optional_import("filelock", name="FileLock")
 
-__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
+__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS", "get_default_reader_registration_order"]
 
+# Default readers for :py:class:`LoadImage`. Dict insertion order is the registration order
+# (auto-select tries registered readers from last to first). Users may add custom readers here.
+# DICOM readers are listed first so that, by default, ``itkreader`` is tried before the other
+# DICOM readers; ``MONAI_DICOM_READER`` can promote a preferred DICOM reader to last (tried first).
 SUPPORTED_READERS = {
     "pydicomreader": PydicomReader,
+    "nvimgcodecpydicomreader": NvImgCodecPydicomReader,
     "itkreader": ITKReader,
     "nrrdreader": NrrdReader,
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
 }
+
+
+def get_default_reader_registration_order() -> list[str]:
+    """
+    Return the default reader registration order for :py:class:`LoadImage`.
+
+    Uses :py:data:`SUPPORTED_READERS` insertion order so user-added entries are included.
+    If ``MONAI_DICOM_READER`` resolves to a non-empty preferred key present in
+    ``SUPPORTED_READERS``, that key is moved to the end of the list so auto-selection
+    tries it first.
+    """
+    order = list(SUPPORTED_READERS)
+    preferred = get_preferred_dicom_reader_key()
+    if preferred and preferred in order:
+        order = [key for key in order if key != preferred] + [preferred]
+    return order
 
 
 def switch_endianness(data, new="<"):
@@ -116,7 +139,10 @@ class LoadImage(Transform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
+          (npz, npy -> NumpyReader), (nrrd -> NrrdReader),
+          (DICOM file -> ITKReader first among DICOM readers by default).
+        - Optionally set ``MONAI_DICOM_READER`` to ``itk``, ``pydicom``, or ``nvimgcodec``
+          (GPU-accelerated decoding) to try that DICOM reader first.
 
     Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
     loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
@@ -185,7 +211,7 @@ class LoadImage(Transform):
         self.expanduser = expanduser
 
         self.readers: list[ImageReader] = []
-        for r in SUPPORTED_READERS:  # set predefined readers as default
+        for r in get_default_reader_registration_order():  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
             except OptionalImportError:

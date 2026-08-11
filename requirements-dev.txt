@@ -1,4 +1,6 @@
-# Full requirements for developments
+# Full requirements for development.
+# Install with: python -m pip install -U pip wheel && python -m pip install --no-build-isolation -r requirements-dev.txt
+# (--no-build-isolation is required for MetricsReloaded; git+https URLs are avoided for public GitHub deps.)
 -r requirements-min.txt
 pytorch-ignite
 gdown>=4.7.3
@@ -49,7 +51,8 @@ pydicom
 h5py
 nni==2.10.1; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
 optuna
-git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
+# Use GitHub archive URLs instead of git+https to avoid git credential helper issues on public repos.
+MetricsReloaded @ https://github.com/Project-MONAI/MetricsReloaded/archive/refs/heads/monai-support.zip
 onnx>=1.13.0
 onnxscript
 onnxruntime
@@ -60,7 +63,9 @@ lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
 pyamg>=5.0.0, <5.3.0
-git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
+segment_anything @ https://github.com/facebookresearch/segment-anything/archive/6fdee8f2727f4506cfbbe553e23b895e27956588.zip
 onnx_graphsurgeon
 polygraphy
 pytest  # FIXME: added to get around cupy 14.1.0 creating the requirement through polygraphy and trt_compiler somehow
+cupy-cuda13x[ctk]; platform_system == "Linux"
+nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == "Linux"
