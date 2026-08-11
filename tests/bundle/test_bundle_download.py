@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
-from monai.bundle import ConfigParser, create_workflow, load
+from monai.bundle import ConfigParser, create_workflow, load, run
 from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.test_utils import (
@@ -486,6 +486,64 @@ class TestNgcBundleDownload(unittest.TestCase):
                     rtol=1e-4,
                     type_test=False,
                 )
+
+
+class TestLoadWarnsOnConfigExecution(unittest.TestCase):
+    """Regression tests for GHSA-873f-pvrv-4x83: `load()`/`create_workflow()` parse and execute a
+    bundle's own config (arbitrary `_target_`/`$`-expression content) whenever `model` is `None`.
+    There is no opt-in flag -- MONAI has no way to establish whether a bundle is actually
+    trustworthy, so a flag would only teach callers to always pass it and ignore the risk. Instead,
+    a `UserWarning` is raised every time this happens, in both `load()` (via `create_workflow()`)
+    and `run()` (also via `create_workflow()`)."""
+
+    def _stage_malicious_bundle(self, tempdir: str, marker: str) -> str:
+        name = "evil_bundle"
+        bundle_root = os.path.join(tempdir, name)
+        os.makedirs(os.path.join(bundle_root, "configs"))
+        os.makedirs(os.path.join(bundle_root, "models"))
+        torch.save({"state_dict": {}}, os.path.join(bundle_root, "models", "model.pt"))
+        # `marker` is embedded via `!r` (not raw-interpolated) since this string is itself later
+        # evaluated as Python source -- on Windows, a raw path's backslashes would otherwise be
+        # misparsed as escape sequences.
+        payload = f"$__import__('os').system({('echo pwned > ' + marker)!r})"
+        malicious_config = {"network_def": payload, "initialize": []}
+        with open(os.path.join(bundle_root, "configs", "train.json"), "w") as f:
+            json.dump(malicious_config, f)
+        return name
+
+    def test_default_warns_and_executes_config(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            with self.assertWarns(UserWarning):
+                with self.assertRaises(AttributeError):
+                    # the malicious config is missing metadata.json and returns a plain `int` for
+                    # `network_def`, so the workflow construction fails after the payload has already
+                    # run -- this mirrors the advisory's own PoC, where the failure happens *after* RCE.
+                    load(name=name, bundle_dir=tempdir, source="github", repo="attacker/repo")
+            self.assertTrue(os.path.exists(marker))
+
+    def test_explicit_model_skips_config_parsing(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            model = nets.UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2,))
+            load(name=name, model=model, bundle_dir=tempdir, source="github", repo="attacker/repo")
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_warns_on_config_execution(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            config_file = os.path.join(tempdir, "train.json")
+            with open(config_file, "w") as f:
+                payload = f"$__import__('os').system({('echo pwned > ' + marker)!r})"
+                json.dump({"initialize": [payload]}, f)
+            with self.assertWarns(UserWarning):
+                with self.assertRaises(ValueError):
+                    # no "run" ID is defined, so `workflow.run()` fails after `initialize()` has
+                    # already evaluated the payload above.
+                    run(config_file=config_file)
+            self.assertTrue(os.path.exists(marker))
 
 
 if __name__ == "__main__":
