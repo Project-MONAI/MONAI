@@ -63,6 +63,28 @@ class TestWriteMetricsReports(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
 
+    def test_multi_metric_details_headers(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            write_metrics_reports(
+                save_dir=Path(tempdir),
+                images=["img1", "img2"],
+                metrics=None,
+                metric_details={
+                    "m1": torch.tensor([[1, 2, 3], [4, 5, 6]]),
+                    "m2": torch.tensor([[7, 8], [9, 10]]),
+                    "m3": torch.tensor([[11, 12, 13, 14], [15, 16, 17, 18]]),
+                },
+                summary_ops=None,
+                deli=",",
+                output_type="csv",
+            )
+            for name, nclass in [("m1", 3), ("m2", 2), ("m3", 4)]:
+                path = os.path.join(tempdir, f"{name}_raw.csv")
+                self.assertTrue(os.path.exists(path))
+                with open(path) as f:
+                    header = f.readline().strip().split(",")
+                self.assertEqual(header, ["filename"] + [f"class{i}" for i in range(nclass)] + ["mean"])
+
 
 if __name__ == "__main__":
     unittest.main()

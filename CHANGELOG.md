@@ -4,6 +4,11 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+* `HyenaMixer`, `HyenaTransformerBlock`, and `DepthwiseFFTConv{2,3}d` in `monai.networks.blocks`: subquadratic O(N log N) alternatives to windowed self-attention, backed by the HyenaND operator from the optional `nvsubquadratic` package.
+* `HyenaNDUNETR` (`monai.networks.nets.HyenaNDUNETR`): thin `SwinUNETR` subclass with a `get_variant(name)` classmethod for the three Hyena variants (`HHHH`, `HAHA`, `HHAA`) from the NeurIPS 2026 paper "Native Multi-Dimensional Subquadratic Operators via Input Dependent Long Convolutions" (paper id 26539).
+* `SwinUNETR.use_hyena` and `SwinUNETR.hyena_stages` kwargs to thread HyenaND blocks through any subset of Swin stages. Default `use_hyena=False` preserves bit-identical forward behavior of the existing code path.
+* New `[hyena]` extras_require in setup.cfg (`pip install monai[hyena]`).
 
 ## [1.6.0] - 2026-06-12
 
