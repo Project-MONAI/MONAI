@@ -131,6 +131,11 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
             urlretrieve(url, filepath)
     except (URLError, HTTPError, ContentTooShortError, OSError) as e:
         logger.error(f"Download failed from {url} to {filepath}.")
+        if filepath.exists():
+            try:
+                filepath.unlink()
+            except OSError:
+                pass
         raise e
 
 
@@ -145,13 +150,16 @@ def safe_extract_member(member, extract_to):
         member_path = str(member)
 
     if hasattr(member, "issym") and member.issym():
+        logger.warning(f"Unsafe path guard: Symbolic link blocked: {member_path}")
         raise ValueError(f"Symbolic link detected in archive: {member_path}")
     if hasattr(member, "islnk") and member.islnk():
+        logger.warning(f"Unsafe path guard: Hard link blocked: {member_path}")
         raise ValueError(f"Hard link detected in archive: {member_path}")
 
     member_path = os.path.normpath(member_path)
 
     if os.path.isabs(member_path) or ".." in member_path.split(os.sep):
+        logger.warning(f"Unsafe path guard: Absolute/relative path traversal blocked: {member_path}")
         raise ValueError(f"Unsafe path detected in archive: {member_path}")
 
     full_path = os.path.join(extract_to, member_path)
@@ -160,8 +168,14 @@ def safe_extract_member(member, extract_to):
     extract_root = os.path.realpath(extract_to)
     target_real = os.path.realpath(full_path)
     # Ensure the resolved path stays within the extraction root
-    if os.path.commonpath([extract_root, target_real]) != extract_root:
-        raise ValueError(f"Unsafe path: path traversal {member_path}")
+    try:
+        # On Windows, comparing paths on different drives raises ValueError in commonpath
+        if os.path.commonpath([extract_root, target_real]) != extract_root:
+            logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked: {member_path}")
+            raise ValueError(f"Unsafe path: path traversal {member_path}")
+    except ValueError as e:
+        logger.warning(f"Unsafe path guard: Out-of-bounds path traversal blocked due to drive mismatch or invalid paths: {member_path}")
+        raise ValueError(f"Unsafe path: path traversal {member_path}") from e
 
     return full_path
 
@@ -280,8 +294,12 @@ def download_url(
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
             shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
-    except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
-        pass
+    except (PermissionError, NotADirectoryError) as e:  # project-monai/monai issue #3613 #3757 for windows
+        if not check_hash(filepath, hash_val, hash_type):
+            raise RuntimeError(
+                f"Failed to move downloaded file to destination due to permission/directory error, "
+                f"and no valid cached file matching the hash was found at {filepath}: {e}"
+            ) from e
     logger.info(f"Downloaded: {filepath}")
 
 

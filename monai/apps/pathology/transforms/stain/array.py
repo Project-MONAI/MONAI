@@ -68,8 +68,8 @@ class ExtractHEStains(Transform):
 
         # remove transparent pixels
         absorbance_hat = absorbance[np.all(absorbance > self.beta, axis=1)]
-        if len(absorbance_hat) == 0:
-            raise ValueError("All pixels of the input image are below the absorbance threshold.")
+        if len(absorbance_hat) < 2:
+            raise ValueError("Insufficient non-transparent pixels above the absorbance threshold (need at least 2).")
 
         # compute eigenvectors
         _, eigvecs = np.linalg.eigh(np.cov(absorbance_hat.T).astype(np.float32, copy=False))

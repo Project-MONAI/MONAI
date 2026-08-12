@@ -30,9 +30,28 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
+        from monai.utils import optional_import, OptionalImportError
+        pkg_map = {
+            "NibabelReader": "nibabel",
+            "PILReader": "PIL",
+            "ITKReader": "itk",
+            "NrrdReader": "nrrd",
+            "NumpyReader": "numpy",
+            "PydicomReader": "pydicom",
+        }
         for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
-            self.assertIsInstance(inst, LoadImaged)
+            if r is None:
+                inst = LoadImaged("image", reader=r)
+                self.assertIsInstance(inst, LoadImaged)
+                continue
+
+            _, has_pkg = optional_import(pkg_map[r])
+            if has_pkg:
+                inst = LoadImaged("image", reader=r)
+                self.assertIsInstance(inst, LoadImaged)
+            else:
+                with self.assertRaises(OptionalImportError):
+                    LoadImaged("image", reader=r)
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")

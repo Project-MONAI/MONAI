@@ -30,6 +30,7 @@ Its ambitions are as follows:
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
+- secure archive extraction utilities with built-in path-traversal protection;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
 - multi-GPU multi-node data parallelism support.
@@ -75,7 +76,7 @@ If you have used MONAI in your research, please cite us! The citation can be exp
 
 ## Model Zoo
 
-[The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and great models from the community.
+[The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and greatest models from the community.
 Utilizing [the MONAI Bundle format](https://monai.readthedocs.io/en/latest/bundle_intro.html) makes it easy to [get started](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo) building workflows with MONAI.
 
 ## Contributing

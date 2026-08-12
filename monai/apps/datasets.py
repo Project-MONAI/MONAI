@@ -638,6 +638,7 @@ class TciaDataset(Randomizable, CacheDataset):
                 series_uid=ref_uid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
             )
         if not os.path.exists(seg_dir):
+            os.makedirs(os.path.dirname(seg_dir), exist_ok=True)
             shutil.copytree(seg_first_dir, seg_dir)
 
     def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
