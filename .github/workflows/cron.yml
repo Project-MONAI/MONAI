@@ -138,7 +138,7 @@ jobs:
         run: |
           which python
           python -m pip install --upgrade pip wheel twine tomli
-          python monai/config/print_dependencies.py build-system all testing | xargs -0 pip install --no-build-isolation
+          python monai/config/print_dependencies.py build-system all testing | xargs -d '\n' pip install --no-build-isolation
           python -m pip list
       - name: Run tests report coverage
         shell: bash
@@ -238,7 +238,7 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel tomli
-        python monai/config/print_dependencies.py build-system | xargs -0 pip install --no-cache-dir --no-build-isolation
+        python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-cache-dir --no-build-isolation
         BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)

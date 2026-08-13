@@ -140,7 +140,7 @@ BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MO
 When using build isolation (pip's default behaviour), a version of PyTorch must be installed which may not be the same as an existing install. This can cause the compiled libraries to be built against an ABI-incompatible PyTorch and thus not function at runtime. Building without isolation requires the current environment to have the necessary building libraries already installed. See the `build-system` section of `pyproject.toml` for these libraries, or use the following to install them:
 
 ```bash
-python monai/config/print_dependencies.py build-system | xargs -0 pip install --no-build-isolation
+python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
 ```
 
 On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by

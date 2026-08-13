@@ -51,5 +51,5 @@ COPY monai ./monai
 
 # Need to install build requirements explicitly so that no-build-isolation can be used. This needed to make pip build
 # against the included version of PyTorch, rather than install a new version in the isolated environment.
-RUN python monai/config/print_dependencies.py build-system | xargs -0 pip install --no-cache-dir --no-build-isolation \
+RUN python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
   && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .[all,testing]
