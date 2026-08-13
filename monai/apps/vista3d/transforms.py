@@ -46,9 +46,7 @@ def _convert_name_to_index(name_to_index_mapping: dict, label_prompt: list | Non
         for l in label_prompt:
             if isinstance(l, (int, str)):
                 converted_label_prompt.append(
-                    name_to_index_mapping.get(l.lower(), int(l) if l.isdigit() else 0)
-                    if isinstance(l, str)
-                    else int(l)  # pyrefly: ignore [unnecessary-type-conversion]
+                    name_to_index_mapping.get(l.lower(), int(l) if l.isdigit() else 0) if isinstance(l, str) else int(l)
                 )
             else:
                 converted_label_prompt.append(l)
@@ -208,8 +206,8 @@ class Relabeld(MapTransform):
         self.dataset_key = dataset_key
         for name, mapping in label_mappings.items():
             self.mappers[name] = MapLabelValue(
-                orig_labels=[int(pair[0]) for pair in mapping],  # pyrefly: ignore [unnecessary-type-conversion]
-                target_labels=[int(pair[1]) for pair in mapping],  # pyrefly: ignore [unnecessary-type-conversion]
+                orig_labels=[int(pair[0]) for pair in mapping],
+                target_labels=[int(pair[1]) for pair in mapping],
                 dtype=dtype,
             )
 

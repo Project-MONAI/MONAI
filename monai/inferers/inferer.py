@@ -661,7 +661,6 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                     **kwargs,
                 )
             except RuntimeError as e:
-                # pyrefly: ignore [unnecessary-type-conversion]
                 if not gpu_stitching and not buffered_stitching or "OutOfMemoryError" not in str(type(e).__name__):
                     raise e
 

@@ -169,7 +169,6 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
-        # pyrefly: ignore [unnecessary-type-conversion]
         self._p3dmode = int(mode)
 
         conv_type = Conv[Conv.CONV, 3]

@@ -405,7 +405,6 @@ class AutoRunner:
 
         datalist = ConfigParser.load_config_file(datalist_filename)
         if "training" not in datalist:
-            # pyrefly: ignore [unnecessary-type-conversion]
             raise ValueError("Datalist files has no training key:" + str(datalist_filename))
 
         fold_list = [int(d["fold"]) for d in datalist["training"] if "fold" in d]

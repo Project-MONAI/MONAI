@@ -97,9 +97,7 @@ class TverskyLoss(_Loss):
         self.other_act = other_act
         self.alpha = alpha
         self.beta = beta
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.soft_label = soft_label

@@ -248,7 +248,6 @@ class GridPatchDataset(IterableDataset):
         self.hash_func = hash_func
         self.num_workers = num_workers
         if self.num_workers is not None:
-            # pyrefly: ignore [unnecessary-type-conversion]
             self.num_workers = max(int(self.num_workers), 1)
         self._cache: list | ListProxy = []
         self._cache_other: list | ListProxy = []
@@ -277,7 +276,6 @@ class GridPatchDataset(IterableDataset):
 
         # only compute cache for the unique items of dataset, and record the last index for duplicated items
         mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.cache_num = min(int(self.set_num), int(len(mapping) * self.set_rate), len(mapping))
         self._hash_keys = list(mapping)[: self.cache_num]
         indices = list(mapping.values())[: self.cache_num]
@@ -423,7 +421,6 @@ class PatchDataset(IterableDataset):
         self.patch_func = patch_func
         if samples_per_image <= 0:
             raise ValueError("sampler_per_image must be a positive integer.")
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.samples_per_image = int(samples_per_image)
         self.patch_transform = transform
 

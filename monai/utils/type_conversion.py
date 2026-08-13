@@ -46,7 +46,6 @@ UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64,
 
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
-    # pyrefly: ignore [unnecessary-type-conversion]
     return np.empty([], dtype=str(dtype).split(".")[-1]).dtype
 
 

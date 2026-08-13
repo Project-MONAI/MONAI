@@ -243,7 +243,6 @@ class LocalNetUpSampleBlock(nn.Module):
     def additive_upsampling(self, x, mid) -> torch.Tensor:
         x = F.interpolate(x, mid.shape[2:], mode=self.mode, align_corners=self.align_corners)
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
-        # pyrefly: ignore [unnecessary-type-conversion]
         x = x.split(split_size=int(self.out_channels), dim=1)
         # (batch, out_channels, ...)
         out: torch.Tensor = torch.sum(torch.stack(x, dim=-1), dim=-1)

@@ -27,7 +27,6 @@ def make_gaussian_kernel(sigma: int) -> torch.Tensor:
 def make_cauchy_kernel(sigma: int) -> torch.Tensor:
     if sigma <= 0:
         raise ValueError(f"expecting positive sigma, got sigma={sigma}")
-    # pyrefly: ignore [unnecessary-type-conversion]
     tail = int(sigma * 5)
     k = torch.tensor([((x / sigma) ** 2 + 1) for x in range(-tail, tail + 1)])
     k = torch.reciprocal(k)

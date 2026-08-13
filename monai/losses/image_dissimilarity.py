@@ -116,9 +116,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         self.register_buffer("kernel", _kernel(self.kernel_size), persistent=False)
         self.register_buffer("kernel_vol", self.get_kernel_vol(), persistent=False)
 
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
 
     def get_kernel_vol(self) -> torch.Tensor:
@@ -244,9 +242,7 @@ class GlobalMutualInformationLoss(_Loss):
             self.register_buffer("preterm", 1 / (2 * sigma**2), persistent=False)
             self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
 
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_nr = float(smooth_nr)
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.smooth_dr = float(smooth_dr)
 
     def parzen_windowing(

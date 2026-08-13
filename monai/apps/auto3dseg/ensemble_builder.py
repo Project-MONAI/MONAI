@@ -337,7 +337,6 @@ class AlgoEnsembleBuilder:
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
-        # pyrefly: ignore [unnecessary-type-conversion]
         if data_src_cfg_name is not None and os.path.exists(str(data_src_cfg_name)):
             self.data_src_cfg.read_config(data_src_cfg_name)
 

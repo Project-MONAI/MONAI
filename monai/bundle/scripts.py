@@ -1952,10 +1952,8 @@ def create_workflow(
         _args, workflow_name=ConfigWorkflow, config_file=None
     )  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
-        # pyrefly: ignore [unnecessary-type-conversion]
         workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
         if not has_built_in:
-            # pyrefly: ignore [unnecessary-type-conversion]
             workflow_class = locate(str(workflow_name))  # search dotted path
         if workflow_class is None:
             raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")

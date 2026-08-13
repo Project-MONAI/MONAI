@@ -1200,7 +1200,6 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
             crop_start = [max(s.start, 0) for s in cropper.slices]
             crop_end = [min(s.stop, image_size_a) for s, image_size_a in zip(cropper.slices, image_size)]
-            # pyrefly: ignore [unnecessary-type-conversion]
             crop_slices = [slice(int(s), int(e)) for s, e in zip(crop_start, crop_end)]
 
             # crop images

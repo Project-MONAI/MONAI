@@ -844,7 +844,6 @@ class CacheDataset(Dataset):
         self.hash_func = hash_func
         self.num_workers = num_workers
         if self.num_workers is not None:
-            # pyrefly: ignore [unnecessary-type-conversion]
             self.num_workers = max(int(self.num_workers), 1)
         self.runtime_cache = runtime_cache
         self.cache_num = 0
@@ -864,7 +863,6 @@ class CacheDataset(Dataset):
         self.data = data
 
         def _compute_cache_num(data_len: int):
-            # pyrefly: ignore [unnecessary-type-conversion]
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
         if self.hash_as_key:
@@ -1084,7 +1082,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         self.num_replace_workers: int | None = num_replace_workers
         if self.num_replace_workers is not None:
-            # pyrefly: ignore [unnecessary-type-conversion]
             self.num_replace_workers = max(int(self.num_replace_workers), 1)
 
         self._total_num: int = len(data)

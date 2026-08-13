@@ -306,7 +306,6 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             )
         )
         # convert locations to mask_location
-        # pyrefly: ignore [unnecessary-type-conversion]
         mask_locations = np.round((patch_locations + patch_size_0 // 2) / float(mask_ratio))
 
         # fill out samples with location and metadata
@@ -405,7 +404,6 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         mask_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, self.mask_level)
         patch_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, patch_level)
         patch_size_0 = np.array([p * patch_ratio for p in patch_size])  # patch size at level 0
-        # pyrefly: ignore [unnecessary-type-conversion]
         patch_locations = np.round((mask_locations + 0.5) * float(mask_ratio) - patch_size_0 // 2).astype(int)
 
         # fill out samples with location and metadata

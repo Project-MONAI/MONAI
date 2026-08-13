@@ -231,10 +231,8 @@ class SpatialPad(Pad):
             pad_width = []
             for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - spatial_shape[i], 0)
-                # pyrefly: ignore [unnecessary-type-conversion]
                 pad_width.append((int(width // 2), int(width - (width // 2))))
         else:
-            # pyrefly: ignore [unnecessary-type-conversion]
             pad_width = [(0, int(max(sp_i - spatial_shape[i], 0))) for i, sp_i in enumerate(spatial_size)]
         return tuple([(0, 0)] + pad_width)  # type: ignore
 
@@ -282,15 +280,12 @@ class BorderPad(Pad):
         spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
-            # pyrefly: ignore [unnecessary-type-conversion]
             data_pad_width = [(int(spatial_border[0]), int(spatial_border[0])) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            # pyrefly: ignore [unnecessary-type-conversion]
             data_pad_width = [(int(sp), int(sp)) for sp in spatial_border[: len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [
-                (int(spatial_border[2 * i]), int(spatial_border[2 * i + 1]))
-                for i in range(len(spatial_shape))  # pyrefly: ignore [unnecessary-type-conversion]
+                (int(spatial_border[2 * i]), int(spatial_border[2 * i + 1])) for i in range(len(spatial_shape))
             ]
         else:
             raise ValueError(
@@ -985,7 +980,6 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
     ):
         LazyTransform.__init__(self, lazy)
         self.spatial_size = ensure_tuple(spatial_size)
-        # pyrefly: ignore [unnecessary-type-conversion]
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
         self.centers: list[np.ndarray] = []

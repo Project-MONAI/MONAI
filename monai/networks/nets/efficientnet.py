@@ -913,7 +913,6 @@ def _round_repeats(repeats: int, depth_coefficient: float | None) -> int:
         return repeats
 
     # follow the formula transferred from official TensorFlow impl.
-    # pyrefly: ignore [unnecessary-type-conversion]
     return int(math.ceil(depth_coefficient * repeats))
 
 
@@ -939,7 +938,6 @@ def _calculate_output_image_size(input_image_size: list[int], stride: int | tupl
         stride = stride[0]
 
     # return output image size
-    # pyrefly: ignore [unnecessary-type-conversion]
     return [int(math.ceil(im_sz / stride)) for im_sz in input_image_size]
 
 

@@ -324,7 +324,6 @@ def progress_bar(index: int, count: int, desc: str | None = None, bar_len: int =
         newline: whether to print in a new line for every index.
     """
     end = "\r" if not newline else "\r\n"
-    # pyrefly: ignore [unnecessary-type-conversion]
     filled_len = int(bar_len * index // count)
     bar = f"{desc} " if desc is not None else ""
     bar += "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
@@ -366,7 +365,6 @@ def set_determinism(
         seed_ = torch.default_generator.seed() % MAX_SEED
         torch.manual_seed(seed_)
     else:
-        # pyrefly: ignore [unnecessary-type-conversion]
         seed = int(seed) % MAX_SEED
         torch.manual_seed(seed)
 
@@ -418,7 +416,6 @@ def list_to_dict(items):
                 d[key] = literal_eval(value)
             except ValueError:
                 try:
-                    # pyrefly: ignore [unnecessary-type-conversion]
                     d[key] = bool(_strtobool(str(value)))
                 except ValueError:
                     d[key] = value

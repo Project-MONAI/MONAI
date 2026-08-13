@@ -413,7 +413,6 @@ def _get_scan_interval(
     scan_interval = []
     for i, o in zip(range(num_spatial_dims), overlap):
         if roi_size[i] == image_size[i]:
-            # pyrefly: ignore [unnecessary-type-conversion]
             scan_interval.append(int(roi_size[i]))
         else:
             interval = int(roi_size[i] * (1 - o))

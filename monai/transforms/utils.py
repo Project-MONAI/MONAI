@@ -186,7 +186,6 @@ def rand_choice(prob: float = 0.5) -> bool:
     """
     Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance.
     """
-    # pyrefly: ignore [unnecessary-type-conversion]
     return bool(random.random() <= prob)
 
 
@@ -203,7 +202,6 @@ def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bo
     """
     Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
     """
-    # pyrefly: ignore [unnecessary-type-conversion]
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
@@ -635,7 +633,6 @@ def correct_crop_centers(
     valid_centers = []
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
-        # pyrefly: ignore [unnecessary-type-conversion]
         valid_centers.append(int(center_i))
     return ensure_tuple(valid_centers)
 
@@ -803,7 +800,6 @@ def _create_grid_numpy(
     compute a `spatial_size` mesh with the numpy API.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
-    # pyrefly: ignore [unnecessary-type-conversion]
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
     coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=get_equivalent_dtype(dtype, np.ndarray))
     if not homogeneous:
@@ -826,7 +822,6 @@ def _create_grid_torch(
         torch.linspace(
             -(d - 1.0) / 2.0 * s,
             (d - 1.0) / 2.0 * s,
-            # pyrefly: ignore [unnecessary-type-conversion]
             int(d),
             device=device,
             dtype=get_equivalent_dtype(dtype, torch.Tensor),
@@ -1105,7 +1100,6 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
-    # pyrefly: ignore [unnecessary-type-conversion]
     spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
@@ -1432,7 +1426,6 @@ def sample_points_from_label(
     _point_label = []
     for id in label_set:
         if id in unique_labels:
-            # pyrefly: ignore [unnecessary-type-conversion]
             plabels = labels == int(id)
             nlabels = ~plabels
             _plabels = get_largest_connected_component_mask(erode(plabels.unsqueeze(0).unsqueeze(0))[0, 0])
