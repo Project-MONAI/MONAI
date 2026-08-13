@@ -96,6 +96,15 @@ TEST_CASE_10 = [
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
 
+
+# (source, repo) pairs covering every `source` accepted by `load()`/`download()`. `repo` only
+# matters for sources that read it ("github", "huggingface_hub", "ngc_private"); it's unused
+# otherwise but keeps the call shape realistic for each source.
+TEST_CASE_SOURCE_GITHUB = ["github", "attacker/repo"]
+TEST_CASE_SOURCE_MONAIHOSTING = ["monaihosting", None]
+TEST_CASE_SOURCE_NGC = ["ngc", None]
+TEST_CASE_SOURCE_HUGGINGFACE_HUB = ["huggingface_hub", "attacker/repo"]
+
 TEST_CASE_NGC_1 = [
     "spleen_ct_segmentation",
     "0.3.7",
@@ -515,7 +524,13 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
             json.dump(malicious_config, f)
         return name
 
-    def test_default_warns_and_executes_config(self):
+    @parameterized.expand(
+        [TEST_CASE_SOURCE_GITHUB, TEST_CASE_SOURCE_MONAIHOSTING, TEST_CASE_SOURCE_NGC, TEST_CASE_SOURCE_HUGGINGFACE_HUB]
+    )
+    def test_default_warns_and_executes_config(self, source, repo):
+        # `source`/`repo` only steer where `download()` would fetch from -- irrelevant here since
+        # the bundle is already staged on disk, so `load()` never calls `download()`. Parameterized
+        # anyway to confirm the warning fires the same way regardless of `source`.
         with tempfile.TemporaryDirectory() as tempdir:
             marker = os.path.join(tempdir, "PWNED")
             name = self._stage_malicious_bundle(tempdir, marker)
@@ -524,7 +539,7 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
                     # the malicious config is missing metadata.json and returns a plain `int` for
                     # `network_def`, so the workflow construction fails after the payload has already
                     # run -- this mirrors the advisory's own PoC, where the failure happens *after* RCE.
-                    load(name=name, bundle_dir=tempdir, source="github", repo="attacker/repo")
+                    load(name=name, bundle_dir=tempdir, source=source, repo=repo)
             self.assertTrue(os.path.exists(marker))
 
     def test_explicit_model_skips_config_parsing(self):
