@@ -503,11 +503,14 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
         os.makedirs(os.path.join(bundle_root, "configs"))
         os.makedirs(os.path.join(bundle_root, "models"))
         torch.save({"state_dict": {}}, os.path.join(bundle_root, "models", "model.pt"))
-        # `marker` is embedded via `!r` (not raw-interpolated) since this string is itself later
-        # evaluated as Python source -- on Windows, a raw path's backslashes would otherwise be
-        # misparsed as escape sequences.
-        payload = f"$__import__('os').system({('echo pwned > ' + marker)!r})"
-        malicious_config = {"network_def": payload, "initialize": []}
+        # `marker` is wrapped in single quotes inside the double-quoted shell command so a path
+        # containing spaces isn't split by the shell (bash, cmd, and powershell all honor single
+        # quotes here); relying on Python's `!r`/`repr()` only protects the Python string literal,
+        # not how the shell itself tokenizes the resulting command.
+        payload = f"$__import__('os').system(\"echo pwned > '{marker}'\")"
+        # included under both keys so the payload runs whether the config is consumed via
+        # `network_def` (the `load()` tests) or via `initialize` (the `run()` test).
+        malicious_config = {"network_def": payload, "initialize": [payload]}
         with open(os.path.join(bundle_root, "configs", "train.json"), "w") as f:
             json.dump(malicious_config, f)
         return name
@@ -537,10 +540,8 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
     def test_run_warns_on_config_execution(self):
         with tempfile.TemporaryDirectory() as tempdir:
             marker = os.path.join(tempdir, "PWNED")
-            config_file = os.path.join(tempdir, "train.json")
-            with open(config_file, "w") as f:
-                payload = f"$__import__('os').system({('echo pwned > ' + marker)!r})"
-                json.dump({"initialize": [payload]}, f)
+            name = self._stage_malicious_bundle(tempdir, marker)
+            config_file = os.path.join(tempdir, name, "configs", "train.json")
             with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
                 with self.assertRaises(ValueError):
                     # no "run" ID is defined, so `workflow.run()` fails after `initialize()` has
