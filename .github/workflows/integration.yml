@@ -37,7 +37,7 @@ jobs:
         pip uninstall -y monai
         pip uninstall -y monai-weekly
         pip uninstall -y monai-weekly
-        python monai/config/print_dependencies.py build-system | xargs pip install --no-cache-dir --no-build-isolation
+        python monai/config/print_dependencies.py build-system | xargs -0 pip install --no-cache-dir --no-build-isolation
         python -m pip install --no-build-isolation .[all,testing]
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Clean directory

@@ -142,7 +142,7 @@ function install_deps {
     ${cmdPrefix}"${PY_EXE}" -m pip install -U tomli
     # create a temporary requirements file and install using it
     REQ=$(mktemp --tmpdir XXX.txt)
-    trap "rm -f \"$REQ\"" EXIT
+    trap 'rm -f -- "$REQ"' EXIT
     ${cmdPrefix}"${PY_EXE}" monai/config/print_dependencies.py all testing > "$REQ"
     ${cmdPrefix}"${PY_EXE}" -m pip install -r "$REQ"
 }
