@@ -143,7 +143,7 @@ jobs:
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
-        python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         python -m pip install --no-build-isolation .[testing]
         python -m pip list
       shell: bash
@@ -220,7 +220,7 @@ jobs:
     - name: Install the complete dependencies
       run: |
         python -m pip install --user --upgrade pip wheel tomli
-        python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         python -m pip install --no-build-isolation .[all,testing]
         python -m pip list
       shell: bash
@@ -277,7 +277,7 @@ jobs:
     - name: Install dependencies + nvsubquadratic (no-deps)
       run: |
         python -m pip install --upgrade pip wheel tomli pytest
-        python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
