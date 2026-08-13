@@ -226,18 +226,20 @@ disallow_untyped_decorators = true
 
 [[tool.mypy.overrides]]
 module = [
-  "monai.visualize.*",
-  "monai.utils.*",
-  "monai.optimizers.*",
-  "monai.losses.*",
-  "monai.inferers.*",
-  "monai.config.*",
   "monai._extensions.*",
-  "monai.fl.*",
-  "monai.engines.*",
-  "monai.handlers.*",
+  "monai.apps.*",
   "monai.auto3dseg.*",
   "monai.bundle.*",
+  "monai.config.*",
+  "monai.engines.*",
+  "monai.fl.*",
+  "monai.handlers.*",
+  "monai.inferers.*",
+  "monai.losses.*",
+  "monai.metrics.*",
+  "monai.optimizers.*",
+  "monai.utils.*",
+  "monai.visualize.*"
 ]
 disallow_incomplete_defs = true
 

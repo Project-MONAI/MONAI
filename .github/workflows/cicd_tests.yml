@@ -226,7 +226,9 @@ jobs:
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install --no-build-isolation .  # compile the cpp extensions
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions in-place with -e
+        # ensure extensions were compiled
+        python -c 'import monai._C' &> /dev/null
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
@@ -315,11 +317,12 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        python -m pip install --user --upgrade pip setuptools wheel twine packaging
+        python -m pip install --user --upgrade pip setuptools wheel twine packaging tomli
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
         python -m pip install torch==${PYTORCH_VER1} torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+        python monai/config/print_dependencies.py build-system all testing | xargs pip install --no-build-isolation
     - name: Check packages
       run: |
         python -m pip uninstall -y monai

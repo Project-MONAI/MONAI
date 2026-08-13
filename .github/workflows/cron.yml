@@ -138,6 +138,7 @@ jobs:
         run: |
           which python
           python -m pip install --upgrade pip wheel twine tomli
+          python monai/config/print_dependencies.py build-system all testing | xargs pip install --no-build-isolation
           python -m pip list
       - name: Run tests report coverage
         shell: bash
@@ -159,7 +160,6 @@ jobs:
           # move packages to a temp dir
           tmp_dir=$(mktemp -d)
           cp dist/monai* "$tmp_dir"
-          python monai/config/print_dependencies.py build-system all testing > "$tmp_dir/requirements.txt"
           rm -r build dist monai.egg-info
           cd "$tmp_dir"
           ls -al
@@ -172,7 +172,6 @@ jobs:
           python -c 'import monai; print(monai.__file__)'
 
           # run tests
-          cp $root_dir/requirements*.txt "$tmp_dir"
           cp -r $root_dir/tests "$tmp_dir"
           pwd
           ls -al
@@ -187,7 +186,6 @@ jobs:
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
           python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
 
-          pip install --no-build-isolation -r requirements.txt
           PYTHONPATH="$tmp_dir":$PYTHONPATH BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
           if pgrep python; then pkill python; fi
 
