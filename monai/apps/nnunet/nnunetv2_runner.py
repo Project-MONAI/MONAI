@@ -274,6 +274,7 @@ class nnUNetV2Runner:  # noqa: N801
                 modality = [modality]
 
             create_new_dataset_json(
+                # pyrefly: ignore [bad-argument-type]
                 modality=modality,
                 num_foreground_classes=num_foreground_classes,
                 num_input_channels=num_input_channels,

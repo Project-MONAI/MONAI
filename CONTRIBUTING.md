@@ -38,7 +38,7 @@ Please note that, as per PyTorch, MONAI uses American English spelling. This mea
 ### Preparing pull requests
 
 To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
-static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
+static type analysis tools ([pyrefly](https://github.com/facebook/pyrefly)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
 To collaborate efficiently, please read through this section and follow them.

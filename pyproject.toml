@@ -164,13 +164,13 @@ testing = [
   "coverage>=5.5",
   "isort>=5.1,<6,!=6.0.0",
   "mccabe",
-  "mypy>=1.5.0,<1.12.0",
   "packaging",
   "parameterized",
   "pep8-naming",
   "pre-commit",
   "pycodestyle",
   "pyflakes",
+  "pyrefly>=1.0.0",
   "ruff>=0.14.11,<0.15",
   "tomli",  # used in print_dependencies.py for Python<3.11
   "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
@@ -274,11 +274,9 @@ exclude = '''
       \.eggs
     | \.git
     | \.hg
-    | \.mypy_cache
     | \.tox
     | \.venv
     | venv
-    | \.pytype
     | _build
     | buck-out
     | build
@@ -370,3 +368,57 @@ precise_return = true
 protocols = true
 # Experimental: Only load submodules that are explicitly imported.
 strict_import = false
+
+[tool.pyrefly]
+# Check only the monai package
+project-includes = ["monai/"]
+
+# Exclude auto-generated and vendored files
+project-excludes = [
+    "**/venv/**",
+    "**/.venv/**",
+    "versioneer.py",
+    "monai/_version.py",
+]
+
+# Match CI environment
+python-version = "3.9"
+python-platform = "linux"
+
+# "legacy" preset provides a smooth migration from previous type checkers
+preset = "legacy"
+
+# Check unannotated defs (previously enforced in mypy config)
+check-unannotated-defs = true
+
+[tool.pyrefly.errors]
+# Ignore missing imports
+missing-import = "ignore"
+
+# Suppress unused-ignore warnings
+unused-ignore = "ignore"
+
+# Suppress implicit-import globally (MONAI style uses lazy imports)
+implicit-import = "ignore"
+
+# Downgrade errors in unannotated/dynamic code to warnings
+# (pre-existing issues, not new — will fix incrementally)
+bad-assignment = "warn"
+bad-return = "warn"
+bad-argument-type = "warn"
+invalid-annotation = "ignore"
+not-iterable = "warn"
+not-callable = "warn"
+bad-index = "warn"
+
+# Pre-existing errors not flagged by previous type checkers
+# Suppress for a smooth migration; fix incrementally
+missing-attribute = "ignore"
+bad-override = "ignore"
+no-matching-overload = "ignore"
+unsupported-operation = "ignore"
+unnecessary-type-conversion = "ignore"
+missing-module-attribute = "ignore"
+not-a-type = "ignore"
+invalid-yield = "ignore"
+deprecated = "ignore"
