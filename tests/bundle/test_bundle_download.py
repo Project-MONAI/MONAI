@@ -512,11 +512,10 @@ class TestLoadWarnsOnConfigExecution(unittest.TestCase):
         os.makedirs(os.path.join(bundle_root, "configs"))
         os.makedirs(os.path.join(bundle_root, "models"))
         torch.save({"state_dict": {}}, os.path.join(bundle_root, "models", "model.pt"))
-        # `marker` is wrapped in single quotes inside the double-quoted shell command so a path
-        # containing spaces isn't split by the shell (bash, cmd, and powershell all honor single
-        # quotes here); relying on Python's `!r`/`repr()` only protects the Python string literal,
-        # not how the shell itself tokenizes the resulting command.
-        payload = f"$__import__('os').system(\"echo pwned > '{marker}'\")"
+        # writes the marker directly via `pathlib` instead of shelling out through `os.system` --
+        # `!r` yields a Python-source-safe literal (handling spaces and Windows backslashes alike)
+        # with no shell involved to reintroduce quoting/splitting issues.
+        payload = f"$__import__('pathlib').Path({marker!r}).write_text('pwned')"
         # included under both keys so the payload runs whether the config is consumed via
         # `network_def` (the `load()` tests) or via `initialize` (the `run()` test).
         malicious_config = {"network_def": payload, "initialize": [payload]}
