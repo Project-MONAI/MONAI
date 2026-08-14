@@ -24,7 +24,7 @@ jobs:
       # minimum supported version of Python
       PYTHON_VER1: '3.10'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:

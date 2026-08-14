@@ -19,6 +19,7 @@ import numpy as np
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule
 
 
@@ -29,9 +30,27 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
-            self.assertIsInstance(inst, LoadImaged)
+        optional_readers = {
+            "NibabelReader": "nibabel",
+            "PILReader": "PIL",
+            "ITKReader": "itk",
+            "NrrdReader": "nrrd",
+            "PydicomReader": "pydicom",
+        }
+        for r, module in optional_readers.items():
+            with self.subTest(reader=r):
+                _, has_module = optional_import(module, allow_namespace_pkg=module in ("itk", "nrrd"))
+                if has_module:
+                    inst = LoadImaged("image", reader=r)
+                    self.assertIsInstance(inst, LoadImaged)
+                else:
+                    with self.assertRaises(OptionalImportError):
+                        LoadImaged("image", reader=r)
+
+        inst = LoadImaged("image", reader="NumpyReader")
+        self.assertIsInstance(inst, LoadImaged)
+        inst = LoadImaged("image", reader=None)
+        self.assertIsInstance(inst, LoadImaged)
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
@@ -48,7 +67,7 @@ class TestInitLoadImage(unittest.TestCase):
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("PIL")
     @SkipIfNoModule("nrrd")
-    @SkipIfNoModule("Pydicom")
+    @SkipIfNoModule("pydicom")
     def test_readers(self):
         inst = ITKReader()
         self.assertIsInstance(inst, ITKReader)
@@ -99,6 +118,40 @@ class TestInitLoadImage(unittest.TestCase):
                     # The reader must not force an eager C-order copy; the native
                     # (F-order) layout from nibabel should be preserved here.
                     self.assertFalse(data.flags.c_contiguous)
+
+    @SkipIfNoModule("pydicom")
+    def test_pydicom_reader_get_affine_single_slice_with_last_position(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [10.0, 20.0, 30.0]},
+            "00280030": {"Value": [0.5, 0.25]},
+            "lastImagePositionPatient": np.array([10.0, 20.0, 30.0]),
+            MetaKeys.SPATIAL_SHAPE: np.array([64, 64, 1]),
+        }
+
+        affine = reader._get_affine(metadata, lps_to_ras=False)
+
+        np.testing.assert_allclose(affine[0, 2], 0.0)
+        np.testing.assert_allclose(affine[1, 2], 0.0)
+        np.testing.assert_allclose(affine[2, 2], 1.0)
+
+    @SkipIfNoModule("pydicom")
+    def test_pydicom_reader_get_affine_multi_slice_uses_last_position(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [1.0, 1.0]},
+            "lastImagePositionPatient": np.array([0.0, 0.0, 8.0]),
+            MetaKeys.SPATIAL_SHAPE: np.array([8, 8, 5]),
+        }
+
+        affine = reader._get_affine(metadata, lps_to_ras=False)
+
+        np.testing.assert_allclose(affine[0, 2], 0.0)
+        np.testing.assert_allclose(affine[1, 2], 0.0)
+        np.testing.assert_allclose(affine[2, 2], 2.0)
 
 
 if __name__ == "__main__":
