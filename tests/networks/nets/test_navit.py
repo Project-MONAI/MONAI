@@ -154,10 +154,7 @@ class TestNaViT(unittest.TestCase):
             call_log.append((h, w))
             return 0.25
 
-        net = NaViT(
-            **{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
-            token_dropout_prob=recording_dropout,
-        )
+        net = NaViT(**{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1}, token_dropout_prob=recording_dropout)
         net.train()
         result = net([[torch.randn(1, 64, 64)]])
         self.assertEqual(result.shape, (1, 5))
@@ -171,10 +168,7 @@ class TestNaViT(unittest.TestCase):
             call_log.append((h, w))
             return 0.25
 
-        net = NaViT(
-            **{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1},
-            token_dropout_prob=recording_dropout,
-        )
+        net = NaViT(**{**DEFAULT_2D_KWARGS, "num_classes": 5, "in_channels": 1}, token_dropout_prob=recording_dropout)
         net.eval()
         net([[torch.randn(1, 64, 64)]])
         self.assertEqual(len(call_log), 0, "Token dropout callable was invoked during eval mode.")
