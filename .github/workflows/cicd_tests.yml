@@ -174,7 +174,6 @@ jobs:
     timeout-minutes: 120
     env:
       QUICKTEST: True
-      BUILD_MONAI: 1
     steps:
     - if: runner.os == 'Linux'
       name: Clean unused tools
@@ -227,9 +226,9 @@ jobs:
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        python -m pip install --no-build-isolation -e .  # compile the cpp extensions in-place with -e
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions in-place with -e
         # ensure extensions were compiled
-        python -c 'import monai._C' &> /dev/null
+        python -c 'import monai._C' > /dev/null
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
