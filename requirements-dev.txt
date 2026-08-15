@@ -20,7 +20,7 @@ ruff>=0.14.11,<0.15
 pybind11
 setuptools<71  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
 types-setuptools
-mypy>=1.5.0, <1.12.0
+pyrefly>=1.0.0
 ninja
 torchio
 torchvision
