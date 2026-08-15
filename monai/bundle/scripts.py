@@ -1966,6 +1966,7 @@ def create_workflow(
         )
 
     if config_file is not None:
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)
@@ -2005,7 +2006,6 @@ def download_large_files(bundle_path: str | None = None, large_file_name: str | 
     parser.read_config(large_file_path)
     large_files_list = parser.get()["large_files"]
     for lf_data in large_files_list:
-        lf_data["fuzzy"] = True
         if "hash_val" in lf_data and lf_data.get("hash_val", "") == "":
             lf_data.pop("hash_val")
         if "hash_type" in lf_data and lf_data.get("hash_type", "") == "":
