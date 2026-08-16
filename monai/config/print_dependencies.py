@@ -35,7 +35,7 @@ def parse_dependencies(filename: str | None= None, sections: Collection[str] | N
 
     Args:
         filename: TOML file to parse, if None this defaults to TOML_FILE.
-        sections: "optional-dependencies" sections to print in addition to the required dependencies. If 
+        sections: "optional-dependencies" sections to print in addition to the required dependencies. If
             "build-system" is included, the build requirements will be included in the output. If "*" is included, all
             of the optional dependencies will be included in the output.
 
