@@ -4,6 +4,7 @@
 
 - [Installation Guide](#installation-guide)
 	- [Table of Contents](#table-of-contents)
+	- [GPU-enabled installation (CUDA and CuPy)](#gpu-enabled-installation-cuda-and-cupy)
 	- [From PyPI](#from-pypi)
 		- [Milestone release](#milestone-release)
 		- [Weekly preview release](#weekly-preview-release)
@@ -30,12 +31,33 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
-The installation commands below usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+---
+
+## GPU-enabled installation (CUDA and CuPy)
+
+The installation commands below usually end up installing the CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
 1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
 1. Continue to follow the guide and install PyTorch.
-1. Install MONAI using one the ways described below.
+1. Install MONAI using one of the ways described below.
+
+Installing GPU-enabled PyTorch is enough to run models and transforms on the GPU. Some transforms,
+however, additionally use [CuPy](https://cupy.dev/) for GPU-accelerated array operations (for example
+when a transform converts a CUDA tensor via `convert_to_cupy`). If CuPy is not installed, these code
+paths raise `OptionalImportError: import cupy (No module named 'cupy')`.
+
+CuPy is provided through the `cucim` extra, so installing MONAI with that extra pulls in a compatible
+CuPy build:
+
+```bash
+pip install 'monai[cucim]'
+```
+
+If you prefer to install CuPy directly, note that the PyPI package name is CUDA-version specific
+(e.g. `cupy-cuda12x` for CUDA 12.x, `cupy-cuda11x` for CUDA 11.x) rather than plain `cupy`. See the
+[CuPy installation guide](https://docs.cupy.dev/en/stable/install.html) for the correct package for
+your CUDA toolkit.
 
 ---
 
