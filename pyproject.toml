@@ -1,7 +1,7 @@
 
 [build-system]
 requires = [
-  "setuptools<71.0.0",  # pkg_resources removed in setuptools>=71; needed by MetricsReloaded setup.py
+  "setuptools",
   "wheel",
   "versioneer[toml]",
   "more-itertools>=8.0",
@@ -41,8 +41,7 @@ classifiers = [
 ]
 dependencies = [
   "torch>=2.8.0",
-  "numpy>=1.24,<3.0",
-  "setuptools<71.0.0"  # used here to match requirement in build-system and prevent different PyTorch installations
+  "numpy>=1.24,<3.0"
 ]
 dynamic = ["version"]
 
@@ -276,6 +275,8 @@ exclude = '''
     | \.hg
     | \.tox
     | \.venv
+    | \.mypy_cache
+    | \.pytype
     | venv
     | _build
     | buck-out
@@ -382,7 +383,7 @@ project-excludes = [
 ]
 
 # Match CI environment
-python-version = "3.9"
+python-version = "3.10"
 python-platform = "linux"
 
 # "legacy" preset provides a smooth migration from previous type checkers

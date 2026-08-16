@@ -130,19 +130,6 @@ or, to build with MONAI C++/CUDA extensions:
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
-To build the extensions, if the system environment already has a version of PyTorch installed,
-`--no-build-isolation` might be preferred:
-
-```bash
-BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
-```
-
-When using build isolation (pip's default behaviour), a version of PyTorch must be installed which may not be the same as an existing install. This can cause the compiled libraries to be built against an ABI-incompatible PyTorch and thus not function at runtime. Building without isolation requires the current environment to have the necessary building libraries already installed. See the `build-system` section of `pyproject.toml` for these libraries, or use the following to install them:
-
-```bash
-python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
-```
-
 On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by
 `cmd.exe` or PowerShell. Set the environment variable first, then run either
 install command shown above:
@@ -150,13 +137,32 @@ install command shown above:
 ```bat
 :: cmd.exe
 set BUILD_MONAI=1
-pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 ```powershell
 # PowerShell
 $env:BUILD_MONAI="1"
-pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+pip install git+https://github.com/Project-MONAI/MONAI
+```
+
+To build the extensions, if the system environment already has a version of PyTorch installed, `--no-build-isolation` might be preferred:
+
+```bash
+BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
+When using build isolation (pip's default behaviour), a version of PyTorch must be installed which may not be the same as an existing install. This can cause the compiled libraries to be built against an ABI-incompatible PyTorch and thus not function at runtime. Building without isolation requires the current environment to have the necessary building libraries already installed. See the `build-system` section of `pyproject.toml` for these libraries, or use the following to install them in a bash environment:
+
+```bash
+python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
+```
+
+An alternative solution is to use built constraints during installation:
+
+```bash
+pip freeze | grep torch > constraints.txt
+pip install --build-constraint constraints.txt git+https://github.com/Project-MONAI/MONAI
 ```
 
 this command will download and install the current `dev` branch of [MONAI from
@@ -178,6 +184,7 @@ You can install it by running:
 ```bash
 cd MONAI/
 pip install -e .
+# or pip install -e .[all,testing] to include most of the dependencies
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
@@ -204,6 +211,8 @@ cd MONAI/
 $env:BUILD_MONAI="1"
 pip install -e .
 ```
+
+If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isoloation` flag to force the use of that version, or use the `--build-constraint` method.
 
 To uninstall the package please run:
 

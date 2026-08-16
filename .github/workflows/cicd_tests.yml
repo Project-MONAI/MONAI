@@ -275,12 +275,13 @@ jobs:
     - name: Install dependencies + nvsubquadratic (no-deps)
       run: |
         python -m pip install --upgrade pip wheel tomli pytest
-        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        # need a specific version of torch for nvsubquadratic
+        python monai/config/print_dependencies.py build-system | \
+          xargs -d '\n' pip install --no-build-isolation torch==2.10.0 torchvision==0.25.0
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
-        # python -m pip install omegaconf
-        # python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip install --no-build-isolation omegaconf
+        python -m pip install --no-build-isolation --no-deps 'nvsubquadratic>=0.1.1'
         python -m pip install --no-build-isolation .[hyena,testing]
         python -m pip list
       shell: bash
@@ -298,6 +299,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
+      INDEX_URL: "https://download.pytorch.org/whl/cpu"
     steps:
     - name: Clean unused tools
       run: |
@@ -318,11 +320,8 @@ jobs:
       run: |
         python -m pip install --user --upgrade pip setuptools wheel twine packaging tomli
         # install the latest pytorch for testing
-        # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
-        # fresh torch installation according to pyproject.toml
-        python -m pip install torch==${PYTORCH_VER1} torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-        python monai/config/print_dependencies.py build-system all testing > requirements.txt
-        pip install --no-build-isolation -r requirements.txt
+        python monai/config/print_dependencies.py build-system all testing | \
+            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1} --extra-index-url $INDEX_URL
     - name: Check packages
       run: |
         python -m pip uninstall -y monai
@@ -351,7 +350,7 @@ jobs:
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from wheel
-        python -m pip install monai*.whl --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-build-isolation monai*.whl --extra-index-url $INDEX_URL
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
         python -m pip uninstall -y monai
@@ -361,6 +360,14 @@ jobs:
       run: |
         for name in *.tar.gz; do break; done
         echo $name
-        python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-build-isolation ${name}[all] --extra-index-url $INDEX_URL
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+    - name: Install using uv
+      working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
+      run: |
+        pip install uv
+        uv pip install --no-build-isolation .[all] --extra-index-url $INDEX_URL
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
