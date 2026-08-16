@@ -29,24 +29,29 @@ REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
 
-def parse_dependencies(filename: str = TOML_FILE, sections: Collection[str] | None = None) -> list[str]:
+def parse_dependencies(filename: str | None= None, sections: Collection[str] | None = None) -> list[str]:
     """
     Parse the toml file given by `filename` and return the dependency sections selected by `sections`.
+
+    Args:
+        filename: TOML file to parse, if None this defaults to TOML_FILE.
+        sections: "optional-dependencies" sections to print in addition to the required dependencies. If 
+            "build-system" is included, the build requirements will be included in the output. If "*" is included, all
+            of the optional dependencies will be included in the output.
+
+    Returns:
+        List of requirements in alphabetical order.
     """
     # these imports should be here to avoid attempting to import when MONAI is imported and both packages are missing
     # isort: off
     if sys.version_info.minor >= 11:
-        import tomllib
-
-        load_func = tomllib.loads
+        from tomllib import loads
     else:
-        import tomli
-
-        load_func = tomli.loads
+        from tomli import loads
     # isort: on
 
-    with open(filename) as o:
-        data = load_func(o.read())
+    with open(filename or TOML_FILE) as o:
+        data = loads(o.read())
 
     proj = data[PROJ_KEY]
     opts = proj[OPTS_KEY]
@@ -66,8 +71,15 @@ def parse_dependencies(filename: str = TOML_FILE, sections: Collection[str] | No
     return sorted(set(dependencies))
 
 
-if __name__ == "__main__":
+def print_dependencies_argv():
+    """
+    Print dependencies specified through argv.
+    """
     dependencies = parse_dependencies(sections=set(sys.argv[1:]))
 
     for d in dependencies:
         print(d)
+
+
+if __name__ == "__main__":
+    print_dependencies_argv()
