@@ -1993,6 +1993,7 @@ def create_workflow(
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).",
             stacklevel=2,
         )
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)
