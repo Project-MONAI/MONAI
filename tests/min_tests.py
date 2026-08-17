@@ -147,6 +147,7 @@ def run_testsuit():
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
+        "test_navit",
         "test_nuclick_transforms",
         "test_nrrd_reader",
         "test_occlusion_sensitivity",
