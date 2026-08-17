@@ -74,6 +74,7 @@ class BertPreTrainedModel(nn.Module):
             return load_tf_weights_in_bert(model, weights_path)
         old_keys = []
         new_keys = []
+        # pyrefly: ignore [missing-attribute]
         for key in state_dict.keys():
             new_key = None
             if "gamma" in key:
@@ -84,11 +85,13 @@ class BertPreTrainedModel(nn.Module):
                 old_keys.append(key)
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
+            # pyrefly: ignore [missing-attribute, unsupported-operation]
             state_dict[new_key] = state_dict.pop(old_key)
         missing_keys: list = []
         unexpected_keys: list = []
         error_msgs: list = []
         metadata = getattr(state_dict, "_metadata", None)
+        # pyrefly: ignore [missing-attribute]
         state_dict = state_dict.copy()
         if metadata is not None:
             state_dict._metadata = metadata

@@ -42,10 +42,22 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "HashCheckError",
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+
+
+class HashCheckError(ValueError):
+    pass
 
 
 def get_logger(
@@ -220,8 +232,7 @@ def download_url(
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        RuntimeError: When the hash validation of the ``url`` downloaded file fails.
-
+        HashCheckError: When the hash validation of the ``url`` downloaded file fails.
     """
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
@@ -229,9 +240,7 @@ def download_url(
     filepath = Path(filepath)
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
-            raise RuntimeError(
-                f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
-            )
+            raise HashCheckError(f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type=}.")
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
     try:
@@ -260,6 +269,13 @@ def download_url(
                 raise RuntimeError(
                     f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
                 )
+            if not check_hash(tmp_name, hash_val, hash_type):
+                raise HashCheckError(
+                    f"{hash_type} hash check of downloaded file failed: {url=}, "
+                    f"{filepath=}, expected {hash_type}={hash_val}, "
+                    f"The file may be corrupted or tampered with. "
+                    "Please retry the download or verify the source."
+                )
             file_dir = filepath.parent
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
@@ -267,11 +283,6 @@ def download_url(
     except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
         pass
     logger.info(f"Downloaded: {filepath}")
-    if not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of downloaded file failed: URL={url}, "
-            f"filepath={filepath}, expected {hash_type}={hash_val}."
-        )
 
 
 def _extract_zip(filepath, output_dir):
@@ -325,10 +336,15 @@ def extractall(
             be False.
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
+        HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
+    filepath = Path(filepath)
+    if hash_val and not check_hash(filepath, hash_val, hash_type):
+        raise HashCheckError(
+            f"{hash_type} hash check of compressed file failed: " f"{filepath=}, expected {hash_type}={hash_val}."
+        )
     if has_base:
         # the extracted files will be in this folder
         cache_dir = Path(output_dir, _basename(filepath).split(".")[0])
@@ -337,11 +353,6 @@ def extractall(
     if cache_dir.exists() and next(cache_dir.iterdir(), None) is not None:
         logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
-    filepath = Path(filepath)
-    if hash_val and not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
-        )
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
