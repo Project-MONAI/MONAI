@@ -1967,6 +1967,7 @@ def create_workflow(
         )
 
     if config_file is not None:
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)

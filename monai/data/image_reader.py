@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias  # pyrefly: ignore [missing-module-attribute]
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern

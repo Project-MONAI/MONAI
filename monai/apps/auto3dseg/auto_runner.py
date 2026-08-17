@@ -790,6 +790,7 @@ class AutoRunner:
             nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
             ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
+            # pyrefly: ignore [redundant-cast]
             max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
             cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
 
@@ -805,6 +806,7 @@ class AutoRunner:
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
             cmd = "nnictl stop --all"
+            # pyrefly: ignore [bad-argument-type]
             run_cmd(cmd.split(), check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings
