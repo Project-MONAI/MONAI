@@ -160,7 +160,7 @@ def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, 
             if i == "*":
                 ret.append(any)
             else:
-                bad_names=set(c for c in _get_var_names(i) if c not in {"p", "n"})
+                bad_names = set(c for c in _get_var_names(i) if c not in {"p", "n"})
                 if bad_names:
                     raise ValueError(f"Only variables `p` and `n` currently supported. Invalid names: {bad_names}")
 
