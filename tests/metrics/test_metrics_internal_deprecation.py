@@ -28,6 +28,14 @@ def _internal_deprecation_warnings(fn):
 
     Warnings originating in third-party packages are ignored, so this is not affected by
     unrelated deprecations in torch or numpy.
+
+    Args:
+        fn: zero-argument callable to invoke while warnings are being recorded.
+
+    Returns:
+        list of `warnings.WarningMessage`: the recorded `DeprecationWarning` and
+        `FutureWarning` entries whose originating file lies inside the MONAI package.
+        Empty when the call raised no MONAI-internal deprecation warnings.
     """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -50,6 +58,11 @@ class TestMetricsNoInternalDeprecationWarnings(unittest.TestCase):
     """
 
     def test_surface_and_hausdorff_emit_no_internal_deprecation_warnings(self):
+        """Assert neither metric raises a MONAI-internal deprecation warning.
+
+        Computes each metric on a fixed pair of 2D binary masks and fails if any
+        `DeprecationWarning` or `FutureWarning` originating inside MONAI is recorded.
+        """
         pred = torch.zeros(1, 1, 32, 32)
         pred[..., :16, :] = 1
         gt = torch.zeros(1, 1, 32, 32)
