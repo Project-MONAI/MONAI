@@ -11,11 +11,14 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
+
+from parameterized import parameterized
 
 from monai.config.print_dependencies import parse_dependencies, print_dependencies_argv
 
@@ -32,41 +35,35 @@ all = ["something", "another"]
 testing = ["coverage", "black"]
 """
 
-TOML_FILE = "monai.config.print_dependencies.TOML_FILE"
+PARSE_CASES = [
+    ([], ["numpy", "torch"]),
+    (["testing"], ["black", "coverage", "numpy", "torch"]),
+    (["build-system"], ["numpy", "setuptools", "torch", "wheel"]),
+    (["*"], ["another", "black", "coverage", "numpy", "something", "torch"]),
+]
 
 
 class TestPrintDependencies(unittest.TestCase):
+    def setUp(self):
+        self.toml = NamedTemporaryFile("w", delete=False)
+        self.toml.write(TEST_TOML)
+        self.toml.close()
 
-    def test_parse_dependencies(self):
-        with NamedTemporaryFile("w") as fp:
-            fp.write(TEST_TOML)
-            fp.flush()
+    def tearDown(self):
+        os.unlink(self.toml.name)
 
-            with self.subTest("Test default sections"):
-                deps = parse_dependencies(fp.name)
-                self.assertEqual(["numpy", "torch"], deps)
+    @parameterized.expand(PARSE_CASES)
+    def test_parse_dependencies(self, sections, outputs):
+        deps = parse_dependencies(self.toml.name, sections)
+        self.assertEqual(outputs, deps)
 
-            with self.subTest("Test some sections"):
-                deps = parse_dependencies(fp.name, ["testing"])
-                self.assertEqual(["black", "coverage", "numpy", "torch"], deps)
-
-            with self.subTest("Test build-system sections"):
-                deps = parse_dependencies(fp.name, ["build-system"])
-                self.assertEqual(["numpy", "setuptools", "torch", "wheel"], deps)
-
-            with self.subTest("Test all sections"):
-                deps = parse_dependencies(fp.name, ["*"])
-                self.assertEqual(["another", "black", "coverage", "numpy", "something", "torch"], deps)
-
-            with self.subTest("Test missing section"):
-                with self.assertRaises(KeyError):
-                    parse_dependencies(fp.name, ["nonexistent_section"])
+    def test_missing_section(self):
+        with self.assertRaises(KeyError):
+            parse_dependencies(self.toml.name, ["nonexistent_section"])
 
     def test_print_dependencies(self):
         out = StringIO()
-        with NamedTemporaryFile("w") as fp, redirect_stdout(out), patch(TOML_FILE, fp.name):
-            fp.write(TEST_TOML)
-            fp.flush()
+        with redirect_stdout(out), patch("monai.config.print_dependencies.TOML_FILE", self.toml.name):
 
             with self.subTest("Test correct print"):
                 with patch("sys.argv", ["", "all", "build-system", "*"]):

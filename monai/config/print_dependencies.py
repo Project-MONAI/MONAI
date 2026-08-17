@@ -29,7 +29,7 @@ REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
 
-def parse_dependencies(filename: str | None= None, sections: Collection[str] | None = None) -> list[str]:
+def parse_dependencies(filename: str | None = None, sections: Collection[str] | None = None) -> list[str]:
     """
     Parse the toml file given by `filename` and return the dependency sections selected by `sections`.
 
