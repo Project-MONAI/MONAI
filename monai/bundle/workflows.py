@@ -224,6 +224,7 @@ class BundleWorkflow(ABC):
             desc: descriptions for the property.
         """
         if self.properties is None:
+            # pyrefly: ignore [bad-assignment]
             self.properties = {}
         if name in self.properties:
             logger.warning(f"property '{name}' already exists in the properties list, overriding it.")
@@ -329,6 +330,7 @@ class PythonicWorkflow(BundleWorkflow):
         elif name in self._props_vals:
             value = self._props_vals[name]
         elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
+            # pyrefly: ignore [missing-attribute]
             id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
             value = self.parser[id]
         else:
@@ -621,6 +623,7 @@ class ConfigWorkflow(BundleWorkflow):
         else:
             ref = self.parser.get(ref_id, None)
         # for reference IDs that not refer to a property directly but using expressions, skip the check
+        # pyrefly: ignore [unsupported-operation]
         if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True
