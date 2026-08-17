@@ -19,6 +19,9 @@ import torch
 
 import monai
 from monai.metrics import HausdorffDistanceMetric, SurfaceDistanceMetric
+from monai.utils import optional_import
+
+binary_erosion, has_scipy = optional_import("scipy.ndimage", name="binary_erosion")
 
 _MONAI_ROOT = str(pathlib.Path(monai.__file__).parent.resolve())
 
@@ -48,6 +51,7 @@ def _internal_deprecation_warnings(fn):
     ]
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy.")
 class TestMetricsNoInternalDeprecationWarnings(unittest.TestCase):
     """Metrics must not trigger MONAI's own deprecation warnings via internal call sites.
 
@@ -55,6 +59,9 @@ class TestMetricsNoInternalDeprecationWarnings(unittest.TestCase):
     `monai.metrics.utils.get_edge_surface_distance`. If that helper passes a deprecated
     argument to `get_mask_edges`, every metric computation emits a warning that the caller
     never triggered and cannot suppress.
+
+    Both metrics compute mask edges via `scipy.ndimage`, so this test is skipped when
+    scipy is unavailable.
     """
 
     def test_surface_and_hausdorff_emit_no_internal_deprecation_warnings(self):
