@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import RandGridPatch
 from monai.utils import set_determinism
-from tests.test_utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -67,6 +67,7 @@ TEST_CASE_13 = [
     [A[:, 1:3, 1:3]],
 ]
 TEST_CASE_14 = [{"patch_size": (0, 2)}, A, [A[:, :, :2], A[:, :, 2:]]]
+TEST_CASE_15 = [{"patch_size": (None, 2)}, A, [A[:, :, :2], A[:, :, 2:]]]
 
 TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
@@ -104,6 +105,8 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_12])
     TEST_SINGLE.append([p, *TEST_CASE_13])
     TEST_SINGLE.append([p, *TEST_CASE_14])
+for p in TEST_NDARRAYS_NO_META_TENSOR:
+    TEST_SINGLE.append([p, *TEST_CASE_15])
 
 
 class TestRandGridPatch(unittest.TestCase):
