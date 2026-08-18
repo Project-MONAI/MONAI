@@ -14,6 +14,7 @@ from __future__ import annotations
 import ast
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.utils import safe_eval
@@ -61,6 +62,34 @@ class TestSafeEval(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             safe_eval("1*2", allowed_types=allowed)
+
+    def test_rewrite_np_produces_numpy_types(self):
+        """Test that rewrite_np wraps literals in numpy types."""
+        result = safe_eval("2 + 3", rewrite_np=True)
+        self.assertIsInstance(result, np.integer)
+
+        result = safe_eval("2.5 + 1.5", rewrite_np=True)
+        self.assertIsInstance(result, np.floating)
+
+    def test_rewrite_np_large_exponent(self):
+        """Test that rewrite_np prevents slow native-Python exponentiation."""
+        # Under native Python, 9**9**9 produces a ~369-million-digit integer;
+        # under np.int32 it overflows and completes almost instantly.
+        result = safe_eval("9**9**9", rewrite_np=True)
+        self.assertIsInstance(result, np.integer)
+
+    def test_rewrite_np_preserves_bool(self):
+        """Test that rewrite_np does not wrap bool constants."""
+        result = safe_eval("True", rewrite_np=True)
+        self.assertIs(result, True)
+
+        result = safe_eval("False", rewrite_np=True)
+        self.assertIs(result, False)
+
+    def test_rewrite_np_inf_constant(self):
+        """Test that rewrite_np handles inf/nan literals correctly."""
+        result = safe_eval("1e309", rewrite_np=True)
+        self.assertIsInstance(result, np.floating)
 
 
 if __name__ == "__main__":
