@@ -337,6 +337,16 @@ class TestHandlerMLFlow(unittest.TestCase):
 
     @staticmethod
     def _train_func(engine, batch):
+        """
+        Produce the output of one training step, for an engine that does no real work.
+
+        Args:
+            engine: the ignite engine running the step, unused.
+            batch: the batch of the current step.
+
+        Returns:
+            The batch shifted by one, as the single output of the step.
+        """
         return [batch + 1.0]
 
     def test_system_metrics_disabled_by_default(self):
