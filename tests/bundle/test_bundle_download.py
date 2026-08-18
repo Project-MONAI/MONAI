@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+import warnings
 from unittest.case import skipIf, skipUnless
 from unittest.mock import patch
 
@@ -24,7 +25,7 @@ from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
-from monai.bundle import ConfigParser, create_workflow, load
+from monai.bundle import ConfigParser, create_workflow, load, run
 from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.test_utils import (
@@ -94,6 +95,15 @@ TEST_CASE_10 = [
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.3.zip",
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
+
+
+# (source, repo) pairs covering every `source` accepted by `load()`/`download()`. `repo` only
+# matters for sources that read it ("github", "huggingface_hub", "ngc_private"); it's unused
+# otherwise but keeps the call shape realistic for each source.
+TEST_CASE_SOURCE_GITHUB = ["github", "attacker/repo"]
+TEST_CASE_SOURCE_MONAIHOSTING = ["monaihosting", None]
+TEST_CASE_SOURCE_NGC = ["ngc", None]
+TEST_CASE_SOURCE_HUGGINGFACE_HUB = ["huggingface_hub", "attacker/repo"]
 
 TEST_CASE_NGC_1 = [
     "spleen_ct_segmentation",
@@ -486,6 +496,72 @@ class TestNgcBundleDownload(unittest.TestCase):
                     rtol=1e-4,
                     type_test=False,
                 )
+
+
+class TestLoadWarnsOnConfigExecution(unittest.TestCase):
+    """Regression tests for GHSA-873f-pvrv-4x83: `load()`/`create_workflow()` parse and execute a
+    bundle's own config (arbitrary `_target_`/`$`-expression content) whenever `model` is `None`.
+    There is no opt-in flag -- MONAI has no way to establish whether a bundle is actually
+    trustworthy, so a flag would only teach callers to always pass it and ignore the risk. Instead,
+    a `UserWarning` is raised every time this happens, in both `load()` (via `create_workflow()`)
+    and `run()` (also via `create_workflow()`)."""
+
+    def _stage_malicious_bundle(self, tempdir: str, marker: str) -> str:
+        name = "evil_bundle"
+        bundle_root = os.path.join(tempdir, name)
+        os.makedirs(os.path.join(bundle_root, "configs"))
+        os.makedirs(os.path.join(bundle_root, "models"))
+        torch.save({"state_dict": {}}, os.path.join(bundle_root, "models", "model.pt"))
+        # writes the marker directly via `pathlib` instead of shelling out through `os.system` --
+        # `!r` yields a Python-source-safe literal (handling spaces and Windows backslashes alike)
+        # with no shell involved to reintroduce quoting/splitting issues.
+        payload = f"$__import__('pathlib').Path({marker!r}).write_text('pwned')"
+        # included under both keys so the payload runs whether the config is consumed via
+        # `network_def` (the `load()` tests) or via `initialize` (the `run()` test).
+        malicious_config = {"network_def": payload, "initialize": [payload]}
+        with open(os.path.join(bundle_root, "configs", "train.json"), "w") as f:
+            json.dump(malicious_config, f)
+        return name
+
+    @parameterized.expand(
+        [TEST_CASE_SOURCE_GITHUB, TEST_CASE_SOURCE_MONAIHOSTING, TEST_CASE_SOURCE_NGC, TEST_CASE_SOURCE_HUGGINGFACE_HUB]
+    )
+    def test_default_warns_and_executes_config(self, source, repo):
+        # `source`/`repo` only steer where `download()` would fetch from -- irrelevant here since
+        # the bundle is already staged on disk, so `load()` never calls `download()`. Parameterized
+        # anyway to confirm the warning fires the same way regardless of `source`.
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
+                with self.assertRaises(AttributeError):
+                    # the malicious config is missing metadata.json and returns a plain `int` for
+                    # `network_def`, so the workflow construction fails after the payload has already
+                    # run -- this mirrors the advisory's own PoC, where the failure happens *after* RCE.
+                    load(name=name, bundle_dir=tempdir, source=source, repo=repo)
+            self.assertTrue(os.path.exists(marker))
+
+    def test_explicit_model_skips_config_parsing(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            model = nets.UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2,))
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                load(name=name, model=model, bundle_dir=tempdir, source="github", repo="attacker/repo")
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_warns_on_config_execution(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            config_file = os.path.join(tempdir, name, "configs", "train.json")
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
+                with self.assertRaises(ValueError):
+                    # no "run" ID is defined, so `workflow.run()` fails after `initialize()` has
+                    # already evaluated the payload above.
+                    run(config_file=config_file)
+            self.assertTrue(os.path.exists(marker))
 
 
 if __name__ == "__main__":

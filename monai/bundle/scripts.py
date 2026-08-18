@@ -652,6 +652,14 @@ def load(
     """
     Load model weights or TorchScript module of a bundle.
 
+    Security note: if `model` is `None`, building `network_def` requires parsing the bundle's own
+    "{workflow_type}.json" config, which can define `"_target_"` components resolved to any importable
+    callable and `"$"`-prefixed expressions evaluated with Python `eval()`. Only call `load()` this way
+    for bundles from a source you trust; a warning is printed every time this happens
+    (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83). To skip parsing
+    the bundle's config entirely, pass an explicit `model=` — only the weights are then loaded, via
+    `torch.load(..., weights_only=True)`.
+
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             for example:
@@ -938,6 +946,12 @@ def run(
 ) -> None:
     """
     Specify `config_file` to run monai bundle components and workflows.
+
+    Security note: parsing `config_file` can run arbitrary code. Any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python
+    `eval()`. Only point this at config files you wrote or otherwise fully trust; never at a config
+    downloaded from, or otherwise sourced from, an untrusted party. A warning is printed every time this
+    happens (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).
 
     Typical usage examples:
 
@@ -1933,6 +1947,12 @@ def create_workflow(
     The workflow should be subclass of `BundleWorkflow` and be available to import.
     It can be MONAI existing bundle workflows or user customized workflows.
 
+    Security note: parsing `config_file` can run arbitrary code. Any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python
+    `eval()`. Only point this at config files you wrote or otherwise fully trust; never at a config
+    downloaded from, or otherwise sourced from, an untrusted party. A warning is printed every time this
+    happens (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).
+
     Typical usage examples:
 
     .. code-block:: python
@@ -1970,6 +1990,14 @@ def create_workflow(
         )
 
     if config_file is not None:
+        warnings.warn(
+            f'parsing config_file {config_file}: any `"_target_"` value in it is resolved to an importable '
+            'callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python '
+            "`eval()`. Only proceed if this config is from a source you trust "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).",
+            stacklevel=2,
+        )
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)
