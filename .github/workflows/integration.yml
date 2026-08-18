@@ -37,8 +37,8 @@ jobs:
         pip uninstall -y monai
         pip uninstall -y monai-weekly
         pip uninstall -y monai-weekly
-        python -m pip install --upgrade torch torchvision torchaudio torchtext
-        python -m pip install -r requirements-dev.txt
+        python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-cache-dir --no-build-isolation
+        python -m pip install --no-build-isolation .[all,testing]
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Clean directory
       run: |
@@ -113,8 +113,7 @@ jobs:
         pip uninstall -y monai
         pip uninstall -y monai-weekly
         pip uninstall -y monai-weekly
-        python -m pip install --upgrade torch torchvision torchaudio torchtext
-        python -m pip install -r requirements-dev.txt
+        python -m pip install .[all,testing]
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Clean directory
       run: |
@@ -124,7 +123,7 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils -c 1 | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
-        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        python -c "import torch; print(torch.__version__); print(f'{torch.cuda.device_count()} of GPUs available')"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
 
     - name: Auto3dseg latest algo
