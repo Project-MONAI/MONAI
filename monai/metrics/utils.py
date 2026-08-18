@@ -38,6 +38,7 @@ from monai.utils import (
 binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
+KDTree, has_scipy_kdtree = optional_import("scipy.spatial", name="KDTree")
 
 scipy_ndimage, has_scipy_ndimage = optional_import("scipy.ndimage")
 cupy, has_cupy = optional_import("cupy")
@@ -216,6 +217,7 @@ def get_mask_edges(
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
             pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)
+            # pyrefly: ignore [bad-return]
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
@@ -269,7 +271,8 @@ def get_surface_distance(
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
 
-            - ``"euclidean"``, uses Exact Euclidean distance transform.
+            - ``"euclidean"``, the exact Euclidean distance (a KD-tree over the edge voxels on
+              CPU, or the cuCIM distance transform when the inputs are on a CUDA device).
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
@@ -291,6 +294,27 @@ def get_surface_distance(
             dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
+            # The euclidean surface distance only needs the distance from each `seg_pred`
+            # edge voxel to the nearest `seg_gt` edge voxel. CPU and GPU favour different
+            # algorithms for this:
+            #   * On CPU, a KD-tree over the (sparse) edge-voxel coordinates avoids the dense
+            #     full-volume distance transform, and handles outlier points that expand the
+            #     bounding box.
+            #   * On GPU, the dense EDT is embarrassingly parallel and significantly faster than
+            #     cupy's KDTree (as of this writing anyway)
+            # When scipy's KDTree is unavailable we fall back to the dense distance transform.
+            on_gpu = isinstance(seg_gt, torch.Tensor) and seg_gt.device.type == "cuda"
+            if not on_gpu and has_scipy_kdtree:
+                gt_coords = np.argwhere(convert_to_numpy(seg_gt)).astype(np.float64)
+                pred_coords = np.argwhere(convert_to_numpy(seg_pred)).astype(np.float64)
+                if spacing is not None:
+                    scale = np.asarray(spacing, dtype=np.float64)
+                    gt_coords *= scale
+                    pred_coords *= scale
+                # leafsize larger than the default (16) is faster here: we build the tree
+                # for a single batched query rather than amortizing it over many queries.
+                surface_distance = KDTree(gt_coords, leafsize=32).query(pred_coords, k=1)[0]
+                return convert_to_dst_type(surface_distance, seg_pred, dtype=lib.float32)[0]
             dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(convert_to_numpy(~seg_gt), metric=distance_metric)

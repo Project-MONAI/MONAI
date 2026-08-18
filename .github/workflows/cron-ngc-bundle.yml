@@ -17,7 +17,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python 3.10
       uses: actions/setup-python@v6
       with:
@@ -29,8 +29,8 @@ jobs:
     - name: Install dependencies
       run: |
         rm -rf /github/home/.cache/torch/hub/bundle/
-        python -m pip install --no-build-isolation --upgrade pip wheel wheel-stub
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -U pip wheel wheel-stub
+        python -m pip install .[all,testing]
     - name: Loading Bundles
       run: |
         # clean up temporary files

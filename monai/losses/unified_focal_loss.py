@@ -58,7 +58,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
@@ -122,7 +122,7 @@ class AsymmetricFocalLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 
@@ -223,7 +223,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         n_pred_ch = y_pred.shape[1]
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
 

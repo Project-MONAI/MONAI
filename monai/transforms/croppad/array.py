@@ -965,6 +965,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         weight_map: weight map used to generate patch samples. The weights must be non-negative.
             Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
+            The weight map is only used to compute the patch sample locations; it is not cropped itself.
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
@@ -1129,6 +1130,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,
@@ -1318,6 +1320,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.warn = warn
         self.max_samples_per_class = max_samples_per_class
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,

@@ -232,7 +232,6 @@ class GlobalMutualInformationLoss(_Loss):
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
-        self.kernel_type = kernel_type
         # declared as buffers so they move with the module (e.g. ``.to(device)``); only populated for the
         # gaussian kernel, hence the ``Tensor`` annotation reflects the type at the use sites in that path.
         self.preterm: torch.Tensor | None
@@ -242,6 +241,7 @@ class GlobalMutualInformationLoss(_Loss):
         if self.kernel_type == "gaussian":
             self.register_buffer("preterm", 1 / (2 * sigma**2), persistent=False)
             self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
+
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
