@@ -390,6 +390,7 @@ class PostFix(StrEnum):
 
     @staticmethod
     def transforms(key: str | None = None) -> str:
+        # pyrefly: ignore [unsupported-operation]
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
