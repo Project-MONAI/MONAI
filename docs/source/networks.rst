@@ -662,6 +662,11 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
+`NaViT`
+~~~~~~~
+.. autoclass:: NaViT
+  :members:
+
 `ViT`
 ~~~~~
 .. autoclass:: ViT
