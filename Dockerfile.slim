@@ -28,9 +28,9 @@ RUN apt update && apt upgrade -y && \
     wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
     apt update && \
-    ${APT_INSTALL} cuda-toolkit-12-9 && \
+    ${APT_INSTALL} cuda-toolkit-13-3 && \
     rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
-    python -m pip install --upgrade --no-cache-dir --no-build-isolation pip
+    python -m pip install --upgrade --no-cache-dir pip
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
@@ -46,18 +46,14 @@ RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc &&
 
 WORKDIR /opt/monai
 
-# copy relevant parts of repo
-COPY requirements.txt requirements-min.txt requirements-dev.txt versioneer.py setup.py setup.cfg pyproject.toml ./
-COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md MANIFEST.in runtests.sh ./
+# TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
+# please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
+# this or anything below it and always will build from at most here; one file change leads to no caching from here on...
+COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py pyproject.toml runtests.sh MANIFEST.in ./
 COPY tests ./tests
 COPY monai ./monai
 
-# install full deps
-RUN python -m pip install --no-cache-dir --no-build-isolation -U wheel wheel-stub
-RUN python -m pip install --no-cache-dir --no-build-isolation "torch>=2.8.0,<2.11" -r requirements-dev.txt
-
-# compile ext
-RUN CUDA_HOME=/usr/local/cuda FORCE_CUDA=1 USE_COMPILED=1 BUILD_MONAI=1 python setup.py develop
+RUN BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir -e .[all,testing]
 
 # recreate the image without the installed CUDA packages then copy the installed MONAI and Python directories
 FROM ${IMAGE} AS build2
@@ -66,10 +62,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
 
 RUN apt update && apt upgrade -y && \
-    ${APT_INSTALL} ca-certificates python3-pip python-is-python3 git libopenslide0 && \
+    ${APT_INSTALL} ca-certificates  python-is-python3 git libopenslide0 && \
     apt clean && \
-    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/* && \
-    python -m pip install --upgrade --no-cache-dir --no-build-isolation pip
+    rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/*
 
 COPY --from=build /opt/monai /opt/monai
 COPY --from=build /opt/tools /opt/tools
