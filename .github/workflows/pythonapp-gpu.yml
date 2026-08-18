@@ -96,7 +96,7 @@ jobs:
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/llvmlite*  #6377
         python -m pip install ${{ matrix.pytorch }}
-        python -m pip install -r requirements-dev.txt
+        python -m pip install .[all,testing]
         python -m pip list
     - name: Run quick tests (GPU)
       if: github.event.pull_request.merged != true
