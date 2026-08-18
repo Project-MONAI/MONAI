@@ -1224,15 +1224,15 @@ def get_largest_connected_component_mask(
     if num_features <= num_components:
         out = img_.astype(bool)
     else:
-        # ignore background
-        nonzeros = features[lib.nonzero(features)]
-        # get number voxels per feature (bincount). argsort[::-1] to get indices
-        # of largest components.
-        features_to_keep = lib.argsort(lib.bincount(nonzeros))[::-1]
-        # only keep the first n non-background indices
-        features_to_keep = features_to_keep[:num_components]
-        # generate labelfield. True if in list of features to keep
-        out = lib.isin(features, features_to_keep)
+        # bincount counts every label; index 0 is background, so drop it before ranking
+        counts = lib.bincount(features.reshape(-1))
+        counts[0] = 0
+        # argsort[::-1] gives labels of the largest components; keep the first n
+        features_to_keep = lib.argsort(counts)[::-1][:num_components]
+        # boolean lookup-table gather over the label field, cheaper than isin
+        keep = lib.zeros(counts.shape[0], dtype=bool)
+        keep[features_to_keep] = True
+        out = keep[features]
 
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
@@ -1284,10 +1284,14 @@ def keep_merge_components_with_points(
     features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
 
     outs = np.zeros_like(img_pos_)
+    # pyrefly: ignore [missing-attribute]
     for bs in range(point_coords.shape[0]):
+        # pyrefly: ignore [bad-index]
         for i, p in enumerate(point_coords[bs]):
+            # pyrefly: ignore [bad-index]
             if point_labels[bs, i] in pos_val:
                 features = features_pos
+            # pyrefly: ignore [bad-index]
             elif point_labels[bs, i] in neg_val:
                 features = features_neg
             else:
@@ -1495,8 +1499,10 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     if by_measure:
+        # pyrefly: ignore [missing-attribute]
         sr = len(img.shape[1:])
         if isinstance(img, monai.data.MetaTensor):
+            # pyrefly: ignore [missing-attribute]
             _pixdim = img.pixdim
         elif pixdim is not None:
             _pixdim = ensure_tuple_rep(pixdim, sr)

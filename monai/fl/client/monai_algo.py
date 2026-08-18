@@ -251,6 +251,7 @@ class MonaiAlgoStats(ClientAlgoStats):
             dataroot=self.workflow.dataset_dir,  # type: ignore
             hist_bins=hist_bins,
             hist_range=hist_range,
+            # pyrefly: ignore [bad-argument-type]
             output_path=output_path,
             histogram_only=self.histogram_only,
         )
