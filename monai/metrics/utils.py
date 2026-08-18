@@ -217,6 +217,7 @@ def get_mask_edges(
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
             pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)
+            # pyrefly: ignore [bad-return]
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
