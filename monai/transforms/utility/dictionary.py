@@ -759,6 +759,7 @@ class FlattenSubKeysd(MapTransform):
             sub_keys = d[key].keys() if self.sub_keys is None else self.sub_keys
 
             # move all the sub-keys to the top level
+            # pyrefly: ignore [not-iterable]
             for sk in sub_keys:
                 # set the top-level key for the sub-key
                 sk_top = f"{self.prefix}_{sk}" if self.prefix else sk
