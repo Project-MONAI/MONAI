@@ -375,7 +375,10 @@ class TestHandlerMLFlow(unittest.TestCase):
                 close_on_complete=True,
             )
             monitor = MagicMock()
-            with patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class:
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
                 handler.attach(engine)
                 engine.run(range(3), max_epochs=1)
 
@@ -408,7 +411,10 @@ class TestHandlerMLFlow(unittest.TestCase):
                 for _ in range(3)
             ]
             monitor = MagicMock()
-            with patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class:
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
                 for handler in handlers:
                     handler.start(engine)
 
@@ -426,6 +432,31 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             for handler in handlers:
                 handler.close()
+
+    def test_system_metrics_warns_when_mlflow_is_too_old(self):
+        """
+        Test that a workflow still runs, with a warning, when the installed mlflow cannot
+        record the system metrics.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            def _train_func(engine, batch):
+                return [batch + 1.0]
+
+            engine = Engine(_train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_unavailable")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            with patch("monai.handlers.mlflow_handler.has_system_metrics", False):
+                with self.assertWarns(Warning):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertIsNone(handler.system_metrics_monitor)
 
     def test_system_metrics_settings_are_validated(self):
         """
