@@ -104,6 +104,7 @@ all = [
   "torchvision",
   "tqdm>=4.47.0",
   "transformers>=4.53.0, <5.0",
+  "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
   "zarr"
 ]
 clearml = ["clearml>=1.10.0rc0"]
