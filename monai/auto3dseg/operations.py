@@ -149,4 +149,5 @@ class SummaryOperations(Operations):
         Args:
             data: input data
         """
+        # pyrefly: ignore [missing-attribute]
         return {k: v(data[k], **kwargs).tolist() for k, v in self.data.items() if (callable(v) and k in data)}
