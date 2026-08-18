@@ -1130,6 +1130,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,
@@ -1319,6 +1320,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.warn = warn
         self.max_samples_per_class = max_samples_per_class
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,

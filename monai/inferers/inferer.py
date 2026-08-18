@@ -841,6 +841,7 @@ class SliceInferer(SlidingWindowInferer):
 
         if isinstance(out, Mapping):
             for k in out.keys():
+                # pyrefly: ignore [unsupported-operation]
                 out[k] = out[k].unsqueeze(dim=self.spatial_dim + 2)
             return out
 

@@ -601,6 +601,7 @@ def copy_model_state(
             dst_dict[dst_key] = val
             updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
+        # pyrefly: ignore [unsupported-operation]
         dst_key = f"{dst_prefix}{mapping[s]}"
         if dst_key in dst_dict and dst_key not in to_skip:
             if dst_dict[dst_key].shape != src_dict[s].shape:
