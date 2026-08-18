@@ -489,11 +489,13 @@ class EnsembleEvaluator(Evaluator):
                 if engine.amp:
                     with torch.autocast("cuda", **engine.amp_kwargs):
                         if isinstance(engine.state.output, dict):
+                            # pyrefly: ignore [no-matching-overload]
                             engine.state.output.update(
                                 {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                             )
                 else:
                     if isinstance(engine.state.output, dict):
+                        # pyrefly: ignore [no-matching-overload]
                         engine.state.output.update(
                             {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                         )

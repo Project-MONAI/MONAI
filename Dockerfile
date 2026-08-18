@@ -16,6 +16,8 @@ FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
 
+ENV BUILD_MONAI=1
+
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
       export CFLAGS="-O3" && \
@@ -23,27 +25,6 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
       export DISABLE_NUMCODECS_AVX2=true && \
       pip install numcodecs; \
     fi
-
-WORKDIR /opt/monai
-
-# install full deps
-COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
-RUN cp /tmp/requirements.txt /tmp/req.bak \
-  && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
-  && python -m pip install --upgrade --no-cache-dir --no-build-isolation pip wheel wheel-stub \
-  && python -m pip install --no-cache-dir --no-build-isolation -r /tmp/requirements-dev.txt
-
-# compile ext and remove temp files
-# TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
-# please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
-# this or anything below it and always will build from at most here; one file change leads to no caching from here on...
-
-COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py setup.cfg runtests.sh MANIFEST.in ./
-COPY tests ./tests
-COPY monai ./monai
-
-RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
-  && rm -rf build __pycache__
 
 # NGC Client
 WORKDIR /opt/tools
@@ -59,5 +40,17 @@ RUN apt-get update \
 ENV PATH=${PATH}:/opt/tools
 ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 
-
 WORKDIR /opt/monai
+
+# TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
+# please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
+# this or anything below it and always will build from at most here; one file change leads to no caching from here on...
+COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py pyproject.toml runtests.sh MANIFEST.in ./
+COPY tests ./tests
+COPY monai ./monai
+
+# Need to install build requirements explicitly so that no-build-isolation can be used. This is needed to make pip build
+# against the included version of PyTorch, rather than install a new version in the isolated environment. Constraint
+# files will not work for this image which installed things like PyTorch through files which are no longer present.
+RUN python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
+  && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .[all,testing]

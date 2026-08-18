@@ -354,17 +354,14 @@ class StdShiftIntensity(Transform):
         self.dtype = dtype
 
     def _stdshift(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        ones: Callable
         std: Callable
         if isinstance(img, torch.Tensor):
-            ones = torch.ones
             std = partial(torch.std, unbiased=False)
         else:
-            ones = np.ones
             std = np.std
 
-        slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
-        if slices.any():
+        slices = (img != 0) if self.nonzero else ()
+        if not self.nonzero or (isinstance(slices, (np.ndarray, torch.Tensor)) and slices.any()):
             offset = self.factor * std(img[slices])
             img[slices] = img[slices] + offset
         return img
