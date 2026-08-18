@@ -137,8 +137,14 @@ function print_version {
 }
 
 function install_deps {
-    echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}"${PY_EXE}" -m pip install --no-build-isolation -r requirements-dev.txt
+    echo "Pip installing MONAI development dependencies..."
+    # needed for Python<3.11
+    ${cmdPrefix}"${PY_EXE}" -m pip install -U tomli
+    # create a temporary requirements file and install using it
+    REQ=$(mktemp --tmpdir XXX.txt)
+    trap 'rm -f -- "$REQ"' EXIT
+    ${cmdPrefix}"${PY_EXE}" monai/config/print_dependencies.py all testing > "$REQ"
+    ${cmdPrefix}"${PY_EXE}" -m pip install -r "$REQ"
 }
 
 function compile_cpp {
