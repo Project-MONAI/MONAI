@@ -335,24 +335,27 @@ class TestHandlerMLFlow(unittest.TestCase):
             else:
                 self.assertEqual(handler._default_iteration_log.call_count, 2)  # 2 = len([1, 3]) from event_filter
 
+    @staticmethod
+    def _train_func(engine, batch):
+        return [batch + 1.0]
+
     def test_system_metrics_disabled_by_default(self):
         """
-        Test that a handler left at its default settings does not sample the system metrics.
+        Test that a handler left at its default settings does not sample the system metrics,
+        even where mlflow is able to.
         """
         with tempfile.TemporaryDirectory() as tempdir:
-
-            def _train_func(engine, batch):
-                return [batch + 1.0]
-
-            engine = Engine(_train_func)
+            engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics_off")
             handler = MLFlowHandler(iteration_log=False, tracking_uri=path_to_uri(test_path), close_on_complete=True)
-            handler.attach(engine)
-            engine.run(range(3), max_epochs=1)
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor") as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=1)
 
-            self.assertIsNone(handler.system_metrics_monitor)
-            run = handler.client.get_run(handler.cur_run.info.run_id) if handler.cur_run else None
-            self.assertIsNone(run)
+            monitor_class.assert_not_called()
 
     def test_system_metrics_monitor_life_cycle(self):
         """
@@ -360,11 +363,7 @@ class TestHandlerMLFlow(unittest.TestCase):
         and stops when the workflow completes.
         """
         with tempfile.TemporaryDirectory() as tempdir:
-
-            def _train_func(engine, batch):
-                return [batch + 1.0]
-
-            engine = Engine(_train_func)
+            engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics")
             handler = MLFlowHandler(
                 iteration_log=False,
@@ -372,7 +371,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 log_system_metrics=True,
                 system_metrics_sampling_interval=1,
                 system_metrics_samples_before_logging=1,
-                close_on_complete=True,
+                close_on_complete=False,
             )
             monitor = MagicMock()
             with (
@@ -384,12 +383,14 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             # the monitor samples the run of the handler, with the requested sampling settings
             monitor_class.assert_called_once()
+            self.assertEqual(monitor_class.call_args.args[0], handler.cur_run.info.run_id)
             self.assertEqual(monitor_class.call_args.kwargs["sampling_interval"], 1)
             self.assertEqual(monitor_class.call_args.kwargs["samples_before_logging"], 1)
             monitor.start.assert_called_once()
             # the sampling is stopped when the workflow completes
             monitor.finish.assert_called_once()
             self.assertIsNone(handler.system_metrics_monitor)
+            handler.close()
 
     def test_system_metrics_monitor_shared_by_handlers(self):
         """
@@ -397,11 +398,7 @@ class TestHandlerMLFlow(unittest.TestCase):
         until the handler that started the sampling completes.
         """
         with tempfile.TemporaryDirectory() as tempdir:
-
-            def _train_func(engine, batch):
-                return [batch + 1.0]
-
-            engine = Engine(_train_func)
+            engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics_shared")
             # a workflow attaches one handler per engine, all of them sharing a run
             handlers = [
@@ -418,8 +415,13 @@ class TestHandlerMLFlow(unittest.TestCase):
                 for handler in handlers:
                     handler.start(engine)
 
+                run_ids = {handler.cur_run.info.run_id for handler in handlers}
+                self.assertEqual(len(run_ids), 1)
+
                 # the run is sampled by the first handler only
                 monitor_class.assert_called_once()
+                self.assertEqual(monitor_class.call_args.args[0], run_ids.pop())
+                monitor.start.assert_called_once()
 
                 # the handlers that do not sample the run leave it running when they complete
                 for handler in handlers[1:]:
@@ -433,17 +435,13 @@ class TestHandlerMLFlow(unittest.TestCase):
             for handler in handlers:
                 handler.close()
 
-    def test_system_metrics_warns_when_mlflow_is_too_old(self):
+    def test_system_metrics_warns_when_unavailable(self):
         """
-        Test that a workflow still runs, with a warning, when the installed mlflow cannot
-        record the system metrics.
+        Test that a workflow still runs, with a warning, when the installed mlflow does not
+        support recording the system metrics.
         """
         with tempfile.TemporaryDirectory() as tempdir:
-
-            def _train_func(engine, batch):
-                return [batch + 1.0]
-
-            engine = Engine(_train_func)
+            engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics_unavailable")
             handler = MLFlowHandler(
                 iteration_log=False,
@@ -452,11 +450,65 @@ class TestHandlerMLFlow(unittest.TestCase):
                 close_on_complete=True,
             )
             with patch("monai.handlers.mlflow_handler.has_system_metrics", False):
-                with self.assertWarns(Warning):
+                with self.assertWarnsRegex(Warning, "Please install mlflow>=2.8.0 to record the system metrics."):
                     handler.attach(engine)
                     engine.run(range(3), max_epochs=1)
 
             self.assertIsNone(handler.system_metrics_monitor)
+
+    def test_system_metrics_start_failure_does_not_stop_the_workflow(self):
+        """
+        Test that a workflow still runs, with a warning, when the monitor cannot be started.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_start_failure")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            with (
+                patch(
+                    "monai.handlers.mlflow_handler.SystemMetricsMonitor", side_effect=RuntimeError("no monitor for you")
+                ),
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                with self.assertWarnsRegex(Warning, "Failed to record the system metrics"):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertEqual(engine.state.epoch, 1)
+            self.assertIsNone(handler.system_metrics_monitor)
+            self.assertEqual(len(MLFlowHandler._monitored_run_ids), 0)
+
+    def test_system_metrics_stop_failure_is_reported(self):
+        """
+        Test that a monitor which fails to stop is reported and released, so that the run can
+        be sampled again.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_stop_failure")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            monitor = MagicMock()
+            monitor.finish.side_effect = RuntimeError("monitor will not stop")
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor),
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                with self.assertWarnsRegex(Warning, "Failed to stop recording the system metrics"):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertIsNone(handler.system_metrics_monitor)
+            self.assertEqual(len(MLFlowHandler._monitored_run_ids), 0)
 
     def test_system_metrics_settings_are_validated(self):
         """
