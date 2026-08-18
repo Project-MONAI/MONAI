@@ -234,6 +234,7 @@ class MLFlowHandler:
         self._log_params(attrs)
 
         if self.dataset_logger:
+            # pyrefly: ignore [bad-argument-type]
             self.dataset_logger(self.dataset_dict)
         else:
             self._default_dataset_log(self.dataset_dict)
@@ -257,6 +258,7 @@ class MLFlowHandler:
                     else:
                         raise e
 
+        # pyrefly: ignore [missing-attribute]
         if experiment.lifecycle_stage != mlflow.entities.LifecycleStage.ACTIVE:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment

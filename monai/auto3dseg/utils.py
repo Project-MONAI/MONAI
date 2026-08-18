@@ -284,7 +284,7 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
 
         if isinstance(v_fmt, list) and isinstance(v, list):
             if len(v_fmt) != 1:
-                raise UserWarning("list length in report_format is not 1")
+                warnings.warn("list length in report_format is not 1", stacklevel=2)
             if len(v_fmt) > 0 and len(v) > 0:
                 return verify_report_format(v[0], v_fmt[0])
             else:
