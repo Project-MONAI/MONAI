@@ -130,7 +130,8 @@ mlflow = ["mlflow>=2.12.2,<3.13"]
 nibabel = ["nibabel"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
-  "filelock<3.12.0"  # https://github.com/microsoft/nni/issues/5523
+  "filelock<3.12.0",  # https://github.com/microsoft/nni/issues/5523
+  "typeguard<3"  # https://github.com/microsoft/nni/issues/5457
 ]
 onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
 openslide = ["openslide-python", "openslide-bin"]
@@ -161,7 +162,7 @@ zarr = ["zarr"]
 testing = [
   "black>=26.3.1",
   "coverage>=5.5",
-  "isort>=5.1,<6,!=6.0.0",
+  "isort>=5.1,!=6.0.0",
   "mccabe",
   "packaging",
   "parameterized",
@@ -170,9 +171,8 @@ testing = [
   "pycodestyle",
   "pyflakes",
   "pyrefly>=1.0.0",
-  "ruff>=0.14.11,<0.15",
+  "ruff>=0.14.11",
   "tomli",  # used in print_dependencies.py for Python<3.11
-  "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
   "types-PyYAML",
   "types-setuptools"
 ]

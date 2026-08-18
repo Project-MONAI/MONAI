@@ -28,8 +28,9 @@ repos:
         args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20
+    rev: v0.16.3
     hooks:
     -   id: ruff-check
         args: ["--fix"]
