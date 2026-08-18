@@ -25,6 +25,7 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any
 
+import numpy as np
 import torch
 from torch.cuda import is_available
 
@@ -51,6 +52,7 @@ from monai.utils import (
     min_version,
     optional_import,
     pprint_edges,
+    safe_eval,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")
@@ -158,10 +160,12 @@ def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, 
             if i == "*":
                 ret.append(any)
             else:
-                for c in _get_var_names(i):
-                    if c not in ["p", "n"]:
-                        raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
-                ret.append(eval(i, {"p": p, "n": n}))
+                bad_names = set(c for c in _get_var_names(i) if c not in {"p", "n"})
+                if bad_names:
+                    raise ValueError(f"Only variables `p` and `n` currently supported. Invalid names: {bad_names}")
+
+                # evaluate using Numpy types to prevent slow Python DoS attacks
+                ret.append(int(safe_eval(i, {"p": np.int32(p), "n": np.int32(n)}, rewrite_np=True)))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
