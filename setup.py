@@ -30,6 +30,7 @@ FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI 
 
 BUILD_CPP = BUILD_CUDA = False
 TORCH_VERSION = 0
+
 try:
     import torch
 
@@ -126,7 +127,7 @@ def get_extensions():
     ext_modules = [
         extension(
             name="monai._C",
-            sources=sources,
+            sources=list(map(os.path.relpath, sources)),
             include_dirs=include_dirs,
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
