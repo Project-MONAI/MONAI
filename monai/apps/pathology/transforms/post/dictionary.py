@@ -403,6 +403,7 @@ class GenerateInstanceCentroidd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             offset = d[self.offset_key] if self.offset_key else None
+            # pyrefly: ignore [bad-argument-type]
             centroid = self.converter(d[key], offset)
             key_to_add = f"{key}_{self.centroid_key_postfix}"
             if key_to_add in d:
