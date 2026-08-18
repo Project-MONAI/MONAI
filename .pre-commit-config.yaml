@@ -13,11 +13,13 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: check-ast
       - id: check-yaml
       - id: check-docstring-first
       - id: check-executables-have-shebangs
       - id: check-toml
       - id: check-case-conflict
+      - id: check-illegal-windows-names
       - id: check-added-large-files
         args: ['--maxkb=1024']
       - id: detect-private-key
@@ -42,3 +44,26 @@ repos:
     hooks:
       - id: pycln
         args: [--config=pyproject.toml]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1  # Black version, keep synced with MONAI requirements
+    hooks:
+      - id: black
+        language_version: python3
+        # black will be given individual file names and so will ignore the excludes in pyproject.toml
+        exclude: |
+          (?x)(
+              ^versioneer.py|
+              ^monai/_version.py
+          )
+
+  - repo: https://github.com/pycqa/isort
+    rev: 8.0.1  # isort version, keep synced with MONAI requirements
+    hooks:
+      - id: isort
+        name: isort (python)
+        exclude: |
+          (?x)(
+              ^versioneer.py|
+              ^monai/_version.py
+          )
