@@ -87,10 +87,10 @@ class TestSafeEval(unittest.TestCase):
         self.assertIs(result, False)
 
     def test_rewrite_np_inf_constant(self):
-        """Test that rewrite_np handles inf/nan literals correctly."""
+        """Test that rewrite_np handles overflowing infinity literals."""
         result = safe_eval("1e309", rewrite_np=True)
         self.assertIsInstance(result, np.floating)
-
+        self.assertTrue(np.isinf(result))
 
 if __name__ == "__main__":
     unittest.main()
