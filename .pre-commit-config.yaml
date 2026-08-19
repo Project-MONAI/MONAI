@@ -69,4 +69,4 @@ repos:
       - id: pyrefly-check
         name: Pyrefly (type checking)
         pass_filenames: false
-        additional_dependencies: [ ]  # Your project's dependencies
+        additional_dependencies: ["torch>=2.8.0", "numpy>=1.24,<3.0"]
