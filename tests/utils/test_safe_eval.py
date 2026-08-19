@@ -92,5 +92,6 @@ class TestSafeEval(unittest.TestCase):
         self.assertIsInstance(result, np.floating)
         self.assertTrue(np.isinf(result))
 
+
 if __name__ == "__main__":
-    unittest.main()
+unittest.main()
