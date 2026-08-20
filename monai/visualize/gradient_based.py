@@ -124,9 +124,11 @@ class SmoothGrad(VanillaGrad):
         self.stdev_spread = stdev_spread
         self.n_samples = n_samples
         self.magnitude = magnitude
+        if isinstance(sample_batch_size, bool) or not isinstance(sample_batch_size, int):
+            raise ValueError(f"sample_batch_size must be an int, got {type(sample_batch_size).__name__}.")
+        if sample_batch_size < 1:
+            raise ValueError(f"sample_batch_size must be >= 1, got {sample_batch_size}.")
         self.sample_batch_size = sample_batch_size
-        if self.sample_batch_size < 1:
-            raise ValueError("sample_batch_size must be >= 1")
         self.range: Callable
         if verbose and has_trange:
             self.range = partial(trange, desc=f"Computing {self.__class__.__name__}")

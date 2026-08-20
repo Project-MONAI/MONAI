@@ -65,5 +65,13 @@ class TestGradientClassActivationMap(unittest.TestCase):
         self.assertTupleEqual(result.shape, x.shape)
 
 
+class TestSmoothGradSampleBatchSize(unittest.TestCase):
+
+    @parameterized.expand([[0], [-1], [1.5], [True], [False], ["2"]])
+    def test_invalid_sample_batch_size(self, value):
+        with self.assertRaises(ValueError):
+            SmoothGrad(DENSENET2D, sample_batch_size=value)
+
+
 if __name__ == "__main__":
     unittest.main()
