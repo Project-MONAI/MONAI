@@ -100,5 +100,19 @@ class TestSmoothGradModelState(unittest.TestCase):
         self.assertEqual([m.training for m in model.modules()], before)
 
 
+class TestGradBatchContract(unittest.TestCase):
+
+    @parameterized.expand([[VanillaGrad], [GuidedBackpropGrad]])
+    def test_get_grad_rejects_batch(self, vis_type):
+        vis = vis_type(DENSENET2D)
+        with self.assertRaisesRegex(ValueError, "batch size of 1"):
+            vis(torch.rand(2, 1, 48, 64))
+
+    def test_smoothgrad_batched_rejects_input_batch(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaisesRegex(ValueError, "input batch size of 1"):
+            vis(torch.rand(2, 1, 48, 64))
+
+
 if __name__ == "__main__":
     unittest.main()

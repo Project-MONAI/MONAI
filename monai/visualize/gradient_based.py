@@ -91,6 +91,14 @@ class VanillaGrad:
     def get_grad(
         self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph: bool = True, **kwargs: Any
     ) -> torch.Tensor:
+        if x.shape[0] != 1:
+            raise ValueError("expect batch size of 1")
+        return self._get_grad(x, index, retain_graph=retain_graph, **kwargs)
+
+    def _get_grad(
+        self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph: bool = True, **kwargs: Any
+    ) -> torch.Tensor:
+        # unguarded gradient computation; ``x`` may carry a batch of noisy copies of a single input
         x.requires_grad = True
 
         self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
@@ -157,6 +165,8 @@ class SmoothGrad(VanillaGrad):
         return resolved
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
+        if self.sample_batch_size > 1 and x.shape[0] != 1:
+            raise ValueError(f"sample_batch_size > 1 expects an input batch size of 1, got {x.shape[0]}.")
         if self.sample_batch_size > 1 and self._model.model.training:
             warnings.warn("SmoothGrad with sample_batch_size > 1 and model in train mode: BatchNorm statistics will mix noisy copies.")
         stdev = (self.stdev_spread * (x.max() - x.min())).item()
@@ -185,7 +195,7 @@ class SmoothGrad(VanillaGrad):
                 noise = torch.normal(0, stdev, size=noise_shape, dtype=torch.float32, device=x.device)
                 # x is (1, ...) -> broadcast to (k, ...)
                 x_plus_noise = (x + noise).detach()
-                grads = self.get_grad(x_plus_noise, resolved_index, **kwargs)
+                grads = self._get_grad(x_plus_noise, resolved_index, **kwargs)
                 # grads shape (k, ...)
                 if self.magnitude:
                     grads = grads * grads
