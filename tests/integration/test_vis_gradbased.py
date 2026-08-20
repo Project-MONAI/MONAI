@@ -73,5 +73,32 @@ class TestSmoothGradSampleBatchSize(unittest.TestCase):
             SmoothGrad(DENSENET2D, sample_batch_size=value)
 
 
+class TestSmoothGradModelState(unittest.TestCase):
+
+    def test_mixed_module_modes_are_restored(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model.train()
+        # a submodule deliberately kept in eval mode must stay there
+        frozen = next(m for m in model.modules() if isinstance(m, torch.nn.BatchNorm2d))
+        frozen.eval()
+        before = [m.training for m in model.modules()]
+
+        vis = SmoothGrad(model, n_samples=2, sample_batch_size=2, verbose=False)
+        vis._resolve_index(torch.rand(1, 1, 48, 64), None)
+
+        self.assertEqual([m.training for m in model.modules()], before)
+
+    def test_mode_restored_when_forward_raises(self):
+        model = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=3)
+        model.train()
+        before = [m.training for m in model.modules()]
+
+        vis = SmoothGrad(model, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaises(ValueError):
+            vis._resolve_index(torch.rand(1, 1, 48, 64), None, adjoint_info=0)
+
+        self.assertEqual([m.training for m in model.modules()], before)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -140,15 +140,18 @@ class SmoothGrad(VanillaGrad):
     ) -> torch.Tensor | int | None:
         if index is not None:
             return index
-        # resolve argmax once on clean input
-        was_training = self._model.model.training
-        self._model.model.eval()
-        with torch.no_grad():
-            logits = self._model.model(x, **kwargs)
-            if isinstance(logits, (list, tuple)):
-                logits = logits[0]
-        if was_training:
-            self._model.model.train()
+        # resolve argmax once on clean input, restoring every submodule's mode afterwards
+        modules = tuple(self._model.model.modules())
+        training_states = [m.training for m in modules]
+        try:
+            self._model.model.eval()
+            with torch.no_grad():
+                logits = self._model.model(x, **kwargs)
+                if isinstance(logits, (list, tuple)):
+                    logits = logits[0]
+        finally:
+            for m, training in zip(modules, training_states):
+                m.train(training)
         # logits shape (B, C) with B==1 for SmoothGrad input
         resolved: int = int(logits.argmax(dim=1).item())
         return resolved
