@@ -700,10 +700,14 @@ def set_rnd(obj, seed: int, _seen: set[int] | None = None) -> int:
     if _seen is None:
         _seen = set()
     if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
-        _seed = seed
+        if id(obj) in _seen:
+            return seed
+        _seen.add(id(obj))
+        has_randomizable = False
         for item in obj:
-            _seed = set_rnd(item, seed=seed, _seen=_seen)
-        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
+            item_seed = set_rnd(item, seed=seed, _seen=_seen)
+            has_randomizable = has_randomizable or item_seed != seed
+        return seed + 1 if has_randomizable else seed
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if id(obj) in _seen:
