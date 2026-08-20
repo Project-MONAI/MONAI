@@ -176,17 +176,15 @@ class SmoothGrad(VanillaGrad):
         if self.sample_batch_size > 1 and x.shape[0] != 1:
             raise ValueError(f"sample_batch_size > 1 expects an input batch size of 1, got {x.shape[0]}.")
         if self.sample_batch_size > 1 and self._model.model.training:
-            warnings.warn("SmoothGrad with sample_batch_size > 1 and model in train mode: BatchNorm statistics will mix noisy copies.")
+            warnings.warn(
+                "SmoothGrad with sample_batch_size > 1 and model in train mode: "
+                "BatchNorm statistics will mix noisy copies.",
+                stacklevel=2,
+            )
         stdev = (self.stdev_spread * (x.max() - x.min())).item()
         total_gradients = torch.zeros_like(x)
         # resolve index once so all noisy copies use the same class
         resolved_index = self._resolve_index(x, index, **kwargs) if self.sample_batch_size > 1 else index
-        # if chunking, resolve None to a concrete int so batched forward uses consistent class
-        if resolved_index is None and self.sample_batch_size > 1:
-            # fallback: _resolve_index already handled None case above, but keep guard
-            resolved_index = self._resolve_index(x, None, **kwargs)
-        # for sample_batch_size==1, keep original per-sample argmax behaviour when index is None
-        # but when sample_batch_size>1 we must use resolved_index
         n_chunks = math.ceil(self.n_samples / self.sample_batch_size)
         remaining = self.n_samples
         for _ in self.range(n_chunks):
