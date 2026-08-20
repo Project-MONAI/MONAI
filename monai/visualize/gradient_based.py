@@ -147,6 +147,14 @@ class SmoothGrad(VanillaGrad):
         self, x: torch.Tensor, index: torch.Tensor | int | None, **kwargs: Any
     ) -> torch.Tensor | int | None:
         if index is not None:
+            if isinstance(index, torch.Tensor):
+                # the batched path feeds a forward of size k, so a per-sample index tensor
+                # sized for the clean input would select the wrong class per copy
+                if index.numel() != 1:
+                    raise ValueError(
+                        f"sample_batch_size > 1 expects a single class index, got {index.numel()} elements."
+                    )
+                return int(index.item())
             return index
         # resolve argmax once on clean input, restoring every submodule's mode afterwards
         modules = tuple(self._model.model.modules())

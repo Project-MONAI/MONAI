@@ -114,5 +114,29 @@ class TestGradBatchContract(unittest.TestCase):
             vis(torch.rand(2, 1, 48, 64))
 
 
+class TestSmoothGradIndex(unittest.TestCase):
+
+    def test_tensor_index_is_normalised(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        self.assertEqual(vis._resolve_index(torch.rand(1, 1, 48, 64), torch.tensor([2])), 2)
+
+    def test_multi_element_tensor_index_rejected(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaisesRegex(ValueError, "single class index"):
+            vis._resolve_index(torch.rand(1, 1, 48, 64), torch.tensor([0, 1]))
+
+    def test_batched_matches_unbatched(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3).eval()
+        x = torch.rand(1, 1, 48, 64)
+
+        torch.manual_seed(0)
+        expected = SmoothGrad(model, n_samples=4, sample_batch_size=1, verbose=False)(x, index=1)
+        torch.manual_seed(0)
+        actual = SmoothGrad(model, n_samples=4, sample_batch_size=4, verbose=False)(x, index=1)
+
+        self.assertTupleEqual(actual.shape, x.shape)
+        torch.testing.assert_close(actual, expected, atol=1e-4, rtol=1e-3)
+
+
 if __name__ == "__main__":
     unittest.main()
