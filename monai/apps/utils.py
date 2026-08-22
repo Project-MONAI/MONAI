@@ -42,7 +42,15 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "HashCheckError",
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
@@ -224,7 +232,7 @@ def download_url(
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        ValueError: When the hash validation of the ``url`` downloaded file fails.
+        HashCheckError: When the hash validation of the ``url`` downloaded file fails.
     """
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
@@ -241,7 +249,7 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-                if "fuzzy" not in gdown_kwargs:
+                if "fuzzy" not in gdown_kwargs and not min_version(gdown, "6.0.0"):  # "fuzzy" dropped in gdown 6.0.0
                     gdown_kwargs["fuzzy"] = True  # default to true for flexible url
                 gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
             elif urlparse(url).netloc == "cloud-api.yandex.net":
@@ -328,7 +336,7 @@ def extractall(
             be False.
 
     Raises:
-        ValueError: When the hash validation of the ``filepath`` compressed file fails.
+        HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """

@@ -35,6 +35,7 @@ from monai.data.box_utils import (
     convert_box_mode,
     convert_box_to_standard_mode,
     non_max_suppression,
+    spatial_crop_boxes,
 )
 from monai.utils.type_conversion import convert_data_type
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
@@ -268,6 +269,20 @@ class TestBoxUtilsDtype(unittest.TestCase):
         iou = box_iou(boxes1, boxes2)
         self.assertTrue(np.issubdtype(iou.dtype, np.floating))
         self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
+
+    def test_large_coordinates_are_not_dropped(self):
+        """Verify large-coordinate boxes are preserved by cropping and clipping."""
+        boxes = torch.tensor([[41000.0, 5000.0, 45000.0, 15000.0]], dtype=torch.float32)
+
+        cropped_boxes, keep = spatial_crop_boxes(
+            boxes=boxes, roi_start=[40000, 0], roi_end=[50000, 20000], remove_empty=True
+        )
+        assert_allclose(keep, torch.tensor([True]))
+        assert_allclose(cropped_boxes, torch.tensor([[1000.0, 5000.0, 5000.0, 15000.0]]))
+
+        clipped_boxes, keep = clip_boxes_to_image(boxes=boxes, spatial_size=[50000, 50000], remove_empty=True)
+        assert_allclose(keep, torch.tensor([True]))
+        assert_allclose(clipped_boxes, boxes)
 
 
 class TestBatchedNms(unittest.TestCase):

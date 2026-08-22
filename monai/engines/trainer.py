@@ -944,4 +944,5 @@ class AdversarialTrainer(DualNetworkTrainer):
             engine.state.output[AdversarialKeys.DISCRIMINATOR_LOSS].backward()
             engine.state.d_optimizer.step()
 
+        # pyrefly: ignore [bad-return]
         return engine.state.output

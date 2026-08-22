@@ -139,6 +139,21 @@ class TestWarp(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
+    def test_jitter(self):
+        ddf = torch.zeros(1, 2, 4, 5)
+        grid = Warp(jitter=True).get_reference_grid(ddf, jitter=True, seed=0)
+        self.assertTrue(grid.is_floating_point())
+        self.assertFalse(torch.equal(grid, grid.round()))
+
+        grid = Warp().get_reference_grid(ddf, jitter=False)
+        self.assertTrue(torch.equal(grid, grid.round()))
+
+        same = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        repeat = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        other = Warp().get_reference_grid(ddf, jitter=True, seed=8)
+        self.assertTrue(torch.equal(same, repeat))
+        self.assertFalse(torch.equal(same, other))
+
     @mock.patch("monai.networks.blocks.warp.USE_COMPILED", False)
     def test_singleton_spatial_dim(self):
         """

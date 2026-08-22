@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias  # pyrefly: ignore [missing-module-attribute]
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -744,11 +744,11 @@ class PydicomReader(ImageReader):
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
             warnings.warn(
-                "PydicomReader: ImageOrientationPatient (00200037) or "
-                "ImagePositionPatient (00200032) not found in DICOM metadata. "
-                "The affine matrix will be set to identity, which may be incorrect. "
-                "This commonly occurs with multiframe DICOM files (e.g., Enhanced CT). "
-                "Consider using ITKReader for accurate spatial metadata.",
+                "PydicomReader: ImageOrientationPatient (0020,0037) and/or "
+                "ImagePositionPatient (0020,0032) tags are missing, so the affine "
+                "matrix cannot be derived and defaults to the identity. The image "
+                "orientation and spacing may be incorrect (e.g. for multi-frame "
+                "Enhanced DICOM); consider using ITKReader for such files.",
                 stacklevel=2,
             )
             return affine
