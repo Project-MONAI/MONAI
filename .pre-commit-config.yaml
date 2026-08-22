@@ -6,6 +6,9 @@ ci:
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit suggestions'
   autoupdate_schedule: quarterly
   # submodules: true
+  # The hooks below run the tools from the environment pyproject.toml defines, which
+  # pre-commit.ci does not build; the pre-commit job in cicd_tests.yml runs them instead.
+  skip: [black, isort, pycln, ruff-check]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -26,19 +29,33 @@ repos:
         args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20
-    hooks:
-    -   id: ruff-check
-        args: ["--fix"]
-        exclude: |
-          (?x)(
-              ^versioneer.py|
-              ^monai/_version.py
-          )
 
-  - repo: https://github.com/hadialqattan/pycln
-    rev: v2.6.0
+  # Versions come from [project.optional-dependencies].lint and settings from the
+  # [tool.*] tables, so these hooks and runtests.sh cannot resolve a different tool.
+  # The --force-exclude/--filter-files flags apply those settings to the explicit
+  # filenames pre-commit passes.
+  - repo: local
     hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+
+      - id: isort
+        name: isort
+        entry: python -m isort --filter-files
+        language: system
+        types_or: [python, pyi]
+
+      - id: black
+        name: black
+        entry: python -m black
+        language: system
+        types_or: [python, pyi]
+
       - id: pycln
-        args: [--config=pyproject.toml]
+        name: pycln
+        entry: python -m pycln --config=pyproject.toml
+        language: system
+        types_or: [python, pyi]

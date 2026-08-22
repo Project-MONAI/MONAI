@@ -32,14 +32,52 @@ dependencies = ["torch", "numpy"]
 
 [project.optional-dependencies]
 all = ["something", "another"]
-testing = ["coverage", "black"]
+lint = ["ruff", "black"]
+testing = ["test[lint]", "coverage"]
+cyclic = ["test[cyclic]", "spam"]
+spell_check = ["eggs"]
+mixed = ["Test[Spell.Check]", "ham"]
+other_pkg = ["versioneer[toml]", "bacon"]
+"""
+
+# a project whose name needs normalizing before a self-reference spelled differently can match it
+PUNCTUATED_NAME_TOML = """
+[project]
+name = "My_Project"
+dependencies = ["torch"]
+
+[project.optional-dependencies]
+lint = ["ruff"]
+testing = ["my-project[lint]", "coverage"]
 """
 
 PARSE_CASES = [
     ([], ["numpy", "torch"]),
-    (["testing"], ["black", "coverage", "numpy", "torch"]),
+    # "test[lint]" expands rather than reaching pip as a requirement on the published package
+    (["testing"], ["black", "coverage", "numpy", "ruff", "torch"]),
     (["build-system"], ["numpy", "setuptools", "torch", "wheel"]),
-    (["*"], ["another", "black", "coverage", "numpy", "something", "torch"]),
+    (
+        ["*"],
+        [
+            "another",
+            "bacon",
+            "black",
+            "coverage",
+            "eggs",
+            "ham",
+            "numpy",
+            "ruff",
+            "something",
+            "spam",
+            "torch",
+            "versioneer[toml]",
+        ],
+    ),
+    (["cyclic"], ["numpy", "spam", "torch"]),
+    # PEP 685: extra names compare equal across case and "-"/"_"/"." spellings
+    (["mixed"], ["eggs", "ham", "numpy", "torch"]),
+    # another project's extra is not a self-reference and passes through untouched
+    (["other_pkg"], ["bacon", "numpy", "torch", "versioneer[toml]"]),
 ]
 
 
@@ -56,6 +94,15 @@ class TestPrintDependencies(unittest.TestCase):
     def test_parse_dependencies(self, sections, outputs):
         deps = parse_dependencies(self.toml.name, sections)
         self.assertEqual(outputs, deps)
+
+    def test_self_reference_spelled_differently(self):
+        """PEP 503: "my-project[lint]" is a self-reference to a project named "My_Project"."""
+        toml = NamedTemporaryFile("w", delete=False)
+        toml.write(PUNCTUATED_NAME_TOML)
+        toml.close()
+        self.addCleanup(os.unlink, toml.name)
+
+        self.assertEqual(["coverage", "ruff", "torch"], parse_dependencies(toml.name, ["testing"]))
 
     def test_missing_section(self):
         with self.assertRaises(KeyError):

@@ -157,20 +157,25 @@ torchvision = ["torchvision"]
 tqdm = ["tqdm>=4.47.0"]
 transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/BertConfig updates; re-verify the NGC image float8 concern
 zarr = ["zarr"]
+# the tools .pre-commit-config.yaml and runtests.sh invoke; installable without torch
+lint = [
+  "black>=26.3.1",
+  "isort>=5.1,<6,!=6.0.0",
+  "pre-commit",
+  "pycln==2.6.0",
+  "ruff==0.16.4"
+]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
-  "black>=26.3.1",
+  "monai[lint]",
   "coverage>=5.5",
-  "isort>=5.1,<6,!=6.0.0",
   "mccabe",
   "packaging",
   "parameterized",
   "pep8-naming",
-  "pre-commit",
   "pycodestyle",
   "pyflakes",
   "pyrefly>=1.0.0",
-  "ruff>=0.14.11,<0.15",
   "tomli",  # used in print_dependencies.py for Python<3.11
   "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
   "types-PyYAML",
@@ -266,7 +271,9 @@ line-length = 120
 target-version = ['py310']
 skip-magic-trailing-comma = true
 include = '\.pyi?$'
-exclude = '''
+# force-exclude, not exclude: black ignores exclude for filenames passed explicitly,
+# which is how pre-commit invokes it.
+force-exclude = '''
 (
   /(
     # exclude a few common directories in the root of the project
