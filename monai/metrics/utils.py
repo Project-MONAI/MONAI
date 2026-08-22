@@ -101,7 +101,7 @@ def do_metric_reduction(
 
     Raises:
         ValueError: When ``reduction`` is not one of
-            ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].
+            ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel", "none"].
     """
 
     # some elements might be Nan (if ground truth y was missing (zeros))
@@ -141,7 +141,7 @@ def do_metric_reduction(
     elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "
-            '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
+            '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel", "none"].'
         )
     return f, not_nans
 
