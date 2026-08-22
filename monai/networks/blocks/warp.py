@@ -121,12 +121,13 @@ class Warp(nn.Module):
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
-        self.ref_grid = grid.to(ddf)
+        grid = grid.to(ddf)
         if jitter:
             # Define reference grid on non-integer values
-            with torch.random.fork_rng(enabled=seed):
+            with torch.random.fork_rng():
                 torch.random.manual_seed(seed)
                 grid += torch.rand_like(grid)
+        self.ref_grid = grid
         self.ref_grid.requires_grad = False
         return self.ref_grid
 
