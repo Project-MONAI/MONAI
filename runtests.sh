@@ -595,13 +595,13 @@ then
     then
         install_deps
     fi
-    ruff --version
+    ${cmdPrefix}"${PY_EXE}" -m ruff --version
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix --unsafe-fixes --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        ${cmdPrefix}"${PY_EXE}" -m ruff check --fix --unsafe-fixes "$homedir"
     else
-        ruff check --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        ${cmdPrefix}"${PY_EXE}" -m ruff check "$homedir"
     fi
 
     ruff_status=$?
