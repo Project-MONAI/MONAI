@@ -52,6 +52,34 @@ env:
 # When support is dropped for a version it is important to update these as appropriate.
 
 jobs:
+  pre-commit:  # Run the hooks pre-commit.ci skips, using the tools pyproject.toml pins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    # This job executes the hooks named by a PR's own .pre-commit-config.yaml, so
+    # it must not leave a usable token in .git/config for those hooks to reach.
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    # reads the pins below with tomllib, which needs 3.11+; the hooks take their
+    # target from pyproject.toml, so the interpreter version does not affect them
+    - name: Set up Python ${{ env.PYTHON_VER3 }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VER3 }}
+        cache: 'pip'
+    - name: Install lint tools
+      run: |
+        # the lint extra alone, so this job needs neither torch nor the optional dependencies
+        python -m pip install --upgrade pip
+        python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml','rb'))['project']['optional-dependencies']['lint']))" > lint-requirements.txt
+        cat lint-requirements.txt
+        python -m pip install -r lint-requirements.txt
+        rm lint-requirements.txt
+    - name: Run pre-commit
+      run: python -m pre_commit run --all-files --show-diff-on-failure
+
   static-checks:  # Perform static type and other checks using runtests.sh
     runs-on: ubuntu-latest
     strategy:
