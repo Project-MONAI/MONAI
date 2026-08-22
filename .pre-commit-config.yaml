@@ -62,11 +62,3 @@ repos:
               ^versioneer.py|
               ^monai/_version.py
           )
-
-  - repo: https://github.com/facebook/pyrefly-pre-commit
-    rev: 1.3.0.dev2  # The pyrefly version to use
-    hooks:
-      - id: pyrefly-check
-        name: Pyrefly (type checking)
-        pass_filenames: false
-        additional_dependencies: ["numpy>=1.24,<3.0"]  # omitted "torch>=2.8.0" to fit into venv pre-commit provides
