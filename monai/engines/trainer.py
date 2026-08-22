@@ -134,7 +134,7 @@ class SingleNetworkTrainer(Trainer):
             instead of zero. Default: ``False``.
         accumulation_steps: number of mini-batches over which to accumulate gradients.
             Must be a positive integer. Default: ``1`` (no accumulation).
-        compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
+        _compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
         compile_kwargs: keyword arguments forwarded to ``torch.compile()``.
         **kwargs: remaining arguments forwarded to ``Trainer`` / ``Workflow``.
     """
@@ -146,7 +146,7 @@ class SingleNetworkTrainer(Trainer):
         inferer: Inferer | None = None,
         optim_set_to_none: bool = False,
         accumulation_steps: int = 1,
-        compile: bool = False,
+        _compile: bool = False,
         compile_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> None:
@@ -154,11 +154,11 @@ class SingleNetworkTrainer(Trainer):
             raise ValueError(f"`accumulation_steps` must be a positive integer, got {accumulation_steps!r}.")
 
         super().__init__(**kwargs)
-        if compile:
+        if _compile:
             compile_kwargs = {} if compile_kwargs is None else compile_kwargs
             network = torch.compile(network, **compile_kwargs)  # type: ignore[assignment]
         self.network = network
-        self.compile = compile
+        self.compile = _compile
         self.optimizer = optimizer
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
@@ -273,7 +273,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
             `device`, `non_blocking`.
         amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
             https://pytorch.org/docs/stable/amp.html#torch.autocast.
-        compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
+        _compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
             https://pytorch.org/docs/stable/generated/torch.compile.html#torch-compile.
@@ -310,7 +310,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
         optim_set_to_none: bool = False,
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
-        compile: bool = False,
+        _compile: bool = False,
         compile_kwargs: dict | None = None,
         accumulation_steps: int = 1,
     ) -> None:
@@ -321,7 +321,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
             inferer=inferer,
             optim_set_to_none=optim_set_to_none,
             accumulation_steps=accumulation_steps,
-            compile=compile,
+            _compile=_compile,
             compile_kwargs=compile_kwargs,
             # Workflow args forwarded via **kwargs through SingleNetworkTrainer → Trainer → Workflow
             device=device,
