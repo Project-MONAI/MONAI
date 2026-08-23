@@ -134,7 +134,7 @@ class SingleNetworkTrainer(Trainer):
             instead of zero. Default: ``False``.
         accumulation_steps: number of mini-batches over which to accumulate gradients.
             Must be a positive integer. Default: ``1`` (no accumulation).
-        _compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
+        compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
         compile_kwargs: keyword arguments forwarded to ``torch.compile()``.
         **kwargs: remaining arguments forwarded to ``Trainer`` / ``Workflow``.
     """
@@ -273,7 +273,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
             `device`, `non_blocking`.
         amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
             https://pytorch.org/docs/stable/amp.html#torch.autocast.
-        _compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
+        compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
             https://pytorch.org/docs/stable/generated/torch.compile.html#torch-compile.
@@ -310,7 +310,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
         optim_set_to_none: bool = False,
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
-        _compile: bool = False,
+        compile: bool = False,
         compile_kwargs: dict | None = None,
         accumulation_steps: int = 1,
     ) -> None:
@@ -321,7 +321,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
             inferer=inferer,
             optim_set_to_none=optim_set_to_none,
             accumulation_steps=accumulation_steps,
-            _compile=_compile,
+            compile=compile,
             compile_kwargs=compile_kwargs,
             # Workflow args forwarded via **kwargs through SingleNetworkTrainer → Trainer → Workflow
             device=device,
@@ -944,5 +944,4 @@ class AdversarialTrainer(DualNetworkTrainer):
             engine.state.output[AdversarialKeys.DISCRIMINATOR_LOSS].backward()
             engine.state.d_optimizer.step()
 
-        # pyrefly: ignore [bad-return]
         return engine.state.output
