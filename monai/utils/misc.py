@@ -919,11 +919,13 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
 
 def unsqueeze_right(arr: NT, ndim: int) -> NT:
     """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    # pyrefly: ignore [bad-index, missing-attribute]
     return arr[(...,) + (None,) * (ndim - arr.ndim)]
 
 
 def unsqueeze_left(arr: NT, ndim: int) -> NT:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    # pyrefly: ignore [bad-index, missing-attribute]
     return arr[(None,) * (ndim - arr.ndim)]
 
 
