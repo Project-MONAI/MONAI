@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -294,11 +299,6 @@ N-Dim Fourier Transform
 .. autofunction:: monai.networks.blocks.fft_utils_t.roll_1d
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
-
-`MedNeXtBlock`
-~~~~~~~~~~~~~~
-.. autoclass:: MedNeXtBlock
-    :members:
 
 Layers
 ------
