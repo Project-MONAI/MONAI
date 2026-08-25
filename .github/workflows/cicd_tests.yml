@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "mypy"]  #  "pytype" omitted for being essentially deprecated, see #8865
+        opt: ["codeformat", "pyrefly"]
     steps:
     - name: Clean unused tools
       run: |
@@ -75,13 +75,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install .[all,testing]
     - name: Lint and type check
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Github actions have multiple cores, so parallelize pytype
-        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j $(nproc --all)
+        $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
   min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
     runs-on: ${{ matrix.os }}
@@ -138,15 +137,14 @@ jobs:
     - name: Prepare pip wheel
       run: |
         which python
-        python -m pip install --upgrade pip wheel
-        python -m pip install --user more-itertools>=8.0
+        python -m pip install --upgrade pip wheel tomli
     - name: Install the minimum dependencies
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
-        python -m pip install -r requirements-min.txt
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install --no-build-isolation .[testing]
         python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - if: matrix.os == 'linux-gpu-runner'
       name: Print GPU Info
@@ -219,16 +217,17 @@ jobs:
       shell: bash
     - name: Install the complete dependencies
       run: |
-        python -m pip install --user --upgrade pip wheel pybind11  # TODO: pybind11 added for macOS, may not be needed
-        cat "requirements-dev.txt"
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install --user --upgrade pip wheel tomli
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install --no-build-isolation .[all,testing]
         python -m pip list
-        python -m pip install --no-build-isolation -e .  # test no compile installation
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions in-place with -e
+        # ensure extensions were compiled
+        python -c 'import monai._C' > /dev/null
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
@@ -275,14 +274,15 @@ jobs:
         cache: 'pip'
     - name: Install dependencies + nvsubquadratic (no-deps)
       run: |
-        python -m pip install --upgrade pip wheel
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
-        python -m pip install --no-build-isolation -r requirements-dev.txt
-        python -m pip install -e .
-        # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
-        # the package itself without its core dependency tree (see job comment above).
-        python -m pip install omegaconf
-        python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip install --upgrade pip wheel tomli pytest
+        # need a specific version of torch for nvsubquadratic
+        python monai/config/print_dependencies.py build-system | \
+          xargs -d '\n' pip install --no-build-isolation torch==2.10.0 torchvision==0.25.0
+        # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
+        # # the package itself without its core dependency tree (see job comment above).
+        python -m pip install --no-build-isolation omegaconf
+        python -m pip install --no-build-isolation --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip install --no-build-isolation .[hyena,testing]
         python -m pip list
       shell: bash
     - name: Run Hyena tests (CUDA-required cases skip cleanly)
@@ -299,6 +299,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
+      INDEX_URL: "https://download.pytorch.org/whl/cpu"
     steps:
     - name: Clean unused tools
       run: |
@@ -317,11 +318,10 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        python -m pip install --user --upgrade pip setuptools wheel twine packaging
+        python -m pip install --user --upgrade pip setuptools wheel twine packaging tomli
         # install the latest pytorch for testing
-        # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
-        # fresh torch installation according to pyproject.toml
-        python -m pip install torch==${PYTORCH_VER1} torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+        python monai/config/print_dependencies.py build-system all testing | \
+            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1} --extra-index-url $INDEX_URL
     - name: Check packages
       run: |
         python -m pip uninstall -y monai
@@ -350,7 +350,7 @@ jobs:
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from wheel
-        python -m pip install monai*.whl --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-build-isolation monai*.whl --extra-index-url $INDEX_URL
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
         python -m pip uninstall -y monai
@@ -360,6 +360,14 @@ jobs:
       run: |
         for name in *.tar.gz; do break; done
         echo $name
-        python -m pip install ${name}[all] --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-build-isolation ${name}[all] --extra-index-url $INDEX_URL
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+    - name: Install using uv
+      working-directory: ${{ steps.root.outputs.pwd }}
+      run: |
+        pip install uv
+        uv pip install --system --no-build-isolation .[all] --extra-index-url $INDEX_URL
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
