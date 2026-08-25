@@ -6,13 +6,13 @@ permissions:
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
-  pull_request:  # temporarily enable for PR
+  pull_request:  
     branches:
       - dev
 
 jobs:
   static-checks:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule'  # only check on cron run
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -79,14 +79,14 @@ jobs:
         git tag --list
         pip install . --extra-index-url "https://download.pytorch.org/whl/cpu"
         python setup.py sdist bdist_wheel
-
+        ls -lh dist
     - name: Test Installation
       run: |
         pip uninstall monai -y
         pip install dist/*.whl
-
+        pip list
     - name: Publish to PyPI
-      if: github.event_name == 'schedule'
+      if: github.event_name == 'schedule'  # only publish on cron run
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
