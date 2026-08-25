@@ -798,5 +798,244 @@ class TestSlidingWindowUtils(unittest.TestCase):
         torch.testing.assert_close(out, expected)
 
 
+class TestSlidingWindowInferenceWithReduction(unittest.TestCase):
+    """Tests for sliding_window_inference_with_reduction and SlidingWindowInfererReduced."""
+
+    def _identity_model(self, n_classes=5):
+        """Return a predictor that pads channels to n_classes via repeat."""
+
+        def predictor(x):
+            # x: (N, C_in, ...) -> (N, n_classes, ...)
+            return x.repeat(1, n_classes, *([1] * (x.dim() - 2)))
+
+        return predictor
+
+    def test_matches_standard_swi_3d(self):
+        """Reduced SWI with identity reduction must match standard SWI output."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 32, 32, 32)
+        roi_size = (16, 16, 16)
+
+        def model(x):
+            return x * 2  # simple, keeps spatial size
+
+        # standard SWI
+        expected = sliding_window_inference(inputs, roi_size, 4, model, overlap=0.25, mode="constant")
+
+        # reduced SWI with identity reduction (no actual reduction)
+        result = sliding_window_inference_with_reduction(
+            inputs,
+            roi_size,
+            4,
+            model,
+            overlap=0.25,
+            mode="constant",
+            reduction_fn=lambda x, dim: x,
+            output_dtype=inputs.dtype,
+        )
+        np.testing.assert_allclose(result.cpu().numpy(), expected.cpu().numpy(), atol=1e-5)
+
+    def test_matches_standard_swi_2d(self):
+        """Reduced SWI must match standard SWI for 2D inputs."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 24, 24)
+        roi_size = (8, 8)
+
+        def model(x):
+            return x + 1
+
+        expected = sliding_window_inference(inputs, roi_size, 2, model, overlap=0.5, mode="constant")
+        result = sliding_window_inference_with_reduction(
+            inputs,
+            roi_size,
+            2,
+            model,
+            overlap=0.5,
+            mode="constant",
+            reduction_fn=lambda x, dim: x,
+            output_dtype=inputs.dtype,
+        )
+        np.testing.assert_allclose(result.cpu().numpy(), expected.cpu().numpy(), atol=1e-5)
+
+    def test_argmax_default(self):
+        """Default reduction (argmax) produces correct class indices."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        n_classes = 5
+        inputs = torch.randn(1, 1, 20, 20, 20)
+        roi_size = (10, 10, 10)
+        model = self._identity_model(n_classes)
+
+        full_prob = sliding_window_inference(inputs, roi_size, 4, model, overlap=0.25, mode="constant")
+        expected = torch.argmax(full_prob, dim=1, keepdim=True).to(torch.uint8)
+
+        result = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant"
+        )
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(result.dtype, torch.uint8)
+        torch.testing.assert_close(result, expected)
+
+    def test_batch_size_gt_1(self):
+        """Works with batch_size > 1."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        inputs = torch.randn(2, 1, 16, 16)
+        roi_size = (8, 8)
+
+        def model(x):
+            return torch.cat([x, -x], dim=1)  # 2-class output
+
+        full_prob = sliding_window_inference(inputs, roi_size, 4, model, overlap=0.25, mode="constant")
+        expected = torch.argmax(full_prob, dim=1, keepdim=True).to(torch.uint8)
+
+        result = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant"
+        )
+        self.assertEqual(result.shape, expected.shape)
+        torch.testing.assert_close(result, expected)
+
+    def test_gaussian_mode(self):
+        """Works with gaussian blending mode."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        inputs = torch.ones(1, 1, 16, 16)
+        roi_size = (8, 8)
+
+        def model(x):
+            return torch.cat([x, x * 2], dim=1)
+
+        full_prob = sliding_window_inference(inputs, roi_size, 4, model, overlap=0.5, mode="gaussian")
+        expected = torch.argmax(full_prob, dim=1, keepdim=True).to(torch.uint8)
+
+        result = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.5, mode="gaussian"
+        )
+        torch.testing.assert_close(result, expected)
+
+    def test_padding(self):
+        """Works when roi_size > image_size (requires padding)."""
+        from monai.inferers import sliding_window_inference, sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 6, 6)
+        roi_size = (10, 10)
+
+        def model(x):
+            return torch.cat([x, -x], dim=1)
+
+        full_prob = sliding_window_inference(inputs, roi_size, 1, model, overlap=0.25, mode="constant")
+        expected = torch.argmax(full_prob, dim=1, keepdim=True).to(torch.uint8)
+
+        result = sliding_window_inference_with_reduction(
+            inputs, roi_size, 1, model, overlap=0.25, mode="constant"
+        )
+        self.assertEqual(result.shape, (1, 1, 6, 6))
+        torch.testing.assert_close(result, expected)
+
+    def test_custom_reduction_fn(self):
+        """Supports custom reduction functions (e.g., max values)."""
+        from monai.inferers import sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 16, 16)
+        roi_size = (8, 8)
+
+        def model(x):
+            return torch.cat([x, x * 2, x * 3], dim=1)
+
+        def max_reduction(x, dim):
+            return x.max(dim=dim, keepdim=True).values
+
+        result = sliding_window_inference_with_reduction(
+            inputs,
+            roi_size,
+            4,
+            model,
+            overlap=0.25,
+            mode="constant",
+            reduction_fn=max_reduction,
+            output_dtype=torch.float32,
+        )
+        self.assertEqual(result.shape, (1, 1, 16, 16))
+        self.assertEqual(result.dtype, torch.float32)
+
+    def test_outer_dim_selection(self):
+        """Explicit outer_dim produces same result as auto-selection."""
+        from monai.inferers import sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 12, 20, 16)
+        roi_size = (6, 10, 8)
+
+        def model(x):
+            return torch.cat([x, -x], dim=1)
+
+        result_auto = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant"
+        )
+        # auto should select dim 1 (size 20, the largest)
+        result_explicit = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant", outer_dim=1
+        )
+        torch.testing.assert_close(result_auto, result_explicit)
+
+    def test_inferer_class(self):
+        """SlidingWindowInfererReduced class wrapper works."""
+        from monai.inferers import SlidingWindowInfererReduced, sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 16, 16)
+        roi_size = (8, 8)
+
+        def model(x):
+            return torch.cat([x, -x], dim=1)
+
+        inferer = SlidingWindowInfererReduced(roi_size, sw_batch_size=4, overlap=0.25, mode="constant")
+        result_class = inferer(inputs, model)
+
+        result_fn = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant"
+        )
+        torch.testing.assert_close(result_class, result_fn)
+
+    def test_meta_tensor(self):
+        """MetaTensor metadata is preserved."""
+        from monai.data.meta_tensor import MetaTensor
+        from monai.inferers import sliding_window_inference_with_reduction
+
+        inputs = MetaTensor(torch.randn(1, 1, 16, 16))
+        roi_size = (8, 8)
+
+        def model(x):
+            return torch.cat([x, -x], dim=1)
+
+        result = sliding_window_inference_with_reduction(
+            inputs, roi_size, 4, model, overlap=0.25, mode="constant"
+        )
+        self.assertIsInstance(result, MetaTensor)
+
+    def test_rejects_tuple_output(self):
+        """Raises TypeError for tuple predictor output."""
+        from monai.inferers import sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 16, 16)
+        roi_size = (8, 8)
+
+        def model(x):
+            return x, x * 2
+
+        with self.assertRaises(TypeError):
+            sliding_window_inference_with_reduction(inputs, roi_size, 4, model, overlap=0.25)
+
+    def test_strict_shape_validation(self):
+        """Raises ValueError for mismatched input/roi_size dimensions."""
+        from monai.inferers import sliding_window_inference_with_reduction
+
+        inputs = torch.randn(1, 1, 16, 16)
+        roi_size = (8, 8, 8)
+
+        with self.assertRaises(ValueError):
+            sliding_window_inference_with_reduction(inputs, roi_size, 4, lambda x: x, overlap=0.25)
+
+
 if __name__ == "__main__":
     unittest.main()
