@@ -9,9 +9,12 @@ on:
   pull_request:  # temporarily enable for PR
     branches:
       - dev
+      - main
+      - releasing/*
 
 jobs:
   static-checks:
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -79,6 +82,7 @@ jobs:
         python setup.py sdist bdist_wheel
 
     - name: Publish to PyPI
+      if: github.event_name == 'schedule'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
