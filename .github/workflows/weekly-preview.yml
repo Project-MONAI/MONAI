@@ -82,7 +82,7 @@ jobs:
         ls -lh dist
     - name: Test Installation
       run: |
-        pip uninstall monai -y
+        pip uninstall monai-weekly -y
         pip install dist/*.whl
         pip list
     - name: Publish to PyPI
