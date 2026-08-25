@@ -295,6 +295,11 @@ N-Dim Fourier Transform
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 Layers
 ------
 
@@ -793,6 +798,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities
