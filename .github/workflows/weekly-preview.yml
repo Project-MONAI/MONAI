@@ -6,7 +6,7 @@ permissions:
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
-  pull_request:  
+  pull_request:
     branches:
       - dev
 
