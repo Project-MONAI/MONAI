@@ -156,7 +156,6 @@ for ext in ["cpp", "cu", "h", "cuh"]:
 
 jit_extension_source = [os.path.join("..", path) for path in jit_extension_source]
 
-
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
