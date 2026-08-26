@@ -172,13 +172,21 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
         spatial_dims: number of spatial dimensions of the input image.
         stride: stride to use for second conv layer.
         downsample: which downsample layer to use.
+        act: activation type and arguments. Defaults to relu.
         norm: which normalization layer to use. Defaults to group.
     """
 
     expansion = 2
 
     def __init__(
-        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+        self,
+        in_planes,
+        planes,
+        spatial_dims=3,
+        stride=1,
+        downsample=None,
+        act=("relu", {"inplace": True}),
+        norm=("group", {"num_groups": 32}),
     ):
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
 
@@ -191,7 +199,7 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
                 norm_layer(channels=planes * self.expansion),
             )
 
-        super().__init__(in_planes, planes, spatial_dims, stride, downsample)
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample, act)
 
         # change norm from batch to group norm
         self.bn1 = norm_layer(channels=planes)
@@ -216,12 +224,21 @@ class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
         spatial_dims: number of spatial dimensions of the input image.
         stride: stride to use for second conv layer.
         downsample: which downsample layer to use.
+        act: activation type and arguments. Defaults to relu.
+        norm: which normalization layer to use. Defaults to group.
     """
 
     def __init__(
-        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+        self,
+        in_planes,
+        planes,
+        spatial_dims=3,
+        stride=1,
+        downsample=None,
+        act=("relu", {"inplace": True}),
+        norm=("group", {"num_groups": 32}),
     ):
-        super().__init__(in_planes, planes, spatial_dims, stride, downsample, norm)
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample, act, norm)
 
         # add dilation in second convolution
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
