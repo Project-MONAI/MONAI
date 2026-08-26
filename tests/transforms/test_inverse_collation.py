@@ -90,22 +90,22 @@ TESTS_2D = [
 class TestInverseCollation(unittest.TestCase):
     """Test collation for of random transformations with prob == 0 and 1."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         if not has_nib:
-            self.skipTest("nibabel required for test_inverse")
-
+            raise unittest.SkipTest("nibabel required for test_inverse")
         set_determinism(seed=0)
-
-        b_size = 11
+        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel")])
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
-        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel")])
-        self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
-
-        b_size = 8
+        cls.base_3d = load_ims({"image": im_fname, "label": seg_fname})
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
-        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel")])
-        self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
+        cls.base_2d = load_ims({"image": im_fname, "label": seg_fname})
 
+    def setUp(self):
+        set_determinism(seed=0)
+        self.data_3d = [dict(self.base_3d) for _ in range(11)]
+        self.data_2d = [dict(self.base_2d) for _ in range(8)]
         self.batch_size = 7
 
     def tearDown(self):
