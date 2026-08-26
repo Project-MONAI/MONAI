@@ -11,7 +11,11 @@
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -26,8 +30,10 @@ from tests.test_utils import make_nifti_image
 _, has_nib = optional_import("nibabel")
 
 TESTS = []
+caller_owned_dir = tempfile.mkdtemp()
+atexit.register(shutil.rmtree, caller_owned_dir, ignore_errors=True)
 for affine in (None, np.eye(4), torch.eye(4)):
-    for dir in (None, tempfile.mkdtemp()):
+    for dir in (None, caller_owned_dir):
         for fname in (None, "fname"):
             TESTS.append([{"affine": affine, "dir": dir, "fname": fname}])
 
@@ -39,6 +45,21 @@ class TestMakeNifti(unittest.TestCase):
         im, _ = create_test_image_2d(100, 88)
         created_file = make_nifti_image(im, verbose=True, **params)
         self.assertTrue(os.path.isfile(created_file))
+
+    def test_temp_dir_removed_at_exit(self):
+        script = (
+            "from monai.data.synthetic import create_test_image_2d;"
+            "from tests.test_utils import make_nifti_image;"
+            "print(make_nifti_image(create_test_image_2d(100, 88)[0]))"
+        )
+        created_file = subprocess.check_output([sys.executable, "-c", script], text=True).strip()
+        self.assertFalse(os.path.exists(os.path.dirname(created_file)))
+
+    def test_caller_owned_dir_kept(self):
+        im, _ = create_test_image_2d(100, 88)
+        with tempfile.TemporaryDirectory() as caller_dir:
+            make_nifti_image(im, dir=caller_dir)
+            self.assertTrue(os.path.isdir(caller_dir))
 
 
 if __name__ == "__main__":
