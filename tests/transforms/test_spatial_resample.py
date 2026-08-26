@@ -222,6 +222,16 @@ class TestSpatialResample(unittest.TestCase):
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
 
+    def test_none_spatial_size_rank1(self):
+        # Regression for #9068: a 1D-spatial image with no ``spatial_size`` keeps
+        # ``spatial_size`` as None, and the fall_back_tuple predicate used to raise
+        # ``TypeError: '>=' not supported between 'NoneType' and 'int'`` instead of
+        # falling back to the input spatial size.
+        img = MetaTensor(torch.arange(4).reshape(1, 4).to(torch.float32), affine=torch.eye(2))
+        dst_affine = torch.tensor([[2.0, 0.0], [0.0, 1.0]])
+        out = SpatialResample()(img=img, dst_affine=dst_affine)
+        self.assertEqual(out.shape[0], 1)
+
     def test_unchange(self):
         for i, p in enumerate(TEST_NDARRAYS_ALL):
             set_track_meta(i % 2)
