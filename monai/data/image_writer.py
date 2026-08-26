@@ -226,8 +226,11 @@ class ImageWriter:
         transformation computed from ``affine`` and ``target_affine``.
 
         This function assumes the NIfTI dimension notations. Spatially it
-        supports up to three dimensions, that is, H, HW, HWD for 1D, 2D, 3D
-        respectively. When saving multiple time steps or multiple channels,
+        supports up to three dimensions, that is, ``W``, ``WH``, ``WHD`` for
+        1D, 2D, 3D respectively (equivalently ``X``, ``XY``, ``XYZ``; axis 0
+        is columns/Width, axis 1 is rows/Height, axis 2 is Depth/slices,
+        matching the array order returned by NIfTI/ITK readers). When saving
+        multiple time steps or multiple channels,
         time and/or modality axes should be appended after the first three
         dimensions. For example, shape of 2D eight-class segmentation
         probabilities to be saved could be `(64, 64, 1, 8)`. Also, data in
@@ -303,8 +306,8 @@ class ImageWriter:
                 ``None`` indicates no channel dimension, a new axis will be appended as the channel dimension.
                 a sequence of integers indicates multiple non-spatial dimensions.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed (after the channel
-                has been moved to the end). So if input is `(H,W,D,C)` and C==1, then it will be saved as `(H,W,D)`.
-                If D is also 1, it will be saved as `(H,W)`. If ``False``, image will always be saved as `(H,W,D,C)`.
+                has been moved to the end). So if input is `(W,H,D,C)` and C==1, then it will be saved as `(W,H,D)`.
+                If D is also 1, it will be saved as `(W,H)`. If ``False``, image will always be saved as `(W,H,D,C)`.
             spatial_ndim: modifying the spatial dims if needed, so that output to have at least
                 this number of spatial dims. If ``None``, the output will have the same number of
                 spatial dimensions as the input.
