@@ -74,5 +74,51 @@ class TestValidateSingleModelCommand(unittest.TestCase):
         self.assertNotIn("True", cmd)
 
 
+class TestRunDeviceCommands(unittest.TestCase):
+    """``train_parallel`` runs each device's commands without a shell (see issue #8992)."""
+
+    def test_runs_in_order_without_shell(self):
+        cmd_a = ["python", "-m", "nnunetv2", "train", "0"]
+        cmd_b = ["python", "-m", "nnunetv2", "train", "1"]
+        device_cmds = [(cmd_a, {"CUDA_VISIBLE_DEVICES": "0"}), (cmd_b, {"CUDA_VISIBLE_DEVICES": "0"})]
+
+        with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.run") as run:
+            nnUNetV2Runner._run_device_commands(device_cmds)
+
+        # both commands ran, in order
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0], cmd_a)
+        self.assertEqual(run.call_args_list[1].args[0], cmd_b)
+        for call, (expected_cmd, expected_env) in zip(run.call_args_list, device_cmds):
+            # first positional arg is the argument list itself (not a joined string)
+            self.assertIsInstance(call.args[0], list)
+            self.assertEqual(call.args[0], expected_cmd)
+            # no shell is invoked
+            self.assertFalse(call.kwargs.get("shell", False))
+            # each command keeps its own environment
+            self.assertEqual(call.kwargs.get("env"), expected_env)
+
+    def test_continues_after_nonzero_exit(self):
+        # a non-zero exit for the first command must not stop the remaining commands.
+        device_cmds = [(["cmd", "0"], {}), (["cmd", "1"], {})]
+        with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.run") as run:
+            nnUNetV2Runner._run_device_commands(device_cmds)
+        # check=False is used so no exception is raised and both commands are attempted.
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertFalse(call.kwargs.get("check", False))
+
+    def test_continues_after_launch_error(self):
+        # a failure to launch (OSError/FileNotFoundError) for one command must be
+        # logged and must not skip the device's remaining commands.
+        device_cmds = [(["missing-binary"], {}), (["cmd", "1"], {})]
+        with mock.patch(
+            "monai.apps.nnunet.nnunetv2_runner.subprocess.run", side_effect=[FileNotFoundError("no such file"), None]
+        ) as run:
+            nnUNetV2Runner._run_device_commands(device_cmds)
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[1].args[0], ["cmd", "1"])
+
+
 if __name__ == "__main__":
     unittest.main()
