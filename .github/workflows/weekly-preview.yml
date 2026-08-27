@@ -44,7 +44,7 @@ jobs:
         $(pwd)/runtests.sh --build --clean
         $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
-  packaging:
+  publish:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
