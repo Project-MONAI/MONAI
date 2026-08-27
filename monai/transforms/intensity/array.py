@@ -1128,12 +1128,12 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
-        if return_clipping_values:
-            self.clipping_values: list[tuple[float | None, float | None]] = []
         self.return_clipping_values = return_clipping_values
         self.dtype = dtype
 
-    def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def _clip(
+        self, img: NdarrayOrTensor, clipping_values: list[tuple[float | None, float | None]] | None = None
+    ) -> NdarrayOrTensor:
         if self.sharpness_factor is not None:
             lower_percentile = percentile(img, self.lower) if self.lower is not None else None
             upper_percentile = percentile(img, self.upper) if self.upper is not None else None
@@ -1143,8 +1143,8 @@ class ClipIntensityPercentiles(Transform):
             upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
             img = clip(img, lower_percentile, upper_percentile)
 
-        if self.return_clipping_values:
-            self.clipping_values.append(
+        if clipping_values is not None:
+            clipping_values.append(
                 (
                     (
                         lower_percentile
@@ -1165,16 +1165,17 @@ class ClipIntensityPercentiles(Transform):
         """
         Apply the transform to `img`.
         """
+        clipping_values: list[tuple[float | None, float | None]] | None = [] if self.return_clipping_values else None
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t = convert_to_tensor(img, track_meta=False)
         if self.channel_wise:
-            img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
+            img_t = torch.stack([self._clip(img=d, clipping_values=clipping_values) for d in img_t])  # type: ignore
         else:
-            img_t = self._clip(img=img_t)
+            img_t = self._clip(img=img_t, clipping_values=clipping_values)
 
         img = convert_to_dst_type(img_t, dst=img)[0]
-        if self.return_clipping_values:
-            img.meta["clipping_values"] = self.clipping_values  # type: ignore
+        if clipping_values is not None:
+            img.meta["clipping_values"] = clipping_values  # type: ignore
 
         return img
 

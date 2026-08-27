@@ -47,11 +47,12 @@ class _RewriteConstNp(ast.NodeTransformer):
         self.float_type_str = float_type_str
 
     def visit_Constant(self, node):
-        if isinstance(node.value, (int, float)):
-            type_str = self.int_type_str if isinstance(node.value, int) else self.float_type_str
-            return ast.parse(f"{type_str}({node.value})")
-
-        return node
+        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+            return node
+        type_str = self.int_type_str if isinstance(node.value, int) else self.float_type_str
+        func_node = ast.parse(type_str, mode="eval").body
+        call_node = ast.Call(func=func_node, args=[ast.Constant(value=node.value)], keywords=[])
+        return ast.copy_location(call_node, node)
 
 
 def safe_eval(
@@ -74,7 +75,7 @@ def safe_eval(
     by `int_type_str` and `float_type_str`. These are expected to be constructor names prefixed with `np.` as Numpy
     will be present in the expression global variables under that name. The values can be changed to other types if
     needed, such as "int64". One advantage of doing this is to avoid denial-of-service attacks by attempting to evaluate
-    an expressoini which is incredibly slow under native Python but fast (though potentially erroneous) under Numpy.
+    an expression which is incredibly slow under native Python but fast (though potentially erroneous) under Numpy.
 
     Args:
         expr: expression to evaluate, this will be stripped before parsing to avoid indentation complaints
@@ -101,6 +102,7 @@ def safe_eval(
 
     if rewrite_np:
         parsed = _RewriteConstNp(int_type_str, float_type_str).visit(parsed)
-        locals_vars = {"np": np, **(locals_vars or {})}
+        ast.fix_missing_locations(parsed)
+        locals_vars = {**(locals_vars or {}), "np": np}
 
-    return eval(expr, dict(globals_vars) if globals_vars else None, locals_vars)
+    return eval(compile(parsed, "<safe_eval>", "eval"), dict(globals_vars) if globals_vars else None, locals_vars)
