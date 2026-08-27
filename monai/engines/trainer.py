@@ -134,7 +134,7 @@ class SingleNetworkTrainer(Trainer):
             instead of zero. Default: ``False``.
         accumulation_steps: number of mini-batches over which to accumulate gradients.
             Must be a positive integer. Default: ``1`` (no accumulation).
-        compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
+        _compile: whether to wrap the network with ``torch.compile``. Default: ``False``.
         compile_kwargs: keyword arguments forwarded to ``torch.compile()``.
         **kwargs: remaining arguments forwarded to ``Trainer`` / ``Workflow``.
     """
@@ -321,7 +321,7 @@ class SupervisedTrainer(SingleNetworkTrainer):
             inferer=inferer,
             optim_set_to_none=optim_set_to_none,
             accumulation_steps=accumulation_steps,
-            compile=compile,
+            _compile=compile,
             compile_kwargs=compile_kwargs,
             # Workflow args forwarded via **kwargs through SingleNetworkTrainer → Trainer → Workflow
             device=device,
