@@ -51,7 +51,7 @@ jobs:
         - language: actions
           build-mode: none
         - language: c-cpp
-          build-mode: autobuild  # manual mode doesn't appear necessary? Steps to build are kept here anyway
+          build-mode: none  # TODO: get Cpp building working, autobuild doesn't work and manual fails for inexplicable reasons.
         - language: python
           build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
