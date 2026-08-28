@@ -83,9 +83,10 @@ class MLFlowHandler:
             artifacts stored under ``<cwd>/mlruns``. The default was changed from the filesystem
             (file store) backend because MLflow 3.13+ raises an exception for the file store unless
             ``MLFLOW_ALLOW_FILE_STORE=true`` is set; SQLite is the backend MLflow recommends and it
-            does not raise. Any explicitly provided ``tracking_uri`` is passed through unchanged,
-            except local file paths and ``file://`` URIs, which are rejected because MLflow no
-            longer supports the filesystem (file store) tracking backend.
+            does not raise. Any explicitly provided ``tracking_uri`` is passed through unchanged
+            unless ``MLFLOW_TRACKING_URI`` is set (which takes precedence); local file paths and
+            ``file://`` URIs are rejected because MLflow no longer supports the filesystem (file
+            store) tracking backend.
             for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
         iteration_log: whether to log data to MLFlow when iteration completed, default to `True`.
             ``iteration_log`` can be also a function and it will be interpreted as an event filter
@@ -186,22 +187,18 @@ class MLFlowHandler:
         # the `./mlruns` directory (where the previous file store default kept them) via the
         # experiment `artifact_location`. Any explicitly provided tracking_uri is left unchanged.
         self.artifact_location = artifact_location
-        # Resolve the effective tracking URI from the argument or the `MLFLOW_TRACKING_URI`
-        # environment variable, so both configure the artifact location the same way.
-        effective_tracking_uri = tracking_uri or os.environ.get("MLFLOW_TRACKING_URI")
+        # Resolve the effective tracking URI. The `MLFLOW_TRACKING_URI` environment variable takes
+        # priority so it can override a hard-coded `tracking_uri` argument; both configure the
+        # artifact location the same way.
+        env_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+        effective_tracking_uri = env_tracking_uri or tracking_uri
         # When neither is set, fall back to the local SQLite default described above.
         if not effective_tracking_uri:
             tracking_uri = effective_tracking_uri = path_to_sqlite_uri(os.path.join(os.getcwd(), "mlruns.db"))
         # For a local SQLite backend, keep run artifacts in an `mlruns` directory next to the
         # database file (mirroring the previous file-store layout) unless the caller set
         # `artifact_location`. Other backends (e.g. a remote server) are left to MLflow to decide.
-        # Only `tracking_uri` is passed to the client, so an `MLFLOW_TRACKING_URI` env var is
-        # still resolved by MLflow itself.
-        if (
-            self.artifact_location is None
-            and effective_tracking_uri
-            and effective_tracking_uri.startswith("sqlite:///")
-        ):
+        if self.artifact_location is None and effective_tracking_uri.startswith("sqlite:///"):
             db_path = Path(effective_tracking_uri[len("sqlite:///") :])
             self.artifact_location = path_to_uri(db_path.parent / "mlruns")
         # MLflow 3.13+ refuses the filesystem (file store) tracking backend, and 3.14+ resolves
@@ -211,10 +208,11 @@ class MLFlowHandler:
             raise ValueError(
                 "MLflow no longer supports the filesystem (file store) tracking backend; got "
                 f"tracking_uri={effective_tracking_uri!r}. Use a SQLite URI "
-                "(sqlite:///<path>/mlruns.db) or a remote tracking URI, or set "
-                "MLFLOW_ALLOW_FILE_STORE=true to opt back in."
+                "(sqlite:///<path>/mlruns.db) or a remote tracking URI instead."
             )
-        self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
+        # Only the argument is passed to the client; when `MLFLOW_TRACKING_URI` took priority it
+        # is left None so MLflow resolves the environment variable itself.
+        self.client = mlflow.MlflowClient(tracking_uri=None if env_tracking_uri else tracking_uri)
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
         self.experiment = None

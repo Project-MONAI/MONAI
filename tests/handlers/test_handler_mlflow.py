@@ -152,6 +152,20 @@ class TestHandlerMLFlow(unittest.TestCase):
                     if handler is not None:
                         handler.close()  # release the SQLite handle so Windows can delete the db
 
+    def test_env_var_tracking_uri_takes_priority_over_argument(self):
+        """Verify ``MLFLOW_TRACKING_URI`` overrides an explicit ``tracking_uri`` argument."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            env_uri = path_to_sqlite_uri(os.path.join(tempdir, "env.db"))
+            arg_uri = path_to_sqlite_uri(os.path.join(tempdir, "arg.db"))
+            handler = None
+            with patch.dict(os.environ, {"MLFLOW_TRACKING_URI": env_uri}):
+                try:
+                    handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=arg_uri)
+                    self.assertTrue(handler.client.tracking_uri.endswith("env.db"))
+                finally:
+                    if handler is not None:
+                        handler.close()  # release the SQLite handle so Windows can delete the db
+
     def test_explicit_artifact_location_is_used(self):
         """Verify an explicit artifact location is preserved with the default SQLite backend."""
         with tempfile.TemporaryDirectory() as tempdir:
