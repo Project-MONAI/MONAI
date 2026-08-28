@@ -26,7 +26,7 @@ from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
-from monai.utils import path_to_uri
+from monai.utils import path_to_sqlite_uri
 from tests.test_utils import SkipIfNoModule
 
 _root_dir = Path(__file__).resolve().parents[2]
@@ -79,7 +79,7 @@ TEST_TRAIN_4 = [
                     "save_execute_config": f"{_data_dir}/config_executed.json",
                     "trainer": {
                         "_target_": "MLFlowHandler",
-                        "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
+                        "tracking_uri": path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_override.db")),
                         "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
                         "close_on_complete": True,
                     },
@@ -103,7 +103,7 @@ TEST_EVALUATE_1 = [
             workflow_type="train",
             logging_file=_logging_file,
             tracking="mlflow",
-            tracking_uri=path_to_uri(_data_dir) + "/mlflow_1",
+            tracking_uri=path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_1.db")),
             experiment_name="monai_eval1",
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -119,7 +119,7 @@ TEST_EVALUATE_2 = [
         ],
         "eval_kwargs": {
             "tracking": "mlflow",
-            "tracking_uri": path_to_uri(_data_dir) + "/mlflow_2",
+            "tracking_uri": path_to_sqlite_uri(os.path.join(_data_dir, "mlflow_2.db")),
             "experiment_name": "monai_eval2",
         },
         "eval_workflow_name": "training",
@@ -179,6 +179,38 @@ TEST_GET_WEIGHTS_3 = [
 ]
 
 
+def _dispose_sqlite_engines():
+    """Dispose MLflow's open SQLAlchemy SQLite engines so the test ``.db`` files can be removed.
+
+    MLflow keeps a SQLite connection open for the lifetime of its client; on Windows that
+    locks the database file and breaks cleanup. ``MLFlowHandler.close()`` releases it, but a
+    workflow may finish without closing every handler, so dispose defensively here before
+    deleting the files. Scoped to the test's ``mlflow*.db`` backends so unrelated (e.g.
+    in-memory) sqlite engines elsewhere in the process are left untouched.
+    """
+    import gc
+
+    try:
+        from sqlalchemy.engine import Engine
+    except ImportError:
+        return
+    gc.collect()
+    for obj in gc.get_objects():
+        # gc.get_objects() can include dead weakref proxies, whose isinstance() raises
+        # ReferenceError, so guard the whole inspection (ReferenceError is an Exception).
+        try:
+            if not isinstance(obj, Engine):
+                continue
+            url = obj.url
+            db = url.database if url.get_backend_name() == "sqlite" else None
+            # the test backends are all files named ``mlflow*.db``; match those only so
+            # unrelated (e.g. in-memory) sqlite engines in the process are left untouched.
+            if db and os.path.basename(db).startswith("mlflow"):
+                obj.dispose()
+        except Exception:
+            pass
+
+
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
@@ -202,8 +234,11 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "save_execute_config" in algo.train_workflow.parser:
-            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override"))
-            shutil.rmtree(f"{_data_dir}/mlflow_override")
+            _dispose_sqlite_engines()  # release SQLite handles so the db file can be removed on Windows
+            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override.db"))
+            os.remove(f"{_data_dir}/mlflow_override.db")
+            if os.path.isdir(f"{_data_dir}/mlruns"):
+                shutil.rmtree(f"{_data_dir}/mlruns")
             self.assertTrue(os.path.exists(f"{_data_dir}/config_executed.json"))
             os.remove(f"{_data_dir}/config_executed.json")
 
@@ -225,9 +260,12 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "save_execute_config" in algo.eval_workflow.parser:
+            _dispose_sqlite_engines()  # release SQLite handles so the db files can be removed on Windows
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/mlflow_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/mlflow_*")):
-                shutil.rmtree(f)
+                shutil.rmtree(f) if os.path.isdir(f) else os.remove(f)
+            if os.path.isdir(f"{_data_dir}/mlruns"):
+                shutil.rmtree(f"{_data_dir}/mlruns")
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/eval/config_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/eval/config_*")):
                 os.remove(f)
