@@ -35,7 +35,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Set up Python ${{ env.PYTHON_VER }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ env.PYTHON_VER }}
         cache: 'pip'
@@ -60,7 +60,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Set up Python ${{ env.PYTHON_VER }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ env.PYTHON_VER }}
         cache: 'pip'
