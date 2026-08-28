@@ -13,11 +13,16 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ dev, main ]
   pull_request:
-    branches: [ "dev" ]
+    branches: [ dev ]
   schedule:
     - cron: '0 2 * * 1'  # 2AM Monday
+
+env:
+  PYTHON_VER: '3.11'
+  PYTORCH_VER: '2.8.0'
+  BUILD_MONAI: 1
 
 jobs:
   analyze:
@@ -27,7 +32,7 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: 'ubuntu-latest'
+    runs-on: ubuntu-latest
     permissions:
       # required for all workflows
       security-events: write
@@ -46,7 +51,7 @@ jobs:
         - language: actions
           build-mode: none
         - language: c-cpp
-          build-mode: none
+          build-mode: manual
         - language: python
           build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
@@ -86,16 +91,25 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+    - name: Set up Python ${{ env.PYTHON_VER }}
+      if: matrix.build-mode == 'manual'
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VER }}
+        cache: 'pip'
+
     - name: Run manual build steps
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+        rm -rf /opt/hostedtoolcache/{node,go,Ruby,Java*}
+        ls -al /opt/hostedtoolcache
+        rm -rf /usr/share/dotnet/
+        python -m pip install -U pip wheel wheel-stub
+        python -m pip install torch==${PYTORCH_VER} torchvision
+        python -m pip install --user --upgrade pip wheel
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install --no-build-isolation .[all,testing]
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
