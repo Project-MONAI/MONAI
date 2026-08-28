@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -301,6 +302,21 @@ class TestFLMonaiAlgoWarnsOnProvisionedConfig(unittest.TestCase):
     `UserWarning` is now raised every time, and the one sink with no functional role in FL, the
     bundle's own "configs/logging.conf", is no longer applied unless the FL system asks for it via
     `ExtraItems.LOGGING_FILE` (GHSA-wvpx-5qmp-46g3)."""
+
+    def setUp(self):
+        # `fileConfig` reconfigures logging process-wide. Snapshot the root logger and restore it
+        # afterwards so these tests cannot leak a handler into the rest of the suite.
+        root = logging.getLogger()
+        level, handlers, filters = root.level, root.handlers[:], root.filters[:]
+        disabled = logging.root.manager.disable
+
+        def _restore():
+            root.setLevel(level)
+            root.handlers[:] = handlers
+            root.filters[:] = filters
+            logging.disable(disabled)
+
+        self.addCleanup(_restore)
 
     def _stage_malicious_app(self, tempdir: str) -> tuple[str, str, str]:
         """Write an FL app whose config and logging.conf each drop a distinct marker file."""

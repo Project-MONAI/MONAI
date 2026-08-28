@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -277,6 +278,21 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
     lives in a plain INI rather than the MONAI `$`-DSL, so it is easy to miss when reviewing a
     bundle. Applying it is still not blocked -- as for GHSA-873f-pvrv-4x83, MONAI has no way to
     establish whether a bundle is trustworthy -- but a `UserWarning` is now raised every time."""
+
+    def setUp(self):
+        # `fileConfig` reconfigures logging process-wide. Snapshot the root logger and restore it
+        # afterwards so these tests cannot leak a handler into the rest of the suite.
+        root = logging.getLogger()
+        level, handlers, filters = root.level, root.handlers[:], root.filters[:]
+        disabled = logging.root.manager.disable
+
+        def _restore():
+            root.setLevel(level)
+            root.handlers[:] = handlers
+            root.filters[:] = filters
+            logging.disable(disabled)
+
+        self.addCleanup(_restore)
 
     def test_default_logging_conf_warns_and_executes(self):
         with tempfile.TemporaryDirectory() as tempdir:
