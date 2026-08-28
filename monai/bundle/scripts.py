@@ -59,7 +59,6 @@ validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests, has_requests = optional_import("requests")
-onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
@@ -1437,6 +1436,7 @@ def onnx_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
     def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx, _ = optional_import("onnx")
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
