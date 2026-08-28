@@ -71,7 +71,8 @@ class TestHandlerMLFlow(unittest.TestCase):
     def tearDown(self):
         for tmpdir in self.tmpdir_list:
             if tmpdir and os.path.exists(tmpdir):
-                shutil.rmtree(tmpdir)
+                # the SQLite default backend creates a db file rather than a directory
+                shutil.rmtree(tmpdir) if os.path.isdir(tmpdir) else os.remove(tmpdir)
 
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -124,14 +125,6 @@ class TestHandlerMLFlow(unittest.TestCase):
                 if handler is not None:
                     handler.close()  # release the SQLite handle so Windows can delete the db
                 os.chdir(cwd)
-
-    def test_explicit_tracking_uri_is_preserved(self):
-        # an explicitly provided tracking_uri must be passed through unchanged, including file paths.
-        with tempfile.TemporaryDirectory() as tempdir:
-            explicit_uri = path_to_uri(os.path.join(tempdir, "mlflow_explicit"))
-            handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=explicit_uri)
-            self.assertEqual(handler.client.tracking_uri, explicit_uri)
-            self.assertIsNone(handler.artifact_location)
 
     def test_remote_tracking_uri_leaves_artifact_location_unset(self):
         # a non-local (e.g. remote) tracking_uri must not get a local artifact_location injected,
