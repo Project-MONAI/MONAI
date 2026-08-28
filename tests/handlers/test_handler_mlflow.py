@@ -26,10 +26,8 @@ from parameterized import parameterized
 from monai.apps import download_and_extract
 from monai.bundle import ConfigWorkflow, download
 from monai.handlers import MLFlowHandler
-from monai.utils import optional_import, path_to_sqlite_uri, path_to_uri
+from monai.utils import path_to_sqlite_uri, path_to_uri
 from tests.test_utils import skip_if_downloading_fails, skip_if_quick
-
-_, has_dataset_tracking = optional_import("mlflow", "2.4.0")
 
 
 def get_event_filter(e):
@@ -71,8 +69,9 @@ class TestHandlerMLFlow(unittest.TestCase):
     def tearDown(self):
         for tmpdir in self.tmpdir_list:
             if tmpdir and os.path.exists(tmpdir):
-                # the SQLite default backend creates a db file rather than a directory
-                shutil.rmtree(tmpdir) if os.path.isdir(tmpdir) else os.remove(tmpdir)
+                # tmpdir_list may hold a directory or (from dummy_train) a SQLite db file; remove
+                # the containing directory either way so the mkdtemp parent does not leak.
+                shutil.rmtree(tmpdir if os.path.isdir(tmpdir) else os.path.dirname(tmpdir))
 
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -108,8 +107,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             self.assertEqual(create_engine_times, run_cnt)
 
     def test_default_tracking_uri_is_sqlite(self):
-        # when no tracking_uri is provided, the handler should default to a local SQLite backend
-        # rather than the filesystem (file store) backend, which raises on mlflow 3.13+.
+        """Verify the handler defaults to a local SQLite backend, not the file store, without a tracking URI."""
         with tempfile.TemporaryDirectory() as tempdir:
             cwd = os.getcwd()
             os.chdir(tempdir)
@@ -127,14 +125,19 @@ class TestHandlerMLFlow(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_remote_tracking_uri_leaves_artifact_location_unset(self):
-        # a non-local (e.g. remote) tracking_uri must not get a local artifact_location injected,
-        # so the remote backend keeps deciding where artifacts go.
+        """Verify a remote tracking URI gets no local artifact location injected."""
         handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri="http://localhost:5000")
         self.assertEqual(handler.client.tracking_uri, "http://localhost:5000")
         self.assertIsNone(handler.artifact_location)
 
+    def test_file_store_tracking_uri_is_rejected(self):
+        """Verify local paths and file:// URIs are rejected with an actionable error."""
+        for uri in ("/tmp/mlruns", path_to_uri(os.path.join("some", "dir"))):
+            with self.assertRaises(ValueError):
+                MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
+
     def test_explicit_sqlite_tracking_uri_colocates_artifacts(self):
-        # an explicit local SQLite tracking_uri should still co-locate artifacts next to the db.
+        """Verify an explicit SQLite tracking URI co-locates artifacts next to the database."""
         with tempfile.TemporaryDirectory() as tempdir:
             uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
             handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
@@ -146,9 +149,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler.close()  # release the SQLite handle so Windows can delete the db
 
     def test_env_var_sqlite_tracking_uri_colocates_artifacts(self):
-        # a SQLite `MLFLOW_TRACKING_URI` env var should co-locate artifacts next to the db, the
-        # same as an explicit `tracking_uri` argument. The env var itself is left for MLflow to
-        # resolve, so the handler does not pass it to the client.
+        """Verify a SQLite ``MLFLOW_TRACKING_URI`` env var co-locates artifacts next to the db."""
         with tempfile.TemporaryDirectory() as tempdir:
             uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
             handler = None
@@ -165,8 +166,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                         handler.close()  # release the SQLite handle so Windows can delete the db
 
     def test_explicit_artifact_location_is_used(self):
-        # an explicitly provided artifact_location should be kept even with the default SQLite
-        # backend, so callers (e.g. the bundle defaults) can co-locate artifacts with the db.
+        """Verify an explicit artifact location is preserved with the default SQLite backend."""
         with tempfile.TemporaryDirectory() as tempdir:
             cwd = os.getcwd()
             os.chdir(tempdir)
@@ -181,7 +181,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_default_sqlite_run_flow(self):
-        # a basic log/run flow should work with the default SQLite backend (no tracking_uri given).
+        """Verify a basic run flow works end-to-end with the default SQLite backend."""
         with tempfile.TemporaryDirectory() as tempdir:
             cwd = os.getcwd()
             os.chdir(tempdir)
@@ -347,7 +347,6 @@ class TestHandlerMLFlow(unittest.TestCase):
                 self.assertTrue(len(glob.glob(res)) > 0)
 
     @skip_if_quick
-    @unittest.skipUnless(has_dataset_tracking, reason="Requires mlflow version >= 2.4.0.")
     def test_dataset_tracking(self):
         test_bundle_name = "endoscopic_tool_segmentation"
         with tempfile.TemporaryDirectory() as tempdir:

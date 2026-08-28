@@ -83,8 +83,9 @@ class MLFlowHandler:
             artifacts stored under ``<cwd>/mlruns``. The default was changed from the filesystem
             (file store) backend because MLflow 3.13+ raises an exception for the file store unless
             ``MLFLOW_ALLOW_FILE_STORE=true`` is set; SQLite is the backend MLflow recommends and it
-            does not raise. Any explicitly provided ``tracking_uri`` (including a local file path or
-            ``file://`` URI) is passed through unchanged.
+            does not raise. Any explicitly provided ``tracking_uri`` is passed through unchanged,
+            except local file paths and ``file://`` URIs, which are rejected because MLflow no
+            longer supports the filesystem (file store) tracking backend.
             for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
         iteration_log: whether to log data to MLFlow when iteration completed, default to `True`.
             ``iteration_log`` can be also a function and it will be interpreted as an event filter
@@ -203,6 +204,16 @@ class MLFlowHandler:
         ):
             db_path = Path(effective_tracking_uri[len("sqlite:///") :])
             self.artifact_location = path_to_uri(db_path.parent / "mlruns")
+        # MLflow 3.13+ refuses the filesystem (file store) tracking backend, and 3.14+ resolves
+        # the store eagerly at client construction, so a local path or ``file://`` URI would raise
+        # an opaque MlflowException. Reject those here with an actionable message instead.
+        if effective_tracking_uri.startswith("file://") or "://" not in effective_tracking_uri:
+            raise ValueError(
+                "MLflow no longer supports the filesystem (file store) tracking backend; got "
+                f"tracking_uri={effective_tracking_uri!r}. Use a SQLite URI "
+                "(sqlite:///<path>/mlruns.db) or a remote tracking URI, or set "
+                "MLFLOW_ALLOW_FILE_STORE=true to opt back in."
+            )
         self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
         self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete

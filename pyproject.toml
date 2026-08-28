@@ -71,7 +71,7 @@ all = [
   "lpips==0.1.4",
   "matplotlib>=3.6.3",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
-  "mlflow>=3.14.0",
+  "mlflow>=3.15.2",
   "nibabel",
   "ninja",
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
@@ -126,7 +126,7 @@ lmdb = ["lmdb"]
 lpips = ["lpips==0.1.4"]
 matplotlib = ["matplotlib>=3.6.3"]
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
-mlflow = ["mlflow>=3.14.0"]
+mlflow = ["mlflow>=3.15.2"]
 nibabel = ["nibabel"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",

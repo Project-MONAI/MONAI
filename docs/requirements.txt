@@ -21,7 +21,7 @@ sphinx-autodoc-typehints==1.11.1
 pandas
 einops
 transformers>=5.5.0
-mlflow>=3.14.0
+mlflow>=3.15.2
 clearml>=1.10.0rc0
 tensorboardX
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
