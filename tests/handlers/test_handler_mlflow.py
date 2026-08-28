@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import glob
 import os
-import shutil
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -39,9 +38,7 @@ def get_event_filter(e):
     return event_filter
 
 
-def dummy_train(tracking_folder):
-    tempdir = tempfile.mkdtemp()
-
+def dummy_train(tracking_folder, tempdir):
     # set up engine
     def _train_func(engine, batch):
         return [batch + 1.0]
@@ -63,16 +60,6 @@ def dummy_train(tracking_folder):
 
 
 class TestHandlerMLFlow(unittest.TestCase):
-    def setUp(self):
-        self.tmpdir_list = []
-
-    def tearDown(self):
-        for tmpdir in self.tmpdir_list:
-            if tmpdir and os.path.exists(tmpdir):
-                # tmpdir_list may hold a directory or (from dummy_train) a SQLite db file; remove
-                # the containing directory either way so the mkdtemp parent does not leak.
-                shutil.rmtree(tmpdir if os.path.isdir(tmpdir) else os.path.dirname(tmpdir))
-
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # set up the train function for engine
@@ -336,15 +323,15 @@ class TestHandlerMLFlow(unittest.TestCase):
 
     def test_multi_thread(self):
         test_uri_list = ["monai_mlflow_test1", "monai_mlflow_test2"]
-        with ThreadPoolExecutor(2, "Training") as executor:
-            futures = {}
-            for t in test_uri_list:
-                futures[t] = executor.submit(dummy_train, t)
+        with tempfile.TemporaryDirectory() as tempdir:
+            with ThreadPoolExecutor(2, "Training") as executor:
+                futures = {}
+                for t in test_uri_list:
+                    futures[t] = executor.submit(dummy_train, t, tempdir)
 
-            for _, future in futures.items():
-                res = future.result()
-                self.tmpdir_list.append(res)
-                self.assertTrue(len(glob.glob(res)) > 0)
+                for _, future in futures.items():
+                    res = future.result()
+                    self.assertTrue(len(glob.glob(res)) > 0)
 
     @skip_if_quick
     def test_dataset_tracking(self):
