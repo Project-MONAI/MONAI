@@ -11,7 +11,7 @@ on:
       - dev
 
 env:
-  PYTHON_VER: '3.11'
+  PYTHON_VER: '3.10'
   PYTORCH_VER: '2.8.0'
   PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
 
