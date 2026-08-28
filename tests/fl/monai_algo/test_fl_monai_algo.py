@@ -299,8 +299,8 @@ class TestFLMonaiAlgoWarnsOnProvisionedConfig(unittest.TestCase):
 
     Executing the config is still not blocked -- MONAI has no way to establish whether a bundle is
     trustworthy, so a flag would only teach operators to set it once and forget it -- but a
-    `UserWarning` is now raised every time, and the one sink with no functional role in FL, the
-    bundle's own "configs/logging.conf", is no longer applied unless the FL system asks for it via
+    `UserWarning` is now raised, and the one sink with no functional role in FL, the bundle's own
+    "configs/logging.conf", is no longer applied unless the FL system asks for it via
     `ExtraItems.LOGGING_FILE` (GHSA-wvpx-5qmp-46g3)."""
 
     def setUp(self):
@@ -366,6 +366,27 @@ class TestFLMonaiAlgoWarnsOnProvisionedConfig(unittest.TestCase):
             # executing the config is deliberately still not blocked
             self.assertTrue(os.path.exists(config_marker))
             # ... but the server's logging.conf is no longer handed to `fileConfig`
+            self.assertFalse(os.path.exists(logging_marker))
+
+    @parameterized.expand([[MonaiAlgoStats], [MonaiAlgo]])
+    def test_explicit_none_logging_file_does_not_apply_provisioned_conf(self, algo_class):
+        """`None` was the pre-fix default, so an FL system may well pass the key explicitly with that
+        value. `ConfigWorkflow` reads `None` as "fall back to the bundle's own configs/logging.conf",
+        which would hand the server's INI straight to `fileConfig`; it has to mean disabled here."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            app_root, _, logging_marker = self._stage_malicious_app(tempdir)
+            algo = self._algo(algo_class)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                with self.assertRaises(KeyError):
+                    algo.initialize(
+                        extra={
+                            ExtraItems.CLIENT_NAME: "test_fl",
+                            ExtraItems.APP_ROOT: app_root,
+                            ExtraItems.LOGGING_FILE: None,
+                        }
+                    )
+            self.assertFalse(any("GHSA-wvpx-5qmp-46g3" in str(w.message) for w in caught))
             self.assertFalse(os.path.exists(logging_marker))
 
     @parameterized.expand([[MonaiAlgoStats], [MonaiAlgo]])

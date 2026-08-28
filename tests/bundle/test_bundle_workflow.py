@@ -277,7 +277,7 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
     the INI's `class=`/`args=` fields. It fires in `__init__`, before `initialize()` or `run()`, and
     lives in a plain INI rather than the MONAI `$`-DSL, so it is easy to miss when reviewing a
     bundle. Applying it is still not blocked -- as for GHSA-873f-pvrv-4x83, MONAI has no way to
-    establish whether a bundle is trustworthy -- but a `UserWarning` is now raised every time."""
+    establish whether a bundle is trustworthy -- but applying it now raises a `UserWarning`."""
 
     def setUp(self):
         # `fileConfig` reconfigures logging process-wide. Snapshot the root logger and restore it

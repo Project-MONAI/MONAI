@@ -112,7 +112,8 @@ class MonaiAlgoStats(ClientAlgoStats):
     executing it runs whatever its config contains: any `"_target_"` value is resolved to an
     importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to
     Python `eval()`. A malicious or compromised server therefore gets code execution on this client,
-    with no per-round human interaction. A warning is raised every time a config is executed
+    with no per-round human interaction. Executing a config raises a warning -- once per call site,
+    as Python's default warning filter suppresses repeats
     (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6pr-233j-x5cw).
 
     Args:
@@ -164,9 +165,10 @@ class MonaiAlgoStats(ClientAlgoStats):
         Args:
             extra: Dict with additional information that should be provided by FL system,
                 i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
-                `{ExtraItems.LOGGING_FILE}` defaults to False here, so the bundle's own
-                "configs/logging.conf" is not applied: it is provisioned by the FL system and
-                `logging.config.fileConfig` runs the INI's `class=`/`args=` fields through `eval()`
+                `{ExtraItems.LOGGING_FILE}` defaults to False here, and an explicit `None` is
+                treated the same way, so the bundle's own "configs/logging.conf" is not applied:
+                it is provisioned by the FL system and `logging.config.fileConfig` runs the INI's
+                `class=`/`args=` fields through `eval()`
                 (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
                 Set it to a logging config file path to opt back in to configuring logging.
 
@@ -175,6 +177,11 @@ class MonaiAlgoStats(ClientAlgoStats):
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         logging_file = extra.get(ExtraItems.LOGGING_FILE, False)
+        if logging_file is None:
+            # `ConfigWorkflow` reads `None` as "fall back to the bundle's own configs/logging.conf",
+            # the FL-provisioned file this default exists to keep away from `fileConfig`. Passing the
+            # key explicitly as `None` has to mean the same as leaving it out.
+            logging_file = False
         self.logger.info(f"Initializing {self.client_name} ...")
 
         # FL platform needs to provide filepath to configuration files
@@ -352,7 +359,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     executing it runs whatever its config contains: any `"_target_"` value is resolved to an
     importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to
     Python `eval()`. A malicious or compromised server therefore gets code execution on this client,
-    with no per-round human interaction. A warning is raised every time a config is executed
+    with no per-round human interaction. Executing a config raises a warning -- once per call site,
+    as Python's default warning filter suppresses repeats
     (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6pr-233j-x5cw).
 
     Args:
@@ -458,9 +466,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         Args:
             extra: Dict with additional information that should be provided by FL system,
                 i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
-                `{ExtraItems.LOGGING_FILE}` defaults to False here, so the bundle's own
-                "configs/logging.conf" is not applied: it is provisioned by the FL system and
-                `logging.config.fileConfig` runs the INI's `class=`/`args=` fields through `eval()`
+                `{ExtraItems.LOGGING_FILE}` defaults to False here, and an explicit `None` is
+                treated the same way, so the bundle's own "configs/logging.conf" is not applied:
+                it is provisioned by the FL system and `logging.config.fileConfig` runs the INI's
+                `class=`/`args=` fields through `eval()`
                 (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
                 Set it to a logging config file path to opt back in to configuring logging.
 
@@ -470,6 +479,11 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         logging_file = extra.get(ExtraItems.LOGGING_FILE, False)
+        if logging_file is None:
+            # `ConfigWorkflow` reads `None` as "fall back to the bundle's own configs/logging.conf",
+            # the FL-provisioned file this default exists to keep away from `fileConfig`. Passing the
+            # key explicitly as `None` has to mean the same as leaving it out.
+            logging_file = False
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.logger.info(f"Initializing {self.client_name} ...")
         # FL platform needs to provide filepath to configuration files
