@@ -38,7 +38,7 @@ Please note that, as per PyTorch, MONAI uses American English spelling. This mea
 ### Preparing pull requests
 
 To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
-static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
+static type analysis tools ([pyrefly](https://github.com/facebook/pyrefly)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
 To collaborate efficiently, please read through this section and follow them.
@@ -57,10 +57,6 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 ```bash
 # optionally update the dependencies and dev tools
 python -m pip install -U pip
-python -m pip install -U -r requirements-dev.txt
-
-# run the linting and type checking tools
-./runtests.sh --codeformat
 
 # try to fix the coding style errors automatically
 ./runtests.sh --autofix
@@ -132,7 +128,7 @@ It is recommended that the new test `test_[module_name].py` is constructed by us
 python 3.9+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 
-- the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
+- the packages are listed in [`pyproject.toml`](pyproject.toml)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
 
@@ -219,10 +215,8 @@ Integration tests with minimal requirements are deployed to ensure this strategy
 To add new optional dependencies, please communicate with the core team during pull request reviews,
 and add the necessary information (at least) to the following files:
 
-- [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
-- [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
+- [pyproject.toml](https://github.com/Project-MONAI/MONAI/blob/dev/pyproject.toml)  (for package's `[project.optional-dependencies]` config)
 - [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
-- [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
 - [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
 
 When writing unit tests that use 3rd-party packages, it is a good practice to always consider
@@ -437,7 +431,7 @@ Do **not** use `[skip ci]` for commits that change:
 
 - Source code in `monai/`
 - Test files in `tests/`
-- Dependencies (`requirements*.txt`, `setup.cfg`, `setup.py`)
+- Dependencies (`pyproject.toml`, `setup.py`, `docs/requirements.txt`)
 - Anything that could affect correctness or compatibility
 
 ### Quick example
