@@ -51,7 +51,7 @@ jobs:
         - language: actions
           build-mode: none
         - language: c-cpp
-          build-mode: none
+          build-mode: autobuild  # manual mode doesn't appear necessary? Steps to build are kept here anyway
         - language: python
           build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
@@ -104,7 +104,7 @@ jobs:
       run: |
         rm -rf /opt/hostedtoolcache/{node,go,Ruby,Java*}
         ls -al /opt/hostedtoolcache
-        rm -rf /usr/share/dotnet/
+        sudo rm -rf /usr/share/dotnet/
         python -m pip install -U pip wheel wheel-stub
         python -m pip install torch==${PYTORCH_VER} torchvision
         python -m pip install --user --upgrade pip wheel
