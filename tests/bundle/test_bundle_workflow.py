@@ -287,9 +287,18 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
         disabled = logging.root.manager.disable
 
         def _restore():
+            # Detach whatever is on the root logger now, closing anything `fileConfig` installed so
+            # it does not linger in logging's handler registry, then put the snapshot back. Under
+            # `tests/runner.py` the root logger starts with no handlers, so there is nothing for
+            # `fileConfig` to have closed on the way in.
+            for handler in root.handlers[:]:
+                root.removeHandler(handler)
+                if handler not in handlers:
+                    handler.close()
             root.setLevel(level)
-            root.handlers[:] = handlers
             root.filters[:] = filters
+            for handler in handlers:
+                root.addHandler(handler)
             logging.disable(disabled)
 
         self.addCleanup(_restore)
