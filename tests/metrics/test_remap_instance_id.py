@@ -62,7 +62,7 @@ class TestRemapInstanceId(unittest.TestCase):
         """Inputs without foreground ids are returned unchanged, keeping their original dtype."""
         pred = torch.zeros(shape, dtype=torch.int64, device=_device)
         result = remap_instance_id(pred, by_size=True)
-        self.assertEqual(result.dtype, pred.dtype)
+        # assert_close checks dtype as well as values, so the original dtype is verified here
         torch.testing.assert_close(result, pred)
 
     def test_output_dtype(self):
