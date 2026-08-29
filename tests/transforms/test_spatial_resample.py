@@ -23,7 +23,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
 from monai.utils import optional_import
-from tests.lazy_transforms_utils import test_resampler_lazy
+from tests.lazy_transforms_utils import test_resampler_lazy as check_resampler_lazy
 from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product
 
 TESTS = []
@@ -148,7 +148,7 @@ class TestSpatialResample(unittest.TestCase):
             assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
             assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), call_param["dst_affine"])
 
-            test_resampler_lazy(resampler, out, init_param=None, call_param=call_param)
+            check_resampler_lazy(resampler, out, init_param=None, call_param=call_param)
 
     @parameterized.expand(TEST_4_5_D)
     def test_4d_5d(self, new_shape, tile, device, dtype, expected_data):
@@ -165,7 +165,7 @@ class TestSpatialResample(unittest.TestCase):
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
         assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
 
-        test_resampler_lazy(resampler, out, init_param, call_param)
+        check_resampler_lazy(resampler, out, init_param, call_param)
 
     @parameterized.expand(TEST_DEVICES)
     def test_ill_affine(self, device):
@@ -199,7 +199,7 @@ class TestSpatialResample(unittest.TestCase):
         out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
 
-        test_resampler_lazy(resampler, out, init_param, call_param)
+        check_resampler_lazy(resampler, out, init_param, call_param)
 
         if track_meta:
             self.assertIsInstance(out, MetaTensor)
@@ -229,6 +229,22 @@ class TestSpatialResample(unittest.TestCase):
             result = SpatialResample()(img)
             assert_allclose(result, img, type_test=False)
         set_track_meta(True)
+
+    def test_none_spatial_size_rank_one(self):
+        img = MetaTensor(torch.randn(1, 8))
+        result = SpatialResample()(img, spatial_size=None)
+
+        self.assertEqual(result.shape, img.shape)
+        self.assertIsInstance(result, MetaTensor)
+        self.assertTrue(torch.isfinite(result).all())
+
+    def test_partial_none_spatial_size(self):
+        img = MetaTensor(torch.randn(1, 3, 6, 7))
+        result = SpatialResample()(img, spatial_size=(None, 4, 5))
+
+        self.assertEqual(result.shape, (1, 3, 4, 5))
+        self.assertIsInstance(result, MetaTensor)
+        self.assertTrue(torch.isfinite(result).all())
 
 
 if __name__ == "__main__":
