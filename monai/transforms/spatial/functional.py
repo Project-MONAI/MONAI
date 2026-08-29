@@ -137,6 +137,13 @@ def spatial_resample(
         dtype_pt: data `dtype` for resampling computation.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    Returns:
+        torch.Tensor: The resampled output tensor, with metadata preserved when metadata tracking is enabled.
+
+    Raises:
+        ValueError: If the affine or spatial dimensions are invalid, or if the output spatial size cannot be
+            computed.
     """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
