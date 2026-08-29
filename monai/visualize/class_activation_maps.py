@@ -124,19 +124,31 @@ class ModelWithHooks:
                     return cast(nn.Module, mod)
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
-        return logits[:, class_idx].squeeze()
+    def class_score(self, logits: torch.Tensor, class_idx: int | torch.Tensor) -> torch.Tensor:
+        if isinstance(class_idx, int):
+            return logits[:, class_idx].squeeze()
+        elif class_idx.numel() == 1:
+            return logits[:, class_idx.item()]
+        elif len(class_idx.view(-1)) == logits.shape[0]:
+            return torch.gather(logits, 1, class_idx.unsqueeze(1)).squeeze(1)
+        else:
+            raise ValueError("expect length of class_idx equal to batch size")
 
     def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
         train = self.model.training
         self.model.eval()
         logits = self.model(x, **kwargs)
-        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        if class_idx is None:
+            self.class_idx = logits.max(1)[-1]
+        elif isinstance(class_idx, torch.Tensor):
+            self.class_idx = class_idx.to(logits.device)
+        else:
+            self.class_idx = class_idx
         acti, grad = None, None
         if self.register_forward:
             acti = tuple(self.activations[layer] for layer in self.target_layers)
         if self.register_backward:
-            self.score = self.class_score(logits, cast(int, self.class_idx))
+            self.score = self.class_score(logits, self.class_idx)
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
