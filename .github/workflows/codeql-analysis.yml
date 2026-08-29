@@ -110,7 +110,7 @@ jobs:
         python -m pip install torch==${PYTORCH_VER} torchvision
         python -m pip install --user --upgrade pip wheel
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
-        python -m pip install --no-build-isolation .[all,testing]
+        python -m pip install --no-build-isolation .
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
