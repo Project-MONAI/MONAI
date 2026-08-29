@@ -366,6 +366,7 @@ from .regularization.dictionary import (
     MixUpD,
     MixUpDict,
 )
+from .signal import RadialFourier3D, RadialFourierFeatures3D
 from .signal.array import (
     SignalContinuousWavelet,
     SignalFillEmpty,
@@ -376,7 +377,6 @@ from .signal.array import (
     SignalRandAddSquarePulsePartial,
     SignalRandDrop,
     SignalRandScale,
-    SignalRandShift,
     SignalRemoveFrequency,
 )
 from .signal.dictionary import SignalFillEmptyd, SignalFillEmptyD, SignalFillEmptyDict
