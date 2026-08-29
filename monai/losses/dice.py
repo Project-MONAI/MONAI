@@ -726,6 +726,7 @@ class DiceCELoss(_Loss):
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
         label_smoothing: float = 0.0,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -767,6 +768,8 @@ class DiceCELoss(_Loss):
             label_smoothing: a value in [0, 1] range. If > 0, the labels are smoothed
                 by the given factor to reduce overfitting.
                 Defaults to 0.0.
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the DiceLoss will be used.
 
         """
         super().__init__()
@@ -789,6 +792,7 @@ class DiceCELoss(_Loss):
             smooth_dr=smooth_dr,
             batch=batch,
             weight=dice_weight,
+            soft_label=soft_label,
         )
         self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction, label_smoothing=label_smoothing)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
