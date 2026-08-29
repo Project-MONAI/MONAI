@@ -23,6 +23,7 @@ env:
   PYTHON_VER: '3.11'
   PYTORCH_VER: '2.8.0'
   BUILD_MONAI: 1
+  PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
 
 jobs:
   analyze:
@@ -51,7 +52,7 @@ jobs:
         - language: actions
           build-mode: none
         - language: c-cpp
-          build-mode: none  # TODO: get Cpp building working, autobuild doesn't work and manual fails for inexplicable reasons.
+          build-mode: manual  # TODO: get Cpp building working, autobuild doesn't work and manual fails for inexplicable reasons.
         - language: python
           build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
