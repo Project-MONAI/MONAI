@@ -231,6 +231,7 @@ class TestSpatialResample(unittest.TestCase):
         set_track_meta(True)
 
     def test_none_spatial_size_rank_one(self):
+        """Verify that an unspecified rank-one size preserves the input shape and returns finite values."""
         img = MetaTensor(torch.randn(1, 8))
         result = SpatialResample()(img, spatial_size=None)
 
@@ -239,6 +240,7 @@ class TestSpatialResample(unittest.TestCase):
         self.assertTrue(torch.isfinite(result).all())
 
     def test_partial_none_spatial_size(self):
+        """Verify that ``None`` dimensions fall back while specified dimensions produce the requested shape."""
         img = MetaTensor(torch.randn(1, 3, 6, 7))
         result = SpatialResample()(img, spatial_size=(None, 4, 5))
 

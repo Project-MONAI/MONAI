@@ -117,7 +117,9 @@ def spatial_resample(
     Args:
         img: data to be resampled, assuming `img` is channel-first.
         dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
-        spatial_size: output spatial size, if the component is ``-1``, use the corresponding input spatial size.
+        spatial_size: output spatial size. Components set to ``-1`` or ``None`` use the corresponding input
+            spatial dimension. If the entire value is ``None``, the output size is computed automatically when
+            possible, otherwise the input spatial shape is used.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
             Interpolation mode to calculate output values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
