@@ -38,7 +38,7 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 The installation commands below usually end up installing the CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
-1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
+1. Check the [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip packages, PyTorch wheels already bundle the CUDA runtime, so you only need to pick the CUDA version matching your driver from the selector and install with the provided command. You do not need to manually download CUDA or set `CUDA_PATH`.
 1. Continue to follow the guide and install PyTorch.
 1. Install MONAI using one of the ways described below.
 
@@ -47,15 +47,18 @@ however, additionally use [CuPy](https://cupy.dev/) for GPU-accelerated array op
 when a transform converts a CUDA tensor via `convert_to_cupy`). If CuPy is not installed, these code
 paths raise `OptionalImportError: import cupy (No module named 'cupy')`.
 
-CuPy is provided through the `cucim` extra, so installing MONAI with that extra pulls in a compatible
-CuPy build:
+MONAI provides a dedicated `cupy` extra that installs a compatible CuPy build:
 
 ```bash
-pip install 'monai[cucim]'
+pip install 'monai[cupy]'
 ```
 
+The `cucim` extra installs [cuCIM](https://github.com/rapidsai/cucim) (`cucim-cu12` or `cucim-cu13`
+depending on your Python version), which is a separate GPU image-processing library and does not
+install CuPy.
+
 If you prefer to install CuPy directly, note that the PyPI package name is CUDA-version specific
-(e.g. `cupy-cuda12x` for CUDA 12.x, `cupy-cuda11x` for CUDA 11.x) rather than plain `cupy`. See the
+(e.g. `cupy-cuda12x` for CUDA 12.x, `cupy-cuda13x` for CUDA 13.x) rather than plain `cupy`. See the
 [CuPy installation guide](https://docs.cupy.dev/en/stable/install.html) for the correct package for
 your CUDA toolkit.
 
@@ -206,7 +209,7 @@ You can install it by running:
 ```bash
 cd MONAI/
 pip install -e .
-# or pip install -e .[all,testing] to include most of the dependencies
+# or pip install -e '.[all,testing]' to include most of the dependencies
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
@@ -234,7 +237,7 @@ $env:BUILD_MONAI="1"
 pip install -e .
 ```
 
-If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isoloation` flag to force the use of that version, or use the `--build-constraint` method.
+If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isolation` flag to force the use of that version, or use the `--build-constraint` method.
 
 To uninstall the package please run:
 
