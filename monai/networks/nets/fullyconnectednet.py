@@ -103,6 +103,8 @@ class VarFullyConnectedNet(nn.Module):
         act: activation type and arguments. Defaults to PReLU.
         bias: whether to have a bias term in linear units. Defaults to True.
         adn_ordering: order of operations in :py:class:`monai.networks.blocks.ADN`.
+        use_mean_at_inference: whether to return the posterior mean (rather than ``mu + std``)
+            as the latent code during inference. Defaults to False for backward compatibility.
 
     Examples::
 
@@ -122,11 +124,13 @@ class VarFullyConnectedNet(nn.Module):
         act: tuple | str | None = Act.PRELU,
         bias: bool = True,
         adn_ordering: str | None = None,
+        use_mean_at_inference: bool = False,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.latent_size = latent_size
+        self.use_mean_at_inference = use_mean_at_inference
 
         self.encode = nn.Sequential()
         self.decode = nn.Sequential()
@@ -172,12 +176,29 @@ class VarFullyConnectedNet(nn.Module):
         return x
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        """Sample a latent code using the reparameterization trick.
+
+        At inference (eval mode), if ``use_mean_at_inference`` is enabled, the posterior
+        mean is returned directly. Otherwise, ``mu + std`` is returned, matching the
+        original behaviour. During training, returns ``mu + eps * std`` with
+        ``eps ~ N(0, I)``.
+
+        Args:
+            mu: Posterior mean, shape ``(batch, latent_size)``.
+            logvar: Log-variance of the posterior, same shape as ``mu``.
+
+        Returns:
+            Sampled latent code, same shape as ``mu``.
+        """
+        if not self.training and self.use_mean_at_inference:
+            # At inference the latent code is the posterior mean; the random
+            # term is only added during training (the reparameterization trick).
+            return mu
         std = torch.exp(0.5 * logvar)
-
-        if self.training:  # multiply random noise with std only during training
-            std = torch.randn_like(std).mul(std)
-
-        return std.add_(mu)
+        if self.training:
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu + std
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
