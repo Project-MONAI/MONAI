@@ -144,9 +144,10 @@ class MLFlowHandler:
             while the workflow runs, default to False. The metrics are sampled in a background thread by
             MLflow itself and stored in the same run as the workflow metrics, under the `system/` prefix.
             Requires `psutil`, and `pynvml` in addition for the GPU metrics. Note that MLflow reads the
-            run through the global tracking URI to sample it, so enabling this sets the global tracking
-            URI to `tracking_uri`; a process that tracks to several URIs at the same time should keep
-            this disabled.
+            run through the global tracking URI to sample it, so this points the global tracking URI
+            (and with it `MLFLOW_TRACKING_URI`, which later handlers read in preference to their own
+            argument) at `tracking_uri` while the run is sampled, and puts the previous value back
+            when sampling stops.
         system_metrics_sampling_interval: seconds between two samples of the system metrics, default to
             `None`, which keeps the MLflow default (10 seconds). Only used if `log_system_metrics` is True.
         system_metrics_samples_before_logging: number of samples to aggregate before they are logged,
@@ -252,6 +253,8 @@ class MLFlowHandler:
         self.system_metrics_samples_before_logging = system_metrics_samples_before_logging
         self.system_metrics_monitor = None
         self._monitored_run_id: str | None = None
+        self._previous_tracking_uri: str | None = None
+        self._tracking_uri_overridden = False
         self.experiment = None
         self.cur_run = None
         self.dataset_dict = dataset_dict
@@ -360,17 +363,28 @@ class MLFlowHandler:
             if self.system_metrics_samples_before_logging is not None:
                 kwargs["samples_before_logging"] = self.system_metrics_samples_before_logging
 
+            # mlflow reads the run to sample through the global tracking uri, not through
+            # the client, so it has to be pointed at ours for as long as we sample. Setting
+            # it also writes MLFLOW_TRACKING_URI, which every later handler reads in
+            # preference to its own argument, so the previous value is put back when
+            # sampling stops. `None` is a meaningful previous value, meaning it was unset,
+            # and passing it back to mlflow restores exactly that.
+            previous_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+            overridden = False
             try:
-                # mlflow reads the run to sample through the global tracking URI,
-                # not through the client
                 if self.tracking_uri:
                     mlflow.set_tracking_uri(self.tracking_uri)
+                    overridden = True
                 monitor = SystemMetricsMonitor(run_id, **kwargs)
                 monitor.start()
             except Exception as e:
                 # a workflow should not fail because its resource usage cannot be recorded
+                if overridden:
+                    mlflow.set_tracking_uri(previous_tracking_uri)
                 warnings.warn(f"Failed to record the system metrics: {e}")
                 return
+            self._previous_tracking_uri = previous_tracking_uri
+            self._tracking_uri_overridden = overridden
 
             MLFlowHandler._monitored_run_ids.add(run_id)
             self.system_metrics_monitor = monitor
@@ -388,6 +402,10 @@ class MLFlowHandler:
                 self.system_metrics_monitor.finish()
             except Exception as e:
                 warnings.warn(f"Failed to stop recording the system metrics: {e}")
+            if self._tracking_uri_overridden:
+                mlflow.set_tracking_uri(self._previous_tracking_uri)
+                self._tracking_uri_overridden = False
+            self._previous_tracking_uri = None
             MLFlowHandler._monitored_run_ids.discard(self._monitored_run_id)
             self.system_metrics_monitor = None
             self._monitored_run_id = None

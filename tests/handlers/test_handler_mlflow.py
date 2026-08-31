@@ -357,7 +357,9 @@ class TestHandlerMLFlow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics_off")
-            handler = MLFlowHandler(iteration_log=False, tracking_uri=path_to_uri(test_path), close_on_complete=True)
+            handler = MLFlowHandler(
+                iteration_log=False, tracking_uri=path_to_sqlite_uri(test_path), close_on_complete=True
+            )
             with (
                 patch("monai.handlers.mlflow_handler.SystemMetricsMonitor") as monitor_class,
                 patch("monai.handlers.mlflow_handler.has_system_metrics", True),
@@ -377,7 +379,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 log_system_metrics=True,
                 system_metrics_sampling_interval=1,
                 system_metrics_samples_before_logging=1,
@@ -413,7 +415,10 @@ class TestHandlerMLFlow(unittest.TestCase):
             # a workflow attaches one handler per engine, all of them sharing a run
             handlers = [
                 MLFlowHandler(
-                    iteration_log=False, tracking_uri=path_to_uri(test_path), run_name="shared", log_system_metrics=True
+                    iteration_log=False,
+                    tracking_uri=path_to_sqlite_uri(test_path),
+                    run_name="shared",
+                    log_system_metrics=True,
                 )
                 for _ in range(3)
             ]
@@ -455,7 +460,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_unavailable")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
@@ -475,7 +480,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_start_failure")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
@@ -503,7 +508,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_stop_failure")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
