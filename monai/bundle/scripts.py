@@ -997,7 +997,8 @@ def run(
             common parameters shown below will be added and can be passed through the `override` parameter of this method.
 
             - ``"output_dir"``: the path to save mlflow tracking outputs locally, default to "<bundle root>/eval".
-            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to "/output_dir/mlruns".
+            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to a local SQLite database
+              at "<output_dir>/mlruns.db" with run artifacts kept under "<output_dir>/mlruns".
             - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
             - ``"run_name"``: the name of current run.
             - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
