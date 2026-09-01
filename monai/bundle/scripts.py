@@ -59,7 +59,6 @@ validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests, has_requests = optional_import("requests")
-onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
@@ -998,7 +997,8 @@ def run(
             common parameters shown below will be added and can be passed through the `override` parameter of this method.
 
             - ``"output_dir"``: the path to save mlflow tracking outputs locally, default to "<bundle root>/eval".
-            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to "/output_dir/mlruns".
+            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to a local SQLite database
+              at "<output_dir>/mlruns.db" with run artifacts kept under "<output_dir>/mlruns".
             - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
             - ``"run_name"``: the name of current run.
             - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
@@ -1437,6 +1437,7 @@ def onnx_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
     def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx, _ = optional_import("onnx")
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
