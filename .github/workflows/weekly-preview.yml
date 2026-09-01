@@ -95,7 +95,7 @@ jobs:
     - name: Publish to Test PyPI
       if: github.event_name == 'pull_request' && github.repository == 'Project-MONAI/MONAI' # only test publish on PR
       run: |
-        twine upload -r testpypi dist/*
+        twine upload --verbose -r testpypi dist/*
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
