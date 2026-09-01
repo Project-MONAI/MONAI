@@ -51,6 +51,8 @@ class VarAutoEncoder(AutoEncoder):
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
         use_sigmoid: whether to use the sigmoid function on final output. Defaults to True.
+        use_mean_at_inference: whether to return the posterior mean (rather than ``mu + std``)
+            as the latent code during inference. Defaults to False for backward compatibility.
 
     Examples::
 
@@ -90,9 +92,11 @@ class VarAutoEncoder(AutoEncoder):
         dropout: tuple | str | float | None = None,
         bias: bool = True,
         use_sigmoid: bool = True,
+        use_mean_at_inference: bool = False,
     ) -> None:
         self.in_channels, *self.in_shape = in_shape
         self.use_sigmoid = use_sigmoid
+        self.use_mean_at_inference = use_mean_at_inference
 
         self.latent_size = latent_size
         self.final_size = np.asarray(self.in_shape, dtype=int)
@@ -142,12 +146,29 @@ class VarAutoEncoder(AutoEncoder):
         return x
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        """Sample a latent code using the reparameterization trick.
+
+        At inference (eval mode), if ``use_mean_at_inference`` is enabled, the posterior
+        mean is returned directly. Otherwise, ``mu + std`` is returned, matching the
+        original behaviour. During training, returns ``mu + eps * std`` with
+        ``eps ~ N(0, I)``.
+
+        Args:
+            mu: Posterior mean, shape ``(batch, latent_size)``.
+            logvar: Log-variance of the posterior, same shape as ``mu``.
+
+        Returns:
+            Sampled latent code, same shape as ``mu``.
+        """
+        if not self.training and self.use_mean_at_inference:
+            # At inference the latent code is the posterior mean; the random
+            # term is only added during training (the reparameterization trick).
+            return mu
         std = torch.exp(0.5 * logvar)
-
-        if self.training:  # multiply random noise with std only during training
-            std = torch.randn_like(std).mul(std)
-
-        return std.add_(mu)
+        if self.training:
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu + std
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
