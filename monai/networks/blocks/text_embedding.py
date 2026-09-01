@@ -79,7 +79,6 @@ class TextEncoder(nn.Module):
             # text embedding as random initialized 'rand_embedding'
             text_embedding = self.text_embedding.weight
         else:
-            print(self.text_embedding)
             text_embedding = nn.functional.relu(self.text_to_vision(self.text_embedding))
 
         if self.spatial_dims == 3:

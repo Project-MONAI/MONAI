@@ -1,12 +1,265 @@
+
 [build-system]
 requires = [
+  "setuptools>=78.1.1",
   "wheel",
-  "setuptools",
+  "versioneer[toml]",
   "more-itertools>=8.0",
-  "torch>=2.8.0",
   "ninja",
-  "packaging"
+  "packaging",
+  "torch>=2.8.0",
+  "numpy>=1.24,<3.0",
+  "backports.tarfile"  # see https://github.com/Project-MONAI/MONAI/issues/8791
 ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "monai"
+description = "AI Toolkit for Healthcare Imaging"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = { text = "Apache License 2.0" }
+authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Healthcare Industry",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries",
+  "Typing :: Typed",
+]
+dependencies = [
+  "torch>=2.8.0",
+  "numpy>=1.24,<3.0"
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://project-monai.github.io/"
+Documentation = "https://monai.readthedocs.io/"
+"Bug Tracker" = "https://github.com/Project-MONAI/MONAI/issues"
+"Source Code" = "https://github.com/Project-MONAI/MONAI"
+
+[project.optional-dependencies]
+# All dependencies are included here except some omitted for compatibility. Testing dependencies are typically not
+# needed and so present only in "testing". Ensure requirement changes in other lists are reflected here as well.
+all = [
+  "clearml>=1.10.0rc0",
+  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
+  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
+  "einops",
+  "filelock<3.12.0",
+  "fire",
+  "gdown>=4.7.3",
+  "h5py",
+  "huggingface_hub",
+  "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
+  "itk>=5.2",
+  "jsonschema",
+  "lmdb",
+  "lpips==0.1.4",
+  "matplotlib>=3.6.3",
+  "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
+  "mlflow>=3.15.2",
+  "nibabel",
+  "ninja",
+  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
+  "nvidia-ml-py",
+  "onnx_graphsurgeon",
+  "onnx>=1.13.0",
+  "onnxruntime; python_version <= '3.10'",
+  "onnxscript",
+  "openslide-bin",
+  "openslide-python",
+  "optuna",
+  "pandas",
+  "pillow!=8.3.0",
+  "polygraphy",
+  "psutil",
+  "pyamg>=5.0.0,<5.3.0",
+  "pybind11",
+  "pydicom",
+  "pynrrd",
+  "pytorch-ignite",
+  "pyyaml",
+  "requests",
+  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
+  "scikit-image>=0.19.0",
+  "scipy>=1.12.0",
+  "tensorboard>=2.12.0",
+  "tensorboardX",
+  "tifffile; platform_system == 'Linux' or platform_system == 'Darwin'",
+  "torchio",
+  "torchvision",
+  "tqdm>=4.47.0",
+  "transformers>=5.5.0",
+  "zarr"
+]
+clearml = ["clearml>=1.10.0rc0"]
+cucim = [
+  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
+  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'"
+]
+cupy = ["cupy-cuda13x!=14.1.0"]  # not in all, the choice between cuda12x and cuda13x that can't be resolved here
+einops = ["einops"]
+fire = ["fire"]
+gdown = ["gdown>=4.7.3"]
+h5py = ["h5py"]
+huggingface_hub = ["huggingface_hub"]
+hyena = ["nvsubquadratic>=0.1.1", "omegaconf", "einops"]  # omitted from all for compatibility
+ignite = ["pytorch-ignite"]
+imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'"]
+itk = ["itk>=5.2"]
+jsonschema = ["jsonschema"]
+lmdb = ["lmdb"]
+lpips = ["lpips==0.1.4"]
+matplotlib = ["matplotlib>=3.6.3"]
+metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
+mlflow = ["mlflow>=3.15.2"]
+nibabel = ["nibabel"]
+nni = [
+  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
+  "filelock<3.12.0"  # https://github.com/microsoft/nni/issues/5523
+]
+onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
+openslide = ["openslide-python", "openslide-bin"]
+optuna = ["optuna"]
+pandas = ["pandas"]
+pillow = ["pillow!=8.3.0"]  # https://github.com/python-pillow/Pillow/issues/5571
+polygraphy = ["polygraphy"]
+psutil = ["psutil"]
+pyamg = ["pyamg>=5.0.0,<5.3.0"]
+pybind11 = ["pybind11"]
+pydicom = ["pydicom"]
+pynrrd = ["pynrrd"]
+pynvml = ["nvidia-ml-py"]
+pyyaml = ["pyyaml"]
+requests = ["requests"]
+segment_anything = ["segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"]
+scipy = ["scipy>=1.12.0"]
+skimage = ["scikit-image>=0.19.0"]
+tensorboard = ["tensorboard>=2.12.0"]  # https://github.com/Project-MONAI/MONAI/issues/7434
+tensorboardX = ["tensorboardX"]
+tifffile = ["tifffile; platform_system == 'Linux' or platform_system == 'Darwin'"]
+torchio = ["torchio"]
+torchvision = ["torchvision"]
+tqdm = ["tqdm>=4.47.0"]
+transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/BertConfig updates; re-verify the NGC image float8 concern
+zarr = ["zarr"]
+# these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
+testing = [
+  "black>=26.3.1",
+  "coverage>=5.5",
+  "isort>=5.1,<6,!=6.0.0",
+  "mccabe",
+  "packaging",
+  "parameterized",
+  "pep8-naming",
+  "pre-commit",
+  "pycodestyle",
+  "pyflakes",
+  "pyrefly>=1.0.0",
+  "ruff>=0.14.11,<0.15",
+  "tomli",  # used in print_dependencies.py for Python<3.11
+  "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
+  "types-PyYAML",
+  "types-setuptools"
+]
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {attr = "monai.__version__"}
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "monai/_version.py"
+versionfile_build = "monai/_version.py"
+tag_prefix = ""
+parentdir_prefix = ""
+
+[tool.isort]
+known_first_party = ["monai"]
+profile = "black"
+line_length = 120
+skip = [".git", ".eggs", "venv", ".venv", "versioneer.py", "_version.py", "conf.py", "monai/__init__.py"]
+skip_glob = ["*.pyi"]
+add_imports = ["from __future__ import annotations"]
+append_only = true
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_return_any = true
+strict_equality = true
+show_column_numbers = true
+show_error_codes = true
+pretty = false
+warn_unused_configs = true
+extra_checks = true
+exclude = ["venv/"]
+
+[[tool.mypy.overrides]]
+module = ["versioneer", "monai._version", "monai.eggs"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["monai.*"]
+check_untyped_defs = true
+disallow_untyped_decorators = true
+
+[[tool.mypy.overrides]]
+module = [
+  "monai._extensions.*",
+  "monai.apps.*",
+  "monai.auto3dseg.*",
+  "monai.bundle.*",
+  "monai.config.*",
+  "monai.engines.*",
+  "monai.fl.*",
+  "monai.handlers.*",
+  "monai.inferers.*",
+  "monai.losses.*",
+  "monai.metrics.*",
+  "monai.optimizers.*",
+  "monai.utils.*",
+  "monai.visualize.*"
+]
+disallow_incomplete_defs = true
+
+[tool.coverage.run]
+concurrency = ["multiprocessing"]
+source = ["."]
+data_file = ".coverage/.coverage"
+omit = ["setup.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]
+show_missing = true
+skip_covered = true
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 [tool.black]
 line-length = 120
@@ -20,11 +273,11 @@ exclude = '''
       \.eggs
     | \.git
     | \.hg
-    | \.mypy_cache
     | \.tox
     | \.venv
-    | venv
+    | \.mypy_cache
     | \.pytype
+    | venv
     | _build
     | buck-out
     | build
@@ -116,3 +369,57 @@ precise_return = true
 protocols = true
 # Experimental: Only load submodules that are explicitly imported.
 strict_import = false
+
+[tool.pyrefly]
+# Check only the monai package
+project-includes = ["monai/"]
+
+# Exclude auto-generated and vendored files
+project-excludes = [
+    "**/venv/**",
+    "**/.venv/**",
+    "versioneer.py",
+    "monai/_version.py",
+]
+
+# Match CI environment
+python-version = "3.10"
+python-platform = "linux"
+
+# "legacy" preset provides a smooth migration from previous type checkers
+preset = "legacy"
+
+# Check unannotated defs (previously enforced in mypy config)
+check-unannotated-defs = true
+
+[tool.pyrefly.errors]
+# Ignore missing imports
+missing-import = "ignore"
+
+# Suppress unused-ignore warnings
+unused-ignore = "ignore"
+
+# Suppress implicit-import globally (MONAI style uses lazy imports)
+implicit-import = "ignore"
+
+# Downgrade errors in unannotated/dynamic code to warnings
+# (pre-existing issues, not new — will fix incrementally)
+bad-assignment = "warn"
+bad-return = "warn"
+bad-argument-type = "warn"
+invalid-annotation = "ignore"
+not-iterable = "warn"
+not-callable = "warn"
+bad-index = "warn"
+
+# Pre-existing errors not flagged by previous type checkers
+# Suppress for a smooth migration; fix incrementally
+missing-attribute = "ignore"
+bad-override = "ignore"
+no-matching-overload = "ignore"
+unsupported-operation = "ignore"
+unnecessary-type-conversion = "ignore"
+missing-module-attribute = "ignore"
+not-a-type = "ignore"
+invalid-yield = "ignore"
+deprecated = "ignore"
