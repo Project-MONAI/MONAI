@@ -9,7 +9,6 @@ on:
   pull_request:
     branches:
       - dev
-  workflow_dispatch:
 
 env:
   PYTHON_VER: '3.10'
@@ -95,7 +94,7 @@ jobs:
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
     # TODO: re-enable once the test token works, currently this is getting 403 Forbidden
     # - name: Publish to Test PyPI
-    #   if: github.event_name == 'pull_request'  # only test publish on PR
+    #   if: github.event_name == 'pull_request' && github.repository == 'Project-MONAI/MONAI' # only test publish on PR
     #   run: |
     #     twine upload -r testpypi dist/*
     #   env:
@@ -103,7 +102,7 @@ jobs:
     #     TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
     #     TWINE_NON_INTERACTIVE: true
     - name: Publish to PyPI
-      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' # only publish on cron or manual run
+      if: github.event_name == 'schedule' # only publish on cron run
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
