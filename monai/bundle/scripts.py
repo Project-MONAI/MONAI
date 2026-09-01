@@ -25,6 +25,7 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any
 
+import numpy as np
 import torch
 from torch.cuda import is_available
 
@@ -51,13 +52,13 @@ from monai.utils import (
     min_version,
     optional_import,
     pprint_edges,
+    safe_eval,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests, has_requests = optional_import("requests")
-onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
@@ -158,10 +159,12 @@ def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, 
             if i == "*":
                 ret.append(any)
             else:
-                for c in _get_var_names(i):
-                    if c not in ["p", "n"]:
-                        raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
-                ret.append(eval(i, {"p": p, "n": n}))
+                bad_names = set(c for c in _get_var_names(i) if c not in {"p", "n"})
+                if bad_names:
+                    raise ValueError(f"Only variables `p` and `n` currently supported. Invalid names: {bad_names}")
+
+                # evaluate using Numpy types to prevent slow Python DoS attacks
+                ret.append(int(safe_eval(i, {"p": np.int32(p), "n": np.int32(n)}, rewrite_np=True)))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
@@ -994,7 +997,8 @@ def run(
             common parameters shown below will be added and can be passed through the `override` parameter of this method.
 
             - ``"output_dir"``: the path to save mlflow tracking outputs locally, default to "<bundle root>/eval".
-            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to "/output_dir/mlruns".
+            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to a local SQLite database
+              at "<output_dir>/mlruns.db" with run artifacts kept under "<output_dir>/mlruns".
             - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
             - ``"run_name"``: the name of current run.
             - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
@@ -1433,6 +1437,7 @@ def onnx_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
     def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx, _ = optional_import("onnx")
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
