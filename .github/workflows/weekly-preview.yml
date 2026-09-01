@@ -67,7 +67,7 @@ jobs:
         cache: 'pip'
     - name: Install tools
       run: |
-        python -m pip install -U pip build
+        python -m pip install -U pip build twine
     - name: Build distribution
       run: |
         export HEAD_COMMIT_ID=$(git rev-parse HEAD)
@@ -94,14 +94,15 @@ jobs:
         pip list
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
     - name: Publish to Test PyPI
-      if: github.event_name != 'schedule'  # only test publish on PR
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://test.pypi.org/legacy/
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_TOKEN }}
+      if: github.event_name == 'pull_request'  # only test publish on PR
+      run: |
+        twine upload -r testpypi dist/*
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+        TWINE_NON_INTERACTIVE: true
     - name: Publish to PyPI
-      if: github.event_name == 'schedule'  # only publish on cron run
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' # only publish on cron or manual run
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
