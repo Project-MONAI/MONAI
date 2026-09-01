@@ -95,11 +95,11 @@ jobs:
     - name: Publish to Test PyPI
       if: github.event_name == 'pull_request' && github.repository == 'Project-MONAI/MONAI' # only test publish on PR
       run: |
-        wc "$TWINE_PASSWORD"
+        echo "$TWINE_PASSWORD" | wc
         twine upload --verbose -r testpypi dist/*
       env:
         TWINE_USERNAME: __token__
-        TWINE_PASSWORD: foobar
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
         TWINE_NON_INTERACTIVE: true
     - name: Publish to PyPI
       if: github.event_name == 'schedule' # only publish on cron run
