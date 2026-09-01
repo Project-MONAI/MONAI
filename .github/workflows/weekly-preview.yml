@@ -93,14 +93,15 @@ jobs:
         pip install dist/*.whl
         pip list
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
-    - name: Publish to Test PyPI
-      if: github.event_name == 'pull_request'  # only test publish on PR
-      run: |
-        twine upload -r testpypi dist/*
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
-        TWINE_NON_INTERACTIVE: true
+    # TODO: re-enable once the test token works, currently this is getting 403 Forbidden
+    # - name: Publish to Test PyPI
+    #   if: github.event_name == 'pull_request'  # only test publish on PR
+    #   run: |
+    #     twine upload -r testpypi dist/*
+    #   env:
+    #     TWINE_USERNAME: __token__
+    #     TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+    #     TWINE_NON_INTERACTIVE: true
     - name: Publish to PyPI
       if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' # only publish on cron or manual run
       uses: pypa/gh-action-pypi-publish@release/v1
