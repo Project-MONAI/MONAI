@@ -161,9 +161,9 @@ transformers = ["transformers>=4.53.0, <5.0"]  # 5.x references torch.float8_e8m
 zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
-  "black>=26.3.1",
+  "black>=26.5.1",
   "coverage>=5.5",
-  "isort>=5.1,!=6.0.0",
+  "isort>9.0.0",
   "mccabe",
   "packaging",
   "parameterized",
@@ -172,7 +172,7 @@ testing = [
   "pycodestyle",
   "pyflakes",
   "pyrefly>=1.0.0",
-  "ruff>=0.14.11",
+  "ruff>=0.16.5",
   "tomli",  # used in print_dependencies.py for Python<3.11
   "types-PyYAML",
   "types-setuptools"
@@ -289,10 +289,6 @@ exclude = '''
   | monai/_version.py
 )
 '''
-
-[tool.pycln]
-all = true
-exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 120

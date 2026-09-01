@@ -30,7 +30,7 @@ repos:
       - id: mixed-line-ending
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.5
     hooks:
     -   id: ruff-check
         args: ["--fix"]
@@ -53,7 +53,7 @@ repos:
           )
 
   - repo: https://github.com/pycqa/isort
-    rev: 8.0.1  # isort version, keep synced with MONAI requirements
+    rev: 9.0.1  # isort version, keep synced with MONAI requirements
     hooks:
       - id: isort
         name: isort (python)
