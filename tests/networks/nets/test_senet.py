@@ -24,7 +24,7 @@ import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
 from monai.networks.nets import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
-from tests.test_utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
+from tests.test_utils import test_export_save, test_is_quick, test_pretrained_networks, testing_data_config
 
 if TYPE_CHECKING:
     import pretrainedmodels
@@ -69,10 +69,10 @@ class TestSENET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
-    def test_script(self, net, net_args):
+    def test_export(self, net, net_args):
         net = net(**net_args)
         input_data = torch.randn(2, 2, 64, 64, 64)
-        test_script_save(net, input_data)
+        test_export_save(net, input_data)
 
 
 class TestPretrainedSENET(unittest.TestCase):

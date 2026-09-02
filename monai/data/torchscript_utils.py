@@ -21,10 +21,12 @@ import torch
 
 from monai.config import get_config_values
 from monai.utils import JITMetadataKeys
+from monai.utils.deprecate_utils import deprecated
 
 METADATA_FILENAME = "metadata.json"
 
 
+@deprecated(since="1.5", removed="1.7", msg_suffix="Use monai.data.save_exported_program() instead.")
 def save_net_with_metadata(
     jit_obj: torch.nn.Module,
     filename_prefix_or_stream: str | IO[Any],
@@ -100,6 +102,7 @@ def save_net_with_metadata(
     torch.jit.save(jit_obj, filename_prefix_or_stream, extra_files)
 
 
+@deprecated(since="1.5", removed="1.7", msg_suffix="Use monai.data.load_exported_program() instead.")
 def load_net_with_metadata(
     filename_prefix_or_stream: str | IO[Any],
     map_location: torch.device | None = None,

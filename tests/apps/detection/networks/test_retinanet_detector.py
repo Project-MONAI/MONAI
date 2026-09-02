@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.test_utils import skip_if_quick, test_script_save
+from tests.test_utils import skip_if_quick, test_export_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -89,7 +89,7 @@ TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
 TEST_CASES = []
 TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_A]
 
-TEST_CASES_TS = [TEST_CASE_1]
+TEST_CASES_EXPORT = [TEST_CASE_1]
 
 
 class NaiveNetwork(torch.nn.Module):
@@ -183,9 +183,9 @@ class TestRetinaNetDetector(unittest.TestCase):
             targets = [one_target] * len(input_data)
             result = detector.forward(input_data, targets)
 
-    @parameterized.expand(TEST_CASES_TS)
-    def test_script(self, input_param, input_shape):
-        # test whether support torchscript
+    @parameterized.expand(TEST_CASES_EXPORT)
+    def test_export(self, input_param, input_shape):
+        # test whether support torch.export
         returned_layers = [1]
         anchor_generator = AnchorGeneratorWithAnchorShape(
             feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
@@ -195,7 +195,7 @@ class TestRetinaNetDetector(unittest.TestCase):
         )
         with eval_mode(detector):
             input_data = torch.randn(input_shape)
-            test_script_save(detector.network, input_data)
+            test_export_save(detector.network, input_data)
 
 
 if __name__ == "__main__":

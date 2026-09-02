@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
-from tests.test_utils import skip_if_quick, test_script_save
+from tests.test_utils import skip_if_quick, test_export_save
 
 TEST_CASES_3D = [
     [
@@ -153,14 +153,24 @@ class TestDints(unittest.TestCase):
         self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
-class TestDintsTS(unittest.TestCase):
+class TestDintsExport(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
-    def test_script(self, dints_grid_params, dints_params, input_shape, _):
-        grid = TopologyInstance(**dints_grid_params)
+    def test_export(self, dints_grid_params, dints_params, input_shape, _):
+        # copy so the module-level test cases are not mutated
+        dints_grid_params, dints_params = dict(dints_grid_params), dict(dints_params)
+        num_blocks = dints_grid_params["num_blocks"]
+        num_depths = dints_grid_params["num_depths"]
+        _cell = Cell(1, 1, 0, spatial_dims=dints_grid_params["spatial_dims"])
+        num_cell_ops = len(_cell.OPS)
+        arch_code_a = np.ones((num_blocks, 3 * num_depths - 2))
+        arch_code_c = np.random.randint(num_cell_ops, size=(num_blocks, 3 * num_depths - 2))
+        dints_grid_params["arch_code"] = [arch_code_a, arch_code_c]
         dints_grid_params["device"] = "cpu"
+        grid = TopologyInstance(**dints_grid_params)
         dints_params["dints_space"] = grid
-        net = DiNTS(**dints_params).to(dints_grid_params["device"])
-        test_script_save(net, torch.randn(input_shape).to(dints_grid_params["device"]))
+        dints_params["node_a"] = torch.ones((num_blocks + 1, num_depths))
+        net = DiNTS(**dints_params).to("cpu")
+        test_export_save(net, torch.randn(input_shape).to("cpu"))
 
 
 if __name__ == "__main__":

@@ -85,32 +85,40 @@ class CoilSensitivityModel(nn.Module):
         self.spatial_dims = spatial_dims
         self.coil_dim = coil_dim
 
-    def get_fully_sampled_region(self, mask: Tensor) -> tuple[int, int]:
+    def _compute_acr_mask(self, mask: Tensor) -> Tensor:
         """
-        Extracts the size of the fully-sampled part of the kspace. Note that when a kspace
-        is under-sampled, a part of its center is fully sampled. This part is called the Auto
-        Calibration Region (ACR). ACR is used for sensitivity map computation.
+        Compute a boolean mask for the Auto Calibration Region (ACR) — the contiguous
+        fully-sampled center of the k-space sampling mask.
+
+        Uses pure tensor operations (``cumprod``) instead of while-loops so that
+        the computation is compatible with ``torch.export``.
 
         Args:
-            mask: the under-sampling mask of shape (..., S, 1) where S denotes the sampling dimension
+            mask: the under-sampling mask of shape (..., S, 1) where S denotes the sampling dimension.
 
         Returns:
-            A tuple containing
-                (1) left index of the region
-                (2) right index of the region
-
-        Note:
-            Suppose the mask is of shape (1,1,20,1). If this function returns 8,12 as left and right
-                indices, then it means that the fully-sampled center region has size 4 starting from 8 to 12.
+            A boolean tensor broadcastable to ``masked_kspace`` that is True inside the ACR.
         """
-        left = right = mask.shape[-2] // 2
-        while mask[..., right, :]:
-            right += 1
+        s_len = mask.shape[-2]
+        center = s_len // 2
 
-        while mask[..., left, :]:
-            left -= 1
+        # Flatten to 1-D along the sampling axis
+        m = mask.reshape(-1)[:s_len].bool()
 
-        return left + 1, right
+        # Count consecutive True values from center going right
+        right_count = torch.cumprod(m[center:].int(), dim=0).sum()
+        # Count consecutive True values from center going left (including center)
+        left_count = torch.cumprod(m[: center + 1].flip(0).int(), dim=0).sum()
+        num_low_freqs = left_count + right_count - 1
+
+        # Build a boolean mask over the sampling dimension
+        start = (s_len - num_low_freqs + 1) // 2
+        freq_idx = torch.arange(s_len, device=mask.device)
+        acr_1d = (freq_idx >= start) & (freq_idx < start + num_low_freqs)
+
+        # Reshape to (..., S, 1) so it broadcasts against masked_kspace
+        result: Tensor = acr_1d.view(*([1] * (mask.ndim - 2)), s_len, 1)
+        return result
 
     def forward(self, masked_kspace: Tensor, mask: Tensor) -> Tensor:
         """
@@ -122,13 +130,10 @@ class CoilSensitivityModel(nn.Module):
         Returns:
             predicted coil sensitivity maps with shape (B,C,H,W,2) for 2D data or (B,C,H,W,D,2) for 3D data.
         """
-        left, right = self.get_fully_sampled_region(mask)
-        num_low_freqs = right - left  # size of the fully-sampled center
+        acr_mask = self._compute_acr_mask(mask)
 
         # take out the fully-sampled region and set the rest of the data to zero
-        x = torch.zeros_like(masked_kspace)
-        start = (mask.shape[-2] - num_low_freqs + 1) // 2  # this marks the start of center extraction
-        x[..., start : start + num_low_freqs, :] = masked_kspace[..., start : start + num_low_freqs, :]
+        x = masked_kspace * acr_mask
 
         # apply inverse fourier to the extracted fully-sampled data
         x = ifftn_centered_t(x, spatial_dims=self.spatial_dims, is_complex=True)

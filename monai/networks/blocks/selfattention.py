@@ -121,13 +121,15 @@ class SABlock(nn.Module):
 
         if use_combined_linear:
             self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
-            self.to_q = self.to_k = self.to_v = nn.Identity()  # add to enable torchscript
+            self.to_q = self.to_k = self.to_v = (
+                nn.Identity()
+            )  # unused, keeps attributes consistent across both branches
             self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
         else:
             self.to_q = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
             self.to_k = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
             self.to_v = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
-            self.qkv = nn.Identity()  # add to enable torchscript
+            self.qkv = nn.Identity()  # unused, keeps attributes consistent across both branches
             self.input_rearrange = Rearrange("b h (l d) -> b l h d", l=num_heads)
         self.out_rearrange = Rearrange("b l h d -> b h (l d)")
         self.drop_output = nn.Dropout(dropout_rate)

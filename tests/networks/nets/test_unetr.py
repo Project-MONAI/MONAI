@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.test_utils import dict_product, skip_if_quick, test_script_save
+from tests.test_utils import dict_product, skip_if_quick, test_export_save
 
 TEST_CASE_UNETR = [
     [
@@ -115,14 +115,11 @@ class TestUNETR(unittest.TestCase):
             )
 
     @parameterized.expand(TEST_CASE_UNETR)
-    def test_script(self, input_param, input_shape, _):
+    def test_export(self, input_param, input_shape, _):
         net = UNETR(**(input_param))
         net.eval()
-        with torch.no_grad():
-            torch.jit.script(net)
-
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":
