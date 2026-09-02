@@ -89,13 +89,16 @@ jobs:
         ls -lh dist
     - name: Test Installation
       run: |
+        twine check --strict dist/*
         pip install dist/*.whl
         pip list
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
     - name: Publish to Test PyPI
-      if: github.event_name == 'pull_request' && github.repository == 'Project-MONAI/MONAI' # only test publish on PR
+      if: | # run this test only on a PR coming from a branch in this repo
+        github.event_name == 'pull_request' &&
+        github.repository == 'Project-MONAI/MONAI' &&
+        github.event.pull_request.head.repo.full_name == github.repository
       run: |
-        echo "$TWINE_PASSWORD" | wc
         twine upload --verbose -r testpypi dist/*
       env:
         TWINE_USERNAME: __token__
