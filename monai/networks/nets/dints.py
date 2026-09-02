@@ -36,18 +36,22 @@ dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
 
 
-class CellInterface(torch.nn.Module):
-    """Abstract interface for Cell modules used in DiNTS."""
+# TODO: added temporarily for PyTorch 2.14 warnings, remove when factoring out deprecated Torchscript components
+with warnings.catch_warnings(action="ignore"):
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
-        raise NotImplementedError
+    @torch.jit.interface
+    class CellInterface(torch.nn.Module):
+        """Abstract interface for Cell modules used in DiNTS."""
 
+        def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
+            pass
 
-class StemInterface(torch.nn.Module):
-    """Abstract interface for Stem modules used in DiNTS."""
+    @torch.jit.interface
+    class StemInterface(torch.nn.Module):
+        """Abstract interface for Stem modules used in DiNTS."""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        raise NotImplementedError
+        def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+            pass
 
 
 class StemTS(StemInterface):
