@@ -9,7 +9,7 @@ on:
   pull_request:
     branches:
       - dev
-  
+
 
 env:
   PYTHON_VER: '3.10'
