@@ -43,8 +43,6 @@ class DeprecatedTypesWarningFilter(logging.Filter):
             "class-based `config`",
             "pkg_resources",
             "Implicitly cleaning up",
-            # TODO: added temporarily for PyTorch 2.14, remove when factoring out deprecated Torchscript components
-            "torch.jit.interface"
         ]
         for message in message_bodies_to_ignore:
             if message in record.getMessage():
