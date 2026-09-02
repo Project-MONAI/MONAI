@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - dev
+  
 
 env:
   PYTHON_VER: '3.10'
@@ -93,17 +94,6 @@ jobs:
         pip install dist/*.whl
         pip list
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
-    - name: Publish to Test PyPI
-      if: | # run this test only on a PR coming from a branch in this repo
-        github.event_name == 'pull_request' &&
-        github.repository == 'Project-MONAI/MONAI' &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      run: |
-        twine upload --verbose -r testpypi dist/*
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
-        TWINE_NON_INTERACTIVE: true
     - name: Publish to PyPI
       if: github.event_name == 'schedule' # only publish on cron run
       uses: pypa/gh-action-pypi-publish@release/v1
