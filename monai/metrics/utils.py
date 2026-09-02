@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from functools import cache, partial
 from types import ModuleType
 from typing import Any, overload
@@ -419,23 +419,22 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
             value of the tensor should be an integer, and represents the prediction of its corresponding instance id.
         by_size: if True, largest instance will be assigned a smaller id.
 
+    Returns:
+        tensor of the same shape as ``pred`` with ids remapped to ``1..K`` (``torch.int`` dtype),
+        or ``pred`` unchanged (original dtype) when it contains no foreground ids.
     """
-    pred_id: Iterable[Any] = list(pred.unique())
-    # the original implementation has the limitation that if there is no 0 in pred, error will happen
-    pred_id = [i for i in pred_id if i != 0]
-
-    if not pred_id:
+    uniq, inverse = torch.unique(pred, return_inverse=True)
+    order = torch.nonzero(uniq != 0).flatten()
+    if order.numel() == 0:
         return pred
     if by_size:
-        instance_size = [(pred == instance_id).sum() for instance_id in pred_id]
-        pair_data = zip(pred_id, instance_size)
-        pair_list = sorted(pair_data, key=lambda x: x[1], reverse=True)
-        pred_id, _ = zip(*pair_list)
-
-    new_pred = torch.zeros_like(pred, dtype=torch.int)
-    for idx, instance_id in enumerate(pred_id):
-        new_pred[pred == instance_id] = idx + 1
-    return new_pred
+        counts = torch.bincount(inverse.flatten(), minlength=uniq.numel())[order]
+        # stable sort keeps ascending-id order for equal-size instances, matching the
+        # original python `sorted` tie-breaking
+        order = order[torch.argsort(counts, descending=True, stable=True)]
+    lut = torch.zeros(uniq.numel(), dtype=torch.int, device=pred.device)
+    lut[order] = torch.arange(1, order.numel() + 1, dtype=torch.int, device=pred.device)
+    return lut[inverse]
 
 
 def prepare_spacing(
