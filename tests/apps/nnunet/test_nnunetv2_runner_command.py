@@ -16,7 +16,6 @@ import sys
 import threading
 import types
 import unittest
-import warnings
 from unittest import mock
 
 from monai.apps.nnunet import nnunetv2_runner
