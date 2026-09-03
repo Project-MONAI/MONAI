@@ -18,6 +18,7 @@ import re
 import shlex
 import subprocess
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import monai
@@ -711,7 +712,11 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
-        Create the line command for subprocess call for parallel training.
+        Launch subprocesses for parallel training.
+
+        The commands for each GPU run sequentially on that device, while different devices run in
+        parallel. Each stage waits for all of its devices to finish before the next stage starts.
+
         Note: to set the number of GPUs to use, use ``gpu_id_for_all`` instead of the `CUDA_VISIBLE_DEVICES`
         environment variable.
 
@@ -742,19 +747,19 @@ class nnUNetV2Runner:  # noqa: N801
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
-            max_cmds_per_gpu = max((len(cmds) for cmds in stage.values()), default=0)
-            for cmd_index in range(max_cmds_per_gpu):
-                processes = []
-                for device_id, gpu_cmds in stage.items():
-                    if cmd_index >= len(gpu_cmds):
-                        continue
-                    cmd, env = gpu_cmds[cmd_index]
+            device_cmds = [(device_id, gpu_cmds) for device_id, gpu_cmds in stage.items() if gpu_cmds]
+            if not device_cmds:
+                continue
+
+            def _run_device_commands(item):
+                device_id, gpu_cmds = item
+                for cmd, env in gpu_cmds:
                     cmd_str = shlex.join(cmd)
                     logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                    processes.append(subprocess.Popen(cmd, shell=False, env=env, stdout=subprocess.DEVNULL))
-                # finish this command round on all GPUs before starting the next command
-                for p in processes:
-                    p.wait()
+                    subprocess.Popen(cmd, shell=False, env=env, stdout=subprocess.DEVNULL).wait()
+
+            with ThreadPoolExecutor(max_workers=len(device_cmds)) as executor:
+                list(executor.map(_run_device_commands, device_cmds))
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
