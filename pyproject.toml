@@ -162,9 +162,9 @@ transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/Bert
 zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
-  "black>=26.5.1",
+  "black>=26.5.1",  # keep in sync with the black rev in .pre-commit-config.yaml
   "coverage>=5.5",
-  "isort>9.0.0",
+  "isort>9.0.0",  # keep in sync with the isort rev in .pre-commit-config.yaml
   "mccabe",
   "packaging",
   "parameterized",
@@ -173,7 +173,7 @@ testing = [
   "pycodestyle",
   "pyflakes",
   "pyrefly>=1.0.0",
-  "ruff>=0.16.5",
+  "ruff>=0.16.5",  # keep in sync with the ruff rev in .pre-commit-config.yaml
   "tomli",  # used in print_dependencies.py for Python<3.11
   "types-PyYAML",
   "types-setuptools"
