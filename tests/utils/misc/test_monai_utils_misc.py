@@ -16,7 +16,13 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils.misc import MONAIEnvVars, check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries
+from monai.utils.misc import (
+    MONAIEnvVars,
+    check_kwargs_exist_in_class_init,
+    path_to_sqlite_uri,
+    run_cmd,
+    to_tuple_of_dictionaries,
+)
 
 TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
     ({}, tuple(), tuple()),
@@ -97,6 +103,15 @@ class TestCommandRunner(unittest.TestCase):
         self.assertIn("This is on stderr", str(cm.exception))
         self.assertNotIn("\\n", str(cm.exception))
         self.assertNotIn("\\t", str(cm.exception))
+
+
+class TestPathToSqliteUri(unittest.TestCase):
+    def test_path_to_sqlite_uri(self):
+        """Verify a sqlite:/// URI is built from the absolute path with special chars escaped."""
+        self.assertTrue(path_to_sqlite_uri("/tmp/mlruns.db").startswith("sqlite:///"))
+        self.assertTrue(path_to_sqlite_uri("/tmp/mlruns.db").endswith("mlruns.db"))
+        self.assertIn("%3F", path_to_sqlite_uri("a?b.db"))
+        self.assertIn("%23", path_to_sqlite_uri("a#b.db"))
 
 
 if __name__ == "__main__":

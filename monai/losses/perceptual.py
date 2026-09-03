@@ -112,7 +112,7 @@ class PerceptualLoss(nn.Module):
                 )
             if not channel_wise:
                 warnings.warn(
-                    "MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
+                    "MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
                 )
 
         # Channel-wise only for MedicalNet
@@ -127,7 +127,8 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
             # raise a warning that this may change the default cache dir for all torch.hub calls
             warnings.warn(
-                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls."
+                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls.",
+                stacklevel=2,
             )
 
         self.spatial_dims = spatial_dims
@@ -311,8 +312,10 @@ def spatial_average_3d(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
 
 
 def normalize_tensor(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
-    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True))
-    return x / (norm_factor + eps)
+    # Add eps inside the sqrt so the gradient stays finite when the norm is zero
+    # (e.g. identical input/target features), avoiding NaNs from SqrtBackward. See issue #8412.
+    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True) + eps)
+    return x / norm_factor
 
 
 def medicalnet_intensity_normalisation(volume):

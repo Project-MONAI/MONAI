@@ -25,6 +25,7 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any
 
+import numpy as np
 import torch
 from torch.cuda import is_available
 
@@ -51,13 +52,13 @@ from monai.utils import (
     min_version,
     optional_import,
     pprint_edges,
+    safe_eval,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests, has_requests = optional_import("requests")
-onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
@@ -158,10 +159,12 @@ def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, 
             if i == "*":
                 ret.append(any)
             else:
-                for c in _get_var_names(i):
-                    if c not in ["p", "n"]:
-                        raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
-                ret.append(eval(i, {"p": p, "n": n}))
+                bad_names = set(c for c in _get_var_names(i) if c not in {"p", "n"})
+                if bad_names:
+                    raise ValueError(f"Only variables `p` and `n` currently supported. Invalid names: {bad_names}")
+
+                # evaluate using Numpy types to prevent slow Python DoS attacks
+                ret.append(int(safe_eval(i, {"p": np.int32(p), "n": np.int32(n)}, rewrite_np=True)))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
@@ -648,6 +651,14 @@ def load(
     """
     Load model weights or TorchScript module of a bundle.
 
+    Security note: if `model` is `None`, building `network_def` requires parsing the bundle's own
+    "{workflow_type}.json" config, which can define `"_target_"` components resolved to any importable
+    callable and `"$"`-prefixed expressions evaluated with Python `eval()`. Only call `load()` this way
+    for bundles from a source you trust; a warning is printed every time this happens
+    (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83). To skip parsing
+    the bundle's config entirely, pass an explicit `model=` — only the weights are then loaded, via
+    `torch.load(..., weights_only=True)`.
+
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             for example:
@@ -935,6 +946,12 @@ def run(
     """
     Specify `config_file` to run monai bundle components and workflows.
 
+    Security note: parsing `config_file` can run arbitrary code. Any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python
+    `eval()`. Only point this at config files you wrote or otherwise fully trust; never at a config
+    downloaded from, or otherwise sourced from, an untrusted party. A warning is printed every time this
+    happens (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).
+
     Typical usage examples:
 
     .. code-block:: bash
@@ -980,7 +997,8 @@ def run(
             common parameters shown below will be added and can be passed through the `override` parameter of this method.
 
             - ``"output_dir"``: the path to save mlflow tracking outputs locally, default to "<bundle root>/eval".
-            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to "/output_dir/mlruns".
+            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to a local SQLite database
+              at "<output_dir>/mlruns.db" with run artifacts kept under "<output_dir>/mlruns".
             - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
             - ``"run_name"``: the name of current run.
             - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
@@ -1419,6 +1437,7 @@ def onnx_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
     def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx, _ = optional_import("onnx")
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
@@ -1929,6 +1948,12 @@ def create_workflow(
     The workflow should be subclass of `BundleWorkflow` and be available to import.
     It can be MONAI existing bundle workflows or user customized workflows.
 
+    Security note: parsing `config_file` can run arbitrary code. Any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python
+    `eval()`. Only point this at config files you wrote or otherwise fully trust; never at a config
+    downloaded from, or otherwise sourced from, an untrusted party. A warning is printed every time this
+    happens (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).
+
     Typical usage examples:
 
     .. code-block:: python
@@ -1966,6 +1991,14 @@ def create_workflow(
         )
 
     if config_file is not None:
+        warnings.warn(
+            f'parsing config_file {config_file}: any `"_target_"` value in it is resolved to an importable '
+            'callable and invoked with no allow list, and any `"$"`-prefixed value is passed to Python '
+            "`eval()`. Only proceed if this config is from a source you trust "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-873f-pvrv-4x83).",
+            stacklevel=2,
+        )
+        # pyrefly: ignore [unexpected-keyword]
         workflow_ = workflow_class(config_file=config_file, **_args)
     else:
         workflow_ = workflow_class(**_args)
@@ -1973,6 +2006,17 @@ def create_workflow(
     workflow_.initialize()
     _log_input_summary(tag="run", args=_args)
     return workflow_
+
+
+def _safe_large_file_path(bundle_path: PathLike, filepath: str) -> str:
+    """Securely resolve a large-file target path to prevent traversal outside the bundle directory."""
+    bundle_root = os.path.realpath(bundle_path)
+    target = os.path.normpath(os.path.join(bundle_path, filepath))
+    target_real = os.path.realpath(target)
+    # Ensure the resolved path stays within the bundle root
+    if os.path.commonpath([bundle_root, target_real]) != bundle_root:
+        raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}")
+    return target
 
 
 def download_large_files(bundle_path: str | None = None, large_file_name: str | None = None) -> None:
@@ -2005,11 +2049,10 @@ def download_large_files(bundle_path: str | None = None, large_file_name: str | 
     parser.read_config(large_file_path)
     large_files_list = parser.get()["large_files"]
     for lf_data in large_files_list:
-        lf_data["fuzzy"] = True
         if "hash_val" in lf_data and lf_data.get("hash_val", "") == "":
             lf_data.pop("hash_val")
         if "hash_type" in lf_data and lf_data.get("hash_type", "") == "":
             lf_data.pop("hash_type")
-        lf_data["filepath"] = os.path.join(bundle_path, lf_data["path"])
+        lf_data["filepath"] = _safe_large_file_path(bundle_path, lf_data["path"])
         lf_data.pop("path")
         download_url(**lf_data)
