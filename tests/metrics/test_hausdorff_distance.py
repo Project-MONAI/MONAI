@@ -161,6 +161,45 @@ for test_case in TEST_CASES:
         for i, (metric, directed) in enumerate(product(["euclidean", "chessboard", "taxicab"], [True, False])):
             TEST_CASES_EXPANDED.append((_device, metric, directed, test_input, test_output[i]))
 
+TEST_CASES_CC_METRICS = []
+y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.0], [0.0]]])
+
+y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred[0, 1, 5:10, 5:10, 5:10] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[float("nan")], [0.0]]])
+
+y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y[0, 1, 10:15, 10:15, 10:15] = 1
+y[0, 0] = 1 - y[0, 1]
+y_pred[0, 1, 10:15, 10:15, 10:15] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.0], [0.0]]])
+
+y = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32, 32), device=_devices[-1])
+y[0, 1, 10:15, 10:15, 10:15] = 1
+y[0, 1, 20:25, 20:25, 20:25] = 1
+y[0, 0] = 1 - y[0, 1]
+y_pred[0, 1, 11:16, 10:15, 10:15] = 1
+y_pred[0, 1, 21:26, 19:24, 20:25] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[1.2071], [0.0]]])
+
+y = torch.zeros((2, 2, 32, 32), device=_devices[-1])
+y_pred = torch.zeros((2, 2, 32, 32), device=_devices[-1])
+y[0, 1, 10:15, 10:15] = 1
+y[0, 1, 20:25, 20:25] = 1
+y[0, 0] = 1 - y[0, 1]
+y_pred[0, 1, 10:15, 10:15] = 1
+y_pred[0, 1, 21:26, 19:24] = 1
+y_pred[0, 0] = 1 - y_pred[0, 1]
+TEST_CASES_CC_METRICS.append([[y_pred, y], [[0.7071], [0.0]]])
+
 
 def _describe_test_case(test_func, test_number, params):
     _device, metric, directed, test_input, test_output = params.args
@@ -203,6 +242,20 @@ class TestHausdorffDistance(unittest.TestCase):
         result, not_nans = hd_metric.aggregate()
         np.testing.assert_allclose(0, result, rtol=1e-7)
         np.testing.assert_allclose(0, not_nans, rtol=1e-7)
+
+    @parameterized.expand(TEST_CASES_CC_METRICS)
+    def test_cc_metrics(self, input_data, expected_value):
+        [seg_1, seg_2] = input_data
+        seg_1 = torch.tensor(seg_1)
+        seg_2 = torch.tensor(seg_2)
+        hd_metric = HausdorffDistanceMetric(per_component=True)
+        hd_metric(seg_1, seg_2)
+        result = hd_metric.aggregate(reduction="none")
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    def test_channel_dimensions(self):
+        with self.assertRaises(ValueError):
+            HausdorffDistanceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
 
 
 if __name__ == "__main__":
