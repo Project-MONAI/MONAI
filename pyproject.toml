@@ -131,7 +131,8 @@ mlflow = ["mlflow>=3.15.2"]
 nibabel = ["nibabel"]
 nni = [
   "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
-  "filelock<3.12.0"  # https://github.com/microsoft/nni/issues/5523
+  "filelock<3.12.0",  # https://github.com/microsoft/nni/issues/5523
+  "typeguard<3"  # https://github.com/microsoft/nni/issues/5457
 ]
 onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
 openslide = ["openslide-python", "openslide-bin"]
@@ -161,9 +162,9 @@ transformers = ["transformers>=5.5.0"]  # 5.x needs the transchex BertLayer/Bert
 zarr = ["zarr"]
 # these dependencies are for testing/building only, they aren't needed for regular use so don't appear in "all"
 testing = [
-  "black>=26.3.1",
+  "black>=26.5.1",
   "coverage>=5.5",
-  "isort>=5.1,<6,!=6.0.0",
+  "isort>9.0.0",
   "mccabe",
   "packaging",
   "parameterized",
@@ -172,9 +173,8 @@ testing = [
   "pycodestyle",
   "pyflakes",
   "pyrefly>=1.0.0",
-  "ruff>=0.14.11,<0.15",
+  "ruff>=0.16.5",
   "tomli",  # used in print_dependencies.py for Python<3.11
-  "typeguard<3",  # https://github.com/microsoft/nni/issues/5457
   "types-PyYAML",
   "types-setuptools"
 ]
@@ -291,39 +291,35 @@ exclude = '''
 )
 '''
 
-[tool.pycln]
-all = true
-exclude = "monai/bundle/__main__.py"
-
 [tool.ruff]
 line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
 select = [
-  "B",  # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
-  "C90",  # mccabe (complexity) - https://docs.astral.sh/ruff/rules/#mccabe-c90
-  "E",  # pycodestyle errors - https://docs.astral.sh/ruff/rules/#error-e
-  "F",  # pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
-  "N",  # pep8-naming - https://docs.astral.sh/ruff/rules/#pep8-naming-n
-  "PIE",  # flake8-pie - https://docs.astral.sh/ruff/rules/#flake8-pie-pie
-  "TID", # flake8-tidy-imports - https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
-  "W",  # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#warning-w
-  "NPY",         # NumPy specific rules
-  "UP",          # pyupgrade
-  "RUF100",      # aka yesqa
+  "B",       # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+  "C90",     # mccabe (complexity) - https://docs.astral.sh/ruff/rules/#mccabe-c90
+  "E",       # pycodestyle errors - https://docs.astral.sh/ruff/rules/#error-e
+  "F",       # pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
+  "N",       # pep8-naming - https://docs.astral.sh/ruff/rules/#pep8-naming-n
+  "PIE",     # flake8-pie - https://docs.astral.sh/ruff/rules/#flake8-pie-pie
+  "TID",     # flake8-tidy-imports - https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+  "W",       # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#warning-w
+  "NPY",     # NumPy specific rules - https://docs.astral.sh/ruff/rules/#numpy-specific-rules-npy
+  "UP",      # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
+  "RUF100",  # aka yesqa - https://docs.astral.sh/ruff/rules/unused-noqa/
+  "F401",    # unused imports - https://docs.astral.sh/ruff/rules/unused-import/
 ]
 extend-ignore = [
-  "E741", # ambiguous variable name
-  "F401", # unused import
+  "E741",   # ambiguous variable name
   "NPY002", # numpy-legacy-random
-  "E203", # whitespace before ':' (pycodestyle)
-  "E501", # line too long (pycodestyle)
-  "C408", # unnecessary collection call (flake8-comprehensions)
-  "N812", # lowercase imported as non lowercase (pep8-naming)
-  "B023", # function uses loop variable (flake8-bugbear)
-  "B905", # zip() without an explicit strict= parameter (flake8-bugbear)
-  "B028", # no explicit stacklevel keyword argument found (flake8-bugbear)
+  "E203",   # whitespace before ':' (pycodestyle)
+  "E501",   # line too long (pycodestyle)
+  "C408",   # unnecessary collection call (flake8-comprehensions)
+  "N812",   # lowercase imported as non lowercase (pep8-naming)
+  "B023",   # function uses loop variable (flake8-bugbear)
+  "B905",   # zip() without an explicit strict= parameter (flake8-bugbear)
+  "B028",   # no explicit stacklevel keyword argument found (flake8-bugbear)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -336,6 +332,8 @@ extend-ignore = [
 "monai/apps/detection/utils/ATSS_matcher.py" = [
   "N999"
 ]
+"__init__.py" = ["F401"]  # TODO: change importation in __init__.py files to suit F401
+"monai/bundle/__main__.py" = ["F401"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
