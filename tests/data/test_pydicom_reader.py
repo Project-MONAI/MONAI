@@ -16,6 +16,7 @@ import unittest
 import numpy as np
 
 from monai.data import PydicomReader
+from monai.utils import MetaKeys
 from tests.test_utils import SkipIfNoModule
 
 
@@ -72,6 +73,40 @@ class TestPydicomReaderAffine(unittest.TestCase):
         np.testing.assert_allclose(affine[0, 3], 10.0)
         np.testing.assert_allclose(affine[1, 3], 20.0)
         np.testing.assert_allclose(affine[2, 3], 30.0)
+
+    def test_non_finite_orientation_raises(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [np.nan, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [1.0, 1.0]},
+        }
+        with self.assertRaisesRegex(ValueError, "ImageOrientationPatient"):
+            reader._get_affine(metadata, lps_to_ras=False)
+
+    def test_non_finite_last_image_position_raises(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [1.0, 1.0]},
+            "lastImagePositionPatient": [0.0, 0.0, np.inf],
+            MetaKeys.SPATIAL_SHAPE: [1, 1, 2],
+        }
+        with self.assertRaisesRegex(ValueError, "lastImagePositionPatient"):
+            reader._get_affine(metadata, lps_to_ras=False)
+
+    def test_overflow_from_finite_inputs_raises(self):
+        # Finite inputs whose product overflows produce a non-finite affine.
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1e308, 0.0, 0.0, 1e308, 0.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [1e308, 1e308]},
+        }
+        with self.assertRaisesRegex(ValueError, "not finite"):
+            reader._get_affine(metadata, lps_to_ras=False)
+
 
 
 if __name__ == "__main__":
