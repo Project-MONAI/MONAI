@@ -175,19 +175,27 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
             "nnunetv2.utilities.file_path_utilities": fp_mod,
         }
 
-        load_pickle = mock.MagicMock(return_value=([], {}))
+        events = []
+
+        def _load_pickle(path):
+            events.append("load_pickle")
+            return [], {}
+
+        def _warn(*args, **kwargs):
+            events.append("warn")
+
+        load_pickle = mock.MagicMock(side_effect=_load_pickle)
         with mock.patch.dict(sys.modules, fake_modules):
             with mock.patch.object(ConfigParser, "load_config_file", return_value=runner.best_configuration):
                 with mock.patch.object(nnunetv2_runner, "join", os.path.join):
                     with mock.patch.object(nnunetv2_runner, "load_pickle", load_pickle):
-                        with warnings.catch_warnings(record=True) as caught:
-                            warnings.simplefilter("always")
+                        with mock.patch.object(nnunetv2_runner.warnings, "warn", side_effect=_warn):
                             runner.predict_ensemble_postprocessing(
                                 run_predict=False, run_ensemble=False, run_postprocessing=True
                             )
 
         load_pickle.assert_called_once_with("/tmp/attacker_controlled_postprocessing.pkl")
-        self.assertTrue(any("unpickling postprocessing_file" in str(item.message) for item in caught))
+        self.assertEqual(events, ["warn", "load_pickle"])
 
 
 if __name__ == "__main__":
