@@ -450,11 +450,7 @@ class TestDownloadLargefiles(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             large_files_path = os.path.join(tempdir, "large_files.yaml")
             with open(large_files_path, "w") as f:
-                f.write(
-                    "large_files:\n"
-                    "  - path: ../evil.pt\n"
-                    "    url: https://example.com/evil.pt\n"
-                )
+                f.write("large_files:\n" "  - path: ../evil.pt\n" "    url: https://example.com/evil.pt\n")
             with self.assertRaises(ValueError):
                 download_large_files(bundle_path=tempdir)
 

@@ -179,10 +179,7 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
 
     """
     if val is None:
-        warnings.warn(
-            f"No hash value provided for {filepath}; file integrity is NOT verified.",
-            stacklevel=2,
-        )
+        warnings.warn(f"No hash value provided for {filepath}; file integrity is NOT verified.", stacklevel=2)
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
 
