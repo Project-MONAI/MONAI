@@ -108,6 +108,5 @@ class TestPydicomReaderAffine(unittest.TestCase):
             reader._get_affine(metadata, lps_to_ras=False)
 
 
-
 if __name__ == "__main__":
     unittest.main()
