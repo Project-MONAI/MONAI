@@ -177,10 +177,24 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
         events = []
 
         def _load_pickle(path):
+            """Record a ``load_pickle`` call and return an empty postprocessing pipeline.
+
+            Args:
+                path: path to the pickle file (unused).
+
+            Returns:
+                A tuple of ``(postprocessing_fns, postprocessing_kwargs)``.
+            """
             events.append("load_pickle")
             return [], {}
 
         def _warn(*args, **kwargs):
+            """Record a ``warnings.warn`` call.
+
+            Args:
+                *args: positional arguments passed to ``warnings.warn``.
+                **kwargs: keyword arguments passed to ``warnings.warn``.
+            """
             events.append("warn")
 
         load_pickle = mock.MagicMock(side_effect=_load_pickle)
