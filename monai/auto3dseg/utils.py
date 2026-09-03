@@ -494,7 +494,7 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
                 algo_config["template_path"] = state_template_path
 
             warnings.warn(
-                f"loading {filename}: the file's `_target_` value is resolved to an importable callable and "
+                f"Loading {filename}: the file's `_target_` value is resolved to an imported callable and "
                 "invoked, and template directories from the file may be added to `sys.path`; only load "
                 "algo_object.json files from a source you trust "
                 "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv).",

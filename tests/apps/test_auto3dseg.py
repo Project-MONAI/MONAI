@@ -648,7 +648,10 @@ class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
                 algo_from_json(algo_file)
 
             messages = [str(w.message) for w in caught]
-            assert any("algo_object.json" in msg and "trust" in msg for msg in messages), messages
+            self.assertTrue(
+                any("algo_object.json" in msg and "trust" in msg for msg in messages),
+                f"Keywords 'algo_object.json' and 'trust' not found in warning messages: {messages}",
+            )
 
 
 if __name__ == "__main__":
