@@ -113,12 +113,7 @@ class TestTrainParallelCommand(unittest.TestCase):
         runner.nnunet_results = "/tmp/nnunet_results"
 
         all_cmds = [
-            {
-                0: [
-                    (["python", "-m", "train", "--fold", "0"], {}),
-                    (["python", "-m", "train", "--fold", "1"], {}),
-                ]
-            }
+            {0: [(["python", "-m", "train", "--fold", "0"], {}), (["python", "-m", "train", "--fold", "1"], {})]}
         ]
 
         events = []
