@@ -316,7 +316,7 @@ def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str = "sha256",
     file_type: str = "",
     has_base: bool = True,
 ) -> None:
@@ -329,7 +329,7 @@ def extractall(
         output_dir: target directory to save extracted files.
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
@@ -395,7 +395,7 @@ def download_and_extract(
     filepath: PathLike = "",
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str = "sha256",
     file_type: str = "",
     has_base: bool = True,
     progress: bool = True,
@@ -411,7 +411,7 @@ def download_and_extract(
             default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped

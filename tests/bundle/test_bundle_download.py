@@ -184,8 +184,8 @@ class TestDownload(unittest.TestCase):
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
-                if file == "network.json":
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
+                    if file == "network.json":
+                        self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import tempfile
 import unittest
@@ -56,6 +57,14 @@ class TestCheckMD5(unittest.TestCase):
             with self.assertWarns(UserWarning):
                 result = check_hash(filename, None)
             self.assertTrue(result)
+
+    def test_default_hash_type_is_sha256(self):
+        test_image = np.ones((5, 5, 3))
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_file.png")
+            test_image.tofile(filename)
+            sha256 = hashlib.sha256(test_image.tobytes()).hexdigest()
+            self.assertTrue(check_hash(filename, sha256))
 
 
 if __name__ == "__main__":
