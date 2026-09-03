@@ -11,10 +11,16 @@
 
 from __future__ import annotations
 
+import os
+import sys
+import types
 import unittest
+import warnings
 from unittest import mock
 
+from monai.apps.nnunet import nnunetv2_runner
 from monai.apps.nnunet.nnunetv2_runner import nnUNetV2Runner
+from monai.bundle import ConfigParser
 
 
 def _make_runner(export_validation_probabilities=False):
@@ -72,6 +78,75 @@ class TestValidateSingleModelCommand(unittest.TestCase):
         self.assertIn("--val", cmd)
         self.assertNotIn("--only_run_validation", cmd)
         self.assertNotIn("True", cmd)
+
+
+class TestTrainParallelCommand(unittest.TestCase):
+    def test_train_parallel_uses_argv_list_without_shell(self):
+        runner = _make_runner()
+        runner.dataset_name = "Dataset001_Test"
+        runner.nnunet_results = "/tmp/nnunet_results"
+
+        all_cmds = [
+            {
+                0: [
+                    (["python", "-m", "train", "--fold", "0"], {"CUDA_VISIBLE_DEVICES": "0"}),
+                    (["python", "-m", "train", "--fold", "1"], {"CUDA_VISIBLE_DEVICES": "0"}),
+                ],
+                1: [(["python", "-m", "train", "--fold", "2"], {"CUDA_VISIBLE_DEVICES": "1"})],
+            }
+        ]
+
+        with mock.patch.object(runner, "train_parallel_cmd", return_value=all_cmds):
+            with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.Popen") as popen:
+                popen.return_value.wait.return_value = None
+                runner.train_parallel()
+
+        self.assertEqual(popen.call_count, 3)
+        for call in popen.call_args_list:
+            self.assertIsInstance(call.args[0], list)
+            self.assertFalse(call.kwargs["shell"])
+
+
+class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
+    def test_postprocessing_pickle_warns_on_untrusted_file(self):
+        runner = _make_runner()
+        runner.dataset_name = "Dataset001_Test"
+        runner.nnunet_raw = "/tmp/nnunet_raw"
+        runner.nnunet_results = "/tmp/nnunet_results"
+        runner.best_configuration = {
+            "best_model_or_ensemble": {
+                "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                "postprocessing_file": "/tmp/attacker_controlled_postprocessing.pkl",
+                "some_plans_file": "/tmp/plans.json",
+            }
+        }
+
+        ensemble_mod = types.ModuleType("nnunetv2.ensembling.ensemble")
+        ensemble_mod.ensemble_folders = mock.MagicMock()
+        pp_mod = types.ModuleType("nnunetv2.postprocessing.remove_connected_components")
+        pp_mod.apply_postprocessing_to_folder = mock.MagicMock()
+        fp_mod = types.ModuleType("nnunetv2.utilities.file_path_utilities")
+        fp_mod.get_output_folder = mock.MagicMock(return_value="/tmp/model_folder")
+
+        fake_modules = {
+            "nnunetv2.ensembling.ensemble": ensemble_mod,
+            "nnunetv2.postprocessing.remove_connected_components": pp_mod,
+            "nnunetv2.utilities.file_path_utilities": fp_mod,
+        }
+
+        load_pickle = mock.MagicMock(return_value=([], {}))
+        with mock.patch.dict(sys.modules, fake_modules):
+            with mock.patch.object(ConfigParser, "load_config_file", return_value=runner.best_configuration):
+                with mock.patch.object(nnunetv2_runner, "join", os.path.join):
+                    with mock.patch.object(nnunetv2_runner, "load_pickle", load_pickle):
+                        with warnings.catch_warnings(record=True) as caught:
+                            warnings.simplefilter("always")
+                            runner.predict_ensemble_postprocessing(
+                                run_predict=False, run_ensemble=False, run_postprocessing=True
+                            )
+
+        load_pickle.assert_called_once_with("/tmp/attacker_controlled_postprocessing.pkl")
+        self.assertTrue(any("unpickling postprocessing_file" in str(item.message) for item in caught))
 
 
 if __name__ == "__main__":

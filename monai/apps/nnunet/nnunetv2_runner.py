@@ -17,6 +17,7 @@ import os
 import re
 import shlex
 import subprocess
+import warnings
 from typing import Any
 
 import monai
@@ -741,17 +742,19 @@ class nnUNetV2Runner:  # noqa: N801
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
-            processes = []
-            for device_id in stage:
-                if not stage[device_id]:
-                    continue
-                cmd_str = "; ".join(shlex.join(cmd) for cmd, _ in stage[device_id])
-                env = stage[device_id][0][1]
-                logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, env=env, stdout=subprocess.DEVNULL))
-            # finish this stage first
-            for p in processes:
-                p.wait()
+            max_cmds_per_gpu = max((len(cmds) for cmds in stage.values()), default=0)
+            for cmd_index in range(max_cmds_per_gpu):
+                processes = []
+                for device_id, gpu_cmds in stage.items():
+                    if cmd_index >= len(gpu_cmds):
+                        continue
+                    cmd, env = gpu_cmds[cmd_index]
+                    cmd_str = shlex.join(cmd)
+                    logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
+                    processes.append(subprocess.Popen(cmd, shell=False, env=env, stdout=subprocess.DEVNULL))
+                # finish this command round on all GPUs before starting the next command
+                for p in processes:
+                    p.wait()
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
@@ -996,7 +999,16 @@ class nnUNetV2Runner:  # noqa: N801
 
         # apply postprocessing
         if run_postprocessing:
-            pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
+            postprocessing_file = self.best_configuration["best_model_or_ensemble"]["postprocessing_file"]
+            warnings.warn(
+                f"unpickling postprocessing_file {postprocessing_file}: this path is read from "
+                "inference_information.json and is loaded with Python pickle without any allow list, "
+                "which gives whoever controls that file arbitrary code execution. Only proceed if the "
+                "inference_information.json is from a source you trust "
+                "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87).",
+                stacklevel=2,
+            )
+            pp_fns, pp_fn_kwargs = load_pickle(postprocessing_file)
             apply_postprocessing_to_folder(
                 folder_for_pp,
                 join(target_dir_base, "ensemble_predictions_postprocessed"),
