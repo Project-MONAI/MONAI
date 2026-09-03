@@ -26,7 +26,7 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, create_workflow, load, run
-from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
+from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download, download_large_files
 from monai.utils import optional_import
 from tests.test_utils import (
     assert_allclose,
@@ -166,7 +166,7 @@ class TestDownload(unittest.TestCase):
                     file_path = os.path.join(tempdir, "test_bundle", file)
                     self.assertTrue(os.path.exists(file_path))
                     if file == "network.json":
-                        self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+                        self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
 
     @parameterized.expand([TEST_CASE_3])
     @skip_if_quick
@@ -185,7 +185,7 @@ class TestDownload(unittest.TestCase):
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
                 if file == "network.json":
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+                    self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
@@ -445,6 +445,19 @@ class TestLoad(unittest.TestCase):
 
 
 class TestDownloadLargefiles(unittest.TestCase):
+
+    def test_large_files_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            large_files_path = os.path.join(tempdir, "large_files.yaml")
+            with open(large_files_path, "w") as f:
+                f.write(
+                    "large_files:\n"
+                    "  - path: ../evil.pt\n"
+                    "    url: https://example.com/evil.pt\n"
+                )
+            with self.assertRaises(ValueError):
+                download_large_files(bundle_path=tempdir)
+
     @parameterized.expand([TEST_CASE_10])
     @skip_if_quick
     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):
@@ -469,7 +482,7 @@ class TestDownloadLargefiles(unittest.TestCase):
                 command_line_tests(cmd)
                 for file in ["model.pt", "model.ts"]:
                     file_path = os.path.join(tempdir, bundle_name, f"models/{file}")
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val[file]))
+                    self.assertTrue(check_hash(filepath=file_path, val=hash_val[file], hash_type="md5"))
 
 
 @skip_if_windows
@@ -484,7 +497,7 @@ class TestNgcBundleDownload(unittest.TestCase):
                 )
                 full_file_path = os.path.join(tempdir, download_name, file_path)
                 self.assertTrue(os.path.exists(full_file_path))
-                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
+                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val, hash_type="md5"))
 
                 model = load(
                     name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix

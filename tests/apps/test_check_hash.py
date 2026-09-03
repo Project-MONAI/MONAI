@@ -48,6 +48,15 @@ class TestCheckMD5(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tempdir:
                 check_hash(tempdir, "test_hash", "test_type")
 
+    def test_warns_when_val_is_none(self):
+        test_image = np.ones((5, 5, 3))
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_file.png")
+            test_image.tofile(filename)
+            with self.assertWarns(UserWarning):
+                result = check_hash(filename, None)
+            self.assertTrue(result)
+
 
 if __name__ == "__main__":
     unittest.main()
