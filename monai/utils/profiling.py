@@ -57,7 +57,7 @@ def torch_profiler_full(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        with torch.autograd.profiler.profile() as prof:
             result = func(*args, **kwargs)
 
         print(prof, flush=True)
@@ -76,7 +76,7 @@ def torch_profiler_time_cpu_gpu(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        with torch.autograd.profiler.profile() as prof:
             result = func(*args, **kwargs)
 
         cpu_time = prof.self_cpu_time_total
