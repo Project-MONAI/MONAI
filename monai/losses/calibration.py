@@ -109,6 +109,8 @@ class _L1ACELoss(_Loss):
         if class_weight is not None:
             if class_weight.ndim > 1:
                 raise ValueError("weight must be a scalar or a one-dimensional sequence.")
+            if not torch.all(torch.isfinite(class_weight)):
+                raise ValueError("weight must contain only finite values.")
             if torch.any(class_weight < 0):
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
 
@@ -353,8 +355,8 @@ class SoftL1ACELoss(_L1ACELoss):
         right: bool = False,
         ignore_empty_classes: bool = True,
     ) -> None:
-        if empty_weight < 0:
-            raise ValueError(f"empty_weight must be >= 0, got {empty_weight}.")
+        if not 0 <= empty_weight < float("inf"):
+            raise ValueError(f"empty_weight must be finite and >= 0, got {empty_weight}.")
         super().__init__(
             num_bins,
             include_background,

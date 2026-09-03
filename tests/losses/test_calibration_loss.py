@@ -159,6 +159,14 @@ class TestCalibrationLoss(unittest.TestCase):
                     loss_type(other_act=1)  # type: ignore[arg-type]
                 with self.assertRaises(ValueError):
                     loss_type(weight=[1.0, -1.0])
+                for invalid_weight in (float("nan"), float("inf"), -float("inf")):
+                    with self.subTest(invalid_weight=invalid_weight):
+                        with self.assertRaises(ValueError):
+                            loss_type(weight=invalid_weight)
+                        with self.assertRaises(ValueError):
+                            loss_type(weight=[1.0, invalid_weight])
+                        with self.assertRaises(ValueError):
+                            loss_type(weight=torch.tensor([invalid_weight]))
                 with self.assertRaises(ValueError):
                     loss_type(weight=[[1.0]])
                 with self.assertRaises(ValueError):
@@ -171,8 +179,9 @@ class TestCalibrationLoss(unittest.TestCase):
                     loss_type()(torch.ones(1, 2), torch.ones(1, 2))
                 with self.assertRaises(TypeError):
                     loss_type()(torch.ones(1, 2, 2, dtype=torch.int64), torch.ones(1, 2, 2))
-        with self.assertRaises(ValueError):
-            SoftL1ACELoss(empty_weight=-1)
+        for invalid_empty_weight in (-1.0, float("nan"), float("inf"), -float("inf")):
+            with self.subTest(invalid_empty_weight=invalid_empty_weight), self.assertRaises(ValueError):
+                SoftL1ACELoss(empty_weight=invalid_empty_weight)
 
     def test_single_channel_warnings(self):
         prediction = torch.tensor([[[0.2, 0.8]]])
