@@ -39,6 +39,40 @@ class TestPydicomReaderAffine(unittest.TestCase):
             affine = reader._get_affine(metadata)
         np.testing.assert_array_equal(affine, np.eye(4))
 
+    def test_non_finite_pixel_spacing_raises(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [0.0, 0.0, 0.0]},
+            "00280030": {"Value": [np.nan, 1.0]},
+        }
+        with self.assertRaisesRegex(ValueError, "PixelSpacing"):
+            reader._get_affine(metadata, lps_to_ras=False)
+
+    def test_non_finite_image_position_raises(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [np.inf, 0.0, 0.0]},
+            "00280030": {"Value": [1.0, 1.0]},
+        }
+        with self.assertRaisesRegex(ValueError, "ImagePositionPatient"):
+            reader._get_affine(metadata, lps_to_ras=False)
+
+    def test_finite_values_return_affine(self):
+        reader = PydicomReader()
+        metadata = {
+            "00200037": {"Value": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]},
+            "00200032": {"Value": [10.0, 20.0, 30.0]},
+            "00280030": {"Value": [0.5, 0.25]},
+        }
+        affine = reader._get_affine(metadata, lps_to_ras=False)
+        self.assertEqual(affine.shape, (4, 4))
+        self.assertTrue(np.all(np.isfinite(affine)))
+        np.testing.assert_allclose(affine[0, 3], 10.0)
+        np.testing.assert_allclose(affine[1, 3], 20.0)
+        np.testing.assert_allclose(affine[2, 3], 30.0)
+
 
 if __name__ == "__main__":
     unittest.main()

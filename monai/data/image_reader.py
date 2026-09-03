@@ -14,6 +14,7 @@ from __future__ import annotations
 import glob
 import gzip
 import io
+import math
 import os
 import re
 import tempfile
@@ -752,13 +753,29 @@ class PydicomReader(ImageReader):
                 stacklevel=2,
             )
             return affine
+
+        def _raise_if_not_finite(value: Any, tag: str) -> None:
+            if not math.isfinite(value):
+                raise ValueError(
+                    f"PydicomReader: cannot derive affine matrix because DICOM tag {tag} "
+                    f"has a non-finite value: {value}."
+                )
+
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
+        for value in (rx, ry, rz, cx, cy, cz):
+            _raise_if_not_finite(value, "ImageOrientationPatient (0020,0037)")
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
+        for value in (sx, sy, sz):
+            _raise_if_not_finite(value, "ImagePositionPatient (0020,0032)")
         # "00280030" is the tag of `PixelSpacing`
         spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
+        for value in spacing:
+            _raise_if_not_finite(value, "PixelSpacing (0028,0030)")
         dr, dc = metadata.get("spacing", spacing)[:2]
+        _raise_if_not_finite(dr, "spacing")
+        _raise_if_not_finite(dc, "spacing")
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -773,6 +790,8 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
+            for value in (t1n, t2n, t3n):
+                _raise_if_not_finite(value, "lastImagePositionPatient")
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
             if n > 1:
                 affine[0, 2] = (t1n - sx) / (n - 1)
