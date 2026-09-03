@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import types
 import unittest
 import warnings
@@ -105,6 +106,51 @@ class TestTrainParallelCommand(unittest.TestCase):
         for call in popen.call_args_list:
             self.assertIsInstance(call.args[0], list)
             self.assertFalse(call.kwargs["shell"])
+
+    def test_commands_run_sequentially_per_device(self):
+        runner = _make_runner()
+        runner.dataset_name = "Dataset001_Test"
+        runner.nnunet_results = "/tmp/nnunet_results"
+
+        all_cmds = [
+            {
+                0: [
+                    (["python", "-m", "train", "--fold", "0"], {}),
+                    (["python", "-m", "train", "--fold", "1"], {}),
+                ]
+            }
+        ]
+
+        events = []
+        lock = threading.Lock()
+
+        class _FakeProcess:
+            def __init__(self, cmd):
+                self.cmd = cmd
+
+            def wait(self):
+                with lock:
+                    events.append(("wait", self.cmd))
+                return 0
+
+        def _fake_popen(cmd, *args, **kwargs):
+            with lock:
+                events.append(("popen", cmd))
+            return _FakeProcess(cmd)
+
+        with mock.patch.object(runner, "train_parallel_cmd", return_value=all_cmds):
+            with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.Popen", side_effect=_fake_popen):
+                runner.train_parallel()
+
+        self.assertEqual(
+            events,
+            [
+                ("popen", ["python", "-m", "train", "--fold", "0"]),
+                ("wait", ["python", "-m", "train", "--fold", "0"]),
+                ("popen", ["python", "-m", "train", "--fold", "1"]),
+                ("wait", ["python", "-m", "train", "--fold", "1"]),
+            ],
+        )
 
 
 class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
