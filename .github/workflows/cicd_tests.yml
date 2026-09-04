@@ -7,19 +7,13 @@ on:
       - dev
       - main
       - releasing/*
-    paths-ignore:  # skip if only docs are modified
-      - '**.md'
-      - '**.rst'
-      - 'docs/**'
   pull_request:
     branches:
       - dev
       - main
       - releasing/*
-    paths-ignore:  # skip if only docs are modified
-      - '**.md'
-      - '**.rst'
-      - 'docs/**'
+  merge_group:  # needed for merge queue
+    types: [checks_requested]
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
