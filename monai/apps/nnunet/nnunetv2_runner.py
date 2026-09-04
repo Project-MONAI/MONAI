@@ -25,7 +25,7 @@ import monai
 from monai.apps.nnunet.utils import NNUNETMode as M
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import ensure_tuple, optional_import, require_pkg
 from monai.utils.misc import run_cmd
 
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
@@ -40,6 +40,7 @@ __all__ = ["nnUNetV2Runner"]
 DATASET_ID_FORMAT = r"Dataset[0-9]{3}|[0-9]+"  # regex format for a valid nnUnet dataset name
 
 
+@require_pkg(pkg_name="nnunetv2")
 class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
