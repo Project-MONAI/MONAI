@@ -17,7 +17,13 @@ from typing import Any
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
+from monai.metrics.utils import (
+    create_ignore_mask,
+    do_metric_reduction,
+    get_edge_surface_distance,
+    ignore_background,
+    prepare_spacing,
+)
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -51,6 +57,10 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     """
 
@@ -62,6 +72,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         directed: bool = False,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -70,6 +81,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.directed = directed
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
@@ -97,6 +109,11 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
 
+        mask = create_ignore_mask(y, self.ignore_index)
+        if mask is not None:
+            y_pred = y_pred * mask
+            y = y * mask
+
         # compute (BxC) for each channel for each batch
         return compute_hausdorff_distance(
             y_pred=y_pred,
@@ -106,6 +123,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             percentile=self.percentile,
             directed=self.directed,
             spacing=kwargs.get("spacing"),
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -137,6 +155,7 @@ def compute_hausdorff_distance(
     percentile: float | None = None,
     directed: bool = False,
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
+    ignore_index: int | None = None,
 ) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
@@ -162,10 +181,15 @@ def compute_hausdorff_distance(
             If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
+        ignore_index: optional class index used to suppress empty-mask warnings when that class is ignored.
+            For federated or aggregated settings, ensure all clients use the same ignore_index to keep score
+            values comparable.
     """
 
+    class_offset = 0
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
+        class_offset = 1
     y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
     y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
@@ -179,17 +203,31 @@ def compute_hausdorff_distance(
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
+        absolute_c = c + class_offset
+        if ignore_index is not None and absolute_c == ignore_index:
+            hd[b, c] = torch.tensor(float("nan"), device=y_pred.device)
+            continue
+        yp = y_pred[b, c]
+        yt = y[b, c]
+
+        warn_empty = ignore_index is None or absolute_c != ignore_index
         _, distances, _ = get_edge_surface_distance(
-            y_pred[b, c],
-            y[b, c],
+            yp,
+            yt,
             distance_metric=distance_metric,
             spacing=spacing_list[b],
             symmetric=not directed,
-            class_index=c,
+            class_index=absolute_c,
+            warn_empty=warn_empty,
         )
+
+        if len(distances) == 0:
+            hd[b, c] = torch.tensor(0.0, device=y_pred.device)
+            continue
+
         percentile_distances = [_compute_percentile_hausdorff_distance(d, percentile) for d in distances]
-        max_distance = torch.max(torch.stack(percentile_distances))
-        hd[b, c] = max_distance
+
+        hd[b, c] = torch.max(torch.stack(percentile_distances))
     return hd
 
 
