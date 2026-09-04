@@ -13,13 +13,8 @@ on:
             required: false
 
 permissions:
-  actions: write
-  checks: write
-  contents: write
-  issues: write
-  pull-requests: write
-  repository-projects: write
-  statuses: write
+  contents: read
+  pull-request: read
 
 jobs:
   Authorization:
