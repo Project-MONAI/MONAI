@@ -166,6 +166,15 @@ def compute_hausdorff_distance(
             If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
+
+    Returns:
+        A ``float`` tensor of shape ``[batch_size, n_class]`` holding one distance per
+        image and class. An entry is ``inf`` where exactly one of the two masks is empty,
+        and ``nan`` where both are, which ``do_metric_reduction`` then excludes.
+
+    Raises:
+        ValueError: if ``y_pred`` and ``y`` have different shapes, or if ``percentile``
+            is outside ``[0, 100]``.
     """
 
     if not include_background:
@@ -201,7 +210,24 @@ def _compute_percentile_hausdorff_distance(
     surface_distance: torch.Tensor, percentile: float | None = None
 ) -> torch.Tensor:
     """
-    This function is used to compute the Hausdorff distance.
+    Reduce a tensor of surface distances to a single Hausdorff distance.
+
+    Args:
+        surface_distance: the surface distances for one image and class, as returned by
+            ``get_surface_distance``. Empty when neither mask has a foreground, and
+            entirely infinite when exactly one of them does.
+        percentile: an optional float between 0 and 100. If given, the corresponding
+            percentile of ``surface_distance`` is returned rather than its maximum.
+            Defaults to ``None``.
+
+    Returns:
+        A scalar ``float`` tensor. ``nan`` when ``surface_distance`` is empty, meaning
+        there was no structure on either side to measure; ``inf`` when every distance is
+        infinite, meaning one mask was empty, at the maximum and at every percentile
+        alike.
+
+    Raises:
+        ValueError: if ``percentile`` is outside ``[0, 100]``.
     """
 
     # for both pred and gt do not have foreground
