@@ -33,7 +33,7 @@ from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array, soft_clip
-from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
+from monai.transforms.utils_pytorch_numpy_unification import clip, nonzero, percentile, ravel, where
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.module import min_version, optional_import
@@ -847,8 +847,10 @@ class NormalizeIntensity(InvertibleTransform):
 
     The subtrahend and divisor actually used (whether provided or computed) are stored in the
     transform's meta information, so the transform is invertible via :meth:`inverse`, recovering
-    ``img * divisor + subtrahend``. Inversion is not supported when ``nonzero=True``, because the
-    zero-voxel mask would be required to reverse the operation exactly.
+    ``img * divisor + subtrahend``. With ``nonzero=True`` only the voxels that were non-zero on the
+    forward pass are restored: they are identified as the non-zero voxels of the normalized image,
+    plus the (usually empty) set of voxels whose value equalled the subtrahend exactly and therefore
+    became zero, whose flat indices are also stored in the meta information.
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -890,13 +892,28 @@ class NormalizeIntensity(InvertibleTransform):
         return x.item() if x.numel() == 1 else x
 
     def _normalize(self, img: NdarrayOrTensor, sub=None, div=None):
+        """
+        Normalize ``img`` in place where possible and report what was done, for :meth:`inverse`.
+
+        Args:
+            img: image (or single channel when ``channel_wise=True``) to normalize.
+            sub: subtrahend to use; computed as the mean of the (non-zero) voxels if None.
+            div: divisor to use; computed as the std of the (non-zero) voxels if None.
+
+        Returns:
+            a tuple ``(normalized, sub, div, zeroed_idx)``: the normalized image, the subtrahend and
+            divisor actually used (identity ``0.0``/``1.0`` when ``nonzero=True`` and there is nothing to
+            normalize), and, when ``nonzero=True``, the flat indices of voxels that were non-zero before but
+            are exactly zero after normalization (``None`` when ``nonzero=False``).
+        """
         img, *_ = convert_data_type(img, dtype=torch.float32)
 
         if self.nonzero:
             slices = img != 0
             masked_img = img[slices]
             if not slices.any():
-                return img, None, None
+                # nothing was normalized: store identity stats (keeps meta collate-safe) and no indices
+                return img, 0.0, 1.0, nonzero(ravel(slices))
         else:
             slices = None
             masked_img = img
@@ -917,12 +934,16 @@ class NormalizeIntensity(InvertibleTransform):
                 _div = _div[slices]
             _div[_div == 0.0] = 1.0
 
+        zeroed_idx = None
         if slices is not None:
             img[slices] = (masked_img - _sub) / _div
+            # voxels that were non-zero but now equal zero (value == subtrahend) are indistinguishable
+            # from the untouched zero voxels in the output, so record them for inverse().
+            zeroed_idx = nonzero(ravel(slices & (img == 0)))
         else:
             img = (img - _sub) / _div
         # Return the subtrahend/divisor actually used so the transform can be inverted.
-        return img, _sub, _div
+        return img, _sub, _div, zeroed_idx
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -931,9 +952,11 @@ class NormalizeIntensity(InvertibleTransform):
         img_t: torch.Tensor = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore[assignment]
         dtype = self.dtype or img.dtype
         img_len = len(img_t)
-        # Subtrahend/divisor used per channel (channel_wise) or once (global), kept for inverse().
+        # Subtrahend/divisor used per channel (channel_wise) or once (global), kept for inverse(),
+        # plus (nonzero=True only) the indices of voxels that were zeroed by the normalization.
         subs: list = []
         divs: list = []
+        zeroed: list = []
         if self.channel_wise:
             if self.subtrahend is not None and len(self.subtrahend) != img_len:
                 raise ValueError(f"img has {img_len} channels, but subtrahend has {len(self.subtrahend)} components.")
@@ -944,31 +967,55 @@ class NormalizeIntensity(InvertibleTransform):
                 img_t, *_ = convert_data_type(img_t, dtype=torch.float32)
 
             for i, d in enumerate(img_t):
-                img_t[i], _sub, _div = self._normalize(  # type: ignore
+                img_t[i], _sub, _div, _idx = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
                 )
                 subs.append(_sub)
                 divs.append(_div)
+                zeroed.append(_idx)
         else:
-            img_t, _sub, _div = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore[assignment]
+            img_t, _sub, _div, _idx = self._normalize(img_t, self.subtrahend, self.divisor)  # type: ignore
             subs.append(_sub)
             divs.append(_div)
+            zeroed.append(_idx)
 
         out = convert_to_dst_type(img_t, img_t, dtype=dtype)[0]
-        out = self._push_transform_with_stats(out, subs, divs)
-        return out
+        return self._push_transform_with_stats(out, subs, divs, zeroed)
 
-    def _to_storable(self, value):
-        """Convert a subtrahend/divisor to something storable in transform meta."""
+    @staticmethod
+    def _to_storable(value):
+        """
+        Convert a value computed on the forward pass to something storable in the transform meta information.
+
+        Args:
+            value: a subtrahend, divisor or index array; a python/numpy scalar, ``np.ndarray`` or ``torch.Tensor``.
+
+        Returns:
+            a detached, plain (non-Meta) CPU ``torch.Tensor`` for array inputs, otherwise the value unchanged.
+        """
+        if isinstance(value, MetaTensor):
+            value = value.as_tensor()
         if isinstance(value, torch.Tensor):
             return value.detach().cpu()
         if isinstance(value, np.ndarray):
             return torch.as_tensor(value)
         return value  # python/numpy scalar
 
-    def _push_transform_with_stats(self, out, subs: list, divs: list):
+    def _push_transform_with_stats(self, out: NdarrayOrTensor, subs: list, divs: list, zeroed: list) -> NdarrayOrTensor:
+        """
+        Record the parameters needed by :meth:`inverse` in the transform meta information of ``out``.
+
+        Args:
+            out: the normalized image; only a ``MetaTensor`` (with meta tracking enabled) can carry the record.
+            subs: subtrahend used for each channel (``channel_wise=True``) or a single-element list.
+            divs: divisor used for each channel (``channel_wise=True``) or a single-element list.
+            zeroed: per-channel flat indices of voxels zeroed by the normalization (``nonzero=True`` only).
+
+        Returns:
+            ``out``, with the transform pushed onto its applied operations when it is a ``MetaTensor``.
+        """
         if not isinstance(out, MetaTensor) or not get_track_meta():
             return out
         extra_info = {
@@ -977,33 +1024,51 @@ class NormalizeIntensity(InvertibleTransform):
             "channel_wise": self.channel_wise,
             "nonzero": self.nonzero,
         }
+        if self.nonzero:
+            extra_info["zeroed_idx"] = [self._to_storable(z) for z in zeroed]
         self.push_transform(out, extra_info=extra_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        """
+        Undo the normalization recorded on ``data`` by :meth:`__call__`, i.e. ``img * divisor + subtrahend``.
+        With ``nonzero=True`` only the voxels that were normalized on the forward pass are restored.
+
+        Args:
+            data: a ``MetaTensor`` produced by this transform, with the transform still on its applied operations.
+
+        Returns:
+            the de-normalized image, of the same type as ``data``.
+
+        Raises:
+            RuntimeError: if the most recent applied operation on ``data`` was not made by this transform.
+        """
         transform = self.pop_transform(data)
         info = transform[TraceKeys.EXTRA_INFO]
-        if info["nonzero"]:
-            raise NotImplementedError(
-                "NormalizeIntensity.inverse is not supported when nonzero=True, because the "
-                "zero-voxel mask is needed to reverse the normalization exactly."
-            )
         subs, divs = info["sub"], info["div"]
+        zeroed = info.get("zeroed_idx") if info["nonzero"] else None
         out: torch.Tensor = convert_to_tensor(data, track_meta=get_track_meta())  # type: ignore[assignment]
 
-        def _restore(x, sub, div):
-            sub, *_ = convert_to_dst_type(sub, x)
-            div, *_ = convert_to_dst_type(div, x)
-            return x * div + sub
+        def _restore(x, sub, div, zeroed_idx=None):
+            if zeroed_idx is None:
+                sub, *_ = convert_to_dst_type(sub, x)
+                div, *_ = convert_to_dst_type(div, x)
+                return x * div + sub
+            # nonzero=True: the forward mask is the output's non-zero voxels plus the recorded zeroed ones
+            mask = x != 0
+            zeroed_idx, *_ = convert_to_dst_type(zeroed_idx, mask, dtype=torch.long)
+            mask.view(-1)[zeroed_idx] = True
+            vals = x[mask]
+            sub, *_ = convert_to_dst_type(sub, vals)
+            div, *_ = convert_to_dst_type(div, vals)
+            x[mask] = vals * div + sub
+            return x
 
         if info["channel_wise"]:
             for i in range(len(out)):
-                if subs[i] is None or divs[i] is None:  # all-zero channel skipped on the forward pass
-                    continue
-                out[i] = _restore(out[i], subs[i], divs[i])
+                out[i] = _restore(out[i], subs[i], divs[i], None if zeroed is None else zeroed[i])
         else:
-            if subs[0] is not None and divs[0] is not None:
-                out = _restore(out, subs[0], divs[0])
+            out = _restore(out, subs[0], divs[0], None if zeroed is None else zeroed[0])
         return out
 
 

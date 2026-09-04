@@ -17,8 +17,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor, set_track_meta
-from monai.transforms import NormalizeIntensityd
+from monai.data import MetaTensor, get_track_meta, set_track_meta
+from monai.transforms import Compose, Invertd, NormalizeIntensityd
 from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TESTS = []
@@ -78,15 +78,35 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
         assert_allclose(normalized, im_type(expected), type_test="tensor")
 
-    @parameterized.expand([["global", {}], ["channelwise", {"channel_wise": True}]])
+    @parameterized.expand(
+        [
+            ["global", {}],
+            ["channelwise", {"channel_wise": True}],
+            ["nonzero", {"nonzero": True}],
+            ["channelwise_nonzero", {"nonzero": True, "channel_wise": True}],
+        ]
+    )
     def test_inverse(self, _, args):
+        self.addCleanup(set_track_meta, get_track_meta())
         set_track_meta(True)
         key = "img"
         normalizer = NormalizeIntensityd(keys=key, **args)
         data = {key: MetaTensor(torch.randn(3, 6, 6) * 4 + 1)}
+        data[key][0, :2] = 0
         original = data[key].clone()
         out = normalizer(dict(data))
         inv = normalizer.inverse(out)
+        assert_allclose(inv[key], original, type_test=False, rtol=1e-4, atol=1e-4)
+
+    def test_invertd_nonzero(self):
+        self.addCleanup(set_track_meta, get_track_meta())
+        set_track_meta(True)
+        key = "img"
+        transform = Compose([NormalizeIntensityd(keys=key, nonzero=True)])
+        original = MetaTensor(torch.randn(2, 5, 5))
+        original[0, 0] = 0
+        out = transform({key: original.clone()})
+        inv = Invertd(keys=key, transform=transform, orig_keys=key)(out)
         assert_allclose(inv[key], original, type_test=False, rtol=1e-4, atol=1e-4)
 
 

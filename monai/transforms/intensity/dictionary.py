@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable, Mapping, Sequence
 
 import numpy as np
+import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -796,8 +797,8 @@ class NormalizeIntensityd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.NormalizeIntensity`.
     This transform can normalize only non-zero values or entire image, and can also calculate
-    mean and std on each channel separately. It is invertible via :meth:`inverse` (except when
-    ``nonzero=True``); see :py:class:`monai.transforms.NormalizeIntensity`.
+    mean and std on each channel separately. It is invertible via :meth:`inverse`;
+    see :py:class:`monai.transforms.NormalizeIntensity`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -832,7 +833,20 @@ class NormalizeIntensityd(MapTransform, InvertibleTransform):
             d[key] = self.normalizer(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        """
+        Undo the normalization of every key in ``self.keys``.
+
+        Args:
+            data: dictionary whose values for ``self.keys`` were produced by this transform.
+
+        Returns:
+            a shallow copy of ``data`` with those values de-normalized.
+
+        Raises:
+            RuntimeError: propagated from :meth:`NormalizeIntensity.inverse` if the most recent applied
+                operation on a value was not made by this transform.
+        """
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer.inverse(d[key])
