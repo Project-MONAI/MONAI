@@ -292,6 +292,8 @@ exclude = '''
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+# .pre-commit-config.yaml's ruff hook excludes these separately at the pre-commit layer
+extend-exclude = ["versioneer.py", "monai/_version.py"]
 
 [tool.ruff.lint]
 select = [

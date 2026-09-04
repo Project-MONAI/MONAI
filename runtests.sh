@@ -599,9 +599,9 @@ then
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix --unsafe-fixes --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        ruff check --fix --unsafe-fixes "$homedir"
     else
-        ruff check --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        ruff check "$homedir"
     fi
 
     ruff_status=$?
