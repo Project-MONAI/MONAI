@@ -53,6 +53,7 @@ doPyreflyFormat=false
 doCleanup=false
 doDistTests=false
 doPrecommit=false
+doSetup=false
 testTimeout=0
 
 NUM_PARALLEL=1
@@ -61,7 +62,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
-    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--pyrefly]"
+    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--pyrefly] [--setup]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
@@ -103,6 +104,7 @@ function print_usage {
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
+    echo "    --setup           : install git pre-commit hooks (black, isort, ruff, DCO sign-off)"
     echo "    --copyright       : check whether every source code has a copyright header"
     echo "    -f, --codeformat  : shorthand to run all code style and static analysis tests"
     echo "    -c, --clean       : clean temporary files from tests and exit"
@@ -320,6 +322,9 @@ do
         --precommit)
             doPrecommit=true
         ;;
+        --setup)
+            doSetup=true
+        ;;
         --pytype)
             echo "${yellow}WARNING: --pytype is deprecated and may be removed in a future release.${noColor}"
             doPytypeFormat=true
@@ -427,6 +432,21 @@ then
     clang_format
 
     echo "${green}done!${noColor}"
+fi
+
+if [ $doSetup = true ]
+then
+    echo "${separator}${blue}setup${noColor}"
+
+    # ensure pre-commit is available
+    if ! is_pip_installed pre_commit
+    then
+        install_deps
+    fi
+
+    ${cmdPrefix}"${PY_EXE}" -m pre_commit install
+
+    echo "${green}done! git hooks installed (black, isort, ruff, DCO sign-off).${noColor}"
 fi
 
 # unconditionally report on the state of monai

@@ -51,7 +51,19 @@ To collaborate efficiently, please read through this section and follow them.
 
 #### Checking the coding style
 
-Coding style is checked and enforced by black, isort, and ruff.
+Coding style is checked and enforced by black, isort, and ruff, and every commit must carry a DCO sign-off.
+To catch formatting and DCO failures before they reach CI, install the git pre-commit hooks once per checkout:
+
+```bash
+# install the git hooks: black, isort, ruff, and the DCO sign-off check
+pre-commit install
+
+# or, via the test runner:
+./runtests.sh --setup
+```
+
+These hooks run automatically on every `git commit`: `black`, `isort`, and `ruff` reformat the staged files, and the `commit-msg` hook blocks a commit that is missing a `Signed-off-by` line.
+
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
@@ -246,6 +258,8 @@ Git has a `-s` (or `--signoff`) command-line option to append this automatically
 ```bash
 git commit -s -m 'a new commit'
 ```
+
+If the git pre-commit hooks are installed (`pre-commit install` or `./runtests.sh --setup`), the local `commit-msg` hook blocks any commit that is missing this line, so the DCO check fails locally rather than in CI.
 
 The commit message will be:
 
