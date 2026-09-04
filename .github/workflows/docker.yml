@@ -21,7 +21,7 @@ jobs:
     if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # full history so that we can git describe
         with:
           ref: dev
@@ -53,7 +53,7 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         ref: dev
     - name: Download version
@@ -69,8 +69,6 @@ jobs:
         cat _version.py
         mv _version.py monai/
 
-        # build "latest": remove flake package as it is not needed on hub.docker.com
-        sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
 
         # distribute as always w/ tag "latest" to hub.docker.com

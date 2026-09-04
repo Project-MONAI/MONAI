@@ -38,7 +38,7 @@ Please note that, as per PyTorch, MONAI uses American English spelling. This mea
 ### Preparing pull requests
 
 To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
-static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
+static type analysis tools ([pyrefly](https://github.com/facebook/pyrefly)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
 To collaborate efficiently, please read through this section and follow them.
@@ -57,10 +57,6 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 ```bash
 # optionally update the dependencies and dev tools
 python -m pip install -U pip
-python -m pip install -U -r requirements-dev.txt
-
-# run the linting and type checking tools
-./runtests.sh --codeformat
 
 # try to fix the coding style errors automatically
 ./runtests.sh --autofix
@@ -132,7 +128,7 @@ It is recommended that the new test `test_[module_name].py` is constructed by us
 python 3.9+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 
-- the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
+- the packages are listed in [`pyproject.toml`](pyproject.toml)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
 
@@ -165,7 +161,7 @@ cd docs/
 make html
 ```
 
-The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
+The above commands build html documentation, they are used to automatically generate [monai.readthedocs.io](https://monai.readthedocs.io).
 
 The Python code docstring are written in
 [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) and
@@ -219,10 +215,8 @@ Integration tests with minimal requirements are deployed to ensure this strategy
 To add new optional dependencies, please communicate with the core team during pull request reviews,
 and add the necessary information (at least) to the following files:
 
-- [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
-- [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
+- [pyproject.toml](https://github.com/Project-MONAI/MONAI/blob/dev/pyproject.toml)  (for package's `[project.optional-dependencies]` config)
 - [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
-- [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
 - [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
 
 When writing unit tests that use 3rd-party packages, it is a good practice to always consider
@@ -303,6 +297,13 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
+> **Tip:** If you need to add a DCO remediation commit (e.g., after a force-push
+> or rebase), include `[skip ci]` in the commit message so the remediation
+> does not trigger unnecessary CI pipelines:
+> ```bash
+> git commit -s --allow-empty -m 'DCO Remediation Commit for... [skip ci]'
+> ```
+
 #### Utility functions
 
 MONAI provides a set of generic utility functions and frequently used routines.
@@ -357,6 +358,90 @@ Ideally, the new branch should be based on the latest `dev` branch.
 1. If there are conflicts between the pull request branch and the dev branch, pull the changes from the dev and resolve the conflicts locally.
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
 1. Wait for the pull request to be merged.
+
+## Skipping CI
+
+MONAI's CI pipelines run automatically on every push and pull request.
+These pipelines can be resource-intensive, especially the full premerge matrix
+which spans multiple OSes, Python versions, and PyTorch versions.
+
+To reduce unnecessary resource consumption and speed up iteration, you can
+skip CI on commits that don't need automated validation — for example,
+documentation-only changes, README updates, workflow YAML changes, or WIP
+commits during development.
+
+### Mechanism
+
+GitHub Actions natively supports skipping `push` and `pull_request` workflows
+when the commit message contains any of the following strings:
+
+- `[skip ci]`
+- `[ci skip]`
+- `[no ci]`
+- `[skip actions]`
+- `[actions skip]`
+
+These are case-insensitive. `[skip ci]` is the recommended convention for
+this repository.
+
+Alternatively, you can add a `skip-checks: true` trailer at the end of the
+commit message, preceded by two blank lines:
+
+```
+commit message
+
+skip-checks: true
+```
+
+### Usage
+
+Add the keyword anywhere in the commit message when committing:
+
+```bash
+git commit -s -m 'update docs [skip ci]'
+```
+
+If the HEAD commit of a pull request contains the skip instruction,
+the entire PR's pull_request-triggered workflows are skipped.
+
+### Which workflows are affected
+
+The skip instruction applies only to workflows triggered by `on: push` or
+`on: pull_request` events. All other workflows — those using `issue_comment`,
+`repository_dispatch`, `schedule`, or `workflow_dispatch` — use different
+event types and are **not** affected by `[skip ci]`.
+
+### Important caveat
+
+If a workflow is skipped via `[skip ci]`, its associated checks remain in
+"Pending" state. If your pull request requires those checks to pass before
+merging, you will need to push a new commit **without** the skip instruction
+to trigger the CI pipelines.
+
+### When to use
+
+Use `[skip ci]` for commits that are safe to skip CI:
+
+- Documentation-only changes (`docs/`, `README.md`, docstrings)
+- Workflow configuration changes (`.github/`)
+- Repository metadata (`.gitignore`, `CONTRIBUTING.md`, `LICENSE`)
+- WIP or draft commits during local development
+
+Do **not** use `[skip ci]` for commits that change:
+
+- Source code in `monai/`
+- Test files in `tests/`
+- Dependencies (`pyproject.toml`, `setup.py`, `docs/requirements.txt`)
+- Anything that could affect correctness or compatibility
+
+### Quick example
+
+```bash
+git commit -s -m 'fix typo in README [skip ci]'
+```
+
+This commit will be recorded in the repository history but will not
+consume CI minutes.
 
 ## The code reviewing process
 

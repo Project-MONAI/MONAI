@@ -57,7 +57,7 @@ def torch_profiler_full(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        with torch.autograd.profiler.profile() as prof:
             result = func(*args, **kwargs)
 
         print(prof, flush=True)
@@ -76,7 +76,7 @@ def torch_profiler_time_cpu_gpu(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        with torch.autograd.profiler.profile() as prof:
             result = func(*args, **kwargs)
 
         cpu_time = prof.self_cpu_time_total
@@ -377,8 +377,6 @@ class WorkflowProfiler:
 
     def get_times_summary_pd(self, times_in_s=True):
         """Returns the same information as `get_times_summary` but in a Pandas DataFrame."""
-        import pandas as pd
-
         summ = self.get_times_summary(times_in_s)
         suffix = "s" if times_in_s else "ns"
         columns = ["Count", f"Total Time ({suffix})", "Avg", "Std", "Min", "Max"]

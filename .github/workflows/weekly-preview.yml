@@ -6,13 +6,22 @@ permissions:
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
+  pull_request:
+    branches:
+      - dev
+
+env:
+  PYTHON_VER: '3.10'
+  PYTORCH_VER: '2.8.0'
+  PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
 
 jobs:
   static-checks:
+    if: github.event_name == 'schedule'  # only check on cron run, these checks are redundant in a PR
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "mypy"]
+        opt: ["codeformat", "pyrefly"]
     steps:
     - name: Clean unused tools
       run: |
@@ -22,59 +31,67 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
-    - name: Set up Python 3.10
+    - name: Set up Python ${{ env.PYTHON_VER }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: ${{ env.PYTHON_VER }}
         cache: 'pip'
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip wheel
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -U pip wheel
+        python -m pip install .[all,testing]
     - name: Lint and type check
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
         $(pwd)/runtests.sh --build --${{ matrix.opt }}
 
-  packaging:
+  publish:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
-        ref: dev
+        # get the ref for the PR branch or dev if this is a cron job
+        ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'dev' }}
         fetch-depth: 0
         persist-credentials: false
-    - name: Set up Python 3.10
+    - name: Set up Python ${{ env.PYTHON_VER }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
-    - name: Install setuptools
+        python-version: ${{ env.PYTHON_VER }}
+        cache: 'pip'
+    - name: Install tools
       run: |
-        python -m pip install --user --upgrade setuptools wheel packaging
+        python -m pip install -U pip build
     - name: Build distribution
       run: |
         export HEAD_COMMIT_ID=$(git rev-parse HEAD)
-        sed -i 's/name\ =\ monai$/name\ =\ monai-weekly/g' setup.cfg
+        sed -i 's/name\ =\ "monai"$/name\ =\ "monai-weekly"/g' pyproject.toml
         echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
-        git diff setup.cfg monai/__init__.py
+        git diff pyproject.toml monai/__init__.py
         git config user.name "CI Builder"
         git config user.email "monai.contact@gmail.com"
-        git add setup.cfg monai/__init__.py
+        git add pyproject.toml monai/__init__.py
         git commit -m "Weekly build at $HEAD_COMMIT_ID"
         export YEAR_WEEK=$(date +'%y%U')
         echo "Year week for tag is ${YEAR_WEEK}"
         if ! [[ $YEAR_WEEK =~ ^[0-9]{4}$ ]] ; then echo "Wrong 'year week' format.  Should be 4 digits."; exit 1 ; fi
-        git tag "1.6.dev${YEAR_WEEK}"
+        git tag "1.7.dev${YEAR_WEEK}"
         git log -1
         git tag --list
-        python setup.py sdist bdist_wheel
-
+        python -m build
+        ls -lh dist
+    - name: Test Installation
+      run: |
+        pip install dist/*.whl
+        pip list
+        (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
     - name: Publish to PyPI
+      if: github.event_name == 'schedule'  # only publish on cron run
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__

@@ -26,7 +26,7 @@ import torch
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
@@ -355,17 +355,14 @@ class StdShiftIntensity(Transform):
         self.dtype = dtype
 
     def _stdshift(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        ones: Callable
         std: Callable
         if isinstance(img, torch.Tensor):
-            ones = torch.ones
             std = partial(torch.std, unbiased=False)
         else:
-            ones = np.ones
             std = np.std
 
-        slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
-        if slices.any():
+        slices = (img != 0) if self.nonzero else ()
+        if not self.nonzero or (isinstance(slices, (np.ndarray, torch.Tensor)) and slices.any()):
             offset = self.factor * std(img[slices])
             img[slices] = img[slices] + offset
         return img
@@ -1192,12 +1189,12 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
-        if return_clipping_values:
-            self.clipping_values: list[tuple[float | None, float | None]] = []
         self.return_clipping_values = return_clipping_values
         self.dtype = dtype
 
-    def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def _clip(
+        self, img: NdarrayOrTensor, clipping_values: list[tuple[float | None, float | None]] | None = None
+    ) -> NdarrayOrTensor:
         if self.sharpness_factor is not None:
             lower_percentile = percentile(img, self.lower) if self.lower is not None else None
             upper_percentile = percentile(img, self.upper) if self.upper is not None else None
@@ -1207,8 +1204,8 @@ class ClipIntensityPercentiles(Transform):
             upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
             img = clip(img, lower_percentile, upper_percentile)
 
-        if self.return_clipping_values:
-            self.clipping_values.append(
+        if clipping_values is not None:
+            clipping_values.append(
                 (
                     (
                         lower_percentile
@@ -1229,16 +1226,17 @@ class ClipIntensityPercentiles(Transform):
         """
         Apply the transform to `img`.
         """
+        clipping_values: list[tuple[float | None, float | None]] | None = [] if self.return_clipping_values else None
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t = convert_to_tensor(img, track_meta=False)
         if self.channel_wise:
-            img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
+            img_t = torch.stack([self._clip(img=d, clipping_values=clipping_values) for d in img_t])  # type: ignore
         else:
-            img_t = self._clip(img=img_t)
+            img_t = self._clip(img=img_t, clipping_values=clipping_values)
 
         img = convert_to_dst_type(img_t, dst=img)[0]
-        if self.return_clipping_values:
-            img.meta["clipping_values"] = self.clipping_values  # type: ignore
+        if clipping_values is not None:
+            img.meta["clipping_values"] = clipping_values  # type: ignore
 
         return img
 
@@ -1665,7 +1663,7 @@ class MedianSmooth(Transform):
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
-        spatial_dims = img_t.ndim - 1
+        spatial_dims = get_spatial_ndim(img)
         r = ensure_tuple_rep(self.radius, spatial_dims)
         median_filter_instance = MedianFilter(r, spatial_dims=spatial_dims)
         out_t: torch.Tensor = median_filter_instance(img_t)
@@ -1701,7 +1699,7 @@ class GaussianSmooth(Transform):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
         else:
             sigma = torch.as_tensor(self.sigma, device=img_t.device)
-        gaussian_filter = GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx)
+        gaussian_filter = GaussianFilter(get_spatial_ndim(img), sigma, approx=self.approx)
         out_t: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
         out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
 
@@ -1758,7 +1756,7 @@ class RandGaussianSmooth(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=img.ndim - 1)
+        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=get_spatial_ndim(img))
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
@@ -1808,7 +1806,7 @@ class GaussianSharpen(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
-            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
+            GaussianFilter(get_spatial_ndim(img), sigma, approx=self.approx).to(img_t.device)
             for sigma in (self.sigma1, self.sigma2)
         )
         blurred_f = gf1(img_t.unsqueeze(0))
@@ -1896,8 +1894,9 @@ class RandGaussianSharpen(RandomizableTransform):
 
         if self.x2 is None or self.y2 is None or self.z2 is None or self.a is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
-        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        _sp = get_spatial_ndim(img)
+        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=_sp)
+        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=_sp)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
