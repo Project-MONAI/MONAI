@@ -166,20 +166,20 @@ def safe_extract_member(member, extract_to):
     return full_path
 
 
-def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
+def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
     """
     Verify hash signature of specified file.
 
     Args:
         filepath: path of source file to verify hash value.
         val: expected hash value of the file.
-        hash_type: type of hash algorithm to use, default is `"md5"`.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
             See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
     """
     if val is None:
-        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
+        warnings.warn(f"No hash value provided for {filepath}; file integrity is NOT verified.", stacklevel=2)
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
 
@@ -204,7 +204,7 @@ def download_url(
     url: str,
     filepath: PathLike = "",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str = "sha256",
     progress: bool = True,
     **gdown_kwargs: Any,
 ) -> None:
@@ -217,7 +217,8 @@ def download_url(
             If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
+            The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
         progress: whether to display a progress bar.
         gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
             these args will only be used if download from google drive.
@@ -315,7 +316,7 @@ def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str = "sha256",
     file_type: str = "",
     has_base: bool = True,
 ) -> None:
@@ -328,7 +329,7 @@ def extractall(
         output_dir: target directory to save extracted files.
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
@@ -394,7 +395,7 @@ def download_and_extract(
     filepath: PathLike = "",
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str = "sha256",
     file_type: str = "",
     has_base: bool = True,
     progress: bool = True,
@@ -410,7 +411,7 @@ def download_and_extract(
             default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
