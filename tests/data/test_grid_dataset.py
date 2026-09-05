@@ -200,6 +200,7 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
         np.testing.assert_allclose(item[0], np.array([[[[81, 91], [121, 131]]], [[[101, 111], [141, 151]]]]), rtol=1e-4)
         np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+
         # simulate another epoch, the cache content should not be modified
         for item in DataLoader(dataset, batch_size=2, shuffle=False, num_workers=num_workers):
             np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
@@ -216,6 +217,42 @@ class TestGridPatchDataset(unittest.TestCase):
             item[0], np.array([[[[91, 101], [131, 141]]], [[[111, 121], [151, 161]]]]), rtol=1e-4
         )
         np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+
+    def test_partial_cache_preserves_uncached_items(self):
+        dataset = GridPatchDataset(
+            data=[[1], [2]], patch_iter=identity_generator, cache=True, cache_rate=0.5, progress=False
+        )
+
+        self.assertEqual(list(dataset), [(1, 0), (2, 0)])
+
+    def test_cache_without_coordinates(self):
+        dataset = GridPatchDataset(
+            data=[[1, 2]], patch_iter=identity_generator, with_coordinates=False, cache=True, progress=False
+        )
+
+        self.assertEqual(list(dataset), [1, 2])
+
+    def test_cache_with_deterministic_transform(self):
+        from monai.transforms import Lambda
+
+        dataset = GridPatchDataset(
+            data=[[1, 2]],
+            patch_iter=identity_generator,
+            transform=Lambda(lambda x: x + 100),
+            cache=True,
+            progress=False,
+        )
+
+        self.assertEqual(list(dataset), [(101, 0), (102, 1)])
+
+    def test_zero_sized_cache(self):
+        for cache_kwargs in ({"cache_rate": 0.0}, {"cache_num": 0}):
+            with self.subTest(**cache_kwargs):
+                dataset = GridPatchDataset(
+                    data=[[1], [2]], patch_iter=identity_generator, cache=True, progress=False, **cache_kwargs
+                )
+
+                self.assertEqual(list(dataset), [(1, 0), (2, 0)])
 
 
 if __name__ == "__main__":
