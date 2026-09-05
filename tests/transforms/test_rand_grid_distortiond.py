@@ -85,6 +85,15 @@ class TestRandGridDistortiond(unittest.TestCase):
         assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
         assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)
 
+    def test_no_transform_preserves_non_image_keys(self):
+        """Non-image dict entries must not be coerced to tensors when the transform is skipped."""
+        img = np.indices([6, 6]).astype(np.float32)
+        data = {"img": img, "label": 42, "filename": "scan.nii"}
+        g = RandGridDistortiond(keys=["img"], prob=0.0)
+        result = g(data)
+        self.assertIsInstance(result["label"], int)
+        self.assertIsInstance(result["filename"], str)
+
 
 if __name__ == "__main__":
     unittest.main()
