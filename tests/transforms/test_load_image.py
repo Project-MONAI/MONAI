@@ -88,8 +88,6 @@ class _FallbackReader(ImageReader):
 
 TEST_CASE_1 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_2 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
-
 TEST_CASE_3 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
 
 TEST_CASE_3_1 = [  # .mgz format
@@ -97,8 +95,6 @@ TEST_CASE_3_1 = [  # .mgz format
     ["test_image.mgz", "test_image2.mgz", "test_image3.mgz"],
     (3, 128, 128, 128),
 ]
-
-TEST_CASE_4 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
 
 TEST_CASE_4_1 = [  # additional parameter
     {"mmap": False},
@@ -126,8 +122,6 @@ TEST_CASE_GPU_4 = [
 
 TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
-
 TEST_CASE_8 = [
     {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
@@ -138,12 +132,6 @@ TEST_CASE_8_1 = [
     {"reader": ITKReader(channel_dim=0) if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (384, 128, 128),
-]
-
-TEST_CASE_9 = [
-    {"reader": ITKReader() if has_itk else "itkreader"},
-    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
 ]
 
 TEST_CASE_10 = [
@@ -258,9 +246,7 @@ class TestLoadImage(unittest.TestCase):
         shutil.rmtree(cls.tmpdir)
         super().tearDownClass()
 
-    @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
-    )
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4_1, TEST_CASE_5])
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -302,7 +288,7 @@ class TestLoadImage(unittest.TestCase):
             result_cpu = LoadImage(image_only=True, **input_param_cpu)(filenames)
             assert_allclose(result_cpu, result.cpu(), atol=1e-6)
 
-    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_8, TEST_CASE_8_1])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
         print("Test image value range:", test_image.min(), test_image.max())
