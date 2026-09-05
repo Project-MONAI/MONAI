@@ -43,7 +43,8 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
             ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
+            ``"informedness"``, ``"markedness"``, ``"positive likelihood ratio"``,
+            ``"negative likelihood ratio"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
             Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
@@ -185,7 +186,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
             ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
+            ``"informedness"``, ``"markedness"``, ``"positive likelihood ratio"``,
+            ``"negative likelihood ratio"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
         confusion_matrix: Please see the doc string of the function ``get_confusion_matrix`` for more details.
@@ -263,6 +265,16 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         npv = torch.where((tn + fn) > 0, tn / (tn + fn), nan_tensor)
         numerator = ppv + npv - 1.0
         denominator = 1.0
+    elif metric == "plr":
+        # LR+ = sensitivity / (1 - specificity) = tpr / fpr; fpr == 0 yields NaN
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        fpr = torch.where(n > 0, fp / n, nan_tensor)
+        numerator, denominator = tpr, fpr
+    elif metric == "nlr":
+        # LR- = (1 - sensitivity) / specificity = fnr / tnr; tnr == 0 yields NaN
+        fnr = torch.where(p > 0, fn / p, nan_tensor)
+        tnr = torch.where(n > 0, tn / n, nan_tensor)
+        numerator, denominator = fnr, tnr
     else:
         raise NotImplementedError("the metric is not implemented.")
 
@@ -319,4 +331,8 @@ def check_confusion_matrix_metric_name(metric_name: str) -> str:
         return "bm"
     if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"
+    if metric_name in ["positive_likelihood_ratio", "plr", "lr+"]:
+        return "plr"
+    if metric_name in ["negative_likelihood_ratio", "nlr", "lr-"]:
+        return "nlr"
     raise NotImplementedError("the metric is not implemented.")
