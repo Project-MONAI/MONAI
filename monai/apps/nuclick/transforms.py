@@ -597,6 +597,27 @@ class PostFilterLabeld(MapTransform):
         return d
 
     def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30, do_reconstruction=False, nuc_points=None):
+        """
+        Convert predicted probability maps into cleaned binary instance masks.
+
+        Each channel is thresholded at ``thresh``, small objects and holes are removed, and,
+        when enabled, the mask is morphologically reconstructed from the nuclear marker points.
+
+        Args:
+            preds: predicted probability maps, as an array of shape ``(n_instances, H, W)``.
+            thresh: threshold used to binarize the predictions.
+            min_size: minimum area for a connected component to be kept,
+                passed to ``morphology.remove_small_objects``.
+            min_hole: maximum area of the holes to be filled,
+                passed to ``morphology.remove_small_holes``.
+            do_reconstruction: whether to morphologically reconstruct each mask from the
+                corresponding nuclear marker points.
+            nuc_points: optional nuclear points, one entry per instance, used as
+                reconstruction markers when ``do_reconstruction`` is enabled.
+
+        Returns:
+            Binary masks with the same shape as ``preds``.
+        """
         masks = preds > thresh
         for i in range(preds.shape[0]):
             masks[i] = morphology.remove_small_objects(masks[i], min_size=min_size)

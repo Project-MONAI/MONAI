@@ -307,6 +307,7 @@ class TestSplitLabelsd(unittest.TestCase):
 
     @parameterized.expand([SPLIT_MIN_AREA_CASE_1, SPLIT_MIN_AREA_CASE_2])
     def test_min_area_filters_others(self, arguments, input_data, expected_values):
+        """Test that ``others`` objects below ``min_area`` are dropped from the output."""
         result = SplitLabeld(**arguments)(input_data)
         np.testing.assert_equal(np.unique(result["others"]), expected_values)
 
@@ -336,6 +337,7 @@ class TestPostFilterLabel(unittest.TestCase):
 
     @parameterized.expand([LABEL_FILTER_TEST_CASE_2, LABEL_FILTER_TEST_CASE_3, LABEL_FILTER_TEST_CASE_4])
     def test_do_reconstruction(self, arguments, input_data, expected_count):
+        """Test that reconstruction keeps only the blob containing the click point."""
         result = PostFilterLabeld(**arguments)(input_data)
         np.testing.assert_equal(np.count_nonzero(result["pred"]), expected_count)
 
