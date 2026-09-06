@@ -49,6 +49,16 @@ class TestDiceCELoss(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_create_test_image(self, dim, input_param, expected_img, expected_seg, expected_shape, expected_max_cls):
+        """Verify synthetic image shapes, label classes, and deterministic means.
+
+        Args:
+            dim: Spatial dimensionality of the generator.
+            input_param: Keyword arguments passed to the generator.
+            expected_img: Expected mean image intensity.
+            expected_seg: Expected mean segmentation label.
+            expected_shape: Expected image shape.
+            expected_max_cls: Expected maximum segmentation class.
+        """
         set_determinism(seed=0)
         if dim == 2:
             img, seg = create_test_image_2d(**input_param)
@@ -61,6 +71,12 @@ class TestDiceCELoss(unittest.TestCase):
 
     @parameterized.expand(INSTANCE_ID_CASES)
     def test_return_instance_id(self, dim, input_param):
+        """Verify instance mask shape, dtype, ID bounds, and foreground alignment.
+
+        Args:
+            dim: Spatial dimensionality of the generator.
+            input_param: Keyword arguments passed to the generator.
+        """
         set_determinism(seed=0)
         if dim == 2:
             img, seg, instance_ids = create_test_image_2d(**input_param, return_instance_id=True)
@@ -73,10 +89,12 @@ class TestDiceCELoss(unittest.TestCase):
         np.testing.assert_array_equal(instance_ids > 0, seg > 0)
 
     def test_return_instance_id_default_false(self):
-        self.assertEqual(len(create_test_image_2d(32, 32, rad_max=5)), 2)
-        self.assertEqual(len(create_test_image_3d(32, 32, 32, rad_max=5)), 2)
+        """Verify both generators return two arrays when instance IDs are not requested."""
+        self.assertEqual(len(create_test_image_2d(32, 32, rad_max=5, rad_min=1)), 2)
+        self.assertEqual(len(create_test_image_3d(32, 32, 32, rad_max=5, rad_min=1)), 2)
 
     def test_ill_radius(self):
+        """Verify invalid radius bounds and image sizes raise ValueError."""
         with self.assertRaisesRegex(ValueError, ""):
             img, seg = create_test_image_2d(32, 32, rad_max=20)
         with self.assertRaisesRegex(ValueError, ""):
