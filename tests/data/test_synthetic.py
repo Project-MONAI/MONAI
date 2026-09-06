@@ -41,18 +41,7 @@ TEST_CASES = [
 
 INSTANCE_ID_CASES = [
     [2, {"width": 64, "height": 64, "num_objs": 5, "rad_max": 10, "rad_min": 4}],
-    [
-        3,
-        {
-            "width": 40,
-            "height": 40,
-            "depth": 40,
-            "num_objs": 4,
-            "rad_max": 8,
-            "rad_min": 3,
-            "channel_dim": -1,
-        },
-    ],
+    [3, {"width": 40, "height": 40, "depth": 40, "num_objs": 4, "rad_max": 8, "rad_min": 3, "channel_dim": -1}],
 ]
 
 
