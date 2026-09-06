@@ -39,6 +39,22 @@ TEST_CASES = [
     ],
 ]
 
+INSTANCE_ID_CASES = [
+    [2, {"width": 64, "height": 64, "num_objs": 5, "rad_max": 10, "rad_min": 4}],
+    [
+        3,
+        {
+            "width": 40,
+            "height": 40,
+            "depth": 40,
+            "num_objs": 4,
+            "rad_max": 8,
+            "rad_min": 3,
+            "channel_dim": -1,
+        },
+    ],
+]
+
 
 class TestDiceCELoss(unittest.TestCase):
 
@@ -53,6 +69,23 @@ class TestDiceCELoss(unittest.TestCase):
         self.assertEqual(seg.max(), expected_max_cls)
         np.testing.assert_allclose(img.mean(), expected_img, atol=1e-7, rtol=1e-7)
         np.testing.assert_allclose(seg.mean(), expected_seg, atol=1e-7, rtol=1e-7)
+
+    @parameterized.expand(INSTANCE_ID_CASES)
+    def test_return_instance_id(self, dim, input_param):
+        set_determinism(seed=0)
+        if dim == 2:
+            img, seg, instance_ids = create_test_image_2d(**input_param, return_instance_id=True)
+        else:  # dim == 3
+            img, seg, instance_ids = create_test_image_3d(**input_param, return_instance_id=True)
+
+        self.assertEqual(instance_ids.shape, seg.shape)
+        self.assertEqual(instance_ids.dtype, np.int32)
+        self.assertLessEqual(instance_ids.max(), input_param["num_objs"])
+        np.testing.assert_array_equal(instance_ids > 0, seg > 0)
+
+    def test_return_instance_id_default_false(self):
+        self.assertEqual(len(create_test_image_2d(32, 32, rad_max=5)), 2)
+        self.assertEqual(len(create_test_image_3d(32, 32, 32, rad_max=5)), 2)
 
     def test_ill_radius(self):
         with self.assertRaisesRegex(ValueError, ""):
