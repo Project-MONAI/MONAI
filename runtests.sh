@@ -446,7 +446,11 @@ then
 
     ${cmdPrefix}"${PY_EXE}" -m pre_commit install
 
-    echo "${green}done! git hooks installed (black, isort, ruff, DCO sign-off).${noColor}"
+    if [[ -z "$cmdPrefix" ]]; then
+        echo "${green}done! git hooks installed (black, isort, ruff, DCO sign-off).${noColor}"
+    else
+        echo "dry-run: git hooks would be installed (black, isort, ruff, DCO sign-off)."
+    fi
 fi
 
 # unconditionally report on the state of monai

@@ -51,18 +51,18 @@ To collaborate efficiently, please read through this section and follow them.
 
 #### Checking the coding style
 
-Coding style is checked and enforced by black, isort, and ruff, and every commit must carry a DCO sign-off.
-To catch formatting and DCO failures before they reach CI, install the git pre-commit hooks once per checkout:
+Coding style is checked and enforced by black, isort, and ruff.
+To catch formatting failures before they reach CI, install the git pre-commit hooks once per checkout:
 
 ```bash
-# install the git hooks: black, isort, ruff, and the DCO sign-off check
+# install the git hooks: black, isort, ruff
 pre-commit install
 
 # or, via the test runner:
 ./runtests.sh --setup
 ```
 
-These hooks run automatically on every `git commit`: `black`, `isort`, and `ruff` reformat the staged files, and the `commit-msg` hook blocks a commit that is missing a `Signed-off-by` line.
+These hooks run automatically on every `git commit`: `black`, `isort`, and `ruff` reformat the staged files. The same install also wires up the `commit-msg` hook that enforces the DCO sign-off described in [Signing your work](#signing-your-work).
 
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
@@ -258,6 +258,17 @@ Git has a `-s` (or `--signoff`) command-line option to append this automatically
 ```bash
 git commit -s -m 'a new commit'
 ```
+
+For `-s` to add the correct identity, set your name and email in your git configuration (`git config --global --edit`, or the commands below):
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+If you'd rather not use a personal address, GitHub provides a no-reply email tied to your account under [Settings > Emails](https://github.com/settings/emails), for example `12345678+yourusername@users.noreply.github.com`. Using it still associates the sign-off with your GitHub username without exposing a personal email.
+
+VS Code can also be configured to sign off every commit automatically: enable the `git.alwaysSignOff` setting (**Settings > Git: Always Sign Off**).
 
 If the git pre-commit hooks are installed (`pre-commit install` or `./runtests.sh --setup`), the local `commit-msg` hook blocks any commit that is missing this line, so the DCO check fails locally rather than in CI.
 
