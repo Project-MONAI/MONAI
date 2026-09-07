@@ -146,16 +146,10 @@ jobs:
         python -m pip install --no-build-isolation .[testing]
         python -m pip list
       shell: bash
-    - if: matrix.os == 'linux-gpu-runner'
-      name: Print GPU Info
-      run: |
-        nvidia-smi
-        python -c 'import torch; print(torch.rand(2,2).to("cuda:0"))'
-      shell: bash
     - name: Run quick tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
+        nvidia-smi || true
+        python monai/config/check_env.py --env --monai
         ./runtests.sh --min
       shell: bash
       env:
@@ -225,22 +219,19 @@ jobs:
     - name: Run compiled (${{ runner.os }})
       run: |
         python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions in-place with -e
-        # ensure extensions were compiled
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
         python -c 'import monai._C' > /dev/null
+        nvidia-smi || true
+        python monai/config/check_env.py --env --monai
       shell: bash
     - if: runner.os != 'macOS'
       name: Run full tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
         python -m unittest -v
       shell: bash
     - if: runner.os == 'macOS'
       name: Run min tests
       run: |
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import monai; monai.config.print_config()"
         # TODO: enable large range of macOS tests which don't take a very long time
         ./runtests.sh --min
       shell: bash
@@ -351,8 +342,7 @@ jobs:
       run: |
         # install from wheel
         python -m pip install --no-build-isolation monai*.whl --extra-index-url $INDEX_URL
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
+        python -m monai.config
         python -m pip uninstall -y monai
         rm monai*.whl
     - name: Install source archive
@@ -361,13 +351,11 @@ jobs:
         for name in *.tar.gz; do break; done
         echo $name
         python -m pip install --no-build-isolation ${name}[all] --extra-index-url $INDEX_URL
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
+        python -m monai.config
         python -m pip uninstall -y monai
     - name: Install using uv
       working-directory: ${{ steps.root.outputs.pwd }}
       run: |
         pip install uv
         uv pip install --system --no-build-isolation .[all] --extra-index-url $INDEX_URL
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
+        python -m monai.config
