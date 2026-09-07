@@ -11,9 +11,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
+import warnings
 from copy import deepcopy
 from numbers import Number
 
@@ -36,6 +38,7 @@ from monai.auto3dseg import (
     SampleOperations,
     SegSummarizer,
     SummaryOperations,
+    algo_from_json,
     datafold_read,
     verify_report_format,
 )
@@ -175,6 +178,20 @@ class TestImageAnalyzer(Analyzer):
         report["test_stats"] = self.ops["test_stats"].evaluate(d[self.image_key])
         d[self.stats_name] = report
         return d
+
+
+class _DummyAlgo:
+    """Minimal stand-in for an Auto3DSeg Algo object used in warning tests."""
+
+    def __init__(self) -> None:
+        self.template_path: str | None = None
+        self.output_path = os.getcwd()
+
+    def load_state_dict(self, state: dict) -> None:
+        pass
+
+    def get_output_path(self) -> str:
+        return self.output_path
 
 
 class TestDataAnalyzer(unittest.TestCase):
@@ -617,6 +634,24 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
+
+
+class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
+    def test_warns_about_untrusted_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            algo_file = os.path.join(tmpdir, "algo_object.json")
+            with open(algo_file, "w", encoding="utf-8") as f:
+                json.dump({"_target_": f"{__name__}._DummyAlgo"}, f)
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                algo_from_json(algo_file)
+
+            messages = [str(w.message) for w in caught]
+            self.assertTrue(
+                any("algo_object.json" in msg and "trust" in msg for msg in messages),
+                f"Keywords 'algo_object.json' and 'trust' not found in warning messages: {messages}",
+            )
 
 
 if __name__ == "__main__":

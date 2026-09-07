@@ -17,6 +17,8 @@ import os
 import re
 import shlex
 import subprocess
+import warnings
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import monai
@@ -710,7 +712,11 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
-        Create the line command for subprocess call for parallel training.
+        Launch subprocesses for parallel training.
+
+        The commands for each GPU run sequentially on that device, while different devices run in
+        parallel. Each stage waits for all of its devices to finish before the next stage starts.
+
         Note: to set the number of GPUs to use, use ``gpu_id_for_all`` instead of the `CUDA_VISIBLE_DEVICES`
         environment variable.
 
@@ -741,17 +747,19 @@ class nnUNetV2Runner:  # noqa: N801
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
-            processes = []
-            for device_id in stage:
-                if not stage[device_id]:
-                    continue
-                cmd_str = "; ".join(shlex.join(cmd) for cmd, _ in stage[device_id])
-                env = stage[device_id][0][1]
-                logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, env=env, stdout=subprocess.DEVNULL))
-            # finish this stage first
-            for p in processes:
-                p.wait()
+            device_cmds = [(device_id, gpu_cmds) for device_id, gpu_cmds in stage.items() if gpu_cmds]
+            if not device_cmds:
+                continue
+
+            def _run_device_commands(item):
+                device_id, gpu_cmds = item
+                for cmd, env in gpu_cmds:
+                    cmd_str = shlex.join(cmd)
+                    logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
+                    subprocess.Popen(cmd, shell=False, env=env, stdout=subprocess.DEVNULL).wait()
+
+            with ThreadPoolExecutor(max_workers=len(device_cmds)) as executor:
+                list(executor.map(_run_device_commands, device_cmds))
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
@@ -996,7 +1004,16 @@ class nnUNetV2Runner:  # noqa: N801
 
         # apply postprocessing
         if run_postprocessing:
-            pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
+            postprocessing_file = self.best_configuration["best_model_or_ensemble"]["postprocessing_file"]
+            warnings.warn(
+                f"unpickling postprocessing_file {postprocessing_file}: this path is read from "
+                "inference_information.json and is loaded with Python pickle without any allow list, "
+                "which gives whoever controls that file arbitrary code execution. Only proceed if the "
+                "inference_information.json is from a source you trust "
+                "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87).",
+                stacklevel=2,
+            )
+            pp_fns, pp_fn_kwargs = load_pickle(postprocessing_file)
             apply_postprocessing_to_folder(
                 folder_for_pp,
                 join(target_dir_base, "ensemble_predictions_postprocessed"),
