@@ -221,7 +221,7 @@ function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
     if [ "$homedir" = "$currentdir" ]
     then
-        echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+        echo "Please run auto style fixes if necessary: ${green}./runtests.sh --autofix${noColor}"
     else :
     fi
 }
