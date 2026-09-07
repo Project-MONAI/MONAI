@@ -276,7 +276,7 @@ def spatial_average_3d(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
 
 def normalize_tensor(x: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True) + eps)
-    return x / (norm_factor + eps)
+    return x / norm_factor
 
 
 def medicalnet_intensity_normalisation(volume):
