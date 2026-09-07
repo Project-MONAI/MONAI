@@ -27,6 +27,20 @@ We are happy to talk with you about your needs for MONAI and your ideas for cont
 
 MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly based on the PyTorch and Numpy libraries. These libraries implement what we consider to be best practice for general scientific computing and deep learning functionality. MONAI builds on these with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
 
+## Tool-Assisted Contribution Policy
+
+Contributions generated wholly or in part by generative tools, whether AI-based or not, are acceptable in MONAI so long as the submitting author can take responsibility for the content as if they wrote it themselves. This implies that submitters must review all submitted content, understand the content, and ensure the content is appropriate and fit for purpose.
+
+Contributors must therefore take responsibility such that they can honestly sign the Developer Certificate of Origin (discussed below). All submitted code and data must fall under open source/data licensing conditions which the contributor is required to verify, and no other legal constraints are present for the proposed content. Additionally, care must be take with AI and agentic systems to ensure code standards are adhered to, hallucinations are not being introduced into the code, and that existing open work from other contributors is not being duplicated.
+
+Attribution of AI-generated content should be included, for example with trailers in commit messages such as `Assisted-by: Some-Tool <noreply@some-tool.com>`. AI-generated comments or other content in issues or PRs should be clearly labelled as such, but there is the expectation that discussion in the review process is with the submitter themselves.
+
+Code review and analysis can be assisted through the use of tools, for example linting or formatting tools. Output from such tools does not form part of the submission but should be clearly labelled. The key emphasis is that these tools assist and do not replace human review, so submitters and reviewers must consider what might be missed by these tools, or what might be hallucinated. It might be helpful to review code with a different tool from one used for generation.
+
+
+
+
+
 ## The contribution process
 
 *Pull request early*
