@@ -62,6 +62,18 @@ To collaborate efficiently, please read through this section and follow them.
 #### Checking the coding style
 
 Coding style is checked and enforced by black, isort, and ruff.
+To catch formatting failures before they reach CI, install the git pre-commit hooks once per checkout:
+
+```bash
+# install the git hooks: black, isort, ruff
+pre-commit install
+
+# or, via the test runner:
+./runtests.sh --setup
+```
+
+These hooks run automatically on every `git commit`: `black`, `isort`, and `ruff` reformat the staged files. The same install also wires up the `commit-msg` hook that enforces the DCO sign-off described in [Signing your work](#signing-your-work).
+
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
@@ -188,18 +200,9 @@ Please type `make help` in `docs/` folder for all supported format options.
 
 #### Automatic code formatting
 
-MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
-This makes the project's Python coding style consistent and reduces maintenance burdens.
-Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+Code formatting is now handled locally via the [pre-commit](https://pre-commit.com/) hooks described in [Checking the coding style](#checking-the-coding-style): once installed, `black`, `isort`, and `ruff` reformat staged files automatically on every `git commit`, so formatting issues are caught before a pull request is even opened.
 
-Steps for the formatting process:
-
-- After submitting a pull request or push to an existing pull request,
-make a comment to the pull request to trigger the formatting action.
-The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
-- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
-- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
-- Repeat the above steps if necessary.
+MONAI previously offered a `/black` slash command that triggered [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter) to auto-format a pull request's branch based on [`psf/Black`](https://github.com/psf/black). This action hasn't been used in a long while and is no longer the recommended workflow. If a pull request still fails formatting checks in CI, install the pre-commit hooks locally and run `./runtests.sh --autofix` to fix the branch instead.
 
 #### Adding new optional dependencies
 
@@ -256,6 +259,19 @@ Git has a `-s` (or `--signoff`) command-line option to append this automatically
 ```bash
 git commit -s -m 'a new commit'
 ```
+
+For `-s` to add the correct identity, set your name and email in your git configuration (`git config --global --edit`, or the commands below):
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+If you'd rather not use a personal address, GitHub provides a no-reply email tied to your account under [Settings > Emails](https://github.com/settings/emails), for example `12345678+yourusername@users.noreply.github.com`. Using it still associates the sign-off with your GitHub username without exposing a personal email.
+
+VS Code can also be configured to sign off every commit automatically: enable the `git.alwaysSignOff` setting (**Settings > Git: Always Sign Off**).
+
+If the git pre-commit hooks are installed (`pre-commit install` or `./runtests.sh --setup`), the local `commit-msg` hook blocks any commit that is missing this line, so the DCO check fails locally rather than in CI.
 
 The commit message will be:
 
@@ -463,7 +479,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
-1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
+1. If formatting checks fail, ask the contributor to run `./runtests.sh --autofix`, commit the resulting changes, and re-push; suggest installing the pre-commit hooks (see [Checking the coding style](#checking-the-coding-style)) to catch this locally next time. Comment `/integration-test` to trigger optional [integration tests](.github/workflows/integration.yml) if needed.
 1. [Maintainers] Review the changes and comment `/build` to trigger internal full tests.
 1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
