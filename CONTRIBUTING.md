@@ -469,7 +469,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
-1. If formatting checks fail, ask the contributor to install the pre-commit hooks (see [Checking the coding style](#checking-the-coding-style)) and re-push; comment `/integration-test` to trigger optional [integration tests](.github/workflows/integration.yml) if needed.
+1. If formatting checks fail, ask the contributor to run `./runtests.sh --autofix`, commit the resulting changes, and re-push; suggest installing the pre-commit hooks (see [Checking the coding style](#checking-the-coding-style)) to catch this locally next time. Comment `/integration-test` to trigger optional [integration tests](.github/workflows/integration.yml) if needed.
 1. [Maintainers] Review the changes and comment `/build` to trigger internal full tests.
 1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
