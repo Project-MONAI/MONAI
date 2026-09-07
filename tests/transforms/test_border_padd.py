@@ -23,8 +23,6 @@ TESTS = [
     [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
     [{"keys": "img", "spatial_border": [1, 2, 3]}, (3, 8, 8, 4), (3, 10, 12, 10)],
     [{"keys": "img", "spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
-    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
-    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
 ]
 
 

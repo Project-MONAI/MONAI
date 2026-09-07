@@ -2,13 +2,15 @@
 name: premerge-gpu
 
 on:
-  # quick tests for pull requests and the releasing branches
-  push:
-    branches:
-      - main
-      - releasing/*
-  pull_request:
-    types: [opened, synchronize, closed]
+#   # quick tests for pull requests and the releasing branches
+#   push:
+#     branches:
+#       - main
+#       - releasing/*
+#   pull_request:
+#     types: [opened, synchronize, closed]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -44,7 +46,7 @@ jobs:
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: apt install
       if: github.event.pull_request.merged != true
       run: |
@@ -53,7 +55,7 @@ jobs:
 
         if [ ${{ matrix.environment }} = "PT230+CUDA124" ]
         then
-        PYVER=3.9 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.10 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \
@@ -94,7 +96,7 @@ jobs:
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/llvmlite*  #6377
         python -m pip install ${{ matrix.pytorch }}
-        python -m pip install -r requirements-dev.txt
+        python -m pip install .[all,testing]
         python -m pip list
     - name: Run quick tests (GPU)
       if: github.event.pull_request.merged != true
@@ -125,6 +127,6 @@ jobs:
       shell: bash
     - name: Upload coverage
       if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         files: ./coverage.xml

@@ -97,8 +97,10 @@ class TestnnUNetBundle(unittest.TestCase):
         with skip_if_downloading_fails():
             runner.run(run_train=False, run_find_best_configuration=False, run_predict_ensemble_postprocessing=False)
 
+            self.assertIsNotNone(runner.dataset_name)
+
             nnunet_trainer = get_nnunet_trainer(
-                dataset_name_or_id=runner.dataset_name, fold=0, configuration="3d_fullres"
+                dataset_name_or_id=str(runner.dataset_name), fold=0, configuration="3d_fullres"
             )
 
             print("Max Epochs: ", nnunet_trainer.num_epochs)

@@ -23,7 +23,7 @@ import torch.nn.functional as F
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
@@ -624,7 +624,11 @@ class LabelToContour(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
-        spatial_dims = len(img_.shape) - 1
+        spatial_dims = get_spatial_ndim(img)
+        # Validate actual tensor shape against tracked spatial_ndim
+        actual_spatial = img_.ndim - 1  # channel-first layout
+        if actual_spatial != spatial_dims:
+            spatial_dims = actual_spatial
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
             kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
@@ -1104,7 +1108,7 @@ class SobelGradients(Transform):
         image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
 
         # Check/set spatial axes
-        n_spatial_dims = image_tensor.ndim - 1  # excluding the channel dimension
+        n_spatial_dims = get_spatial_ndim(image_tensor)
         valid_spatial_axes = list(range(n_spatial_dims)) + list(range(-n_spatial_dims, 0))
 
         # Check gradient axes to be valid

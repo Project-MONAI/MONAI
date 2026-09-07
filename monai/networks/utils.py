@@ -34,9 +34,6 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-onnx, _ = optional_import("onnx")
-onnxreference, _ = optional_import("onnx.reference")
-onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
@@ -601,6 +598,7 @@ def copy_model_state(
             dst_dict[dst_key] = val
             updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
+        # pyrefly: ignore [unsupported-operation]
         dst_key = f"{dst_prefix}{mapping[s]}"
         if dst_key in dst_dict and dst_key not in to_skip:
             if dst_dict[dst_key].shape != src_dict[s].shape:
@@ -708,12 +706,14 @@ def convert_to_onnx(
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
+    onnx, _ = optional_import("onnx")
+
     model.eval()
     with torch.no_grad():
         torch_versioned_kwargs = {}
         if use_trace:
             # let torch.onnx.export to trace the model.
-            mode_to_export = model
+            model_to_export = model
             torch_versioned_kwargs = kwargs
             if "dynamo" in kwargs and kwargs["dynamo"] and verify:
                 torch_versioned_kwargs["verify"] = verify
@@ -726,9 +726,9 @@ def convert_to_onnx(
             #   pass the raw nn.Module directly—the exporter handles it via torch.export.
             _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
             if _pt_major_minor >= (2, 9):
-                mode_to_export = model
+                model_to_export = model
             else:
-                mode_to_export = torch.jit.script(model, **kwargs)
+                model_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
@@ -741,7 +741,7 @@ def convert_to_onnx(
         else:
             f = filename
         torch.onnx.export(
-            mode_to_export,
+            model_to_export,
             onnx_inputs,
             f=f,
             input_names=input_names,
@@ -777,11 +777,13 @@ def convert_to_onnx(
         model_input_names = [i.name for i in onnx_model.graph.input]
         input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
+            onnxruntime, _ = optional_import("onnxruntime")
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
+            onnxreference, _ = optional_import("onnx.reference")
             sess = onnxreference.ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)

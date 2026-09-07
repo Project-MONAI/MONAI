@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
 
-from monai.data import DataLoader, Dataset, create_test_image_3d, decollate_batch
+from monai.data import DataLoader, Dataset, MetaTensor, create_test_image_2d, create_test_image_3d, decollate_batch
 from monai.transforms import (
     CastToTyped,
     Compose,
@@ -36,7 +37,10 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
 )
-from monai.utils import set_determinism
+from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.transform import MapTransform
+from monai.transforms.utility.dictionary import Lambdad
+from monai.utils import TraceKeys, set_determinism
 from tests.test_utils import assert_allclose, make_nifti_image
 
 KEYS = ["image", "label"]
@@ -136,6 +140,236 @@ class TestInvertd(unittest.TestCase):
         self.assertLess((reverted.size - n_good), 40000, f"diff.  {reverted.size - n_good}")
 
         set_determinism(seed=None)
+
+    def test_invertd_with_postprocessing_transforms(self):
+        """Test that Invertd ignores unrelated trailing transforms while inverting."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        # Preprocessing pipeline
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+
+        # Postprocessing with Lambdad before Invertd
+        # Previously this would raise RuntimeError about transform ID mismatch
+        postprocessing = Compose(
+            [
+                Lambdad(key, func=lambda x: x),  # Should be ignored during inversion
+                Invertd(key, transform=preprocessing, orig_keys=key),
+            ]
+        )
+
+        # Apply transforms
+        item = {key: img}
+        pre = preprocessing(item)
+
+        # This should NOT raise an error (was failing before the fix).
+        # Any exception here means the bug is not fixed.
+        post = postprocessing(pre)
+        self.assertIsNotNone(post)
+        self.assertIn(key, post)
+        self.assertTupleEqual(tuple(post[key].shape), (1, 60, 60))
+        self.assertEqual(len(post[key].applied_operations), 1)
+        self.assertEqual(post[key].applied_operations[0][TraceKeys.CLASS_NAME], "Lambda")
+
+    def test_invertd_multiple_pipelines(self):
+        """Test that Invertd correctly handles multiple independent preprocessing pipelines."""
+        img1, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img1 = MetaTensor(img1, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        img2, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img2 = MetaTensor(img2, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+
+        # Two different preprocessing pipelines
+        preprocessing1 = Compose([EnsureChannelFirstd("image1"), Spacingd("image1", pixdim=[2.0, 2.0])])
+
+        preprocessing2 = Compose([EnsureChannelFirstd("image2"), Spacingd("image2", pixdim=[1.5, 1.5])])
+
+        # Postprocessing that inverts both
+        postprocessing = Compose(
+            [
+                Lambdad(["image1", "image2"], func=lambda x: x),
+                Invertd("image1", transform=preprocessing1, orig_keys="image1"),
+                Invertd("image2", transform=preprocessing2, orig_keys="image2"),
+            ]
+        )
+
+        # Apply transforms
+        item = {"image1": img1, "image2": img2}
+        pre1 = preprocessing1(item)
+        pre2 = preprocessing2(pre1)
+
+        # Should not raise error - each Invertd should only invert its own pipeline
+        post = postprocessing(pre2)
+        self.assertIn("image1", post)
+        self.assertIn("image2", post)
+
+    def test_invertd_multiple_postprocessing_transforms(self):
+        """Test Invertd with multiple invertible transforms in postprocessing before Invertd."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+
+        # Multiple transforms in postprocessing before Invertd
+        postprocessing = Compose(
+            [
+                Lambdad(key, func=lambda x: x * 2),
+                Lambdad(key, func=lambda x: x + 1),
+                Lambdad(key, func=lambda x: x - 1),
+                Invertd(key, transform=preprocessing, orig_keys=key),
+            ]
+        )
+
+        item = {key: img}
+        pre = preprocessing(item)
+        post = postprocessing(pre)
+
+        self.assertIsNotNone(post)
+        self.assertIn(key, post)
+
+    def test_invertd_preserves_unrelated_postprocessing_history(self):
+        """Test that Invertd only removes the transforms it actually inverts."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+        postprocessing = Compose([Lambdad(key, func=lambda x: x), Lambdad(key, func=lambda x: x)])
+
+        item = {key: img}
+        pre = preprocessing(item)
+        post = postprocessing(pre)
+
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+            inverted = inverter(post)
+
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual([op[TraceKeys.CLASS_NAME] for op in inverted[key].applied_operations], ["Lambda", "Lambda"])
+
+    def test_invertd_preserves_same_class_postprocessing_history(self):
+        """Test MetaTensor inversion when trailing history contains the same transform class."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+        postprocessing = Compose([Spacingd(key, pixdim=[1.5, 1.5])])
+
+        item = {key: img}
+        pre = preprocessing(item)
+        post = postprocessing(pre)
+
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=preprocessing, orig_keys=key)
+            inverted = inverter(post)
+
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual(len(inverted[key].applied_operations), 1)
+        self.assertEqual(inverted[key].applied_operations[0][TraceKeys.CLASS_NAME], "SpatialResample")
+
+    def test_invertd_ignores_unrelated_trace_key_history(self):
+        """Test trace-key inversion when unrelated invertible transforms trail the target history."""
+
+        class _IdentityMapInvertible(MapTransform, InvertibleTransform):
+            def __init__(self, keys):
+                super().__init__(keys)
+
+            def __call__(self, data):
+                d = dict(data)
+                self.push_transform(d, key=self.keys[0])
+                return d
+
+            def inverse(self, data):
+                d = dict(data)
+                self.pop_transform(d, key=self.keys[0])
+                return d
+
+        key = "image"
+        target_transform = _IdentityMapInvertible(key)
+        other_transform = _IdentityMapInvertible(key)
+        item = {key: torch.zeros((1, 8, 8), dtype=torch.float32)}
+        item = target_transform(item)
+        item = other_transform(item)
+
+        with patch("torch.multiprocessing.get_start_method", return_value=None):
+            inverter = Invertd(key, transform=target_transform, orig_keys=key, nearest_interp=False)
+            inverted = inverter(item)
+
+        trace_key = InvertibleTransform.trace_key(key)
+        self.assertEqual(len(inverted[trace_key]), 1)
+        self.assertEqual(inverted[trace_key][0][TraceKeys.ID], id(other_transform))
+
+    def test_compose_inverse(self):
+        """Test that Compose.inverse() works correctly on its own transform history."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        # Create a preprocessing pipeline
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+
+        # Apply preprocessing
+        item = {key: img}
+        pre = preprocessing(item)
+
+        # Call inverse() directly on the Compose object
+        inverted = preprocessing.inverse(pre)
+
+        # Should successfully invert
+        self.assertIsNotNone(inverted)
+        self.assertIn(key, inverted)
+        # Shape should be restored after inversion
+        self.assertEqual(inverted[key].shape[1:], img.shape)
+
+    def test_compose_inverse_with_postprocessing_transforms(self):
+        """Test Compose.inverse() when unrelated postprocessing transforms trail the target history."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        # Preprocessing pipeline
+        preprocessing = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+
+        # Postprocessing pipeline whose transforms should remain after the preprocessing inverse
+        postprocessing = Compose([Lambdad(key, func=lambda x: x)])
+
+        # Apply both pipelines
+        item = {key: img}
+        pre = preprocessing(item)
+        post = postprocessing(pre)
+
+        # Calling inverse() directly should restore the preprocessing changes without consuming the
+        # unrelated postprocessing transform entry.
+        inverted = preprocessing.inverse(post)
+        self.assertTupleEqual(tuple(inverted[key].shape), (1, 60, 60))
+        self.assertEqual(len(inverted[key].applied_operations), 1)
+        self.assertEqual(inverted[key].applied_operations[0][TraceKeys.CLASS_NAME], "Lambda")
+
+    def test_mixed_invertd_and_compose_inverse(self):
+        """Test using Invertd and Compose.inverse() on the same pipeline history."""
+        img, _ = create_test_image_2d(60, 60, 2, 10, num_seg_classes=2)
+        img = MetaTensor(img, meta={"original_channel_dim": float("nan"), "pixdim": [1.0, 1.0, 1.0]})
+        key = "image"
+
+        # First pipeline
+        pipeline1 = Compose([EnsureChannelFirstd(key), Spacingd(key, pixdim=[2.0, 2.0])])
+
+        # Apply first pipeline
+        item = {key: img}
+        result1 = pipeline1(item)
+
+        # Use Compose.inverse() directly - should work fine
+        inverted1 = pipeline1.inverse(result1)
+        self.assertIsNotNone(inverted1)
+        self.assertEqual(inverted1[key].shape[1:], img.shape)
+
+        # Now apply pipeline again and use Invertd
+        result2 = pipeline1(item)
+        inverter = Invertd(key, transform=pipeline1, orig_keys=key)
+        inverted2 = inverter(result2)
+        self.assertIsNotNone(inverted2)
 
 
 if __name__ == "__main__":

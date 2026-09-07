@@ -24,11 +24,22 @@ TEST_CASE = [
     np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
 ]
 
+TEST_CASE_ET_LABEL_3 = [
+    {"keys": "label", "et_label": 3},
+    {"label": np.array([[0, 1, 2], [1, 2, 3], [0, 1, 3]])},
+    np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
+]
+
 
 class TestConvertToMultiChanneld(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE])
     def test_type_shape(self, keys, data, expected_result):
+        result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)
+        np.testing.assert_equal(result["label"], expected_result)
+
+    @parameterized.expand([TEST_CASE_ET_LABEL_3])
+    def test_et_label_3(self, keys, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)
         np.testing.assert_equal(result["label"], expected_result)
 

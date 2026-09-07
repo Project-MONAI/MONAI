@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+import gc
 import unittest
+import weakref
 
 from parameterized import parameterized
 
@@ -74,6 +76,34 @@ class TestOptionalImport(unittest.TestCase):
 
         nn, flag = optional_import("torch", "1.1", version_checker=versioning, name="nn", version_args=test_args)
         self.assertTrue(flag)
+
+    def test_no_traceback_leak(self):
+        """Verify optional_import does not retain references to stack frames (issue #7480)."""
+
+        class _Marker:
+            pass
+
+        def _do_import():
+            marker = _Marker()
+            ref = weakref.ref(marker)
+            # Call optional_import for a module that does not exist.
+            # If the traceback is leaked, `marker` stays alive via frame references.
+            _mod, flag = optional_import("nonexistent_module_for_leak_test")
+            self.assertFalse(flag)
+            return ref
+
+        ref = _do_import()
+        gc.collect()
+        self.assertIsNone(ref(), "optional_import is leaking frame references via traceback")
+
+    def test_failed_import_shows_traceback_string(self):
+        """Verify the error message includes the original traceback as a string."""
+        mod, flag = optional_import("nonexistent_module_for_tb_test")
+        self.assertFalse(flag)
+        with self.assertRaises(OptionalImportError) as ctx:
+            _ = mod.something
+        self.assertIn("Original traceback", str(ctx.exception))
+        self.assertIn("ModuleNotFoundError", str(ctx.exception))
 
 
 if __name__ == "__main__":

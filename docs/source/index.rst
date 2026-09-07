@@ -41,7 +41,7 @@ Getting started
 
 Examples and notebook tutorials are located at `Project-MONAI/tutorials <https://github.com/Project-MONAI/tutorials>`_.
 
-Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_.
+Technical documentation is available at `monai.readthedocs.io <https://monai.readthedocs.io>`_.
 
 .. toctree::
    :maxdepth: 1

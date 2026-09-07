@@ -23,6 +23,7 @@ from monai.data.box_utils import (
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
+    batched_nms,
     box_area,
     box_centers,
     box_giou,
@@ -34,6 +35,7 @@ from monai.data.box_utils import (
     convert_box_mode,
     convert_box_to_standard_mode,
     non_max_suppression,
+    spatial_crop_boxes,
 )
 from monai.utils.type_conversion import convert_data_type
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
@@ -267,6 +269,30 @@ class TestBoxUtilsDtype(unittest.TestCase):
         iou = box_iou(boxes1, boxes2)
         self.assertTrue(np.issubdtype(iou.dtype, np.floating))
         self.assertGreater(iou[0, 0], 0.0, "IoU should not be truncated to 0")
+
+    def test_large_coordinates_are_not_dropped(self):
+        """Verify large-coordinate boxes are preserved by cropping and clipping."""
+        boxes = torch.tensor([[41000.0, 5000.0, 45000.0, 15000.0]], dtype=torch.float32)
+
+        cropped_boxes, keep = spatial_crop_boxes(
+            boxes=boxes, roi_start=[40000, 0], roi_end=[50000, 20000], remove_empty=True
+        )
+        assert_allclose(keep, torch.tensor([True]))
+        assert_allclose(cropped_boxes, torch.tensor([[1000.0, 5000.0, 5000.0, 15000.0]]))
+
+        clipped_boxes, keep = clip_boxes_to_image(boxes=boxes, spatial_size=[50000, 50000], remove_empty=True)
+        assert_allclose(keep, torch.tensor([True]))
+        assert_allclose(clipped_boxes, boxes)
+
+
+class TestBatchedNms(unittest.TestCase):
+    @parameterized.expand(TEST_NDARRAYS)
+    def test_batched_nms_backend(self, p):
+        boxes = p(np.array([[0, 0, 10, 10], [1, 1, 11, 11], [100, 100, 110, 110]], dtype=np.float32))
+        scores = p(np.array([0.9, 0.8, 0.7], dtype=np.float32))
+        labels = p(np.array([0, 0, 1]))
+        keep = batched_nms(boxes, scores, labels, nms_thresh=0.5)
+        assert_allclose(keep, [0, 2], type_test=False)
 
 
 if __name__ == "__main__":

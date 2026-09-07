@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Collection, Hashable, Iterable, Sequence
-from typing import TypeVar, Union
+from typing import TypeVar
 
 import numpy as np
 import torch
@@ -53,7 +53,7 @@ __all__ = [
 #        convenience to end-users.  All supplied values will be
 #        internally converted to a tuple of `Hashable`'s before
 #        use
-KeysCollection = Union[Collection[Hashable], Hashable]
+KeysCollection = Collection[Hashable] | Hashable
 
 #: IndexSelection
 #
@@ -61,13 +61,13 @@ KeysCollection = Union[Collection[Hashable], Hashable]
 # that store a subset of indices to select items from a List or Array like objects.
 # The indices must be integers, and if a container of indices is specified, the
 # container must be iterable.
-IndexSelection = Union[Iterable[int], int]
+IndexSelection = Iterable[int] | int
 
 #: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/v1.21.4/numpy/typing/_dtype_like.py#L121
-DtypeLike = Union[np.dtype, type, str, None]
+DtypeLike = np.dtype | type | str | None
 
 #: NdarrayOrTensor: Union of numpy.ndarray and torch.Tensor to be used for typing
-NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
+NdarrayOrTensor = np.ndarray | torch.Tensor
 
 #: NdarrayTensor
 #
@@ -76,11 +76,11 @@ NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
 NdarrayTensor = TypeVar("NdarrayTensor", bound=NdarrayOrTensor)
 
 #: TensorOrList: The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
-TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
+TensorOrList = torch.Tensor | Sequence[torch.Tensor]
 
 #: PathLike: The PathLike type is used for defining a file path.
-PathLike = Union[str, os.PathLike]
+PathLike = str | os.PathLike
 
 #: SequenceStr
 # string or a sequence of strings for `mode` types.
-SequenceStr = Union[Sequence[str], str]
+SequenceStr = Sequence[str] | str

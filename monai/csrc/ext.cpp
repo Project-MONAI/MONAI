@@ -63,6 +63,15 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
       .value("seventh", monai::InterpolationType::SeventhOrder)
       .export_values();
 
+  // build-time compile capability info
+  m.def("max_compute_capability", []() {
+#ifdef MONAI_MAX_COMPUTE_CAPABILITY
+    return MONAI_MAX_COMPUTE_CAPABILITY;
+#else
+    return 0;
+#endif
+  }, "Maximum compute capability (major*100+minor) the extension was compiled for, or 0 if unknown");
+
   // resample
   m.def("grid_pull", &monai::grid_pull, "GridPull");
   m.def("grid_pull_backward", &monai::grid_pull_backward, "GridPull backward");

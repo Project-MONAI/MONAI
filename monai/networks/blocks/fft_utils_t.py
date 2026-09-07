@@ -28,9 +28,6 @@ def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
 
     Returns:
         1d-shifted version of x
-
-    Note:
-        This function is called when fftshift and ifftshift are not available in the running pytorch version
     """
     shift = shift % x.size(shift_dim)
     if shift == 0:
@@ -55,9 +52,6 @@ def roll(x: Tensor, shift: list[int], shift_dims: list[int]) -> Tensor:
 
     Returns:
         shifted version of x
-
-    Note:
-        This function is called when fftshift and ifftshift are not available in the running pytorch version
     """
     if len(shift) != len(shift_dims):
         raise ValueError(f"len(shift) != len(shift_dims), got f{len(shift)} and f{len(shift_dims)}.")
@@ -78,9 +72,6 @@ def fftshift(x: Tensor, shift_dims: list[int]) -> Tensor:
 
     Returns:
         fft-shifted version of x
-
-    Note:
-        This function is called when fftshift is not available in the running pytorch version
     """
     shift = [0] * len(shift_dims)
     for i, dim_num in enumerate(shift_dims):
@@ -100,9 +91,6 @@ def ifftshift(x: Tensor, shift_dims: list[int]) -> Tensor:
 
     Returns:
         ifft-shifted version of x
-
-    Note:
-        This function is called when ifftshift is not available in the running pytorch version
     """
     shift = [0] * len(shift_dims)
     for i, dim_num in enumerate(shift_dims):

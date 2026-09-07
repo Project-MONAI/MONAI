@@ -93,7 +93,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             raise ValueError("y_pred should have at least two dimensions.")
         if dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
             if self.compute_sample:
-                warnings.warn("As for classification task, compute_sample should be False.")
+                warnings.warn("As for classification task, compute_sample should be False.", stacklevel=2)
                 self.compute_sample = False
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)

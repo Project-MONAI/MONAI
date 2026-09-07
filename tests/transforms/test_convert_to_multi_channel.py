@@ -20,6 +20,9 @@ from monai.transforms import ConvertToMultiChannelBasedOnBratsClasses
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
+TESTS_ET_LABEL_3 = []
+
+# Tests for default et_label = 4
 for p in TEST_NDARRAYS:
     TESTS.extend(
         [
@@ -46,6 +49,23 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+# Tests for et_label = 3
+for p in TEST_NDARRAYS:
+    TESTS_ET_LABEL_3.extend(
+        [
+            [
+                p([[0, 1, 2], [1, 2, 3], [0, 1, 3]]),
+                p(
+                    [
+                        [[0, 1, 0], [1, 0, 1], [0, 1, 1]],
+                        [[0, 1, 1], [1, 1, 1], [0, 1, 1]],
+                        [[0, 0, 0], [0, 0, 1], [0, 0, 1]],
+                    ]
+                ),
+            ]
+        ]
+    )
+
 
 class TestConvertToMultiChannel(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -53,6 +73,18 @@ class TestConvertToMultiChannel(unittest.TestCase):
         result = ConvertToMultiChannelBasedOnBratsClasses()(data)
         assert_allclose(result, expected_result)
         self.assertTrue(result.dtype in (bool, torch.bool))
+
+    @parameterized.expand(TESTS_ET_LABEL_3)
+    def test_type_shape_et_label_3(self, data, expected_result):
+        result = ConvertToMultiChannelBasedOnBratsClasses(et_label=3)(data)
+        assert_allclose(result, expected_result)
+        self.assertTrue(result.dtype in (bool, torch.bool))
+
+    def test_invalid_et_label(self):
+        with self.assertRaises(ValueError):
+            ConvertToMultiChannelBasedOnBratsClasses(et_label=1)
+        with self.assertRaises(ValueError):
+            ConvertToMultiChannelBasedOnBratsClasses(et_label=2)
 
 
 if __name__ == "__main__":

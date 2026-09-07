@@ -1,0 +1,73 @@
+# Optional self-hosted GPU CI for the HyenaND test surface.
+#
+# This workflow exercises the CUDA-required Hyena tests
+# (tests/networks/blocks/test_hyena_block.py CUDA cases, the four-paper-variant
+# forward and gradient cases in tests/networks/nets/test_swin_unetr.py and
+# tests/networks/nets/test_hyena_nd_unetr.py, the SwinUNETR(use_hyena=False)
+# golden-hash backward-compat regression, and sliding-window inference).
+#
+# Disabled by default (``if: false``).  To enable:
+#   1. Ensure a self-hosted runner with the labels below is available, AND
+#   2. Ensure the runner has CUDA-capable hardware visible (the existing
+#      ``pythonapp-gpu.yml`` uses ``--gpus all`` against ``[self-hosted, linux,
+#      x64, common]``).  Reuse that pool if possible.
+#   3. Flip ``if: false`` to ``if: github.event.pull_request.merged != true``
+#      (mirroring ``pythonapp-gpu.yml``'s gating pattern).
+#
+# nvsubquadratic (Hyena's optional dep) requires Python >= 3.10; any NGC base with
+# Python >= 3.10 works. The accelerated [cuda] kernels build against the container nvcc.
+
+name: hyena-gpu
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: hyena-gpu-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  GPU-Hyena:
+    if: ${{ false }}  # See header for enable instructions.
+    strategy:
+      matrix:
+        environment:
+          # NGC PyTorch 25.05 ships Python 3.12 and CUDA 12.5.  Bump as needed.
+          - "NGC25.05+PY312"
+        include:
+          - environment: NGC25.05+PY312
+            base: "nvcr.io/nvidia/pytorch:25.05-py3"
+    container:
+      image: ${{ matrix.base }}
+      options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip wheel
+        python -c "import sys; assert sys.version_info >= (3, 10), f'Python >= 3.10 required for nvsubquadratic, got {sys.version}'"
+        python -m pip install -e .[all,testing]
+        # Install nvsubquadratic with --no-deps: the default torch_fft path needs only
+        # torch + einops + omegaconf, and nvsubquadratic pins torch>=2.10,<2.11 which can
+        # clash with the container's torch.  To exercise the accelerated fused CUDA
+        # kernels instead, install the [cuda] extra (subquadratic-ops-torch-cu12, builds
+        # against the container's nvcc) and set fft_backend="subq_ops" in the tests.
+        python -m pip install omegaconf
+        python -m pip install --no-deps 'nvsubquadratic>=0.1.1'
+        python -m pip list
+      shell: bash
+    - name: Verify CUDA + nvsubquadratic
+      run: |
+        nvidia-smi
+        python -c "import torch; assert torch.cuda.is_available(); print('CUDA OK:', torch.cuda.get_device_name(0))"
+        python -c "from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
+                   assert is_nvsubquadratic_available(), 'nvsubquadratic must be importable'"
+      shell: bash
+    - name: Run Hyena test suite (CUDA + no-CUDA)
+      run: |
+        python -m pytest -v \
+          tests/networks/blocks/test_hyena_block.py \
+          tests/networks/nets/test_hyena_nd_unetr.py \
+          tests/networks/nets/test_swin_unetr.py
+      shell: bash

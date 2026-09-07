@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
 import torch
@@ -157,7 +156,7 @@ class DiceLoss(_Loss):
         n_pred_ch = input.shape[1]
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, 1)
 
@@ -166,13 +165,13 @@ class DiceLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
@@ -205,9 +204,8 @@ class DiceLoss(_Loss):
             else:
                 if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
-                        """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include
-                        the background category class 0."""
+                        "The length of the `weight` sequence should be the same as the number of classes. "
+                        "If `include_background=False`, the weight should not include the background category class 0."
                     )
             if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
@@ -239,11 +237,52 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        other_act: Callable | None = None,
+        squared_pred: bool = False,
+        jaccard: bool = False,
+        reduction: LossReduction | str = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        soft_label: bool = False,
+    ) -> None:
         """
         Args follow :py:class:`monai.losses.DiceLoss`.
         """
-        super().__init__(*args, **kwargs)
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if sigmoid and softmax:
+            raise ValueError("Incompatible values: sigmoid=True and softmax=True.")
+        if other_act is not None and (sigmoid or softmax):
+            raise ValueError("Incompatible values: other_act is not None and sigmoid=True or softmax=True.")
+
+        self.pre_sigmoid = sigmoid
+        self.pre_softmax = softmax
+        self.pre_other_act = other_act
+
+        super().__init__(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            sigmoid=False,
+            softmax=False,
+            other_act=None,
+            squared_pred=squared_pred,
+            jaccard=jaccard,
+            reduction=reduction,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
+            batch=batch,
+            weight=weight,
+            soft_label=soft_label,
+        )
+
         self.spatial_weighted = MaskedLoss(loss=super().forward)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -253,6 +292,19 @@ class MaskedDiceLoss(DiceLoss):
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
+
+        if self.pre_sigmoid:
+            input = torch.sigmoid(input)
+
+        n_pred_ch = input.shape[1]
+        if self.pre_softmax:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
+            else:
+                input = torch.softmax(input, 1)
+
+        if self.pre_other_act is not None:
+            input = self.pre_other_act(input)
         return self.spatial_weighted(input=input, target=target, mask=mask)  # type: ignore[no-any-return]
 
 
@@ -353,7 +405,7 @@ class GeneralizedDiceLoss(_Loss):
         n_pred_ch = input.shape[1]
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, 1)
 
@@ -362,13 +414,13 @@ class GeneralizedDiceLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
@@ -935,7 +987,7 @@ class DiceFocalLoss(_Loss):
         if self.to_onehot_y:
             n_pred_ch = input.shape[1]
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
         dice_loss = self.dice(input, target)

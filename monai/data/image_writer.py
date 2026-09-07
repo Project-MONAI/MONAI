@@ -324,7 +324,7 @@ class ImageWriter:
                 data = data[..., 0, :]
         # if desired, remove trailing singleton dimensions
         while squeeze_end_dims and data.shape[-1] == 1:
-            data = np.squeeze(data, -1)
+            data = data.squeeze(-1)
         if contiguous:
             data = ascontiguousarray(data)
         return data

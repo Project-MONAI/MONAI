@@ -25,7 +25,9 @@ from .analyzer import (
 from .operations import Operations, SampleOperations, SummaryOperations
 from .seg_summarizer import SegSummarizer
 from .utils import (
+    algo_from_json,
     algo_from_pickle,
+    algo_to_json,
     algo_to_pickle,
     concat_multikeys_to_dict,
     concat_val_to_np,

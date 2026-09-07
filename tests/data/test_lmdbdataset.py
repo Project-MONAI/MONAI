@@ -19,9 +19,8 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import LMDBDataset, json_hashing
+from monai.data import LMDBDataset, json_hashing, pickle_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.test_utils import skip_if_windows
 
 TEST_CASE_1 = [
     Compose(
@@ -76,7 +75,7 @@ TEST_CASE_7 = [
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
-    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 2 * 1024**2}},
+    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 50 * 1024**2}},
 ]
 
 
@@ -89,38 +88,17 @@ class _InplaceXform(Transform):
         return data
 
 
-@skip_if_windows
 class TestLMDBDataset(unittest.TestCase):
-    def test_cache(self):
-        """testing no inplace change to the hashed item"""
+    @parameterized.expand([(pickle_hashing,), (json_hashing,)])
+    def test_cache(self, hash_func):
+        """Testing no inplace change to the hashed item."""
         items = [[list(range(i))] for i in range(5)]
 
         with tempfile.TemporaryDirectory() as tempdir:
-            ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, lmdb_kwargs={"map_size": 10 * 1024})
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-            ds1 = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, lmdb_kwargs={"map_size": 10 * 1024})
-            self.assertEqual(list(ds1), list(ds))
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-
-            ds = LMDBDataset(
-                items,
-                transform=_InplaceXform(),
-                cache_dir=tempdir,
-                lmdb_kwargs={"map_size": 10 * 1024},
-                hash_func=json_hashing,
-            )
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-            ds1 = LMDBDataset(
-                items,
-                transform=_InplaceXform(),
-                cache_dir=tempdir,
-                lmdb_kwargs={"map_size": 10 * 1024},
-                hash_func=json_hashing,
-            )
-            self.assertEqual(list(ds1), list(ds))
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-
-        self.assertTrue(isinstance(ds1.info(), dict))
+            ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=hash_func, progress=False)
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]], "Input dataset mutated.")
+            self.assertNotEqual(items, list(ds), "Output data unmodified by transform.")
+            self.assertIsInstance(ds.info(), dict)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_shape(self, transform, expected_shape, kwargs=None):
@@ -146,16 +124,30 @@ class TestLMDBDataset(unittest.TestCase):
                 },
             ]
 
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-            dataset_precached = LMDBDataset(
-                data=test_data, transform=transform, progress=False, cache_dir=cache_dir, **kwargs
-            )
+            ds_args = dict(data=test_data, transform=transform, progress=False, cache_dir=cache_dir, **kwargs)
+
+            dataset_precached = LMDBDataset(**ds_args)
             data1_precached = dataset_precached[0]
             data2_precached = dataset_precached[1]
 
-            dataset_postcached = LMDBDataset(
-                data=test_data, transform=transform, progress=False, cache_dir=cache_dir, **kwargs
-            )
+            dataset_precached.close()
+
+            dataset_postcached = LMDBDataset(**ds_args)
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
 
@@ -179,19 +171,6 @@ class TestLMDBDataset(unittest.TestCase):
                 self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
                 self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
 
-            # update the data to cache
-            test_data_new = [
-                {
-                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
-                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
-                },
-                {
-                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
-                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
-                },
-            ]
             # test new exchanged cache content
             if transform is None:
                 dataset_postcached.set_data(data=test_data_new)
@@ -201,6 +180,8 @@ class TestLMDBDataset(unittest.TestCase):
             else:
                 with self.assertRaises(RuntimeError):
                     dataset_postcached.set_data(data=test_data_new)  # filename list updated, files do not exist
+
+            dataset_postcached.close()  # open environments are fragile, cleanup is needed for tests
 
 
 if __name__ == "__main__":

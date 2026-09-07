@@ -107,4 +107,4 @@ class WarmupCosineSchedule(LambdaLR):
         if self.last_epoch < self.warmup_steps:
             return current_lr
         else:
-            return [max(self.end_lr, _current_lr) for _current_lr in current_lr]
+            return [max(self.end_lr, _current_lr) for _current_lr in current_lr]  # type: ignore

@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import warnings
+from typing import Any, cast
 
 from packaging import version
 from setuptools import find_packages, setup
@@ -29,6 +30,7 @@ FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI 
 
 BUILD_CPP = BUILD_CUDA = False
 TORCH_VERSION = 0
+
 try:
     import torch
 
@@ -103,6 +105,19 @@ def get_extensions():
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
+        # Embed the maximum compute capability from TORCH_CUDA_ARCH_LIST
+        _torch_cuda_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST", "")
+        _max_cc = 0
+        if _torch_cuda_arch_list:
+            for _maj, _min in re.findall(r"([0-9]+)\.([0-9]+)", _torch_cuda_arch_list):
+                try:
+                    _cc = int(_maj) * 100 + int(_min)
+                    if _cc > _max_cc:
+                        _max_cc = _cc
+                except ValueError:
+                    pass
+        if _max_cc > 0:
+            define_macros += [("MONAI_MAX_COMPUTE_CAPABILITY", _max_cc)]
         extra_compile_args = {"cxx": [], "nvcc": []}
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()
@@ -112,7 +127,7 @@ def get_extensions():
     ext_modules = [
         extension(
             name="monai._C",
-            sources=sources,
+            sources=list(map(os.path.relpath, sources)),
             include_dirs=include_dirs,
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
@@ -144,8 +159,8 @@ jit_extension_source = [os.path.join("..", path) for path in jit_extension_sourc
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
-    packages=find_packages(exclude=("docs", "examples", "tests")),
+    packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
-    package_data={"monai": ["py.typed", *jit_extension_source]},  # type: ignore[arg-type]
+    package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
     ext_modules=get_extensions(),
 )

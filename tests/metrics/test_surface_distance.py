@@ -18,6 +18,10 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import SurfaceDistanceMetric
+from monai.metrics.utils import get_mask_edges, get_surface_distance
+from monai.utils import optional_import
+
+distance_transform_edt, has_scipy = optional_import("scipy.ndimage", name="distance_transform_edt")
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -180,6 +184,45 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         result, not_nans = sur_metric.aggregate(reduction="mean")
         np.testing.assert_allclose(0, result, rtol=1e-5)
         np.testing.assert_allclose(0, not_nans, rtol=1e-5)
+
+
+KDTREE_SPACINGS = [["isotropic_default", None], ["isotropic", (1.0, 1.0, 1.0)], ["anisotropic", (1.0, 2.5, 0.5)]]
+
+
+def _edge_masks(seed=0):
+    # two offset spheres plus a few scattered false positives in the prediction, so the
+    # surfaces are non-trivially apart and an outlier expands the cropped bounding box.
+    gt = create_spherical_seg_3d(radius=20, centre=(30, 30, 30))
+    pred = create_spherical_seg_3d(radius=20, centre=(32, 31, 30))
+    rng = np.random.RandomState(seed)
+    for _ in range(5):
+        pred[tuple(rng.randint(0, s) for s in pred.shape)] = 1
+    edges_pred, edges_gt = get_mask_edges(pred, gt)
+    return np.asarray(edges_pred, dtype=bool), np.asarray(edges_gt, dtype=bool)
+
+
+@unittest.skipUnless(has_scipy, "Requires scipy.")
+class TestSurfaceDistanceKDTreeMatchesEDT(unittest.TestCase):
+    @parameterized.expand(KDTREE_SPACINGS)
+    def test_cpu_kdtree_euclidean_distances_match_dense_edt(self, _name, spacing):
+        edges_pred, edges_gt = _edge_masks()
+        result = np.asarray(get_surface_distance(edges_pred, edges_gt, distance_metric="euclidean", spacing=spacing))
+        reference = distance_transform_edt(~edges_gt, sampling=spacing)[edges_pred]
+        # same multiset of distances (downstream metrics only use max/percentile/mean)
+        np.testing.assert_allclose(np.sort(result), np.sort(reference), rtol=1e-5, atol=1e-5)
+        self.assertEqual(result.dtype, np.float32)
+        self.assertEqual(result.shape, reference.shape)
+
+    def test_torch_input_preserves_type_device_and_matches_dense_edt(self):
+        edges_pred, edges_gt = _edge_masks()
+        spacing = (1.0, 2.5, 0.5)
+        seg_pred, seg_gt = torch.as_tensor(edges_pred), torch.as_tensor(edges_gt)
+        result = get_surface_distance(seg_pred, seg_gt, distance_metric="euclidean", spacing=spacing)
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(result.dtype, torch.float32)
+        self.assertEqual(result.device, seg_pred.device)
+        reference = distance_transform_edt(~edges_gt, sampling=spacing)[edges_pred]
+        np.testing.assert_allclose(np.sort(result.cpu().numpy()), np.sort(reference), rtol=1e-5, atol=1e-5)
 
 
 if __name__ == "__main__":

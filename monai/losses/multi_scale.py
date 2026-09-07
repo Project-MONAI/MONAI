@@ -55,9 +55,15 @@ class MultiScaleLoss(_Loss):
     ) -> None:
         """
         Args:
-            loss: loss function to be wrapped
+            loss: loss function to be wrapped.
             scales: list of scalars or None, if None, do not apply any scaling.
-            kernel: gaussian or cauchy.
+            kernel: type of smoothing kernel, either ``"gaussian"`` or ``"cauchy"``. Defaults to ``"gaussian"``.
+            reduction: specifies the reduction to apply to the output:
+                ``"none"`` | ``"mean"`` | ``"sum"``. Defaults to ``"mean"``.
+
+        Raises:
+            ValueError: if ``kernel`` is not ``"gaussian"`` or ``"cauchy"``.
+            ValueError: if ``reduction`` is not ``"mean"``, ``"sum"``, or ``"none"``.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         if kernel not in kernel_fn_dict:

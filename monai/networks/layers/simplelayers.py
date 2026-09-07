@@ -671,7 +671,6 @@ class MeanFilter(ApplyFilter):
             size: edge length of the filter
         """
         filter = torch.ones([size] * spatial_dims)
-        filter = filter
         super().__init__(filter=filter)
 
 

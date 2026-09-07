@@ -12,7 +12,9 @@
 from __future__ import annotations
 
 from .adversarial_loss import PatchAdversarialLoss
+from .aucm_loss import AUCMLoss
 from .barlow_twins import BarlowTwinsLoss
+from .boundary_loss import BoundaryLoss
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss, DiffusionLoss
@@ -36,6 +38,7 @@ from .focal_loss import FocalLoss
 from .giou_loss import BoxGIoULoss, giou
 from .hausdorff_loss import HausdorffDTLoss, LogHausdorffDTLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
+from .mcc_loss import MCCLoss
 from .multi_scale import MultiScaleLoss
 from .nacl_loss import NACLLoss
 from .perceptual import PerceptualLoss

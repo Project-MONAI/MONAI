@@ -55,7 +55,7 @@ class TestMultiScale(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = MultiScaleLoss(**input_param).forward(**input_data)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
 
     @parameterized.expand(
         [

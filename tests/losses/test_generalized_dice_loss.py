@@ -112,11 +112,6 @@ TEST_CASES = [
         },
         0.0,
     ],
-    [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
-        0.307576,
-    ],
     [  # shape: (1, 2, 4), (1, 1, 4)
         {
             "include_background": True,

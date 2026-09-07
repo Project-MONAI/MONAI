@@ -36,6 +36,26 @@ class TestRandScaleIntensityFixedMeand(NumpyImageTestCase2D):
             expected = expected + mn
             assert_allclose(result[key], p(expected), type_test="tensor", atol=1e-6)
 
+    def test_channel_wise(self):
+        key = "img"
+        for p in TEST_NDARRAYS:
+            scaler = RandScaleIntensityFixedMeand(keys=[key], factors=0.5, prob=1.0, channel_wise=True)
+            scaler.set_random_state(seed=0)
+            im = p(self.imt)
+            result = scaler({key: im})
+            np.random.seed(0)
+            # simulate the randomize function of transform
+            np.random.random()
+            channel_num = self.imt.shape[0]
+            factor = np.random.uniform(low=-0.5, high=0.5, size=(channel_num,))
+            expected = np.stack(
+                [
+                    np.asarray((self.imt[i] - self.imt[i].mean()) * (1 + factor[i]) + self.imt[i].mean())
+                    for i in range(channel_num)
+                ]
+            ).astype(np.float32)
+            assert_allclose(result[key], p(expected), atol=1e-4, rtol=1e-4, type_test=False)
+
 
 if __name__ == "__main__":
     unittest.main()
