@@ -110,6 +110,7 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "get_marching_cubes_surface",
     "keep_merge_components_with_points",
     "keep_components_with_positive_points",
     "convert_points_to_disc",
@@ -1235,6 +1236,72 @@ def get_largest_connected_component_mask(
         out = keep[features]
 
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
+
+
+def get_marching_cubes_surface(
+    volume: NdarrayTensor,
+    level: float | None = 0.5,
+    spacing: Sequence[float] | float | None = None,
+    step_size: int = 1,
+    allow_degenerate: bool = True,
+    method: str = "lewiner",
+    mask: NdarrayTensor | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Extract a surface mesh from a 3D volume using `skimage.measure.marching_cubes`.
+
+    NOTE: computation always runs on CPU via scikit-image (there is no cucim GPU
+    kernel for marching cubes). GPU tensors are moved to CPU first; the mesh is
+    tiny compared to the volume so the transfer cost is negligible.
+
+    Args:
+        volume: 3D array with shape (M, N, P). For a channel-first image, pass one
+            channel at a time.
+        level: isosurface value. Defaults to 0.5 for binary masks.
+        spacing: voxel spacing along each dimension. If a single number, it is used
+            for all axes. If ``None`` and ``volume`` is a MetaTensor, the pixdim is
+            used, otherwise unity spacing is assumed.
+        step_size: step size in voxels. Larger steps yield coarser, faster meshes.
+        allow_degenerate: allow degenerate triangles in the mesh.
+        method: one of ("lewiner", "lorensen"), see scikit-image docs.
+        mask: optional boolean array of the same shape as ``volume``. Marching cubes
+            is computed only on ``True`` elements.
+
+    Returns:
+        Tuple of (verts, faces, normals, values) as numpy arrays, matching
+        `skimage.measure.marching_cubes` output. Coordinate order matches the
+        input ``volume`` (M, N, P), scaled by ``spacing``.
+    """
+    if not has_measure:
+        raise RuntimeError("Skimage.measure required.")
+    look_up_option(method, ["lewiner", "lorensen"])
+    volume_np, *_ = convert_data_type(volume, np.ndarray)
+    if volume_np.ndim != 3:
+        raise ValueError(f"marching cubes requires a 3D volume, got shape {volume_np.shape}.")
+    if spacing is not None:
+        spacing_t = ensure_tuple_rep(spacing, 3)
+    elif isinstance(volume, monai.data.MetaTensor):
+        try:
+            spacing_t = tuple(float(s) for s in volume.pixdim[-3:])
+            if len(spacing_t) != 3:
+                raise ValueError
+        except Exception:
+            warnings.warn("Could not determine spacing from MetaTensor, assuming unity spacing.")
+            spacing_t = (1.0, 1.0, 1.0)
+    else:
+        spacing_t = (1.0, 1.0, 1.0)
+    mask_np: np.ndarray | None = None
+    if mask is not None:
+        mask_np, *_ = convert_data_type(mask, np.ndarray)
+        mask_np = np.asarray(mask_np, dtype=bool)
+        if mask_np.shape != volume_np.shape:
+            raise ValueError(f"mask shape {mask_np.shape} must match volume shape {volume_np.shape}.")
+
+    verts, faces, normals, values = measure.marching_cubes(
+        volume_np, level=level, spacing=spacing_t, step_size=step_size,
+        allow_degenerate=allow_degenerate, method=method, mask=mask_np,
+    )
+    return verts, faces, normals, values
 
 
 def keep_merge_components_with_points(
