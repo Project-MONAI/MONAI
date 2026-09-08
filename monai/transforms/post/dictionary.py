@@ -39,6 +39,7 @@ from monai.transforms.post.array import (
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
+    MarchingCubes,
     MeanEnsemble,
     ProbNMS,
     RemoveSmallObjects,
@@ -79,6 +80,9 @@ __all__ = [
     "LabelToContourD",
     "LabelToContourDict",
     "LabelToContourd",
+    "MarchingCubesD",
+    "MarchingCubesDict",
+    "MarchingCubesd",
     "MeanEnsembleD",
     "MeanEnsembleDict",
     "MeanEnsembled",
@@ -261,6 +265,58 @@ class KeepLargestConnectedComponentd(MapTransform):
             independent=independent,
             connectivity=connectivity,
             num_components=num_components,
+        )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class MarchingCubesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MarchingCubes`.
+
+    Note: this is a pipeline-terminal transform, the output stored at each key is
+    a surface mesh ``(vertices, faces)``, not an image.
+    """
+
+    backend = MarchingCubes.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        level: float | None = 0.5,
+        spacing: Sequence[float] | float | None = None,
+        step_size: int = 1,
+        allow_degenerate: bool = True,
+        method: str = "lewiner",
+        return_normals_values: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            level: isosurface value, defaults to 0.5 for binary masks.
+            spacing: voxel spacing along each spatial dim. A single number is used
+                for all axes. If ``None`` and the input is a MetaTensor, its pixdim
+                is used, otherwise unity spacing is assumed.
+            step_size: step size in voxels for marching cubes.
+            allow_degenerate: allow degenerate triangles in the mesh.
+            method: one of ("lewiner", "lorensen"), see scikit-image docs.
+            return_normals_values: if ``True``, store ``(verts, faces, normals, values)``.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = MarchingCubes(
+            level=level,
+            spacing=spacing,
+            step_size=step_size,
+            allow_degenerate=allow_degenerate,
+            method=method,
+            return_normals_values=return_normals_values,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1128,6 +1184,7 @@ KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargest
 RemoveSmallObjectsD = RemoveSmallObjectsDict = RemoveSmallObjectsd
 LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
+MarchingCubesD = MarchingCubesDict = MarchingCubesd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
