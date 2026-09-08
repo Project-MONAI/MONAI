@@ -1200,9 +1200,9 @@ class MarchingCubes(Transform):
     has no GPU kernel, CUDA inputs are moved to CPU first).
 
     Note:
-        This is a pipeline-terminal transform: the output is a mesh
-        ``(vertices, faces)``, not an image, so it cannot be composed with further
-        image transforms or inverted. For STL export, smoothing, or physical-space
+        The output is a mesh, not an image, so it cannot be composed with further
+        image transforms or inverted. Place it at the end of the pipeline.
+        For STL export, smoothing, or physical-space
         mapping see ``monai.deploy`` ``STLConversionOperator``.
 
     Args:

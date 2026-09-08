@@ -278,8 +278,9 @@ class MarchingCubesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MarchingCubes`.
 
-    Note: this is a pipeline-terminal transform, the output stored at each key is
-    a surface mesh ``(vertices, faces)``, not an image.
+    Note: the output stored at each key is a surface mesh ``(vertices, faces)``,
+    not an image, so it cannot be composed with further image transforms or
+    inverted. Place it at the end of the pipeline.
     """
 
     backend = MarchingCubes.backend
