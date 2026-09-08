@@ -619,13 +619,13 @@ then
     then
         install_deps
     fi
-    ruff --version
+    "${PY_EXE}" -m ruff --version
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix --unsafe-fixes "$homedir"
+        "${PY_EXE}" -m ruff check --fix --unsafe-fixes "$homedir"
     else
-        ruff check "$homedir"
+        "${PY_EXE}" -m ruff check "$homedir"
     fi
 
     ruff_status=$?
