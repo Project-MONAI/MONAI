@@ -34,6 +34,7 @@ from monai.transforms.utils import (
     distance_transform_edt,
     fill_holes,
     get_largest_connected_component_mask,
+    get_marching_cubes_surface,
     get_unique_labels,
     remove_small_objects,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "Invert",
     "GenerateHeatmap",
     "DistanceTransformEDT",
+    "MarchingCubes",
 ]
 
 
@@ -1187,3 +1189,86 @@ class DistanceTransformEDT(Transform):
             An array with the same shape and data type as img
         """
         return distance_transform_edt(img=img, sampling=self.sampling)  # type: ignore
+
+
+class MarchingCubes(Transform):
+    """
+    Extract a surface mesh from a 3D segmentation using marching cubes.
+
+    Thin wrapper around :func:`monai.transforms.utils.get_marching_cubes_surface`
+    (`skimage.measure.marching_cubes`). The input is a channel-first volume with
+    shape ``(C, M, N, P)``; marching cubes runs per channel on the CPU (scikit-image
+    has no GPU kernel, CUDA inputs are moved to CPU first).
+
+    Note:
+        This is a pipeline-terminal transform: the output is a mesh
+        ``(vertices, faces)``, not an image, so it cannot be composed with further
+        image transforms or inverted. For STL export, smoothing, or physical-space
+        mapping see ``monai.deploy`` ``STLConversionOperator``.
+
+    Args:
+        level: isosurface value, defaults to 0.5 for binary masks.
+        spacing: voxel spacing along each spatial dim. A single number is used for
+            all axes. If ``None`` and the input is a MetaTensor, its pixdim is used,
+            otherwise unity spacing is assumed.
+        step_size: step size in voxels for marching cubes. Larger steps are faster
+            but yield coarser meshes.
+        allow_degenerate: allow degenerate triangles in the mesh.
+        method: one of ("lewiner", "lorensen"), see scikit-image docs.
+        return_normals_values: if ``True``, also return face normals and values,
+            i.e. ``(verts, faces, normals, values)`` matching scikit-image output.
+            Defaults to ``False`` (``(verts, faces)`` only).
+
+    Example:
+        >>> import numpy as np
+        >>> from monai.transforms import MarchingCubes
+        >>> vol = np.zeros((1, 10, 10, 10), np.float32); vol[0, 3:7, 3:7, 3:7] = 1.0
+        >>> verts, faces = MarchingCubes(level=0.5)(vol)
+        >>> verts.shape[1], faces.shape[1]
+        (3, 3)
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        level: float | None = 0.5,
+        spacing: Sequence[float] | float | None = None,
+        step_size: int = 1,
+        allow_degenerate: bool = True,
+        method: str = "lewiner",
+        return_normals_values: bool = False,
+    ) -> None:
+        super().__init__()
+        self.level = level
+        self.spacing = spacing
+        self.step_size = step_size
+        self.allow_degenerate = allow_degenerate
+        self.method = method
+        self.return_normals_values = return_normals_values
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: channel-first volume with shape (C, M, N, P).
+
+        Returns:
+            ``(vertices, faces)`` tuple for single-channel input, or a list of one
+            such tuple per channel for multi-channel input. Numpy arrays with shapes
+            ``(V, 3)`` and ``(F, 3)``. With ``return_normals_values=True`` each item
+            is ``(verts, faces, normals, values)`` instead.
+        """
+        if img.ndim != 4:
+            raise ValueError(f"MarchingCubes requires a channel-first 3D volume (C, M, N, P), got shape {img.shape}.")
+        results = []
+        for c in range(img.shape[0]):
+            verts, faces, normals, values = get_marching_cubes_surface(
+                img[c],
+                level=self.level,
+                spacing=self.spacing,
+                step_size=self.step_size,
+                allow_degenerate=self.allow_degenerate,
+                method=self.method,
+            )
+            results.append((verts, faces, normals, values) if self.return_normals_values else (verts, faces))
+        return results[0] if len(results) == 1 else results
