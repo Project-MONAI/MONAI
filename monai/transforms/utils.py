@@ -1298,8 +1298,13 @@ def get_marching_cubes_surface(
             raise ValueError(f"mask shape {mask_np.shape} must match volume shape {volume_np.shape}.")
 
     verts, faces, normals, values = measure.marching_cubes(
-        volume_np, level=level, spacing=spacing_t, step_size=step_size,
-        allow_degenerate=allow_degenerate, method=method, mask=mask_np,
+        volume_np,
+        level=level,
+        spacing=spacing_t,
+        step_size=step_size,
+        allow_degenerate=allow_degenerate,
+        method=method,
+        mask=mask_np,
     )
     return verts, faces, normals, values
 

@@ -71,7 +71,7 @@ class TestMarchingCubes(unittest.TestCase):
         out = MarchingCubes()(vol)
         self.assertIsInstance(out, list)
         self.assertEqual(len(out), 2)
-        for verts, faces in out:
+        for verts, _faces in out:
             self.assertEqual(verts.shape[1], 3)
 
     def test_return_normals_values(self):
@@ -106,9 +106,7 @@ class TestMarchingCubes(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_marching_cubes_surface(np.zeros((10, 10), np.float32))
         with self.assertRaises(ValueError):
-            get_marching_cubes_surface(
-                np.zeros((10, 10, 10), np.float32), mask=np.ones((5, 5, 5), bool)
-            )
+            get_marching_cubes_surface(np.zeros((10, 10, 10), np.float32), mask=np.ones((5, 5, 5), bool))
         with self.assertRaises(ValueError):
             # empty volume has no isosurface
             MarchingCubes()(np.zeros((1, 10, 10, 10), np.float32))
