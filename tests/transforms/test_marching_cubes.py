@@ -104,6 +104,9 @@ class TestMarchingCubes(unittest.TestCase):
         with self.assertRaises(ValueError):
             MarchingCubes()(np.zeros((1, 10, 10), np.float32))
         with self.assertRaises(ValueError):
+            # empty channel axis
+            MarchingCubes()(np.zeros((0, 10, 10, 10), np.float32))
+        with self.assertRaises(ValueError):
             get_marching_cubes_surface(np.zeros((10, 10), np.float32))
         with self.assertRaises(ValueError):
             get_marching_cubes_surface(np.zeros((10, 10, 10), np.float32), mask=np.ones((5, 5, 5), bool))

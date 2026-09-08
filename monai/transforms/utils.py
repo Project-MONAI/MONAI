@@ -1271,6 +1271,11 @@ def get_marching_cubes_surface(
         Tuple of (verts, faces, normals, values) as numpy arrays, matching
         `skimage.measure.marching_cubes` output. Coordinate order matches the
         input ``volume`` (M, N, P), scaled by ``spacing``.
+
+    Raises:
+        RuntimeError: when scikit-image is not installed.
+        ValueError: when ``volume`` is not 3D, ``method`` is unsupported, or
+            ``mask`` shape does not match ``volume`` shape.
     """
     if not has_measure:
         raise RuntimeError("Skimage.measure required.")

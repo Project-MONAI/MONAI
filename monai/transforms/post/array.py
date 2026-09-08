@@ -1214,7 +1214,7 @@ class MarchingCubes(Transform):
             but yield coarser meshes.
         allow_degenerate: allow degenerate triangles in the mesh.
         method: one of ("lewiner", "lorensen"), see scikit-image docs.
-        return_normals_values: if ``True``, also return face normals and values,
+        return_normals_values: if ``True``, also return vertex normals and values,
             i.e. ``(verts, faces, normals, values)`` matching scikit-image output.
             Defaults to ``False`` (``(verts, faces)`` only).
 
@@ -1256,8 +1256,11 @@ class MarchingCubes(Transform):
             such tuple per channel for multi-channel input. Numpy arrays with shapes
             ``(V, 3)`` and ``(F, 3)``. With ``return_normals_values=True`` each item
             is ``(verts, faces, normals, values)`` instead.
+
+        Raises:
+            ValueError: when ``img`` is not a channel-first 3D volume or has no channels.
         """
-        if img.ndim != 4:
+        if img.ndim != 4 or img.shape[0] == 0:
             raise ValueError(f"MarchingCubes requires a channel-first 3D volume (C, M, N, P), got shape {img.shape}.")
         results = []
         for c in range(img.shape[0]):
