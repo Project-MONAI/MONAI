@@ -23,6 +23,7 @@ from monai.networks.schedulers import DDPMScheduler, RFlowScheduler
 from monai.utils import optional_import
 
 _, has_einops = optional_import("einops")
+DiffusersDDPMScheduler, has_diffusers = optional_import("diffusers", name="DDPMScheduler")
 TEST_CASES = [
     [
         "AutoencoderKL",
@@ -413,6 +414,46 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                     input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler
                 )
             self.assertEqual(sample.shape, input_shape)
+
+    @skipUnless(has_einops and has_diffusers, "Requires einops and diffusers")
+    def test_diffusers_ddpm_sample_shape(self):
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        stage_1 = AutoencoderKL(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=(4, 4),
+            latent_channels=3,
+            attention_levels=[False, False],
+            num_res_blocks=1,
+            with_encoder_nonlocal_attn=False,
+            with_decoder_nonlocal_attn=False,
+            norm_num_groups=4,
+        )
+        stage_2 = DiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=3,
+            out_channels=3,
+            channels=[4, 4],
+            norm_num_groups=4,
+            attention_levels=[False, False],
+            num_res_blocks=1,
+            num_head_channels=4,
+        )
+        stage_1.to(device)
+        stage_2.to(device)
+        stage_1.eval()
+        stage_2.eval()
+
+        noise = torch.randn(1, 3, 4, 4).to(device)
+        scheduler = DiffusersDDPMScheduler(num_train_timesteps=10, beta_schedule="linear", prediction_type="epsilon")
+        inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
+        scheduler.set_timesteps(num_inference_steps=10)
+
+        sample = inferer.sample(
+            input_noise=noise, autoencoder_model=stage_1, diffusion_model=stage_2, scheduler=scheduler
+        )
+        self.assertEqual(sample.shape, (1, 1, 8, 8))
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
