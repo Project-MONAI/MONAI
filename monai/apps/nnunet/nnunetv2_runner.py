@@ -1042,12 +1042,10 @@ class nnUNetV2Runner:  # noqa: N801
         num_input_channels: int | None = None,
         work_dir: str = 'work_dir',
     ):
-        """Method to run inference based on a datalist using a model trained by this runner.
+        """Method to run inference on a datalist using a model trained by this runner.
         Handles all nnUNet boilerplate, instantiation of the runner, etc.
         Notably, it also removes the converted data from the raw data folder after inference is complete.
-        Note that this by default uses all five folds of the model for inference, and ensembles the results.
-        The 'ensemble' mentioned in other methods here involves different model configurations,
-        e.g. 3d_fullres and 2d.
+        Note that this by default uses all five folds of a model (e.g., 3d_fullres) for inference, and ensembles the results.
         Has the minimum required inputs for running inference:
 
         Args:
@@ -1124,9 +1122,21 @@ class nnUNetV2Runner:  # noqa: N801
         work_dir: str = "work_dir",
         modality: str = "CT",
     ):
+        """Method to run inference on a glob of files using a model trained by this runner.
+        
+        Creates a temporary datalist json file from the glob of files, and then calls predict_datalist.
+        
+        Args:
+            input_files_glob: glob pattern to match input files (e.g., "/path/to/images/*.nii.gz")
+            input_files_root: root directory for the input files (e.g., "/path/to/images")
+            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres)
+            output_dir: path to the output directory, predictions will be saved here under their original names.
+            work_dir: path to the work_dir created by the runner during training. 
+            modality: modality of the input data (default: "CT")
+        """
         with NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_json_file:
             temp_json_path = temp_json_file.name
-            glob_to_datalist(input_file_glob, output_json=temp_json_path, key="testing", dataroot=input_file_root)
+            glob_to_datalist(input_files_glob, output_json=temp_json_path, key="testing", dataroot=input_files_root)
 
             cls.predict_datalist(
                 input_datalist=temp_json_path,
