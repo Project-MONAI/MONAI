@@ -163,9 +163,8 @@ jobs:
       if: github.ref == 'refs/heads/dev'
       run: |
         cd $GITHUB_WORKSPACE
-        rm -rf monai/
         ls -al .
-        python -m pip install -r requirements-min.txt
+        python -m pip install -e .[testing]
         python -m tests.min_tests
       env:
         QUICKTEST: True

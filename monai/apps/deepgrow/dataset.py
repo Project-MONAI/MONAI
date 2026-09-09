@@ -175,6 +175,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             continue
 
         # For all Labels
+        # pyrefly: ignore [missing-attribute]
         unique_labels = np.unique(label.flatten())
         unique_labels = unique_labels[unique_labels != 0]
         unique_labels_count = max(unique_labels_count, len(unique_labels))
