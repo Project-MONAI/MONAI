@@ -47,8 +47,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         python -c "import sys; assert sys.version_info >= (3, 10), f'Python >= 3.10 required for nvsubquadratic, got {sys.version}'"
-        python -m pip install -r requirements-dev.txt
-        python -m pip install -e .
+        python -m pip install -e .[all,testing]
         # Install nvsubquadratic with --no-deps: the default torch_fft path needs only
         # torch + einops + omegaconf, and nvsubquadratic pins torch>=2.10,<2.11 which can
         # clash with the container's torch.  To exercise the accelerated fused CUDA

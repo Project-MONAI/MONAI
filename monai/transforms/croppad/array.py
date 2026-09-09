@@ -342,6 +342,24 @@ class DivisiblePad(Pad):
         return spatial_pad.compute_pad_width(spatial_shape)
 
 
+def _to_int_list(data: Sequence[int] | int | NdarrayOrTensor) -> list[int]:
+    """Coerce an ROI spec (scalar, sequence, tensor or ndarray) to a list of Python ints."""
+    if isinstance(data, (str, bytes)):
+        raise TypeError("ROI specs must be integers or sequences of integers, not strings.")
+    return [int(i) for i in ensure_tuple(data)]
+
+
+def _broadcast_int_pair(
+    a: Sequence[int] | int | NdarrayOrTensor, b: Sequence[int] | int | NdarrayOrTensor
+) -> tuple[list[int], list[int]]:
+    """Coerce a pair of ROI specs to two equal-length int lists, broadcasting a scalar to match."""
+    list_a, list_b = _to_int_list(a), _to_int_list(b)
+    n = max(len(list_a), len(list_b))
+    if len(list_a) not in (1, n) or len(list_b) not in (1, n):
+        raise ValueError(f"ROI specs must have matching lengths or be scalar, got {len(list_a)} and {len(list_b)}.")
+    return (list_a * n if len(list_a) == 1 else list_a), (list_b * n if len(list_b) == 1 else list_b)
+
+
 class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
@@ -379,31 +397,22 @@ class Crop(InvertibleTransform, LazyTransform):
             roi_slices: list of slices for each of the spatial dimensions.
 
         """
-        roi_start_t: torch.Tensor
-
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError(f"only slice steps of 1/None are currently supported, got {roi_slices}.")
             return ensure_tuple(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
-                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
-                _zeros = torch.zeros_like(roi_center_t)
-                half = torch.divide(roi_size_t, 2, rounding_mode="floor")
-                roi_start_t = torch.maximum(roi_center_t - half, _zeros)
-                roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
+                centers, sizes = _broadcast_int_pair(roi_center, roi_size)
+                starts = [max(c - s // 2, 0) for c, s in zip(centers, sizes)]
+                ends = [st + s for st, s in zip(starts, sizes)]
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_t = convert_to_tensor(data=roi_start, dtype=torch.int16, wrap_sequence=True)
-                roi_start_t = torch.maximum(roi_start_t, torch.zeros_like(roi_start_t))
-                roi_end_t = convert_to_tensor(data=roi_end, dtype=torch.int16, wrap_sequence=True)
-                roi_end_t = torch.maximum(roi_end_t, roi_start_t)
-            # convert to slices (accounting for 1d)
-            if roi_start_t.numel() == 1:
-                return ensure_tuple([slice(int(roi_start_t.item()), int(roi_end_t.item()))])
-            return ensure_tuple([slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())])
+                starts, ends = _broadcast_int_pair(roi_start, roi_end)
+                starts = [max(s, 0) for s in starts]
+            # clamp each end to its own start so no slice has negative width
+            return ensure_tuple(slice(s, max(e, s)) for s, e in zip(starts, ends))
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
@@ -1130,6 +1139,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,
@@ -1319,6 +1329,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.warn = warn
         self.max_samples_per_class = max_samples_per_class
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,

@@ -525,6 +525,7 @@ class RetinaNetDetector(nn.Module):
             )
 
         # 4. Generate anchors and store it in self.anchors: List[Tensor]
+        # pyrefly: ignore [bad-argument-type]
         self.generate_anchors(images, head_outputs)
         # num_anchor_locs_per_level: List[int], list of HW or HWD for each level
         num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
@@ -535,6 +536,7 @@ class RetinaNetDetector(nn.Module):
             # reshape to Tensor sized(B, sum(HWA), self.num_classes) for self.cls_key
             # or (B, sum(HWA), 2* self.spatial_dims) for self.box_reg_key
             # A = self.num_anchors_per_loc
+            # pyrefly: ignore [bad-argument-type]
             head_outputs[key] = self._reshape_maps(head_outputs[key])
 
         # 6(1). If during training, return losses
