@@ -54,6 +54,24 @@ class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
         print(output)
         np.testing.assert_allclose(output.detach().cpu().numpy(), 0.0, atol=1e-4, rtol=1e-4)
 
+    def test_use_sigmoid(self):
+        loss = AsymmetricUnifiedFocalLoss(use_sigmoid=True)
+        y_pred = torch.tensor([[[[10.0, -10], [-10, 10.0]]], [[[10.0, -10], [-10, 10.0]]]])
+        y_true = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
+        result = loss(y_pred, y_true)
+        self.assertTrue(result.item() >= 0)
+
+    def test_use_softmax(self):
+        loss = AsymmetricUnifiedFocalLoss(use_softmax=True)
+        y_pred = torch.tensor([[[[10.0, -10], [-10, 10.0]]], [[[10.0, -10], [-10, 10.0]]]])
+        y_true = torch.tensor([[[[1.0, 0], [0, 1.0]]], [[[1.0, 0], [0, 1.0]]]])
+        result = loss(y_pred, y_true)
+        self.assertTrue(result.item() >= 0)
+
+    def test_mutually_exclusive(self):
+        with self.assertRaises(ValueError):
+            AsymmetricUnifiedFocalLoss(use_softmax=True, use_sigmoid=True)
+
 
 if __name__ == "__main__":
     unittest.main()
