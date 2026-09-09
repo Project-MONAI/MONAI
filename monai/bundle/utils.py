@@ -21,7 +21,6 @@ from monai.config.deviceconfig import get_config_values
 from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
-
 __all__ = [
     "ID_REF_KEY",
     "ID_SEP_KEY",
@@ -39,7 +38,6 @@ MACRO_KEY = "%"  # start of a macro of a config
 MERGE_KEY = "+"  # prefix indicating merge instead of override in case of multiple configs.
 
 _conf_values = get_config_values()
-
 DEFAULT_METADATA = {
     "version": "0.0.1",
     "changelog": {"0.0.1": "Initial version"},
@@ -118,8 +116,10 @@ DEFAULT_MLFLOW_SETTINGS = {
     "configs": {
         # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
         "output_dir": "$@bundle_root + '/eval'",
-        # use URI to support linux, mac and windows os
-        "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
+        # MLflow 3.13+ rejects the filesystem (file store) tracking backend, so default tracking
+        # to a local SQLite database. The handler keeps run artifacts under "<output_dir>/mlruns"
+        # (next to the db). A URI is used so the path is valid on linux, mac and windows os.
+        "tracking_uri": "$monai.utils.path_to_sqlite_uri(@output_dir + '/mlruns.db')",
         "experiment_name": "monai_experiment",
         "run_name": None,
         # may fill it at runtime
@@ -211,20 +211,15 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
         name, _ = os.path.splitext(os.path.basename(bundle_path))
 
         archive = zipfile.ZipFile(bundle_path, "r")
-
         all_files = archive.namelist()
-
         zip_meta_name = f"{name}/configs/metadata.json"
-
         if zip_meta_name in all_files:
             prefix = f"{name}/configs/"  # zipped directory location for files
         else:
             zip_meta_name = f"{name}/extra/metadata.json"
             prefix = f"{name}/extra/"  # Torchscript location for files
-
         meta_json = json.loads(archive.read(zip_meta_name))
         parser.read_meta(f=meta_json)
-
         for cname in config_names:
             full_cname = prefix + cname
             if full_cname not in all_files:

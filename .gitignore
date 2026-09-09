@@ -110,12 +110,17 @@ venv.bak/
 # pytype cache
 .pytype/
 
+# pyrefly cache
+.pyrefly_cache/
+
 # mypy
 .mypy_cache/
+.dmypy.json
+
 examples/scd_lvsegs.npz
 temp/
 .idea/
-.dmypy.json
+.plans/
 
 *~
 
