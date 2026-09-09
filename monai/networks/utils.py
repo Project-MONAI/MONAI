@@ -34,9 +34,6 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-onnx, _ = optional_import("onnx")
-onnxreference, _ = optional_import("onnx.reference")
-onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
@@ -601,6 +598,7 @@ def copy_model_state(
             dst_dict[dst_key] = val
             updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
+        # pyrefly: ignore [unsupported-operation]
         dst_key = f"{dst_prefix}{mapping[s]}"
         if dst_key in dst_dict and dst_key not in to_skip:
             if dst_dict[dst_key].shape != src_dict[s].shape:
@@ -708,6 +706,8 @@ def convert_to_onnx(
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
+    onnx, _ = optional_import("onnx")
+
     model.eval()
     with torch.no_grad():
         torch_versioned_kwargs = {}
@@ -777,11 +777,13 @@ def convert_to_onnx(
         model_input_names = [i.name for i in onnx_model.graph.input]
         input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
+            onnxruntime, _ = optional_import("onnxruntime")
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
+            onnxreference, _ = optional_import("onnx.reference")
             sess = onnxreference.ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)
