@@ -224,6 +224,7 @@ def get_next_available_index(nnunet_raw_data_base):
         return 1  # Start from 1 if no datasets exist
     return max(existing_indices) + 1
 
+
 def get_info_from_dataset_json(model_dir):
     # get the num_input channels and num_foreground_classes from the dataset.json file in the model_dir
     dataset_json_path = os.path.join(model_dir, "dataset.json")
