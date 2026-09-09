@@ -273,7 +273,7 @@ def move_predictions(raw_data_foldername, pred_work_folder, output_dir):
             continue
 
         # Copy the prediction file to the output directory with the original image name
-        image_extension = os.path.splitext(image_path)[1]
+        image_extension = os.path.split(image_path, '.', 1)[1]  # assumes no periods in filename, supports .nii.gz
         output_prediction_path = os.path.join(output_dir, image_path.replace(image_extension, '_pred.nii.gz'))  # nnunet outputs nii.gz
         output_prediction_folder = os.path.dirname(output_prediction_path)
         os.makedirs(output_prediction_folder, exist_ok=True)  # sometimes can be nested folders
