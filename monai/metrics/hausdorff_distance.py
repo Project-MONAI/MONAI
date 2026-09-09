@@ -44,7 +44,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
-            Defaults to ``None``.
+            Defaults to ``None``. If one of the two masks is empty the distance is ``inf`` for
+            every percentile, matching the maximum-distance result; ``nan`` is returned only
+            when both masks are empty, and is excluded from the reduction.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -153,7 +155,9 @@ def compute_hausdorff_distance(
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
-            Defaults to ``None``.
+            Defaults to ``None``. If one of the two masks is empty the distance is ``inf`` for
+            every percentile, matching the maximum-distance result; ``nan`` is returned only
+            when both masks are empty, and is excluded from the reduction.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
             If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
@@ -162,6 +166,15 @@ def compute_hausdorff_distance(
             If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
+
+    Returns:
+        A ``float`` tensor of shape ``[batch_size, n_class]`` holding one distance per
+        image and class. An entry is ``inf`` where exactly one of the two masks is empty,
+        and ``nan`` where both are, which ``do_metric_reduction`` then excludes.
+
+    Raises:
+        ValueError: if ``y_pred`` and ``y`` have different shapes, or if ``percentile``
+            is outside ``[0, 100]``.
     """
 
     if not include_background:
@@ -197,7 +210,24 @@ def _compute_percentile_hausdorff_distance(
     surface_distance: torch.Tensor, percentile: float | None = None
 ) -> torch.Tensor:
     """
-    This function is used to compute the Hausdorff distance.
+    Reduce a tensor of surface distances to a single Hausdorff distance.
+
+    Args:
+        surface_distance: the surface distances for one image and class, as returned by
+            ``get_surface_distance``. Empty when neither mask has a foreground, and
+            entirely infinite when exactly one of them does.
+        percentile: an optional float between 0 and 100. If given, the corresponding
+            percentile of ``surface_distance`` is returned rather than its maximum.
+            Defaults to ``None``.
+
+    Returns:
+        A scalar ``float`` tensor. ``nan`` when ``surface_distance`` is empty, meaning
+        there was no structure on either side to measure; ``inf`` when every distance is
+        infinite, meaning one mask was empty, at the maximum and at every percentile
+        alike.
+
+    Raises:
+        ValueError: if ``percentile`` is outside ``[0, 100]``.
     """
 
     # for both pred and gt do not have foreground
@@ -208,5 +238,19 @@ def _compute_percentile_hausdorff_distance(
         return surface_distance.max()
 
     if 0 <= percentile <= 100:
+        # `get_surface_distance` reports an infinite distance for every voxel when one of
+        # the two masks is empty, so a prediction that missed the structure entirely
+        # arrives here as an all-infinite tensor. `torch.quantile` interpolates linearly
+        # between the two order statistics that straddle the requested rank, and that
+        # interpolation is NaN when both of them are infinite -- inf + (inf - inf) * frac.
+        #
+        # NaN is this metric's "not applicable" sentinel: it is what an empty prediction
+        # *and* an empty ground truth returns above, and `do_metric_reduction` drops it
+        # from the average. Returning it for a total miss would quietly remove the worst
+        # cases from a dataset score instead of counting them. The maximum-distance path
+        # already answers `inf` for exactly this input, and the quantile of a constant
+        # sequence is that constant, so answer `inf` here too.
+        if torch.isinf(surface_distance).all():
+            return torch.tensor(np.inf, dtype=torch.float, device=surface_distance.device)
         return torch.quantile(surface_distance, percentile / 100)
     raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

@@ -19,6 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import HausdorffDistanceMetric
+from monai.metrics.hausdorff_distance import _compute_percentile_hausdorff_distance
 
 _devices = ["cpu"]
 if torch.cuda.is_available():
@@ -153,6 +154,11 @@ TEST_CASES_NANS = [
     ],
 ]
 
+# An empty prediction against a non-empty ground truth: every surface distance is
+# infinite, and the reported distance must stay infinite whatever percentile is asked
+# for. NaN is reserved for the case where there is no structure on either side.
+TEST_CASES_EMPTY_PREDICTION = [[None], [0], [50], [95], [99], [100]]
+
 TEST_CASES_EXPANDED = []
 for test_case in TEST_CASES:
     test_output: list[float | int]
@@ -203,6 +209,32 @@ class TestHausdorffDistance(unittest.TestCase):
         result, not_nans = hd_metric.aggregate()
         np.testing.assert_allclose(0, result, rtol=1e-7)
         np.testing.assert_allclose(0, not_nans, rtol=1e-7)
+
+    @parameterized.expand(TEST_CASES_EMPTY_PREDICTION)
+    def test_empty_prediction_is_infinite(self, percentile):
+        """A prediction that misses the structure entirely scores `inf`, not NaN.
+
+        NaN is dropped by `do_metric_reduction`, so returning it here would take the
+        model's worst cases out of a dataset average rather than scoring them.
+        """
+        seg_gt = torch.tensor(create_spherical_seg_3d(radius=20, centre=(20, 20, 20)))
+        seg_pred = torch.zeros_like(seg_gt)
+        hd_metric = HausdorffDistanceMetric(include_background=True, percentile=percentile, get_not_nans=True)
+        hd_metric(seg_pred.unsqueeze(0).unsqueeze(0), seg_gt.unsqueeze(0).unsqueeze(0))
+        result, not_nans = hd_metric.aggregate()
+        self.assertTrue(torch.isinf(result).all(), f"expected inf, got {result}")
+        np.testing.assert_allclose(1, not_nans, rtol=1e-7)
+
+    @parameterized.expand(TEST_CASES_EMPTY_PREDICTION)
+    def test_all_infinite_surface_distance(self, percentile):
+        """The quantile of an all-infinite tensor is infinite, at every percentile.
+
+        `torch.quantile` interpolates between order statistics and returns NaN when the
+        two it interpolates between are both infinite.
+        """
+        surface_distance = torch.full((7,), float("inf"))
+        result = _compute_percentile_hausdorff_distance(surface_distance, percentile)
+        self.assertTrue(torch.isinf(result), f"expected inf, got {result}")
 
 
 if __name__ == "__main__":
