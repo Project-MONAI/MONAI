@@ -13,15 +13,27 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any
 
 import monai
 from monai.apps.nnunet.utils import NNUNETMode as M
-from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
+from monai.apps.nnunet.utils import (
+    analyze_data,
+    create_new_data_copy,
+    create_new_dataset_json,
+    glob_to_datalist,
+    check_existing_data_indices,
+    get_next_available_index,
+    get_info_from_dataset_json,
+    move_predictions
+)
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
 from monai.utils.misc import run_cmd
@@ -174,12 +186,12 @@ class nnUNetV2Runner:  # noqa: N801
         else:
             raise ValueError(f"{input_config} is not a valid file or dict")
 
-        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNet_raw_data_base"))
+        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(self.work_dir, "nnUNet_raw_data_base"))
         self.nnunet_preprocessed = self.input_info.pop(
-            "nnunet_preprocessed", os.path.join(".", self.work_dir, "nnUNet_preprocessed")
+            "nnunet_preprocessed", os.path.join(self.work_dir, "nnUNet_preprocessed")
         )
         self.nnunet_results = self.input_info.pop(
-            "nnunet_results", os.path.join(".", self.work_dir, "nnUNet_trained_models")
+            "nnunet_results", os.path.join(self.work_dir, "nnUNet_trained_models")
         )
 
         if not os.path.exists(self.nnunet_raw):
@@ -198,10 +210,14 @@ class nnUNetV2Runner:  # noqa: N801
         os.environ["OMP_NUM_THREADS"] = str(1)
 
         # dataset_name_or_id has to be a string
-        self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
+        if 'dataset_name_or_id' in self.input_info:
+            self.dataset_name_or_id = str(self.input_info['dataset_name_or_id'])
+        else:
+            # we get the next available index
+            self.dataset_name_or_id = str(get_next_available_index(self.nnunet_raw))
         self.dataset_name: str | None = None
 
-        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
+        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands (note that 'name' is meaningless here, it needs to be a numeric index)
         if re.fullmatch(DATASET_ID_FORMAT, self.dataset_name_or_id) is None:
             raise ValueError(
                 f"Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID."
@@ -1012,6 +1028,113 @@ class nnUNetV2Runner:  # noqa: N801
                 pp_fns,
                 pp_fn_kwargs,
                 plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
+            )
+
+    @classmethod
+    def predict_datalist(
+        cls,
+        input_datalist: str,
+        input_data_root: str,
+        model_dir: str,
+        output_dir: str,
+        modality: str = "CT",
+        num_foreground_classes: int | None = None,
+        num_input_channels: int | None = None,
+        work_dir: str = 'work_dir',
+    ):
+        """Method to run inference based on a datalist using a model trained by this runner.
+        Handles all nnUNet boilerplate, instantiation of the runner, etc.
+        Notably, it also removes the converted data from the raw data folder after inference is complete.
+        Note that this by default uses all five folds of the model for inference, and ensembles the results.
+        The 'ensemble' mentioned in other methods here involves different model configurations,
+        e.g. 3d_fullres and 2d.
+        Has the minimum required inputs for running inference:
+
+        Args:
+            input_datalist: path to the datalist json file. Must have the files listed under the "testing" key, and the paths must be relative to input_data_root or absolute.
+            input_data_root: path to the root folder of the input data (the folder that contains the images)
+            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres)
+            output_dir: path to the output directory, predictions will be saved here under their original names.
+            num_foreground_classes: number of foreground classes
+            num_input_channels: number of input channels
+            work_dir: path to the work directory
+
+        """
+
+        nnunet_raw_data_base = os.path.join(work_dir, "nnUNet_raw_data_base")
+        nnunet_trained_models = os.path.join(work_dir, "nnUNet_trained_models")
+
+        next_available_index = get_next_available_index(nnunet_raw_data_base)
+        num_input_channels_det, num_foreground_classes_det = get_info_from_dataset_json(model_dir)
+
+        if num_input_channels_det is None and num_input_channels is None:
+            raise ValueError("num_input_channels must be provided as it cannot be inferred from the dataset json.")
+        if num_foreground_classes_det is None and num_foreground_classes is None:
+            raise ValueError("num_foreground_classes must be provided as it cannot be inferred from the dataset json.")
+
+        num_foreground_classes, num_input_channels = (
+            num_foreground_classes_det if num_foreground_classes_det is not None else num_foreground_classes,
+            num_input_channels_det if num_input_channels_det is not None else num_input_channels,
+        )
+
+        input_config = {
+            "modality": modality,
+            "dataset_name_or_id": next_available_index,
+            "datalist": input_datalist,
+            "dataroot": input_data_root,
+            "nnunet_raw": nnunet_raw_data_base,
+            "nnunet_results": nnunet_trained_models,
+            "num_input_channels": num_input_channels,
+            "num_foreground_classes": num_foreground_classes,
+        }
+
+        # call preprocessing
+        runner = cls(input_config.copy())
+
+        runner.convert_dataset(testing=True)
+
+        # these things are hardcoded upstream
+        raw_data_foldername_prefix = str(int(runner.dataset_name_or_id) + 1000)
+        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+        raw_data_foldername = raw_data_foldername_prefix + "_" + input_config['dataroot'].split(os.sep)[-1]
+        raw_data_foldername = os.path.join(input_config['nnunet_raw'], raw_data_foldername)
+
+        with TemporaryDirectory() as pred_work_folder:
+            test_images_dir = os.path.join(raw_data_foldername, "imagesTs")  # Also hardcoded upstream
+
+            runner.predict(
+                test_images_dir,
+                output_folder=pred_work_folder,
+                model_training_output_dir=model_dir,
+            )
+            move_predictions(raw_data_foldername, pred_work_folder, output_dir)
+
+        # now we can delete the raw data folder too
+        shutil.rmtree(raw_data_foldername)
+
+        print(f"✅ Inference complete. Predictions saved to {output_dir}. Temporary files cleaned up.")
+
+    @classmethod
+    def predict_files_glob(
+        cls,
+        input_files_glob: str,
+        input_files_root: str,
+        model_dir: str,
+        output_dir: str,
+        work_dir: str = "work_dir",
+        modality: str = "CT",
+    ):
+        with NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_json_file:
+            temp_json_path = temp_json_file.name
+            glob_to_datalist(input_file_glob, output_json=temp_json_path, key="testing", dataroot=input_file_root)
+
+            cls.predict_datalist(
+                input_datalist=temp_json_path,
+                input_data_root=input_files_root,
+                model_dir=model_dir,
+                work_dir=work_dir,
+                output_dir=output_dir,
+                modality=modality
             )
 
     def _determine_configs(self):
