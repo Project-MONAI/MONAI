@@ -141,6 +141,22 @@ class TestControlNet(unittest.TestCase):
             self.assertEqual(len(result[0]), expected_num_down_blocks_residuals)
             self.assertEqual(result[1].shape, expected_shape)
 
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_shape_with_modality_input(self, input_param, expected_num_down_blocks_residuals, expected_shape):
+        input_param = dict(input_param)
+        input_param["include_modality_input"] = True
+        net = ControlNetMaisi(**input_param)
+        with eval_mode(net):
+            x = torch.rand((1, 1, 16, 16)) if input_param["spatial_dims"] == 2 else torch.rand((1, 1, 16, 16, 16))
+            timesteps = torch.randint(0, 1000, (1,)).long()
+            controlnet_cond = (
+                torch.rand((1, 1, 32, 32)) if input_param["spatial_dims"] == 2 else torch.rand((1, 1, 32, 32, 32))
+            )
+            result = net.forward(x, timesteps, controlnet_cond, modality_tensor=torch.ones((1, 1)))
+            self.assertEqual(len(result[0]), expected_num_down_blocks_residuals)
+            self.assertEqual(result[1].shape, expected_shape)
+
     @parameterized.expand(TEST_CASES_CONDITIONAL)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
@@ -162,6 +178,25 @@ class TestControlNet(unittest.TestCase):
             _ = ControlNetMaisi(**input_param)
         runtime_error = context.exception
         self.assertEqual(str(runtime_error), expected_error)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_modality_input_missing(self):
+        net = ControlNetMaisi(
+            spatial_dims=2,
+            in_channels=1,
+            num_res_blocks=1,
+            num_channels=(8, 8, 8),
+            attention_levels=(False, False, True),
+            num_head_channels=8,
+            norm_num_groups=8,
+            conditioning_embedding_in_channels=1,
+            conditioning_embedding_num_channels=(8, 8),
+            use_checkpointing=False,
+            include_modality_input=True,
+        )
+        with self.assertRaisesRegex(ValueError, "modality_tensor should be provided"):
+            with eval_mode(net):
+                net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 1, 32, 32)))
 
 
 if __name__ == "__main__":
