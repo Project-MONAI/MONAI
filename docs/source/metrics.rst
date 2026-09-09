@@ -210,6 +210,26 @@ Metrics
     :members:
 
 
+`Conformal Risk Control`
+------------------------
+.. autoclass:: ConformalRiskCalibrator
+    :members:
+
+.. autoclass:: ConformalRiskPredictor
+    :members:
+    :special-members: __call__
+
+.. autoclass:: Coverage
+    :members:
+
+.. autoclass:: SetSize
+    :members:
+
+.. autofunction:: compute_coverage
+
+.. autofunction:: compute_set_size
+
+
 Utilities
 ---------
 .. automodule:: monai.metrics.utils
