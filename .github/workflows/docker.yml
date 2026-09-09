@@ -69,8 +69,6 @@ jobs:
         cat _version.py
         mv _version.py monai/
 
-        # build "latest": remove flake package as it is not needed on hub.docker.com
-        sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
 
         # distribute as always w/ tag "latest" to hub.docker.com
