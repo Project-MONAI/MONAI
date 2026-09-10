@@ -29,6 +29,18 @@ class _TraceTest(TraceableTransform):
 
 class TestTraceable(unittest.TestCase):
 
+    def test_trace_transform_restores_state_after_exception(self):
+        """Verify tracing state is restored after an exception."""
+        transform = _TraceTest()
+        transform.tracing = True
+
+        with self.assertRaisesRegex(RuntimeError, "expected failure"):
+            with transform.trace_transform(False):
+                self.assertFalse(transform.tracing)
+                raise RuntimeError("expected failure")
+
+        self.assertTrue(transform.tracing)
+
     def test_default(self):
         expected_key = "_transforms"
         a = _TraceTest()
