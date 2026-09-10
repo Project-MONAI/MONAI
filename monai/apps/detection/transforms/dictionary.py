@@ -37,7 +37,6 @@ from monai.apps.detection.transforms.array import (
     StandardizeEmptyBox,
     ZoomBox,
 )
-from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
@@ -1154,10 +1153,13 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             # As along as the cropped patch contains a box, it is considered as a foreground patch.
             # Positions within extended_boxes are crop centers for foreground patches
             extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
-            mask_img = convert_box_to_mask(
-                extended_boxes_np, np.ones(extended_boxes_np.shape[0]), image_size, bg_label=0, ellipse_mask=False
-            )
-            mask_img = np.amax(mask_img, axis=0, keepdims=True)[0:1, ...]
+            spatial_dims = len(image_size)
+            mask_img = np.zeros((1,) + tuple(image_size), dtype=np.int16)
+            for b in range(extended_boxes_np.shape[0]):
+                slicing = (0,) + tuple(
+                    slice(extended_boxes_np[b, d], extended_boxes_np[b, d + spatial_dims]) for d in range(spatial_dims)
+                )
+                mask_img[slicing] = 1
             fg_indices_, bg_indices_ = map_binary_to_indices(mask_img, thresh_image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
