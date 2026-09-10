@@ -218,6 +218,26 @@ TEST_CASE_PRECISION = [
     torch.tensor([[[0.0, 0.0, 46137344.0, 0.0]]]),
 ]
 
+# 5. likelihood ratios: hand-computed LR+ / LR- values, including undefined cases
+# sample 0: tp=80, fp=20, tn=70, fn=20 -> tpr=0.8, fpr=2/9 -> LR+=3.6; fnr=0.2, tnr=7/9 -> LR-=0.25714...
+# sample 1: tp=10, fp=0,  tn=90, fn=0  -> fpr=0 -> LR+ is NaN; fnr=0 -> LR-=0.0
+# sample 2: tp=5,  fp=5,  tn=0,  fn=0  -> tpr=1, fpr=1 -> LR+=1; tnr=0 -> LR- is NaN (zero specificity denominator)
+# (row order is [tp, fp, tn, fn], matching compute_confusion_matrix output)
+TEST_CASE_LR = [torch.tensor([[80.0, 20.0, 70.0, 20.0], [10.0, 0.0, 90.0, 0.0], [5.0, 5.0, 0.0, 0.0]])]
+
+# classification-style input, channel-wise hand-computed values, no undefined cases:
+# ch0: tp=2, fp=1, tn=1, fn=1 -> LR+=4/3, LR-=2/3; ch1: tp=1, fp=1, tn=2, fn=1 -> LR+=3/2, LR-=3/4
+TEST_CASE_LR_CLF = [
+    {
+        "y_pred": torch.tensor([[1, 0], [1, 0], [0, 1], [1, 0], [0, 1]]),
+        "y": torch.tensor([[1, 0], [1, 0], [0, 1], [0, 1], [1, 0]]),
+        "include_background": True,
+        "metric_name": ["positive likelihood ratio", "negative likelihood ratio"],
+        "reduction": "sum_batch",
+    },
+    [torch.tensor([4.0 / 3.0, 3.0 / 2.0]), torch.tensor([2.0 / 3.0, 3.0 / 4.0])],
+]
+
 
 class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASE_CONFUSION_MATRIX])
@@ -288,6 +308,48 @@ class TestConfusionMatrix(unittest.TestCase):
         result = get_confusion_matrix(**input_data)
         assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_equal(result.device, input_data["y_pred"].device)
+
+    @parameterized.expand([TEST_CASE_LR])
+    def test_likelihood_ratios(self, confusion_matrix):
+        """Check likelihood-ratio aliases and edge cases on a per-class confusion matrix.
+
+        Args:
+            confusion_matrix: a stacked [2, 4] confusion-matrix tensor, each row in
+                ``[tp, fp, tn, fn]`` order as produced by ``compute_confusion_matrix``.
+        """
+        # every advertised spelling must resolve to the same result (case/space-insensitive)
+        for alias in ("lr+", "plr", "Positive Likelihood Ratio", "POSITIVE_LIKELIHOOD_RATIO"):
+            plr = compute_confusion_matrix_metric(alias, confusion_matrix)
+            assert_allclose(plr[0], torch.tensor(3.6), atol=1e-4, rtol=1e-4)
+            self.assertTrue(torch.isnan(plr[1]))
+            assert_allclose(plr[2], torch.tensor(1.0), atol=1e-4, rtol=1e-4)
+        for alias in ("lr-", "nlr", "Negative Likelihood Ratio", "NEGATIVE_LIKELIHOOD_RATIO"):
+            nlr = compute_confusion_matrix_metric(alias, confusion_matrix)
+            assert_allclose(nlr[0], torch.tensor(0.2 / (70.0 / 90.0)), atol=1e-4, rtol=1e-4)
+            assert_allclose(nlr[1], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
+            # sample 2 has tn == 0 (zero specificity), so LR- is undefined -> NaN
+            self.assertTrue(torch.isnan(nlr[2]))
+
+    @parameterized.expand([TEST_CASE_LR_CLF])
+    def test_likelihood_ratios_clf(self, input_data, expected_values):
+        """Check likelihood ratios through the ``ConfusionMatrixMetric`` classification API.
+
+        Args:
+            input_data: keyword arguments for ``ConfusionMatrixMetric`` plus ``y_pred``/``y``
+                to feed the metric.
+            expected_values: expected per-channel LR+ / LR- values after aggregation.
+        """
+        params = input_data.copy()
+        vals = {}
+        vals["y_pred"] = params.pop("y_pred")
+        vals["y"] = params.pop("y")
+        metric = ConfusionMatrixMetric(**params)
+        metric(**vals)
+        results = metric.aggregate()
+        # one aggregated channel per requested metric, in the same order as expected_values
+        self.assertEqual(len(results), len(expected_values))
+        for result, expected_value in zip(results, expected_values):
+            assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
