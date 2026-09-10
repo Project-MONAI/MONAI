@@ -14,12 +14,13 @@ from __future__ import annotations
 import glob
 import tempfile
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import TensorBoardStatsHandler
+from monai.handlers.tensorboard_handlers import TensorBoardHandler
 from monai.utils import optional_import
 
 SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
@@ -160,6 +161,14 @@ class TestHandlerTBStats(unittest.TestCase):
                 self.assertEqual(
                     stats_handler._default_iteration_writer.call_count, 2
                 )  # 2 = len([1, 3]) from event_filter
+
+
+class TestTensorBoardHandlerMissingDependency(unittest.TestCase):
+
+    def test_raises_when_tensorboard_unavailable(self):
+        with patch("monai.handlers.tensorboard_handlers._tb_available", False):
+            with self.assertRaises(RuntimeError):
+                TensorBoardHandler()
 
 
 if __name__ == "__main__":
