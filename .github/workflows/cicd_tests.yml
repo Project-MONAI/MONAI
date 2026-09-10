@@ -57,6 +57,8 @@ jobs:
       skip: ${{ steps.check-changes.outputs.skip }}
     steps:
     - uses: actions/checkout@v7
+      with:
+        fetch-depth: 2
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
       with:
