@@ -288,8 +288,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 class TensorBoardImageHandler(TensorBoardHandler):
     """
     TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
-    2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
-    for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
+    2D output (shape in Batch, channel, W, H) will be shown as simple image using the first element in the batch,
+    for 3D to ND output (shape in Batch, channel, W, H, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).
     And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB video.
 
@@ -350,7 +350,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
             index: plot which element in a data batch, default is the first element.
             max_channels: number of channels to plot.
             frame_dim: if plotting 3D image as GIF, specify the dimension used as frames,
-                expect input data shape as `NCHWD`, default to `-3` (the first spatial dim)
+                expect input data shape as `NCWHD`, default to `-3` (the first spatial dim)
             max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
