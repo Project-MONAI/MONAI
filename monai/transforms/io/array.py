@@ -142,7 +142,7 @@ class LoadImage(Transform):
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader),
           (DICOM file -> ITKReader first among DICOM readers by default).
         - Optionally set ``MONAI_DICOM_READER`` to ``itk``, ``pydicom``, or ``nvimgcodec``
-          (GPU-accelerated decoding) to try that DICOM reader first.
+          (GPU-accelerated decoding; requires ``pip install 'monai[nvimgcodec]'``) to try that DICOM reader first.
 
     Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
     loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition

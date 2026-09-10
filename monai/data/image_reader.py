@@ -1093,10 +1093,11 @@ class NvImgCodecPydicomReader(PydicomReader):
     If nvImageCodec is not available, a warning is issued and the reader falls back to the
     default pydicom decoders (same behavior as :py:class:`PydicomReader`).
 
-    Requires optional dependencies: ``pydicom``, ``cupy``, ``nvidia-nvimgcodec-cuXX`` (where XX is the CUDA version).
-    GPU decompression uses ``nvidia.nvimgcodec.tools.dicom.pydicom_plugin`` from the nvImageCodec package. CUDA13 is
-    strongly recommended because the dependency nvjpeg library has addressed a known issue with JPEGLossless decoding
-    in CUDA 13.2.0+.
+    Requires the optional extra ``nvimgcodec`` (``pip install 'monai[nvimgcodec]'``), which installs ``pydicom``,
+    CuPy, and ``nvidia-nvimgcodec-cu13`` on Linux. GPU decompression uses
+    ``nvidia.nvimgcodec.tools.dicom.pydicom_plugin`` from the nvImageCodec package. CUDA 13 is strongly
+    recommended because the nvJPEG library has addressed a known issue with JPEG lossless decoding in
+    CUDA 13.2.0+. For CUDA 12, install matching ``cupy-cuda12x`` and ``nvidia-nvimgcodec-cu12`` wheels instead.
 
     Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
     with :py:class:`monai.transforms.LoadImage` without explicit configuration.
