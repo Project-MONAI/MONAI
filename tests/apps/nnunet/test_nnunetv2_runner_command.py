@@ -28,6 +28,7 @@ def _make_runner(export_validation_probabilities=False):
     runner.dataset_name_or_id = "001"
     runner.trainer_class_name = "nnUNetTrainer"
     runner.export_validation_probabilities = export_validation_probabilities
+    runner.plans_identifier = "nnUNetPlans"
     return runner
 
 
