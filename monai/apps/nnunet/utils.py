@@ -171,16 +171,10 @@ def create_new_dataset_json(
     new_json_data["file_ending"] = ".nii.gz"
 
     ConfigParser.export_config_file(
-        config=new_json_data,
-        filepath=output_filepath,
-        fmt="json",
-        sort_keys=True,
-        indent=4,
-        ensure_ascii=False,
+        config=new_json_data, filepath=output_filepath, fmt="json", sort_keys=True, indent=4, ensure_ascii=False
     )
 
     return
-
 
 
 def glob_to_datalist(glob_pattern, output_json="datalist.json", key="testing", dataroot=None):
@@ -232,37 +226,37 @@ def get_info_from_dataset_json(model_dir):
     if not os.path.exists(dataset_json_path):
         raise FileNotFoundError(f"dataset.json not found in model directory '{model_dir}'")
 
-    with open(dataset_json_path, "r") as f:
+    with open(dataset_json_path) as f:
         dataset_info = json.load(f)
 
     channel_names = dataset_info.get("channel_names", [])
     num_input_channels = len(channel_names)
 
     labels = dataset_info.get("labels", {})
-    num_foreground_classes = len(labels) - 1 if 'background' in labels else len(labels)  # Exclude background if present
+    num_foreground_classes = len(labels) - 1 if "background" in labels else len(labels)  # Exclude background if present
 
     return num_input_channels, num_foreground_classes
 
 
 def move_predictions(raw_data_foldername, pred_work_folder, output_dir):
-    # the output is now per 'case'. We need to use the generated datalist to map the output back to the original input files. 
-        # so we have the datalist
+    # the output is now per 'case'. We need to use the generated datalist to map the output back to the original input files.
+    # so we have the datalist
     datalist_path = os.path.join(raw_data_foldername, "datalist.json")
-    with open(datalist_path, "r") as f:
+    with open(datalist_path) as f:
         datalist = json.load(f)
 
-    if 'test' in datalist:
-        key = 'test'
-    elif 'testing' in datalist:
-        key = 'testing'
+    if "test" in datalist:
+        key = "test"
+    elif "testing" in datalist:
+        key = "testing"
     else:
         raise ValueError(f"Warning: Neither 'test' nor 'testing' key found in datalist '{datalist_path}'")
 
     test_cases = datalist[key]
     if not test_cases:
         raise ValueError(f"Warning: No test cases found in datalist '{datalist_path}'")
-        
-    case_to_image_path = {item['new_name']: item['image'] for item in test_cases}
+
+    case_to_image_path = {item["new_name"]: item["image"] for item in test_cases}
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -273,11 +267,12 @@ def move_predictions(raw_data_foldername, pred_work_folder, output_dir):
             continue
 
         # Copy the prediction file to the output directory with the original image name
-        image_extension = os.path.split(image_path, '.', 1)[1]  # assumes no periods in filename, supports .nii.gz
-        output_prediction_path = os.path.join(output_dir, image_path.replace(image_extension, '_pred.nii.gz'))  # nnunet outputs nii.gz
+        image_extension = os.path.split(image_path, ".", 1)[1]  # assumes no periods in filename, supports .nii.gz
+        output_prediction_path = os.path.join(
+            output_dir, image_path.replace(image_extension, "_pred.nii.gz")
+        )  # nnunet outputs nii.gz
         output_prediction_folder = os.path.dirname(output_prediction_path)
         os.makedirs(output_prediction_folder, exist_ok=True)  # sometimes can be nested folders
 
         shutil.move(prediction_file, output_prediction_path)
         print(f"Moved prediction for case '{case_name}' to '{output_prediction_path}'")
-   
