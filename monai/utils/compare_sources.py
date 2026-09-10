@@ -16,10 +16,11 @@ This module is used in Github Actions to determine if a Python source file has b
 from __future__ import annotations
 
 import ast
+import os
 import sys
 from os.path import splitext
 
-from monai.config.type_definitions import PathLike
+PathLike = str | os.PathLike  # needs to be duplicated here to avoid importing anything from MONAI inside actions
 
 SKIP_EXTS = (".md", ".rst")
 
@@ -54,8 +55,10 @@ def sources_equal(src1: str, src2: str) -> bool:
     """
     remdoc = RemoveDocstrings()
 
-    m1: ast.Module = remdoc.generic_visit(ast.parse(src1))
-    m2: ast.Module = remdoc.generic_visit(ast.parse(src2))
+    m1 = ast.parse(src1)
+    m2 = ast.parse(src2)
+    remdoc.visit(m1)
+    remdoc.visit(m2)
 
     list1 = list(ast.walk(m1))
     list2 = list(ast.walk(m2))

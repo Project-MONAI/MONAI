@@ -48,7 +48,19 @@ class Foo:
         return arg1
 """
 
-TEXT_EQUAL_PAIRS = [(text1, text2), (text1, text3), (text2, text3), ("", "")]
+text6 = """
+'''
+This is a module containing only a docstring.
+'''
+"""
+
+text7 = """
+'''
+So is this but it's different.
+'''
+"""
+
+TEXT_EQUAL_PAIRS = [(text1, text2), (text1, text3), (text2, text3), (text6, text7), (text6, ""), ("", "")]
 
 TEXT_UNEQUAL_PAIRS = [(text1, text4), (text2, text4), (text3, text4), (text1, text5), (text1, "")]
 

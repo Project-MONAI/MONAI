@@ -87,6 +87,6 @@ Safe Evaluation
   :members:
 
 Compare Sources
---------------=
+---------------
 .. automodule:: monai.utils.compare_sources
   :members:
