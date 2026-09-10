@@ -1145,9 +1145,9 @@ class nnUNetV2Runner:  # noqa: N801
         Creates a temporary datalist json file from the glob of files, and then calls predict_datalist.
         
         Args:
-            input_files_glob: glob pattern to match input files (e.g., "/path/to/images/*.nii.gz")
-            input_files_root: root directory for the input files (e.g., "/path/to/images")
-            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres)
+            input_files_glob: glob pattern to match input files (e.g., ``/path/to/images/*.nii.gz``)
+            input_files_root: root directory for the input files (e.g., ``/path/to/images``)
+            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., ``work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres``)
             output_dir: path to the output directory, predictions will be saved here under their original names.
             work_dir: path to the work_dir created by the runner during training. 
             modality: modality of the input data (default: "CT")
