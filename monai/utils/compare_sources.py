@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" 
+"""
 This module is used in Github Actions to determine if a Python source file has been modified in a PR.
 """
+
+from __future__ import annotations
 
 import ast
 import sys
@@ -32,7 +34,7 @@ class RemoveDocstrings(ast.NodeTransformer):
             # remove docstrings from the files
             if ast.get_docstring(node) is not None:
                 del node.body[0]
-        except:
+        except TypeError:
             pass
         return super().visit(node)
 
@@ -73,7 +75,7 @@ def files_considered_equal(file1: PathLike, file2: PathLike) -> bool:
         file2: second file path to compare.
 
     Returns:
-        True if the files have the same extension, and either this extension is in `SKIP_EXTS`, or is ".py" with the 
+        True if the files have the same extension, and either this extension is in `SKIP_EXTS`, or is ".py" with the
         files having the same content according to `sources_equal`. If the extensions differ, or are both ".py" but the
         file contents differ, returns False.
     """

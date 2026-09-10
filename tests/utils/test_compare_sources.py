@@ -11,11 +11,13 @@
 
 from __future__ import annotations
 
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
+
 from parameterized import parameterized
-from monai.utils import files_considered_equal, sources_equal, SKIP_EXTS
+
+from monai.utils import SKIP_EXTS, files_considered_equal, sources_equal
 
 text1 = """
 def foo(arg1, arg2):
