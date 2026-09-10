@@ -211,7 +211,7 @@ jobs:
       QUICKTEST: True
     steps:
     - name: Clean unused tools
-      if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
+      if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         sudo rm -rf /usr/share/dotnet
