@@ -250,32 +250,26 @@ def _get_pairwise_iou(
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
-    pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float, device=device)
-    true_masks: list[torch.Tensor] = []
-    pred_masks: list[torch.Tensor] = []
+    num_true = len(true_id_list) - 1
+    num_pred = len(pred_id_list) - 1
+    pairwise_iou = torch.zeros([num_true, num_pred], dtype=torch.float, device=device)
+    if num_true == 0 or num_pred == 0:
+        return pairwise_iou, true_id_list, pred_id_list
 
-    for t in true_id_list[1:]:
-        t_mask = torch.as_tensor(gt == t, device=device).int()
-        true_masks.append(t_mask)
+    # ids are contiguous after `remap_instance_id`, so count all pairwise intersections in one bincount
+    gt_flat = gt.reshape(-1).long()
+    pred_flat = pred.reshape(-1).long()
+    stride = num_pred + 1
+    joint = gt_flat * stride + pred_flat
+    intersection = torch.bincount(joint, minlength=(num_true + 1) * stride).reshape(num_true + 1, stride).float()
+    true_area = torch.bincount(gt_flat, minlength=num_true + 1).float()
+    pred_area = torch.bincount(pred_flat, minlength=num_pred + 1).float()
 
-    for p in pred_id_list[1:]:
-        p_mask = torch.as_tensor(pred == p, device=device).int()
-        pred_masks.append(p_mask)
+    inter = intersection[1:, 1:]  # drop background row/column
+    union = true_area[1:, None] + pred_area[None, 1:] - inter
+    pairwise_iou = torch.where(inter > 0, inter / union, pairwise_iou)
 
-    for true_id in range(1, len(true_id_list)):
-        t_mask = true_masks[true_id - 1]
-        pred_true_overlap = pred[t_mask > 0]
-        pred_true_overlap_id = list(pred_true_overlap.unique())
-        for pred_id in pred_true_overlap_id:
-            if pred_id == 0:
-                continue
-            p_mask = pred_masks[pred_id - 1]
-            total = (t_mask + p_mask).sum()
-            inter = (t_mask * p_mask).sum()
-            iou = inter / (total - inter)
-            pairwise_iou[true_id - 1, pred_id - 1] = iou
-
-    return pairwise_iou, true_id_list, pred_id_list
+    return pairwise_iou.to(device), true_id_list, pred_id_list
 
 
 def _get_paired_iou(
