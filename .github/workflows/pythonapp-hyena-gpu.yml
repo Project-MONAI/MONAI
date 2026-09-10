@@ -42,7 +42,7 @@ jobs:
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
