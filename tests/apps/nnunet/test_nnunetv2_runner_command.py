@@ -287,6 +287,39 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
                 self._run_postprocessing(runner, [], load_pickle)
             load_pickle.assert_not_called()
 
+    def test_plans_file_outside_results_dir_is_rejected(self):
+        """Regression test for GHSA-8f32-8649-rv87 (``some_plans_file``).
+
+        ``some_plans_file`` is read from ``inference_information.json`` and handed to
+        ``apply_postprocessing_to_folder``; a value pointing outside the dataset's results
+        directory would let a tamperer name an arbitrary file on disk, so it must be rejected
+        even when ``postprocessing_file`` itself is valid and in-scope.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            pp_file = os.path.join(results_root, "postprocessing.pkl")
+            open(pp_file, "w").close()
+            evil_plans = os.path.join(tempdir, "malicious_plans.json")
+            open(evil_plans, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": pp_file,
+                    "some_plans_file": evil_plans,
+                }
+            }
+
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"some_plans_file.*GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, [], load_pickle)
+            load_pickle.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
