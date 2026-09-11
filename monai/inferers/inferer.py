@@ -29,7 +29,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.thread_buffer import ThreadBuffer
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
-from monai.inferers.utils import compute_importance_map, sliding_window_inference
+from monai.inferers.utils import compute_importance_map, sliding_window_inference, sliding_window_inference_with_reduction
 from monai.networks.nets import (
     VQVAE,
     AutoencoderKL,
@@ -691,6 +691,134 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                     logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}.")
         raise RuntimeError(  # not possible to finish after the trials
             f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
+        )
+
+
+class SlidingWindowInfererReduced(Inferer):
+    """
+    Memory-efficient sliding window inferer with online reduction.
+
+    Wraps :py:func:`sliding_window_inference_with_reduction` for use in MONAI
+    engines and workflows. Instead of storing full-resolution probabilities for the
+    entire volume, applies a reduction function (e.g., ``torch.argmax``) per slab
+    to dramatically reduce peak memory for many-class segmentation.
+
+    Args:
+        roi_size: the window size to execute SlidingWindow evaluation.
+            If it has non-positive components, the corresponding ``inputs`` size will be used.
+        sw_batch_size: the batch size to run window slices.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+        sigma_scale: the standard deviation coefficient of the Gaussian window when `mode` is ``"gaussian"``.
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode when ``roi_size`` is larger than inputs.
+        cval: fill value for 'constant' padding mode. Default: 0
+        sw_device: device for the window data and slab accumulation buffer.
+        device: device for the final reduced output tensor.
+        progress: whether to print a tqdm progress bar.
+        cache_roi_weight_map: whether to precompute the ROI weight map.
+        reduction_fn: function to reduce accumulated probabilities.
+            Signature: ``reduction_fn(tensor, dim) -> tensor``.
+            Default: ``lambda x, dim: torch.argmax(x, dim=dim)``.
+        reduction_dim: the dimension to reduce over. Default: 1 (channel dimension).
+        output_dtype: dtype for the reduced output tensor. Default: ``torch.uint8``.
+        outer_dim: spatial dimension index (0-based) to iterate slabs along.
+            Default: automatically selects the largest spatial dimension.
+
+    Note:
+        ``sw_batch_size`` denotes the max number of windows per network inference iteration,
+        not the batch size of inputs.
+
+    """
+
+    def __init__(
+        self,
+        roi_size: Sequence[int] | int,
+        sw_batch_size: int = 1,
+        overlap: Sequence[float] | float = 0.25,
+        mode: BlendMode | str = BlendMode.CONSTANT,
+        sigma_scale: Sequence[float] | float = 0.125,
+        padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
+        cval: float = 0.0,
+        sw_device: torch.device | str | None = None,
+        device: torch.device | str | None = None,
+        progress: bool = False,
+        cache_roi_weight_map: bool = False,
+        reduction_fn: Callable | None = None,
+        reduction_dim: int = 1,
+        output_dtype: torch.dtype | None = None,
+        outer_dim: int | None = None,
+    ) -> None:
+        super().__init__()
+        self.roi_size = roi_size
+        self.sw_batch_size = sw_batch_size
+        self.overlap = overlap
+        self.mode: BlendMode = BlendMode(mode)
+        self.sigma_scale = sigma_scale
+        self.padding_mode = padding_mode
+        self.cval = cval
+        self.sw_device = sw_device
+        self.device = device
+        self.progress = progress
+        self.reduction_fn = reduction_fn
+        self.reduction_dim = reduction_dim
+        self.output_dtype = output_dtype
+        self.outer_dim = outer_dim
+
+        self.roi_weight_map = None
+        try:
+            if cache_roi_weight_map and isinstance(roi_size, Sequence) and min(roi_size) > 0:
+                if device is None:
+                    device = "cpu"
+                self.roi_weight_map = compute_importance_map(
+                    ensure_tuple(self.roi_size), mode=mode, sigma_scale=sigma_scale, device=device
+                )
+            if cache_roi_weight_map and self.roi_weight_map is None:
+                warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
+        except Exception as e:
+            raise RuntimeError(
+                f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
+            ) from e
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                Must return a single tensor (not tuple/dict).
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+        return sliding_window_inference_with_reduction(
+            inputs,
+            self.roi_size,
+            self.sw_batch_size,
+            network,
+            self.overlap,
+            self.mode,
+            self.sigma_scale,
+            self.padding_mode,
+            self.cval,
+            self.sw_device,
+            self.device,
+            self.progress,
+            self.roi_weight_map,
+            self.reduction_fn,
+            self.reduction_dim,
+            self.output_dtype,
+            self.outer_dim,
+            *args,
+            **kwargs,
         )
 
 
