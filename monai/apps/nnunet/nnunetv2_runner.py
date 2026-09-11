@@ -243,10 +243,22 @@ class nnUNetV2Runner:  # noqa: N801
         self.num_folds = 5
         self.best_configuration: dict = {}
 
+    @staticmethod
+    def _get_raw_data_foldername(dataset_name_or_id: str, data_dir: str, nnunet_raw: str) -> str:
+        """Get the raw data folder prefix and name for the dataset."""
+        raw_data_foldername_prefix = str(int(dataset_name_or_id) + 1000)
+        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+
+        raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
+        raw_data_foldername = os.path.join(nnunet_raw, raw_data_foldername)
+
+        return raw_data_foldername_prefix, raw_data_foldername
+
     def convert_dataset(self, testing=False):
         """Convert and make a copy the dataset to meet the requirements of nnU-Net workflow."""
-        raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
-        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+        raw_data_foldername_prefix, raw_data_foldername = self._get_raw_data_foldername(
+            self.dataset_name_or_id, self.input_info.get("dataroot"), self.nnunet_raw
+        )
 
         # check if the dataset is created
         subdirs = glob.glob(f"{self.nnunet_raw}/*")
@@ -260,8 +272,7 @@ class nnUNetV2Runner:  # noqa: N801
         if data_dir[-1] == os.sep:
             data_dir = data_dir[:-1]
 
-        raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
-        raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
+        
         if not os.path.exists(raw_data_foldername):
             os.makedirs(raw_data_foldername)
 
@@ -1113,11 +1124,8 @@ class nnUNetV2Runner:  # noqa: N801
         runner.convert_dataset(testing=True)
 
         # these things are hardcoded upstream
-        raw_data_foldername_prefix = str(int(runner.dataset_name_or_id) + 1000)
-        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
-        raw_data_foldername = raw_data_foldername_prefix + "_" + input_config['dataroot'].split(os.sep)[-1]
-        raw_data_foldername = os.path.join(input_config['nnunet_raw'], raw_data_foldername)
-
+        _, raw_data_foldername = runner.get_raw_data_foldername(runner.dataset_name_or_id, input_config['dataroot'], input_config['nnunet_raw'])
+    
         with TemporaryDirectory() as pred_work_folder:
             test_images_dir = os.path.join(raw_data_foldername, "imagesTs")  # Also hardcoded upstream
 
