@@ -202,7 +202,7 @@ class AutoRunner:
 
         For the datalist file format, see the description under :py:func:`monai.data.load_decathlon_datalist`.
         Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise
-        it will do cross-validation with the configured num_fold (five folds by default).
+        It will do cross-validation with the configured `num_fold` number of folds (default 5).
     """
 
     analyze_params: dict | None
@@ -398,6 +398,13 @@ class AutoRunner:
         Args:
             datalist_filename: path to the datalist file.
 
+        Returns:
+            Number of existing or generated folds, or 1 when using a validation list.
+
+        Raises:
+            ValueError: If training data is missing, fold IDs are not continuous from zero,
+                or the automatic fold count is outside [2, number of training items].
+
         Notes:
             If the fold key is not provided, it generates the configured num_fold assignments (default 5).
             If validation key list is available, then it assumes a single fold validation.
@@ -441,6 +448,11 @@ class AutoRunner:
 
         else:
             num_fold = int(self.data_src_cfg.get("num_fold", 5))
+            if not 2 <= num_fold <= len(datalist["training"]):
+                raise ValueError(
+                    "num_fold must be at least 2 and no greater than the number of training items "
+                    "when AutoRunner generates folds."
+                )
 
             warnings.warn(
                 f"Datalist has no folds specified {datalist_filename}..."
