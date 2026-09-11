@@ -5,6 +5,9 @@ on:
   repository_dispatch:
     type: [integration-test-command]
 
+permissions:
+  contents: read
+
 jobs:
   integration-auto3dseg:
     container:
