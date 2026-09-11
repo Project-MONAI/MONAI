@@ -1,0 +1,83 @@
+name: tests
+
+on:
+  # quick tests for pull requests and the releasing branches
+  push:
+    branches:
+      - dev
+      - main
+      - releasing/*
+  pull_request:
+    branches:
+      - dev
+      - main
+      - releasing/*
+
+permissions:
+  contents: read
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: cicd-tests-gpu-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Supported versions of Python and PyTorch are listed here for use below and as documentation
+env:
+  # supported versions of Python
+  PYTHON_VER1: '3.10'
+  PYTHON_VER2: '3.11'
+  PYTHON_VER3: '3.12'
+  PYTHON_VER4: '3.13'
+  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  # supported versions of PyTorch
+  PYTORCH_VER1: '2.8.0'
+  PYTORCH_VER2: '2.9.1'
+  PYTORCH_VER3: '2.10.0'
+  PYTORCH_VER4: '2.11.0'
+  TORCHVISION_VER1: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
+
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
+
+# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
+# Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
+# When support is dropped for a version it is important to update these as appropriate.
+
+jobs:
+
+  full-dep:  # Test with full dependencies installed for different OS runners
+    runs-on: [self-hosted, linux, gpu] #ubuntu-24.04-gpu]
+    strategy:
+      fail-fast: false
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python ${{ env.PYTHON_VER1 }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VER1 }}
+        cache: 'pip'
+    - name: Prepare pip wheel
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+    - name: Install torch gpu
+      run: |
+        # install the lowest version of PyTorch supported
+        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+      shell: bash
+    - name: Install the complete dependencies
+      run: |
+        python -m pip install --pre -U itk
+        python -m pip install --user --upgrade pip wheel tomli
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        python -m pip install --no-build-isolation .[all,testing]
+        python -m pip list
+      shell: bash
+    - name: Run compiled tests
+      run: |
+        python -m pip uninstall -y monai
+        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
+        python -c 'import monai._C' > /dev/null
+        nvidia-smi || true
+        python monai/config/check_env.py --env --MONAI
+        python -m unittest -v
