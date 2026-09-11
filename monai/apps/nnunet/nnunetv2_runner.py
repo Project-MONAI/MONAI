@@ -1071,8 +1071,8 @@ class nnUNetV2Runner:  # noqa: N801
             input_data_root: path to the root folder of the input data (the folder that contains the images)
             model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres)
             output_dir: path to the output directory, predictions will be saved here under their original names.
-            num_foreground_classes: number of foreground classes
-            num_input_channels: number of input channels
+            num_foreground_classes: number of foreground classes. Should only be provided if it cannot be inferred from the dataset json.
+            num_input_channels: number of input channels. Should only be provided if it cannot be inferred from the dataset json.
             work_dir: path to the work directory
 
         """
@@ -1087,6 +1087,9 @@ class nnUNetV2Runner:  # noqa: N801
             raise ValueError("num_input_channels must be provided as it cannot be inferred from the dataset json.")
         if num_foreground_classes_det is None and num_foreground_classes is None:
             raise ValueError("num_foreground_classes must be provided as it cannot be inferred from the dataset json.")
+
+        if num_input_channels_det is not None and num_input_channels is not None and num_input_channels_det != num_input_channels:
+            raise ValueError(f"num_input_channels ({num_input_channels}) does not match the value in the dataset json ({num_input_channels_det}).")
 
         num_foreground_classes, num_input_channels = (
             num_foreground_classes_det if num_foreground_classes_det is not None else num_foreground_classes,
