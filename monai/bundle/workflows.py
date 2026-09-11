@@ -15,6 +15,8 @@ import ast
 import configparser
 import io
 import json
+import logging
+import logging.handlers  # ensures `logging.handlers` is importable for the `class=` allowlist check
 import os
 import sys
 import time
@@ -99,6 +101,25 @@ def _reject_executable_logging_config(logging_file: str) -> str:
 _ALLOWED_LOGGING_ARG_NAMES = {"sys.stdout", "sys.stderr"}
 
 
+def _is_allowed_logging_class(module: str, attribute: str) -> bool:
+    """
+    Return whether ``module.attribute`` names a logging handler or formatter class.
+
+    The check resolves the attribute on the already-imported allowlisted module and requires the
+    object to be a ``logging.Handler`` or ``logging.Formatter`` subclass. Deriving the answer from
+    the module keeps the allowlist in step with the standard library instead of hard-coding a name
+    list, and it rejects callables such as ``eval`` that are not logging classes at all.
+
+    Args:
+        module: dotted module name; must be one of ``_ALLOWED_LOGGING_CLASS_MODULES``.
+        attribute: attribute looked up on that module.
+    """
+    if module not in _ALLOWED_LOGGING_CLASS_MODULES:
+        return False
+    resolved = getattr(sys.modules.get(module), attribute, None)
+    return isinstance(resolved, type) and issubclass(resolved, (logging.Handler, logging.Formatter))
+
+
 def _reject_non_logging_class(value: str, logging_file: str, section: str) -> None:
     """
     Require ``value`` to be a bare name or an attribute chain rooted in an allowlisted module.
@@ -132,10 +153,14 @@ def _reject_non_logging_class(value: str, logging_file: str, section: str) -> No
         _fail(f"is not a parsable expression ({e.msg})")
 
     node = tree.body  # type: ignore[union-attr]
-    # A bare name resolves against the `logging` module in fileConfig's eval namespace.
+    # A bare name is resolved against the `logging` module in fileConfig's eval namespace, so it
+    # must name a real logging handler/formatter there -- `class=eval` is a bare name too, and
+    # would hand an attacker-controlled `args=` literal straight to `eval()`.
     if isinstance(node, ast.Name):
+        if not _is_allowed_logging_class("logging", node.id):
+            _fail(f"does not name a handler or formatter in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
         return
-    # An attribute chain must be rooted in an allowlisted module.
+    # An attribute chain must be rooted in an allowlisted module and end at a handler/formatter.
     if isinstance(node, ast.Attribute):
         parts: list[str] = []
         current: ast.AST = node
@@ -146,8 +171,12 @@ def _reject_non_logging_class(value: str, logging_file: str, section: str) -> No
             _fail("is not a simple dotted name")
         root = cast(ast.Name, current).id
         parts.append(root)
-        if parts[-1] not in _ALLOWED_LOGGING_CLASS_MODULES:
-            _fail(f"references {'.'.join(reversed(parts))!r}, which is not in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
+        dotted = ".".join(reversed(parts))
+        module, _, attribute = dotted.rpartition(".")
+        if module not in _ALLOWED_LOGGING_CLASS_MODULES:
+            _fail(f"references {dotted!r}, which is not in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
+        if not _is_allowed_logging_class(module, attribute):
+            _fail(f"references {dotted!r}, which is not a handler or formatter class")
         return
     _fail("is not a name or an attribute chain")
 
