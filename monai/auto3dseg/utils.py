@@ -63,7 +63,7 @@ def _require_pickle_allowed() -> None:
         raise RuntimeError(_PICKLE_DISABLED_MSG)
 
 
-def _reject_non_algo_target(target: str, filename: str) -> None:
+def _reject_non_algo_target(target: object, filename: str) -> None:
     """
     Require that ``target`` names an ``Algo`` subclass before it is instantiated.
 
@@ -81,14 +81,16 @@ def _reject_non_algo_target(target: str, filename: str) -> None:
         filename: the file the value came from, used in the error message.
 
     Raises:
-        ValueError: if ``target`` does not resolve to an ``Algo`` subclass.
+        ValueError: if ``target`` is not a string, or does not resolve to a concrete ``Algo`` subclass.
         ModuleNotFoundError: if the module cannot be imported, so callers can try the next
             template path.
     """
+    if not isinstance(target, str):
+        raise ValueError(f"invalid `_target_` in {filename}: expected a string, got {type(target).__name__}.")
     resolved = locate(target)
     if resolved is None:
         raise ModuleNotFoundError(f"cannot resolve `_target_` {target!r} from {filename}.")
-    if not (isinstance(resolved, type) and issubclass(resolved, Algo)):
+    if not (isinstance(resolved, type) and resolved is not Algo and issubclass(resolved, Algo)):
         raise ValueError(
             f"refusing to instantiate `_target_` {target!r} from {filename}: it resolves to "
             f"{resolved!r}, which is not a subclass of monai.auto3dseg.Algo. Only Algo subclasses "

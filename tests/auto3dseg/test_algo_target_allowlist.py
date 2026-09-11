@@ -48,6 +48,16 @@ class TestAlgoTargetAllowlist(unittest.TestCase):
         """A real Algo subclass passes the check."""
         _reject_non_algo_target("monai.apps.auto3dseg.BundleAlgo", "algo_object.json")
 
+    def test_non_string_target_is_rejected(self):
+        """A JSON ``null`` ``_target_`` raises the documented ``ValueError``, not ``AttributeError``."""
+        with self.assertRaisesRegex(ValueError, r"expected a string"):
+            _reject_non_algo_target(None, "algo_object.json")
+
+    def test_bare_algo_base_class_is_rejected(self):
+        """The abstract ``Algo`` base class is not itself a valid instantiation target."""
+        with self.assertRaisesRegex(ValueError, r"GHSA-2wx3-8x3w-r8qv"):
+            _reject_non_algo_target("monai.auto3dseg.algo_gen.Algo", "algo_object.json")
+
     def test_algo_from_json_rejects_payload_target(self):
         """End to end: a malicious algo_object.json never reaches instantiation."""
         with tempfile.TemporaryDirectory() as tempdir:
