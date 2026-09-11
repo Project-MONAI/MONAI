@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 import configparser
+import io
 import json
 import os
 import sys
@@ -22,7 +23,7 @@ from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
@@ -40,7 +41,7 @@ logger = get_logger(module_name=__name__)
 _ALLOWED_LOGGING_CLASS_MODULES = {"logging", "logging.handlers"}
 
 
-def _reject_executable_logging_config(logging_file: str) -> None:
+def _reject_executable_logging_config(logging_file: str) -> str:
     """
     Reject a logging INI whose ``class=``/``args=`` fields would execute arbitrary code.
 
@@ -55,12 +56,22 @@ def _reject_executable_logging_config(logging_file: str) -> None:
     Args:
         logging_file: path to the INI file that is about to be passed to `fileConfig`.
 
+    Returns:
+        The validated file content, so the caller can apply exactly this text without re-reading
+        the path (a second read could see swapped-in content and bypass this check).
+
     Raises:
         ValueError: if a field would run code that this allowlist does not cover.
     """
+    try:
+        with open(logging_file, encoding="utf-8") as f:
+            content = f.read()
+    except OSError as e:
+        raise ValueError(f"cannot read logging config file {logging_file}: {e}") from e
+
     parser = configparser.RawConfigParser()
     try:
-        parser.read(logging_file, encoding="utf-8")
+        parser.read_string(content)
     except configparser.Error as e:
         raise ValueError(f"cannot parse logging config file {logging_file}: {e}") from e
 
@@ -72,25 +83,73 @@ def _reject_executable_logging_config(logging_file: str) -> None:
             if not value:
                 continue
             if field == "class":
-                # `fileConfig` eval()s this name; a bare identifier is resolved against the
-                # `logging` module, a dotted path against the eval namespace.
-                qualified = value if "." in value else f"logging.{value}"
-                if qualified.rsplit(".", 1)[0] not in _ALLOWED_LOGGING_CLASS_MODULES:
-                    raise ValueError(
-                        f"refusing to apply logging config {logging_file}: section [{section}] sets "
-                        f"class={value!r}, which `logging.config.fileConfig` would pass to `eval()`. Only "
-                        f"classes from {sorted(_ALLOWED_LOGGING_CLASS_MODULES)} are allowed "
-                        "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3)."
-                    )
+                # `fileConfig` eval()s this expression, so a bare string prefix is not a safe boundary:
+                # a call or subscript without a period (e.g. `__builtins__.eval`) would slip past it.
+                # Parse and allow only a bare name or an attribute chain whose root is allowlisted.
+                _reject_non_logging_class(value, logging_file, section)
             else:
                 # `args`/`kwargs` are eval()ed in a namespace holding `logging`, `os` and `sys`.
                 # Literals alone are too strict -- `args=(sys.stdout,)` is the standard
                 # StreamHandler form -- so allow literals plus a fixed set of safe stream names,
                 # and reject calls, attribute traversal and comprehensions.
                 _reject_non_literal_expression(value, logging_file, section, field)
+    return content
 
 
 _ALLOWED_LOGGING_ARG_NAMES = {"sys.stdout", "sys.stderr"}
+
+
+def _reject_non_logging_class(value: str, logging_file: str, section: str) -> None:
+    """
+    Require ``value`` to be a bare name or an attribute chain rooted in an allowlisted module.
+
+    `fileConfig` passes ``class=`` to ``eval()``, so the whole expression -- not just a string
+    prefix -- must be inert. A bare identifier is resolved against the ``logging`` module; a
+    dotted path is resolved against the ``eval`` namespace. Calls, subscripts, operators and every
+    other expression node are rejected.
+
+    Args:
+        value: the raw ``class=`` value from the INI.
+        logging_file: path of the file, used in the error message.
+        section: INI section name, used in the error message.
+
+    Raises:
+        ValueError: if the expression is not a name or an attribute chain rooted in an allowlisted module.
+    """
+
+    def _fail(reason: str) -> None:
+        raise ValueError(
+            f"refusing to apply logging config {logging_file}: section [{section}] sets "
+            f"class={value!r}, which {reason} and would execute code through "
+            f"`logging.config.fileConfig`'s `eval()`. Only classes from "
+            f"{sorted(_ALLOWED_LOGGING_CLASS_MODULES)} are allowed "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3)."
+        )
+
+    try:
+        tree = ast.parse(value, mode="eval")
+    except SyntaxError as e:
+        _fail(f"is not a parsable expression ({e.msg})")
+
+    node = tree.body  # type: ignore[union-attr]
+    # A bare name resolves against the `logging` module in fileConfig's eval namespace.
+    if isinstance(node, ast.Name):
+        return
+    # An attribute chain must be rooted in an allowlisted module.
+    if isinstance(node, ast.Attribute):
+        parts: list[str] = []
+        current: ast.AST = node
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+        if not isinstance(current, ast.Name):
+            _fail("is not a simple dotted name")
+        root = cast(ast.Name, current).id
+        parts.append(root)
+        if parts[-1] not in _ALLOWED_LOGGING_CLASS_MODULES:
+            _fail(f"references {'.'.join(reversed(parts))!r}, which is not in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
+        return
+    _fail("is not a name or an attribute chain")
 
 
 def _reject_non_literal_expression(value: str, logging_file: str, section: str, field: str) -> None:
@@ -156,13 +215,17 @@ def _reject_non_literal_expression(value: str, logging_file: str, section: str, 
 
 def _apply_logging_file(logging_file: str) -> None:
     """
-    Validate ``logging_file`` and apply it with `logging.config.fileConfig`.
+    Validate ``logging_file`` and apply it, using exactly the content that was validated.
+
+    The single read performed by the validator is what `fileConfig` applies: re-opening the path
+    in between would let a swapped-in file bypass the allowlist and reach `fileConfig`'s `eval()`
+    calls.
 
     Args:
         logging_file: path to the logging INI file.
     """
-    _reject_executable_logging_config(logging_file)
-    fileConfig(logging_file, disable_existing_loggers=False)
+    content = _reject_executable_logging_config(logging_file)
+    fileConfig(io.StringIO(content), disable_existing_loggers=False)
 
 
 class BundleWorkflow(ABC):

@@ -304,6 +304,56 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
 
         self.addCleanup(_restore)
 
+    def test_class_call_expr_is_rejected(self):
+        """A ``class=`` call expression (no dot, no tuple subscript) is refused.
+
+        This is the exact shape the previous string-prefix check could not see: ``rsplit('.', 1)[0]``
+        on a call with no period returns the whole expression, and `class=` values in real configs
+        are dotted logging names, so such a call would never have been allowed -- it is rejected
+        here by the AST parser rather than the prefix test.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            payload = f"__import__('pathlib').Path({marker!r}).write_text('pwned')"
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    f"[handler_h]\nclass={payload}()\nargs=()\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_class_attribute_call_is_rejected(self):
+        """A ``class=`` attribute-chain expression is refused even when it is not a bare call.
+
+        The root module is not on the `logging` allowlist, so the attribute chain is rejected by
+        the AST check regardless of the trailing call.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            payload = f"__import__('pathlib').Path({marker!r}).write_text"
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    f"[handler_h]\nclass={payload}\nargs=()\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
     def test_default_logging_conf_payload_is_rejected(self):
         """The `class=` payload is refused and never runs."""
         with tempfile.TemporaryDirectory() as tempdir:
