@@ -79,5 +79,5 @@ jobs:
         BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
         python -c 'import monai._C' > /dev/null
         nvidia-smi || true
-        python monai/config/check_env.py --env --MONAI
+        python monai/config/check_env.py --env --monai
         python -m unittest -v
