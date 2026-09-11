@@ -637,6 +637,11 @@ class TestDataAnalyzer(unittest.TestCase):
 
 class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
     def test_rejects_untrusted_target(self) -> None:
+        """Verify that a ``_target_`` pointing to a non-``Algo`` class is rejected.
+
+        ``_DummyAlgo`` is a plain class (not an ``Algo`` subclass); loading it must raise
+        ``ValueError`` rather than instantiate the class, per GHSA-2wx3.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             algo_file = os.path.join(tmpdir, "algo_object.json")
             with open(algo_file, "w", encoding="utf-8") as f:
