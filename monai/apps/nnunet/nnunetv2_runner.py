@@ -13,17 +13,28 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import warnings
 from concurrent.futures import ThreadPoolExecutor
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any
 
 import monai
 from monai.apps.nnunet.utils import NNUNETMode as M
-from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
+from monai.apps.nnunet.utils import (
+    analyze_data,
+    create_new_data_copy,
+    create_new_dataset_json,
+    get_info_from_dataset_json,
+    get_next_available_index,
+    glob_to_datalist,
+    move_predictions,
+)
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
 from monai.utils.misc import run_cmd
@@ -165,6 +176,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.input_info: dict = {}
         self.input_config_or_dict = input_config
         self.trainer_class_name = trainer_class_name
+        self.plans_identifier = "nnUNetPlans"
         self.export_validation_probabilities = export_validation_probabilities
         self.work_dir = work_dir
 
@@ -175,12 +187,12 @@ class nnUNetV2Runner:  # noqa: N801
         else:
             raise ValueError(f"{input_config} is not a valid file or dict")
 
-        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNet_raw_data_base"))
+        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(self.work_dir, "nnUNet_raw_data_base"))
         self.nnunet_preprocessed = self.input_info.pop(
-            "nnunet_preprocessed", os.path.join(".", self.work_dir, "nnUNet_preprocessed")
+            "nnunet_preprocessed", os.path.join(self.work_dir, "nnUNet_preprocessed")
         )
         self.nnunet_results = self.input_info.pop(
-            "nnunet_results", os.path.join(".", self.work_dir, "nnUNet_trained_models")
+            "nnunet_results", os.path.join(self.work_dir, "nnUNet_trained_models")
         )
 
         if not os.path.exists(self.nnunet_raw):
@@ -199,10 +211,14 @@ class nnUNetV2Runner:  # noqa: N801
         os.environ["OMP_NUM_THREADS"] = str(1)
 
         # dataset_name_or_id has to be a string
-        self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
+        if "dataset_name_or_id" in self.input_info:
+            self.dataset_name_or_id = str(self.input_info["dataset_name_or_id"])
+        else:
+            # we get the next available index
+            self.dataset_name_or_id = str(get_next_available_index(self.nnunet_raw))
         self.dataset_name: str | None = None
 
-        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
+        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands (note that 'name' is meaningless here, it needs to be a numeric index)
         if re.fullmatch(DATASET_ID_FORMAT, self.dataset_name_or_id) is None:
             raise ValueError(
                 f"Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID."
@@ -226,74 +242,76 @@ class nnUNetV2Runner:  # noqa: N801
         self.num_folds = 5
         self.best_configuration: dict = {}
 
-    def convert_dataset(self):
+    def convert_dataset(self, testing=False):
         """Convert and make a copy the dataset to meet the requirements of nnU-Net workflow."""
-        try:
-            raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
-            raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+        raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
+        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
 
-            # check if the dataset is created
-            subdirs = glob.glob(f"{self.nnunet_raw}/*")
-            dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
-            dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
-            if raw_data_foldername_prefix in dataset_ids:
-                logger.warning("Dataset with the same ID exists!")
-                return
+        # check if the dataset is created
+        subdirs = glob.glob(f"{self.nnunet_raw}/*")
+        dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
+        dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
+        if raw_data_foldername_prefix in dataset_ids:
+            logger.warning("Dataset with the same ID exists!")
+            return
 
-            data_dir = self.input_info.pop("dataroot")
-            if data_dir[-1] == os.sep:
-                data_dir = data_dir[:-1]
+        data_dir = self.input_info.pop("dataroot")
+        if data_dir[-1] == os.sep:
+            data_dir = data_dir[:-1]
 
-            raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
-            raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
-            if not os.path.exists(raw_data_foldername):
-                os.makedirs(raw_data_foldername)
+        raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
+        raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
+        if not os.path.exists(raw_data_foldername):
+            os.makedirs(raw_data_foldername)
 
-            from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-            self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
+        self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
 
-            datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
+        datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
 
-            if "training" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
-                os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
-            else:
-                logger.error("The datalist file has incorrect format: the `training` key is not found.")
-                return
+        if "training" in datalist_json:
+            os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
+            os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
+        elif not testing:
+            logger.error("The datalist file has incorrect format: the `training` key is not found.")
+            return
 
-            test_key = None
-            if "test" in datalist_json or "testing" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
-                test_key = "test" if "test" in datalist_json else "testing"
-                if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
-                    os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
+        test_key = None
+        if "test" in datalist_json or "testing" in datalist_json:
+            os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
+            test_key = "test" if "test" in datalist_json else "testing"
+            if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
+                os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
 
+        num_input_channels, num_foreground_classes = self.input_info.get("num_input_channels"), self.input_info.get(
+            "num_foreground_classes"
+        )
+
+        if num_input_channels is None or num_foreground_classes is None:
+            # can't get num_foreground classes from the data, so should be inserted by user
             num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
 
-            modality = self.input_info.pop("modality")
-            if not isinstance(modality, list):
-                modality = [modality]
+        modality = self.input_info.pop("modality")
+        if not isinstance(modality, list):
+            modality = [modality]
 
-            create_new_dataset_json(
-                # pyrefly: ignore [bad-argument-type]
-                modality=modality,
-                num_foreground_classes=num_foreground_classes,
-                num_input_channels=num_input_channels,
-                num_training_data=len(datalist_json["training"]),
-                output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
-            )
+        create_new_dataset_json(
+            # pyrefly: ignore [bad-argument-type]
+            modality=modality,
+            num_foreground_classes=num_foreground_classes,
+            num_input_channels=num_input_channels,
+            num_training_data=len(datalist_json.get("training", [])),
+            output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
+        )
 
-            create_new_data_copy(
-                test_key=test_key,  # type: ignore
-                datalist_json=datalist_json,
-                data_dir=data_dir,
-                num_input_channels=num_input_channels,
-                output_datafolder=raw_data_foldername,
-            )
-        except Exception as err:
-            logger.warning(f"Input config may be incorrect. Detail info: error/exception message is:\n {err}")
-            return
+        create_new_data_copy(
+            test_key=test_key,  # type: ignore
+            datalist_json=datalist_json,
+            data_dir=data_dir,
+            num_input_channels=num_input_channels,
+            output_datafolder=raw_data_foldername,
+        )
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
         """
@@ -346,7 +364,7 @@ class nnUNetV2Runner:  # noqa: N801
         gpu_memory_target: float = 8,
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
     ) -> None:
         """
         Generate a configuration file that specifies the details of the experiment.
@@ -376,20 +394,22 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
         logger.info("Experiment planning...")
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
         plan_experiments(
             [int(self.dataset_name_or_id)],
             pl,
             gpu_memory_target,
             preprocessor_name,
             overwrite_target_spacing,
-            overwrite_plans_name,
+            plans_name,
         )
+        self.plans_identifier = plans_name
 
     def preprocess(
         self,
         c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
         verbose: bool = False,
     ) -> None:
         """
@@ -418,13 +438,10 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
         logger.info("Preprocessing...")
-        preprocess(
-            [int(self.dataset_name_or_id)],
-            overwrite_plans_name,
-            configurations=c,
-            num_processes=n_proc,
-            verbose=verbose,
-        )
+
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
+        preprocess([int(self.dataset_name_or_id)], plans_name, configurations=c, num_processes=n_proc, verbose=verbose)
+        self.plans_identifier = plans_name
 
     def plan_and_process(
         self,
@@ -437,7 +454,7 @@ class nnUNetV2Runner:  # noqa: N801
         gpu_memory_target: int = 8,
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
-        overwrite_plans_name: str = "nnUNetPlans",
+        overwrite_plans_name: str | None = None,
         c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
         verbose: bool = False,
@@ -494,11 +511,13 @@ class nnUNetV2Runner:  # noqa: N801
             verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
                 (Recommended for cluster environments).
         """
+        plans_name = overwrite_plans_name if overwrite_plans_name is not None else self.plans_identifier
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
-        self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
+        self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, plans_name)
 
         if not no_pp:
-            self.preprocess(c, n_proc, overwrite_plans_name, verbose)
+            self.preprocess(c, n_proc, plans_name, verbose)
+        self.plans_identifier = plans_name
 
     def train_single_model(self, config: Any, fold: int, gpu_id: tuple | list | int | str = 0, **kwargs: Any) -> None:
         """
@@ -592,6 +611,8 @@ class nnUNetV2Runner:  # noqa: N801
             fold,
             "-tr",
             self.trainer_class_name,
+            "-p",
+            self.plans_identifier,
             "-num_gpus",
             num_gpus,
         ]
@@ -1022,6 +1043,138 @@ class nnUNetV2Runner:  # noqa: N801
                 plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
             )
 
+    @classmethod
+    def predict_datalist(
+        cls,
+        input_datalist: str,
+        input_data_root: str,
+        model_dir: str,
+        output_dir: str,
+        modality: str = "CT",
+        num_foreground_classes: int | None = None,
+        num_input_channels: int | None = None,
+        work_dir: str = "work_dir",
+    ):
+        """Method to run inference on a datalist using a model trained by this runner.
+        Handles all nnUNet boilerplate, instantiation of the runner, etc.
+        Notably, it also removes the converted data from the raw data folder after inference is complete.
+        Note that this by default uses all five folds of a model (e.g., 3d_fullres) for inference, and ensembles the results.
+        Has the minimum required inputs for running inference:
+
+        Args:
+            input_datalist: path to the datalist json file. Must have the files listed under the "testing" key, and the paths must be relative to input_data_root or absolute.
+            input_data_root: path to the root folder of the input data (the folder that contains the images)
+            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres)
+            output_dir: path to the output directory, predictions will be saved here under their original names.
+            num_foreground_classes: number of foreground classes
+            num_input_channels: number of input channels
+            work_dir: path to the work directory
+
+        """
+
+        nnunet_raw_data_base = os.path.join(work_dir, "nnUNet_raw_data_base")
+        nnunet_trained_models = os.path.join(work_dir, "nnUNet_trained_models")
+
+        next_available_index = get_next_available_index(nnunet_raw_data_base)
+        num_input_channels_det, num_foreground_classes_det = get_info_from_dataset_json(model_dir)
+
+        if num_input_channels_det is None and num_input_channels is None:
+            raise ValueError("num_input_channels must be provided as it cannot be inferred from the dataset json.")
+        if num_foreground_classes_det is None and num_foreground_classes is None:
+            raise ValueError("num_foreground_classes must be provided as it cannot be inferred from the dataset json.")
+
+        num_foreground_classes, num_input_channels = (
+            num_foreground_classes_det if num_foreground_classes_det is not None else num_foreground_classes,
+            num_input_channels_det if num_input_channels_det is not None else num_input_channels,
+        )
+
+        input_config = {
+            "modality": modality,
+            "dataset_name_or_id": next_available_index,
+            "datalist": input_datalist,
+            "dataroot": input_data_root,
+            "nnunet_raw": nnunet_raw_data_base,
+            "nnunet_results": nnunet_trained_models,
+            "num_input_channels": num_input_channels,
+            "num_foreground_classes": num_foreground_classes,
+        }
+
+        # call preprocessing
+        runner = cls(input_config.copy())
+
+        runner.convert_dataset(testing=True)
+
+        # these things are hardcoded upstream
+        raw_data_foldername_prefix = str(int(runner.dataset_name_or_id) + 1000)
+        raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
+        raw_data_foldername = raw_data_foldername_prefix + "_" + input_config["dataroot"].split(os.sep)[-1]
+        raw_data_foldername = os.path.join(input_config["nnunet_raw"], raw_data_foldername)
+
+        with TemporaryDirectory() as pred_work_folder:
+            test_images_dir = os.path.join(raw_data_foldername, "imagesTs")  # Also hardcoded upstream
+
+            runner.predict(test_images_dir, output_folder=pred_work_folder, model_training_output_dir=model_dir)
+            move_predictions(raw_data_foldername, pred_work_folder, output_dir)
+
+        # now we can delete the raw data folder too
+        shutil.rmtree(raw_data_foldername)
+
+        print(f"✅ Inference complete. Predictions saved to {output_dir}. Temporary files cleaned up.")
+
+    @classmethod
+    def predict_files_glob(
+        cls,
+        input_files_glob: str,
+        input_files_root: str,
+        model_dir: str,
+        output_dir: str,
+        work_dir: str = "work_dir",
+        modality: str = "CT",
+    ):
+        """Method to run inference on a glob of files using a model trained by this runner.
+
+        Creates a temporary datalist json file from the glob of files, and then calls predict_datalist.
+
+        Args:
+            input_files_glob: glob pattern to match input files (e.g., ``/path/to/images/*.nii.gz``)
+            input_files_root: root directory for the input files (e.g., ``/path/to/images``)
+            model_dir: path to the folder containing the trained model (full path inside the work_dir, e.g., ``work_dir/nnUNet_trained_models/Dataset001_data/nnUNetTrainer__nnUNetPlans__3d_fullres``)
+            output_dir: path to the output directory, predictions will be saved here under their original names.
+            work_dir: path to the work_dir created by the runner during training.
+            modality: modality of the input data (default: "CT")
+        """
+        with NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as temp_json_file:
+            temp_json_path = temp_json_file.name
+            glob_to_datalist(input_files_glob, output_json=temp_json_path, key="testing", dataroot=input_files_root)
+
+            cls.predict_datalist(
+                input_datalist=temp_json_path,
+                input_data_root=input_files_root,
+                model_dir=model_dir,
+                work_dir=work_dir,
+                output_dir=output_dir,
+                modality=modality,
+            )
+
+    def _determine_configs(self):
+        from nnunetv2.paths import nnUNet_preprocessed
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
+        preprocessed_dataset_folder_base = join(
+            nnUNet_preprocessed, maybe_convert_to_dataset_name(self.dataset_name_or_id)
+        )
+        plans_file = join(preprocessed_dataset_folder_base, self.plans_identifier + ".json")
+
+        with open(plans_file) as f:
+            plans = json.load(f)
+
+        configurations = plans.get("configurations", [])
+        if not configurations:
+            raise ValueError(f"No configurations found in plans file: {plans_file}")
+
+        config_names = list(configurations.keys())
+        return config_names
+
     def run(
         self,
         run_convert_dataset: bool = True,
@@ -1046,11 +1199,13 @@ class nnUNetV2Runner:  # noqa: N801
         if run_plan_and_process:
             self.plan_and_process()
 
+        configs = self._determine_configs()
+
         if run_train:
-            self.train()
+            self.train(configs=configs)
 
         if run_find_best_configuration:
-            self.find_best_configuration()
+            self.find_best_configuration(configs=configs)
 
         if run_predict_ensemble_postprocessing:
             self.predict_ensemble_postprocessing()
