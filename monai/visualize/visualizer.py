@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sized
+from collections.abc import Callable, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -21,7 +21,9 @@ from monai.utils import InterpolateMode
 __all__ = ["default_upsampler"]
 
 
-def default_upsampler(spatial_size: Sized, align_corners: bool = False) -> Callable[[torch.Tensor], torch.Tensor]:
+def default_upsampler(
+    spatial_size: Sequence[int], align_corners: bool = False
+) -> Callable[[torch.Tensor], torch.Tensor]:
     """
     A linear interpolation method for upsampling the feature map.
     The output of this function is a callable `func`,
@@ -32,6 +34,6 @@ def default_upsampler(spatial_size: Sized, align_corners: bool = False) -> Calla
         linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
         interp_mode = linear_mode[len(spatial_size) - 1]
         smode = str(interp_mode.value)
-        return F.interpolate(x, size=spatial_size, mode=smode, align_corners=align_corners)  # type: ignore
+        return F.interpolate(x, size=spatial_size, mode=smode, align_corners=align_corners)
 
     return up

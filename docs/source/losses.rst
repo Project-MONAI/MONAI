@@ -78,6 +78,11 @@ Segmentation Losses
 .. autoclass:: BarlowTwinsLoss
     :members:
 
+`BoundaryLoss`
+~~~~~~~~~~~~~~
+.. autoclass:: BoundaryLoss
+    :members:
+
 `HausdorffDTLoss`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: HausdorffDTLoss

@@ -632,7 +632,7 @@ def _remap_preact_resnet_model(model_url: str):
     pattern_bna = re.compile(r"^(.+\.d\d+)\.blk_bna\.(.+)")
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
-    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
+    download_url(model_url, filepath=weights_dir, progress=False)
     map_location = None if torch.cuda.is_available() else torch.device("cpu")
     state_dict = torch.load(weights_dir, map_location=map_location, weights_only=True)["desc"]
 
@@ -667,7 +667,7 @@ def _remap_standard_resnet_model(model_url: str, state_dict_key: str | None = No
     pattern_downsample1 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.1\.(.+)")
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "resnet50.pth")
-    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
+    download_url(model_url, filepath=weights_dir, progress=False)
     map_location = None if torch.cuda.is_available() else torch.device("cpu")
     state_dict = torch.load(weights_dir, map_location=map_location, weights_only=True)
     if state_dict_key is not None:

@@ -4,6 +4,7 @@
 
 - [Installation Guide](#installation-guide)
 	- [Table of Contents](#table-of-contents)
+	- [GPU-enabled installation (CUDA and CuPy)](#gpu-enabled-installation-cuda-and-cupy)
 	- [From PyPI](#from-pypi)
 		- [Milestone release](#milestone-release)
 		- [Weekly preview release](#weekly-preview-release)
@@ -19,23 +20,47 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [PyTorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
 
 To install optional features such as handling the NIfTI files using
-[Nibabel](https://nipy.org/nibabel/), or building workflows using [Pytorch
+[Nibabel](https://nipy.org/nibabel/), or building workflows using [PyTorch
 Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
-The installation commands below usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+---
+
+## GPU-enabled installation (CUDA and CuPy)
+
+The installation commands below usually end up installing the CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
-1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
+1. Check the [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip packages, PyTorch wheels already bundle the CUDA runtime, so you only need to pick the CUDA version matching your driver from the selector and install with the provided command. You do not need to manually download CUDA or set `CUDA_PATH`.
 1. Continue to follow the guide and install PyTorch.
-1. Install MONAI using one the ways described below.
+1. Install MONAI using one of the ways described below.
+
+Installing GPU-enabled PyTorch is enough to run models and transforms on the GPU. Some transforms,
+however, additionally use [CuPy](https://cupy.dev/) for GPU-accelerated array operations (for example
+when a transform converts a CUDA tensor via `convert_to_cupy`). If CuPy is not installed, these code
+paths raise `OptionalImportError: import cupy (No module named 'cupy')`.
+
+MONAI provides a dedicated `cupy` extra that installs a compatible CuPy build:
+
+```bash
+pip install 'monai[cupy]'
+```
+
+The `cucim` extra installs [cuCIM](https://github.com/rapidsai/cucim) (`cucim-cu12` or `cucim-cu13`
+depending on your Python version), which is a separate GPU image-processing library and does not
+install CuPy.
+
+If you prefer to install CuPy directly, note that the PyPI package name is CUDA-version specific
+(e.g. `cupy-cuda12x` for CUDA 12.x, `cupy-cuda13x` for CUDA 13.x) rather than plain `cupy`. See the
+[CuPy installation guide](https://docs.cupy.dev/en/stable/install.html) for the correct package for
+your CUDA toolkit.
 
 ---
 
@@ -48,6 +73,26 @@ To install the [current milestone release](https://pypi.org/project/monai/):
 ```bash
 pip install monai
 ```
+
+MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
+
+```text
+clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, metrics_reloaded, mlflow, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
+```
+
+which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
+
+Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy is omitted from `all` since the choice between
+Cuda 12 and 13 versions of the library can't be resolved when installing and must be manually installed.
+
+The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
+required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
+O(N log N) alternatives to windowed self-attention). Install with
+`pip install 'monai[hyena]'`.
+
+The command  `pip install 'monai[all,hyena,testing]'` installs almost all the optional dependencies.
+
+When installing MONAI, the compiled extensions are not compiled by default. Set the environment variable `BUILD_MONAI` to `1` when invoking `pip` to compile these, see below for details.
 
 ### Weekly preview release
 
@@ -110,13 +155,6 @@ or, to build with MONAI C++/CUDA extensions:
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
-To build the extensions, if the system environment already has a version of Pytorch installed,
-`--no-build-isolation` might be preferred:
-
-```bash
-BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
-```
-
 On Windows the inline `BUILD_MONAI=1 pip install ...` form is not supported by
 `cmd.exe` or PowerShell. Set the environment variable first, then run either
 install command shown above:
@@ -124,13 +162,32 @@ install command shown above:
 ```bat
 :: cmd.exe
 set BUILD_MONAI=1
-pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+pip install git+https://github.com/Project-MONAI/MONAI
 ```
 
 ```powershell
 # PowerShell
 $env:BUILD_MONAI="1"
-pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+pip install git+https://github.com/Project-MONAI/MONAI
+```
+
+To build the extensions, if the system environment already has a version of PyTorch installed, `--no-build-isolation` might be preferred:
+
+```bash
+BUILD_MONAI=1 pip install --no-build-isolation git+https://github.com/Project-MONAI/MONAI
+```
+
+When using build isolation (pip's default behaviour), a version of PyTorch must be installed which may not be the same as an existing install. This can cause the compiled libraries to be built against an ABI-incompatible PyTorch and thus not function at runtime. Building without isolation requires the current environment to have the necessary building libraries already installed. See the `build-system` section of `pyproject.toml` for these libraries, or use the following to install them in a bash environment:
+
+```bash
+python monai/config/print_dependencies.py build-system | xargs -d '\n' pip install --no-build-isolation
+```
+
+An alternative solution is to use built constraints during installation:
+
+```bash
+pip freeze | grep torch > constraints.txt
+pip install --build-constraint constraints.txt git+https://github.com/Project-MONAI/MONAI
 ```
 
 this command will download and install the current `dev` branch of [MONAI from
@@ -152,6 +209,7 @@ You can install it by running:
 ```bash
 cd MONAI/
 pip install -e .
+# or pip install -e '.[all,testing]' to include most of the dependencies
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
@@ -178,6 +236,8 @@ cd MONAI/
 $env:BUILD_MONAI="1"
 pip install -e .
 ```
+
+If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isolation` flag to force the use of that version, or use the `--build-constraint` method.
 
 To uninstall the package please run:
 
@@ -263,12 +323,14 @@ cd MONAI/
 pip install -e ".[all]"
 ```
 
-To install all optional dependencies with `pip` based on MONAI development environment settings:
+To install all optional dependencies with `pip` based on MONAI development environment settings without installing
+MONAI itself:
 
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-pip install -r requirements-dev.txt
+python monai/config/print_dependencies.py \* > requirements.txt
+pip install -r requirements.txt
 ```
 
 To install all optional dependencies with `conda` based on MONAI development environment settings (`environment-dev.yml`;
@@ -280,21 +342,3 @@ cd MONAI/
 conda create -n <name> python=<ver>  # eg 3.10
 conda env update -n <name> -f environment-dev.yml
 ```
-
-Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
-
-- The options are
-
-```
-[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr, lpips, pynvml, huggingface_hub, hyena]
-```
-
-which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub`, `pyamg`, and `nvsubquadratic` respectively.
-
-The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
-required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
-O(N log N) alternatives to windowed self-attention). Install with
-`pip install 'monai[hyena]'`.
-
-- `pip install 'monai[all]'` installs all the optional dependencies.
