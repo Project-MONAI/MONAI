@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### Added
+* `NaViT` (`monai.networks.nets.NaViT`): Native Resolution Vision Transformer with Patch n' Pack, supporting variable-resolution 2D and 3D inputs. Implements factorized positional embeddings, token dropout, attention pooling, and QK normalization, based on ["Patch n' Pack: NaViT, a Vision Transformer for any Aspect Ratio and Resolution"](https://arxiv.org/abs/2307.06304).
 * `HyenaMixer`, `HyenaTransformerBlock`, and `DepthwiseFFTConv{2,3}d` in `monai.networks.blocks`: subquadratic O(N log N) alternatives to windowed self-attention, backed by the HyenaND operator from the optional `nvsubquadratic` package.
 * `HyenaNDUNETR` (`monai.networks.nets.HyenaNDUNETR`): thin `SwinUNETR` subclass with a `get_variant(name)` classmethod for the three Hyena variants (`HHHH`, `HAHA`, `HHAA`) from the NeurIPS 2026 paper "Native Multi-Dimensional Subquadratic Operators via Input Dependent Long Convolutions" (paper id 26539).
 * `SwinUNETR.use_hyena` and `SwinUNETR.hyena_stages` kwargs to thread HyenaND blocks through any subset of Swin stages. Default `use_hyena=False` preserves bit-identical forward behavior of the existing code path.

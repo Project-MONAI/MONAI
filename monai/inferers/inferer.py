@@ -1773,7 +1773,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         super().__init__(scheduler=scheduler)
         self.scale_factor = scale_factor
         if (ldm_latent_shape is None) ^ (autoencoder_latent_shape is None):
-            raise ValueError("If ldm_latent_shape is None, autoencoder_latent_shape must be None" "and vice versa.")
+            raise ValueError("If ldm_latent_shape is None, autoencoder_latent_shape must be None and vice versa.")
         self.ldm_latent_shape = ldm_latent_shape
         self.autoencoder_latent_shape = autoencoder_latent_shape
         if self.ldm_latent_shape is not None and self.autoencoder_latent_shape is not None:

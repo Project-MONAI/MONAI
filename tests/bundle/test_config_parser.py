@@ -487,6 +487,24 @@ class TestConfigProxy(unittest.TestCase):
         del parser.alias["y"]
         self.assertNotIn("y", parser.get_parsed_content("target"))
 
+    def test_ref_backed_proxy_attribute_read(self):
+        # Dot-notation must agree with bracket-notation on a proxy reached via $@ref:
+        # "alias::x" has no id in the resolver, but "x" is a key of the aliased node, so
+        # both notations must resolve it (parser.alias.x raised AttributeError before this
+        # fix, while parser.alias["x"] returned the value).
+        parser = ConfigParser(config={"target": {"x": 1, "y": 2}, "alias": "$@target"}, globals={"monai": "monai"})
+        self.assertEqual(parser.alias.x, parser.alias["x"])
+        self.assertEqual(parser.alias.x, 1)
+        # a key absent from the container still falls back to the container's own methods
+        self.assertEqual(sorted(parser.alias.keys()), ["x", "y"])
+
+    def test_chained_ref_backed_proxy_attribute_read(self):
+        # dot-notation must follow the full ref chain, as _backing_id() does for writes.
+        parser = ConfigParser(
+            config={"target": {"x": 1}, "mid": "$@target", "alias": "$@mid"}, globals={"monai": "monai"}
+        )
+        self.assertEqual(parser.alias.x, 1)
+
     def test_raw_is_read_only(self):
         with self.assertRaises(AttributeError):
             self.parser.A._raw = {"something": "else"}

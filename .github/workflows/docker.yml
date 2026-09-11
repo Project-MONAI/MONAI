@@ -13,6 +13,9 @@ on:
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   versioning_dev:
     # compute versioning file from python setup.py
@@ -69,8 +72,6 @@ jobs:
         cat _version.py
         mv _version.py monai/
 
-        # build "latest": remove flake package as it is not needed on hub.docker.com
-        sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
 
         # distribute as always w/ tag "latest" to hub.docker.com

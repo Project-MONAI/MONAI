@@ -224,9 +224,30 @@ class TestEffectiveRankScore(unittest.TestCase):
         probs = sv / sv_sum
         safe_probs = probs.clamp_min(torch.finfo(probs.dtype).tiny)
         eff_rank = (-(probs * safe_probs.log()).sum()).exp()
-        expected = (1.0 - eff_rank / min(20, 16)).clamp(0.0, 1.0)
+        expected = (1.0 - eff_rank / min(20 - 1, 16)).clamp(0.0, 1.0)
         score = _effective_rank_score(emb)
         self.assertAlmostEqual(float(score), float(expected), places=5)
+
+    def test_effective_rank_no_collapse_when_n_leq_d(self):
+        # Isotropic embeddings have NO dimensional collapse -> score must be ~0.
+        # RED on dev: returns ~0.25 (the 1/N floor). GREEN after fix: ~0.0004.
+        torch.manual_seed(0)
+        score = _effective_rank_score(torch.randn(4, 768))
+        self.assertLess(float(score), 0.05)
+
+    def test_effective_rank_two_distinct_samples_report_no_collapse(self):
+        # Two maximally-spread points span the only subspace 2 samples CAN span.
+        # RED on dev: returns exactly 0.5 ("50% collapsed"). GREEN after fix: 0.0.
+        emb = torch.zeros(2, 768)
+        emb[0, 0] = 1.0
+        emb[1, 0] = -1.0
+        self.assertAlmostEqual(float(_effective_rank_score(emb)), 0.0, places=5)
+
+    def test_effective_rank_unchanged_when_n_gt_d(self):
+        # Regression guard: the fix MUST be a no-op where the code is already correct.
+        torch.manual_seed(0)
+        score = _effective_rank_score(torch.randn(1024, 768))
+        self.assertAlmostEqual(float(score), 0.1234, places=3)
 
 
 class TestPerClassRank(unittest.TestCase):
