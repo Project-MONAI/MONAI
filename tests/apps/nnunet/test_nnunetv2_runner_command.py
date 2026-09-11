@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import threading
 import types
 import unittest
@@ -148,19 +149,14 @@ class TestTrainParallelCommand(unittest.TestCase):
 
 
 class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
-    def test_postprocessing_pickle_warns_on_untrusted_file(self):
-        runner = _make_runner()
-        runner.dataset_name = "Dataset001_Test"
-        runner.nnunet_raw = "/tmp/nnunet_raw"
-        runner.nnunet_results = "/tmp/nnunet_results"
-        runner.best_configuration = {
-            "best_model_or_ensemble": {
-                "selected_model_or_models": [{"configuration": "3d_fullres"}],
-                "postprocessing_file": "/tmp/attacker_controlled_postprocessing.pkl",
-                "some_plans_file": "/tmp/plans.json",
-            }
-        }
+    def _run_postprocessing(self, runner, events, load_pickle):
+        """Drive ``predict_ensemble_postprocessing`` with nnU-Net's modules stubbed out.
 
+        Args:
+            runner: the runner under test.
+            events: list that records ``warn``/``load_pickle`` calls in order.
+            load_pickle: the mock standing in for ``load_pickle``.
+        """
         ensemble_mod = types.ModuleType("nnunetv2.ensembling.ensemble")
         ensemble_mod.ensemble_folders = mock.MagicMock()
         pp_mod = types.ModuleType("nnunetv2.postprocessing.remove_connected_components")
@@ -174,20 +170,6 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
             "nnunetv2.utilities.file_path_utilities": fp_mod,
         }
 
-        events = []
-
-        def _load_pickle(path):
-            """Record a ``load_pickle`` call and return an empty postprocessing pipeline.
-
-            Args:
-                path: path to the pickle file (unused).
-
-            Returns:
-                A tuple of ``(postprocessing_fns, postprocessing_kwargs)``.
-            """
-            events.append("load_pickle")
-            return [], {}
-
         def _warn(*args, **kwargs):
             """Record a ``warnings.warn`` call.
 
@@ -197,7 +179,6 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
             """
             events.append("warn")
 
-        load_pickle = mock.MagicMock(side_effect=_load_pickle)
         with mock.patch.dict(sys.modules, fake_modules):
             with mock.patch.object(ConfigParser, "load_config_file", return_value=runner.best_configuration):
                 with mock.patch.object(nnunetv2_runner, "join", os.path.join):
@@ -207,8 +188,104 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
                                 run_predict=False, run_ensemble=False, run_postprocessing=True
                             )
 
-        load_pickle.assert_called_once_with("/tmp/attacker_controlled_postprocessing.pkl")
-        self.assertEqual(events, ["warn", "load_pickle"])
+    def test_postprocessing_pickle_warns_on_untrusted_file(self):
+        """A pickle inside the results directory is loaded, but only after warning."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "Dataset001_Test")
+            os.makedirs(results_root)
+            pp_file = os.path.join(results_root, "postprocessing.pkl")
+            plans_file = os.path.join(results_root, "plans.json")
+            open(pp_file, "w").close()
+            open(plans_file, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = tempdir
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": pp_file,
+                    "some_plans_file": plans_file,
+                }
+            }
+
+            events = []
+
+            def _load_pickle(path):
+                """Record a ``load_pickle`` call and return an empty postprocessing pipeline.
+
+                Args:
+                    path: path to the pickle file (unused).
+
+                Returns:
+                    A tuple of ``(postprocessing_fns, postprocessing_kwargs)``.
+                """
+                events.append("load_pickle")
+                return [], {}
+
+            load_pickle = mock.MagicMock(side_effect=_load_pickle)
+            self._run_postprocessing(runner, events, load_pickle)
+
+            load_pickle.assert_called_once_with(os.path.realpath(pp_file))
+            # Two warnings now precede the load: the trust warning and the MONAI 1.7 FutureWarning.
+            self.assertEqual(events, ["warn", "warn", "load_pickle"])
+
+    def test_postprocessing_file_outside_results_dir_is_rejected(self):
+        """Regression test for GHSA-8f32-8649-rv87.
+
+        ``postprocessing_file`` is read from ``inference_information.json``; a value pointing
+        outside the dataset's results directory means that file has been tampered with, so the
+        pickle must never be opened.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            evil = os.path.join(tempdir, "evil.pkl")
+            open(evil, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": evil,
+                    "some_plans_file": os.path.join(results_root, "plans.json"),
+                }
+            }
+
+            events = []
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, events, load_pickle)
+            load_pickle.assert_not_called()
+
+    def test_postprocessing_traversal_is_rejected(self):
+        """A ``..`` traversal that escapes the results directory is rejected."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            evil = os.path.join(tempdir, "evil.pkl")
+            open(evil, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": os.path.join(results_root, "..", "..", "evil.pkl"),
+                    "some_plans_file": os.path.join(results_root, "plans.json"),
+                }
+            }
+
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, [], load_pickle)
+            load_pickle.assert_not_called()
 
 
 if __name__ == "__main__":
