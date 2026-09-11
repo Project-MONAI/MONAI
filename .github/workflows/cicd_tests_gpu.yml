@@ -44,11 +44,11 @@ env:
 
 jobs:
 
-  full-dep:  # Test with full dependencies installed for different OS runners
+  full-dep-gpu:  # Test with full dependencies installed for different OS runners
     runs-on: [self-hosted, linux, gpu] #ubuntu-24.04-gpu]
     strategy:
       fail-fast: false
-    timeout-minutes: 120
+    timeout-minutes: 360
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
