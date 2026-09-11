@@ -20,6 +20,7 @@ import sys
 import warnings
 from copy import deepcopy
 from numbers import Number
+from pydoc import locate
 from typing import Any, cast
 
 import numpy as np
@@ -60,6 +61,40 @@ _PICKLE_DISABLED_MSG = (
 def _require_pickle_allowed() -> None:
     if not MONAIEnvVars.allow_pickle():
         raise RuntimeError(_PICKLE_DISABLED_MSG)
+
+
+def _reject_non_algo_target(target: str, filename: str) -> None:
+    """
+    Require that ``target`` names an ``Algo`` subclass before it is instantiated.
+
+    ``algo_from_json`` resolves ``_target_`` through ``ConfigParser``, which imports the dotted path
+    and calls it. ``algo_object.json`` has exactly one legitimate target type -- an ``Algo``
+    subclass -- so resolving the name and checking it here rejects payloads such as
+    ``subprocess.call`` or ``os.system`` before they are ever invoked.
+
+    Importing the named module still runs that module's top-level code, so this narrows the sink
+    rather than closing it: an untrusted ``algo_object.json`` combined with an attacker-controlled
+    template directory remains dangerous.
+
+    Args:
+        target: the ``_target_`` value read from the file.
+        filename: the file the value came from, used in the error message.
+
+    Raises:
+        ValueError: if ``target`` does not resolve to an ``Algo`` subclass.
+        ModuleNotFoundError: if the module cannot be imported, so callers can try the next
+            template path.
+    """
+    resolved = locate(target)
+    if resolved is None:
+        raise ModuleNotFoundError(f"cannot resolve `_target_` {target!r} from {filename}.")
+    if not (isinstance(resolved, type) and issubclass(resolved, Algo)):
+        raise ValueError(
+            f"refusing to instantiate `_target_` {target!r} from {filename}: it resolves to "
+            f"{resolved!r}, which is not a subclass of monai.auto3dseg.Algo. Only Algo subclasses "
+            "may be named in an algo_object.json "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv)."
+        )
 
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -493,16 +528,16 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
             if state_template_path:
                 algo_config["template_path"] = state_template_path
 
-            warnings.warn(
-                f"Loading {filename}: the file's `_target_` value is resolved to an imported callable and "
-                "invoked, and template directories from the file may be added to `sys.path`; only load "
-                "algo_object.json files from a source you trust "
-                "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv).",
-                stacklevel=2,
-            )
+            _reject_non_algo_target(target, filename)
 
             parser = ConfigParser(algo_config)
             algo = parser.get_parsed_content()
+            if not isinstance(algo, Algo):
+                raise ValueError(
+                    f"refusing to return the object built from '{target}' in {filename}: it is a "
+                    f"{type(algo).__name__}, not an Algo instance "
+                    "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv)."
+                )
             used_template_path = path
             break
         except ModuleNotFoundError as e:
