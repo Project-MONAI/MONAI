@@ -40,6 +40,38 @@ __all__ = ["nnUNetV2Runner"]
 DATASET_ID_FORMAT = r"Dataset[0-9]{3}|[0-9]+"  # regex format for a valid nnUnet dataset name
 
 
+def _confine_to_dir(candidate: str, allowed_dir: str, description: str) -> str:
+    """
+    Resolve ``candidate`` and require that it stays inside ``allowed_dir``.
+
+    ``inference_information.json`` is produced by nnU-Net inside the results directory, but its
+    contents are plain JSON: whoever can write that file chooses the paths this runner then loads.
+    Confining the path means a tampered ``inference_information.json`` cannot redirect a load to an
+    attacker-planted file elsewhere on the filesystem.
+
+    Args:
+        candidate: the path read from the configuration file.
+        allowed_dir: the directory the path must resolve inside.
+        description: name of the field, used in the error message.
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        ValueError: if the resolved path escapes ``allowed_dir``.
+    """
+    resolved = os.path.realpath(candidate)
+    allowed_root = os.path.realpath(allowed_dir)
+    if os.path.commonpath([resolved, allowed_root]) != allowed_root:
+        raise ValueError(
+            f"refusing to load {description} from '{candidate}': it resolves to '{resolved}', outside the "
+            f"expected directory '{allowed_root}'. This path is read from inference_information.json; a value "
+            "pointing outside the results directory indicates that file has been tampered with "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87)."
+        )
+    return resolved
+
+
 class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
@@ -1004,13 +1036,28 @@ class nnUNetV2Runner:  # noqa: N801
 
         # apply postprocessing
         if run_postprocessing:
-            postprocessing_file = self.best_configuration["best_model_or_ensemble"]["postprocessing_file"]
+            results_root = os.path.join(self.nnunet_results, self.dataset_name)
+            postprocessing_file = _confine_to_dir(
+                self.best_configuration["best_model_or_ensemble"]["postprocessing_file"],
+                results_root,
+                "postprocessing_file",
+            )
+            plans_file = _confine_to_dir(
+                self.best_configuration["best_model_or_ensemble"]["some_plans_file"], results_root, "some_plans_file"
+            )
             warnings.warn(
                 f"unpickling postprocessing_file {postprocessing_file}: this path is read from "
                 "inference_information.json and is loaded with Python pickle without any allow list, "
-                "which gives whoever controls that file arbitrary code execution. Only proceed if the "
-                "inference_information.json is from a source you trust "
+                "which gives whoever controls that file arbitrary code execution. The path is confined to "
+                "the dataset's results directory, but anyone able to write inside that directory can still "
+                "supply a malicious pickle. Only proceed if the results directory is from a source you trust "
                 "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87).",
+                stacklevel=2,
+            )
+            warnings.warn(
+                "loading nnU-Net postprocessing via Python pickle will require the environment variable "
+                "MONAI_ALLOW_PICKLE=1 from MONAI 1.7. Set it now to keep this call working after the change.",
+                FutureWarning,
                 stacklevel=2,
             )
             pp_fns, pp_fn_kwargs = load_pickle(postprocessing_file)
@@ -1019,7 +1066,7 @@ class nnUNetV2Runner:  # noqa: N801
                 join(target_dir_base, "ensemble_predictions_postprocessed"),
                 pp_fns,
                 pp_fn_kwargs,
-                plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
+                plans_file_or_dict=plans_file,
             )
 
     def run(
