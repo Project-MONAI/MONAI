@@ -11,17 +11,21 @@
 
 from __future__ import annotations
 
+import ast
+import configparser
+import io
 import json
+import logging
+import logging.handlers  # ensures `logging.handlers` is importable for the `class=` allowlist check
 import os
 import sys
 import time
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
@@ -34,22 +38,223 @@ __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
 logger = get_logger(module_name=__name__)
 
+# `class=` values accepted in a bundle's logging INI. `fileConfig` eval()s this field, so the
+# allowlist is by module: stdlib logging handlers/formatters cover every legitimate bundle.
+_ALLOWED_LOGGING_CLASS_MODULES = {"logging", "logging.handlers"}
 
-def _warn_logging_file_execution(logging_file: str) -> None:
-    """
-    Warn that ``logging_file`` is about to be executed by `logging.config.fileConfig`.
 
-    Called immediately before every `fileConfig` invocation in this module, so the warning is only
-    raised when the file is really executed -- not when it is missing or logging is disabled.
+def _reject_executable_logging_config(logging_file: str) -> str:
     """
-    warnings.warn(
-        f"applying logging config {logging_file}: `logging.config.fileConfig` passes the `class=` and "
-        "`args=` fields of the INI's handler and formatter sections to Python `eval()`, so this file "
-        "runs as code. A bundle ships its own `configs/logging.conf` and it is applied by default, "
-        "before any of the bundle's config is parsed. Only proceed if this file is from a source you "
-        "trust (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).",
-        stacklevel=3,
-    )
+    Reject a logging INI whose ``class=``/``args=`` fields would execute arbitrary code.
+
+    `logging.config.fileConfig` resolves each handler/formatter ``class=`` through ``eval()`` in a
+    namespace containing the ``logging`` module, and evaluates ``args=``/``kwargs=`` the same way.
+    A bundle ships ``configs/logging.conf`` and it is applied before any of the bundle's own config
+    is parsed, so an untrusted bundle gets code execution from the logging file alone.
+
+    Legitimate bundles only ever name stdlib logging classes, so ``class=`` is restricted to the
+    ``logging`` / ``logging.handlers`` namespaces and ``args=``/``kwargs=`` must be literals.
+
+    Args:
+        logging_file: path to the INI file that is about to be passed to `fileConfig`.
+
+    Returns:
+        The validated file content, so the caller can apply exactly this text without re-reading
+        the path (a second read could see swapped-in content and bypass this check).
+
+    Raises:
+        ValueError: if a field would run code that this allowlist does not cover.
+    """
+    try:
+        with open(logging_file, encoding="utf-8") as f:
+            content = f.read()
+    except OSError as e:
+        raise ValueError(f"cannot read logging config file {logging_file}: {e}") from e
+
+    parser = configparser.RawConfigParser()
+    try:
+        parser.read_string(content)
+    except configparser.Error as e:
+        raise ValueError(f"cannot parse logging config file {logging_file}: {e}") from e
+
+    for section in parser.sections():
+        for field in ("class", "args", "kwargs"):
+            if not parser.has_option(section, field):
+                continue
+            value = parser.get(section, field, raw=True).strip()
+            if not value:
+                continue
+            if field == "class":
+                # `fileConfig` eval()s this expression, so a bare string prefix is not a safe boundary:
+                # a call or subscript without a period (e.g. `__builtins__.eval`) would slip past it.
+                # Parse and allow only a bare name or an attribute chain whose root is allowlisted.
+                _reject_non_logging_class(value, logging_file, section)
+            else:
+                # `args`/`kwargs` are eval()ed in a namespace holding `logging`, `os` and `sys`.
+                # Literals alone are too strict -- `args=(sys.stdout,)` is the standard
+                # StreamHandler form -- so allow literals plus a fixed set of safe stream names,
+                # and reject calls, attribute traversal and comprehensions.
+                _reject_non_literal_expression(value, logging_file, section, field)
+    return content
+
+
+_ALLOWED_LOGGING_ARG_NAMES = {"sys.stdout", "sys.stderr"}
+
+
+def _is_allowed_logging_class(module: str, attribute: str) -> bool:
+    """
+    Return whether ``module.attribute`` names a logging handler or formatter class.
+
+    The check resolves the attribute on the already-imported allowlisted module and requires the
+    object to be a ``logging.Handler`` or ``logging.Formatter`` subclass. Deriving the answer from
+    the module keeps the allowlist in step with the standard library instead of hard-coding a name
+    list, and it rejects callables such as ``eval`` that are not logging classes at all.
+
+    Args:
+        module: dotted module name; must be one of ``_ALLOWED_LOGGING_CLASS_MODULES``.
+        attribute: attribute looked up on that module.
+    """
+    if module not in _ALLOWED_LOGGING_CLASS_MODULES:
+        return False
+    resolved = getattr(sys.modules.get(module), attribute, None)
+    return isinstance(resolved, type) and issubclass(resolved, (logging.Handler, logging.Formatter))
+
+
+def _reject_non_logging_class(value: str, logging_file: str, section: str) -> None:
+    """
+    Require ``value`` to be a bare name or an attribute chain rooted in an allowlisted module.
+
+    `fileConfig` passes ``class=`` to ``eval()``, so the whole expression -- not just a string
+    prefix -- must be inert. A bare identifier is resolved against the ``logging`` module; a
+    dotted path is resolved against the ``eval`` namespace. Calls, subscripts, operators and every
+    other expression node are rejected.
+
+    Args:
+        value: the raw ``class=`` value from the INI.
+        logging_file: path of the file, used in the error message.
+        section: INI section name, used in the error message.
+
+    Raises:
+        ValueError: if the expression is not a name or an attribute chain rooted in an allowlisted module.
+    """
+
+    def _fail(reason: str) -> None:
+        raise ValueError(
+            f"refusing to apply logging config {logging_file}: section [{section}] sets "
+            f"class={value!r}, which {reason} and would execute code through "
+            f"`logging.config.fileConfig`'s `eval()`. Only classes from "
+            f"{sorted(_ALLOWED_LOGGING_CLASS_MODULES)} are allowed "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3)."
+        )
+
+    try:
+        tree = ast.parse(value, mode="eval")
+    except SyntaxError as e:
+        _fail(f"is not a parsable expression ({e.msg})")
+
+    node = tree.body  # type: ignore[union-attr]
+    # A bare name is resolved against the `logging` module in fileConfig's eval namespace, so it
+    # must name a real logging handler/formatter there -- `class=eval` is a bare name too, and
+    # would hand an attacker-controlled `args=` literal straight to `eval()`.
+    if isinstance(node, ast.Name):
+        if not _is_allowed_logging_class("logging", node.id):
+            _fail(f"does not name a handler or formatter in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
+        return
+    # An attribute chain must be rooted in an allowlisted module and end at a handler/formatter.
+    if isinstance(node, ast.Attribute):
+        parts: list[str] = []
+        current: ast.AST = node
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+        if not isinstance(current, ast.Name):
+            _fail("is not a simple dotted name")
+        root = cast(ast.Name, current).id
+        parts.append(root)
+        dotted = ".".join(reversed(parts))
+        module, _, attribute = dotted.rpartition(".")
+        if module not in _ALLOWED_LOGGING_CLASS_MODULES:
+            _fail(f"references {dotted!r}, which is not in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
+        if not _is_allowed_logging_class(module, attribute):
+            _fail(f"references {dotted!r}, which is not a handler or formatter class")
+        return
+    _fail("is not a name or an attribute chain")
+
+
+def _reject_non_literal_expression(value: str, logging_file: str, section: str, field: str) -> None:
+    """
+    Require ``value`` to be a literal expression, optionally naming a safe stream.
+
+    `fileConfig` evaluates ``args=``/``kwargs=`` with ``eval()``. Constants, tuples, lists, dicts
+    and sets are inert; the only non-literal forms a real logging INI needs are ``sys.stdout`` and
+    ``sys.stderr``. Everything else -- calls, subscripts, arbitrary attribute chains, comprehensions
+    -- can execute code and is rejected.
+
+    Args:
+        value: the raw field value from the INI.
+        logging_file: path of the file, used in the error message.
+        section: INI section name, used in the error message.
+        field: field name, used in the error message.
+
+    Raises:
+        ValueError: if the expression is not in the allowed subset.
+    """
+
+    def _fail(reason: str) -> None:
+        raise ValueError(
+            f"refusing to apply logging config {logging_file}: section [{section}] sets "
+            f"{field}={value!r}, which {reason} and would execute code through "
+            "`logging.config.fileConfig`'s `eval()` "
+            "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3)."
+        )
+
+    def _dotted_name(node: ast.AST) -> str | None:
+        """Render an attribute/name chain such as ``sys.stdout``, or None if it is not one."""
+        parts: list[str] = []
+        current = node
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+        if not isinstance(current, ast.Name):
+            return None
+        parts.append(current.id)
+        return ".".join(reversed(parts))
+
+    try:
+        tree = ast.parse(value, mode="eval")
+    except SyntaxError as e:
+        _fail(f"is not a parsable expression ({e.msg})")
+
+    for node in ast.walk(tree.body):  # type: ignore[union-attr]
+        if isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Dict, ast.Set, ast.Load)):
+            continue
+        if isinstance(node, (ast.Attribute, ast.Name)):
+            name = _dotted_name(node)
+            if name is None:
+                _fail("uses a name this allowlist does not cover")
+            # Sub-nodes of an allowed chain (e.g. the `sys` of `sys.stdout`) are reached by the
+            # walk too; accept any prefix of a permitted name.
+            if name not in _ALLOWED_LOGGING_ARG_NAMES and not any(
+                allowed.startswith(f"{name}.") for allowed in _ALLOWED_LOGGING_ARG_NAMES
+            ):
+                _fail(f"references {name!r}, which is not in {sorted(_ALLOWED_LOGGING_ARG_NAMES)}")
+            continue
+        _fail(f"contains a {type(node).__name__} node")
+
+
+def _apply_logging_file(logging_file: str) -> None:
+    """
+    Validate ``logging_file`` and apply it, using exactly the content that was validated.
+
+    The single read performed by the validator is what `fileConfig` applies: re-opening the path
+    in between would let a swapped-in file bypass the allowlist and reach `fileConfig`'s `eval()`
+    calls.
+
+    Args:
+        logging_file: path to the logging INI file.
+    """
+    content = _reject_executable_logging_config(logging_file)
+    fileConfig(io.StringIO(content), disable_existing_loggers=False)
 
 
 class BundleWorkflow(ABC):
@@ -74,8 +279,9 @@ class BundleWorkflow(ABC):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
-            `eval()`, so this file runs as code and applying it raises a warning -- once per call
-            site, as Python's default warning filter suppresses repeats
+            `eval()`, so this file runs as code. `class=` is restricted to the `logging` and
+            `logging.handlers` namespaces and `args=`/`kwargs=` to literals plus `sys.stdout` /
+            `sys.stderr`; anything else raises `ValueError`
             (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
 
     """
@@ -94,8 +300,7 @@ class BundleWorkflow(ABC):
             if not os.path.isfile(logging_file):
                 raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             logger.info(f"Setting logging properties based on config: {logging_file}.")
-            _warn_logging_file_execution(logging_file)
-            fileConfig(logging_file, disable_existing_loggers=False)
+            _apply_logging_file(logging_file)
 
         if meta_file is not None:
             if isinstance(meta_file, str) and not os.path.isfile(meta_file):
@@ -297,8 +502,9 @@ class PythonicWorkflow(BundleWorkflow):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
-            `eval()`, so this file runs as code and applying it raises a warning -- once per call
-            site, as Python's default warning filter suppresses repeats
+            `eval()`, so this file runs as code. `class=` is restricted to the `logging` and
+            `logging.handlers` namespaces and `args=`/`kwargs=` to literals plus `sys.stdout` /
+            `sys.stderr`; anything else raises `ValueError`
             (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
 
     """
@@ -403,8 +609,9 @@ class ConfigWorkflow(BundleWorkflow):
             If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
             If False, the logging logic for the bundle will not be modified.
             Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
-            `eval()`, so this file runs as code and applying it raises a warning -- once per call
-            site, as Python's default warning filter suppresses repeats
+            `eval()`, so this file runs as code. `class=` is restricted to the `logging` and
+            `logging.handlers` namespaces and `args=`/`kwargs=` to literals plus `sys.stdout` /
+            `sys.stderr`; anything else raises `ValueError`
             (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
@@ -475,8 +682,7 @@ class ConfigWorkflow(BundleWorkflow):
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
-                _warn_logging_file_execution(str(logging_file))
-                fileConfig(str(logging_file), disable_existing_loggers=False)
+                _apply_logging_file(str(logging_file))
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
 
         self.parser = ConfigParser()

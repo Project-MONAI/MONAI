@@ -276,8 +276,9 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
     bundle's own "configs/logging.conf" and hands it to `logging.config.fileConfig`, which `eval()`s
     the INI's `class=`/`args=` fields. It fires in `__init__`, before `initialize()` or `run()`, and
     lives in a plain INI rather than the MONAI `$`-DSL, so it is easy to miss when reviewing a
-    bundle. Applying it is still not blocked -- as for GHSA-873f-pvrv-4x83, MONAI has no way to
-    establish whether a bundle is trustworthy -- but applying it now raises a `UserWarning`."""
+    bundle. `class=` is now restricted to the stdlib logging namespaces and `args=`/`kwargs=` to
+    literals plus `sys.stdout`/`sys.stderr`, so a config that would execute code is rejected before
+    `fileConfig` ever sees it."""
 
     def setUp(self):
         # `fileConfig` reconfigures logging process-wide. Snapshot the root logger and restore it
@@ -303,15 +304,132 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
 
         self.addCleanup(_restore)
 
-    def test_default_logging_conf_warns_and_executes(self):
+    def test_class_call_expr_is_rejected(self):
+        """A ``class=`` call expression (no dot, no tuple subscript) is refused.
+
+        This is the exact shape the previous string-prefix check could not see: ``rsplit('.', 1)[0]``
+        on a call with no period returns the whole expression, and `class=` values in real configs
+        are dotted logging names, so such a call would never have been allowed -- it is rejected
+        here by the AST parser rather than the prefix test.
+        """
         with tempfile.TemporaryDirectory() as tempdir:
             configs = os.path.join(tempdir, "configs")
             os.makedirs(configs)
             marker = os.path.join(tempdir, "PWNED")
             with open(os.path.join(configs, "train.json"), "w") as f:
                 json.dump({"initialize": []}, f)
-            # `fileConfig` eval()s the `class=` field, so the tuple subscript runs the payload and
-            # still yields a usable handler class.
+            payload = f"__import__('pathlib').Path({marker!r}).write_text('pwned')"
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    f"[handler_h]\nclass={payload}()\nargs=()\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_class_attribute_call_is_rejected(self):
+        """A ``class=`` attribute-chain expression is refused even when it is not a bare call.
+
+        The root module is not on the `logging` allowlist, so the attribute chain is rejected by
+        the AST check regardless of the trailing call.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            payload = f"__import__('pathlib').Path({marker!r}).write_text"
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    f"[handler_h]\nclass={payload}\nargs=()\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_bare_eval_class_is_rejected(self):
+        """A bare ``class=eval`` is refused before it can run an ``args=`` payload.
+
+        `fileConfig` resolves a dotless ``class=`` against the `logging` module's namespace via
+        ``eval()``, so ``class=eval`` paired with a literal ``args=`` tuple -- which the literal
+        check permits, because the tuple itself is inert -- would hand an attacker-controlled
+        string straight to ``eval``. Accepting any bare name is therefore not safe: the name must
+        resolve to a real handler or formatter class.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            payload = f"__import__('pathlib').Path({marker!r}).write_text('pwned')"
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    f"[handler_h]\nclass=eval\nargs=({payload!r},)\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_non_handler_logging_attribute_is_rejected(self):
+        """A real `logging` attribute that is not a handler or formatter is refused.
+
+        ``logging.Logger`` lives in an allowlisted module but is not a `Handler`/`Formatter`
+        subclass, so allowing the module alone is too coarse a boundary.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    "[handler_h]\nclass=logging.Logger\nargs=()\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+
+    def test_rotating_file_handler_is_accepted(self):
+        """A dotted `logging.handlers` handler keeps working under the class allowlist."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            logfile = os.path.join(tempdir, "run.log")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=INFO\nhandlers=h\n"
+                    "[handler_h]\nclass=logging.handlers.RotatingFileHandler\n"
+                    f"level=INFO\nformatter=f\nargs=({logfile!r},)\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+
+    def test_default_logging_conf_payload_is_rejected(self):
+        """The `class=` payload is refused and never runs."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            # `fileConfig` would eval() the `class=` field, so the tuple subscript runs the payload
+            # and still yields a usable handler class -- unless the config is rejected first.
             with open(os.path.join(configs, "logging.conf"), "w") as f:
                 f.write(
                     "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
@@ -321,9 +439,46 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
                     "__import__('logging').StreamHandler)[1]\nargs=()\nformatter=f\n"
                     "[formatter_f]\nformat=%(message)s\n"
                 )
-            with self.assertWarnsRegex(UserWarning, r"GHSA-wvpx-5qmp-46g3"):
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
                 ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
-            self.assertTrue(os.path.exists(marker))
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_args_payload_is_rejected(self):
+        """A payload hidden in `args=` is refused even with an allowlisted `class=`."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            marker = os.path.join(tempdir, "PWNED")
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=NOTSET\nhandlers=h\n"
+                    "[handler_h]\nclass=StreamHandler\n"
+                    f"args=(__import__('pathlib').Path({marker!r}).write_text('pwned'),)\nformatter=f\n"
+                    "[formatter_f]\nformat=%(message)s\n"
+                )
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            self.assertFalse(os.path.exists(marker), "the logging.conf payload executed")
+
+    def test_benign_logging_conf_still_applies(self):
+        """The standard `class=StreamHandler` / `args=(sys.stdout,)` form keeps working."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            configs = os.path.join(tempdir, "configs")
+            os.makedirs(configs)
+            with open(os.path.join(configs, "train.json"), "w") as f:
+                json.dump({"initialize": []}, f)
+            with open(os.path.join(configs, "logging.conf"), "w") as f:
+                f.write(
+                    "[loggers]\nkeys=root\n[handlers]\nkeys=h\n[formatters]\nkeys=f\n"
+                    "[logger_root]\nlevel=INFO\nhandlers=h\n"
+                    "[handler_h]\nclass=StreamHandler\nlevel=INFO\nformatter=f\nargs=(sys.stdout,)\n"
+                    "[formatter_f]\nformat=%(asctime)s - %(message)s\n"
+                )
+            # Must not raise.
+            ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
 
     def test_no_warning_when_logging_disabled(self):
         """No warning when `fileConfig` is never reached -- the file exists but is opted out of."""
