@@ -15,7 +15,6 @@ import json
 import os
 import tempfile
 import unittest
-import warnings
 from copy import deepcopy
 from numbers import Number
 
@@ -637,21 +636,19 @@ class TestDataAnalyzer(unittest.TestCase):
 
 
 class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
-    def test_warns_about_untrusted_target(self) -> None:
+    def test_rejects_untrusted_target(self) -> None:
+        """Verify that a ``_target_`` pointing to a non-``Algo`` class is rejected.
+
+        ``_DummyAlgo`` is a plain class (not an ``Algo`` subclass); loading it must raise
+        ``ValueError`` rather than instantiate the class, per GHSA-2wx3.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             algo_file = os.path.join(tmpdir, "algo_object.json")
             with open(algo_file, "w", encoding="utf-8") as f:
                 json.dump({"_target_": f"{__name__}._DummyAlgo"}, f)
 
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
+            with self.assertRaisesRegex(ValueError, "refusing to instantiate"):
                 algo_from_json(algo_file)
-
-            messages = [str(w.message) for w in caught]
-            self.assertTrue(
-                any("algo_object.json" in msg and "trust" in msg for msg in messages),
-                f"Keywords 'algo_object.json' and 'trust' not found in warning messages: {messages}",
-            )
 
 
 if __name__ == "__main__":
