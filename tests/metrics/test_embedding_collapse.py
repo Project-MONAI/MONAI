@@ -441,7 +441,6 @@ class TestLinearProbeAccuracy(unittest.TestCase):
                 )
 
 
-
 class TestAggregateIncludesPerClassRank(unittest.TestCase):
     """Asymmetric collapse must reach the summary score, not only the per-class keys."""
 
@@ -466,9 +465,7 @@ class TestAggregateIncludesPerClassRank(unittest.TestCase):
     def test_max_aggregate_at_least_worst_per_class(self):
         emb, lbl = self._majority_healthy_minority_collapsed()
         scores = compute_embedding_collapse(emb, lbl, reduction="max")
-        per_class = [
-            float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None
-        ]
+        per_class = [float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None]
         self.assertGreaterEqual(float(scores["aggregate"]), max(per_class))
 
     def test_global_indicators_miss_the_collapse(self):
@@ -489,9 +486,7 @@ class TestAggregateIncludesPerClassRank(unittest.TestCase):
             for k in ("centroid_similarity", "effective_rank_score", "separation")
             if scores.get(k) is not None
         ]
-        per_class = [
-            float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None
-        ]
+        per_class = [float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None]
         expected = (sum(globals_) + max(per_class)) / (len(globals_) + 1)
         self.assertAlmostEqual(float(scores["aggregate"]), expected, places=5)
 
