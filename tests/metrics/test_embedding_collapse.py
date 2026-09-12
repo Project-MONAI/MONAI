@@ -441,5 +441,60 @@ class TestLinearProbeAccuracy(unittest.TestCase):
                 )
 
 
+
+class TestAggregateIncludesPerClassRank(unittest.TestCase):
+    """Asymmetric collapse must reach the summary score, not only the per-class keys."""
+
+    @staticmethod
+    def _majority_healthy_minority_collapsed(n_major=200, n_minor=8, d=64, seed=17):
+        """Healthy majority class; minority class collapsed to a single point."""
+        torch.manual_seed(seed)
+        major = torch.randn(n_major, d)
+        major[:, 0] -= 4.0  # centroid ~ -e1
+        minor = torch.zeros(n_minor, d)
+        minor[:, 0] = 8.0  # identical rows, centroid = +e1
+        emb = torch.cat([major, minor])
+        lbl = torch.tensor([0] * n_major + [1] * n_minor, dtype=torch.long)
+        return emb, lbl
+
+    def test_collapsed_minority_class_reaches_aggregate(self):
+        emb, lbl = self._majority_healthy_minority_collapsed()
+        scores = compute_embedding_collapse(emb, lbl, reduction="max")
+        self.assertAlmostEqual(float(scores["per_class_rank_1"]), 1.0, places=5)
+        self.assertAlmostEqual(float(scores["aggregate"]), 1.0, places=5)
+
+    def test_max_aggregate_at_least_worst_per_class(self):
+        emb, lbl = self._majority_healthy_minority_collapsed()
+        scores = compute_embedding_collapse(emb, lbl, reduction="max")
+        per_class = [
+            float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None
+        ]
+        self.assertGreaterEqual(float(scores["aggregate"]), max(per_class))
+
+    def test_global_indicators_miss_the_collapse(self):
+        """Guard: the fixture is only meaningful while the global view stays healthy."""
+        emb, lbl = self._majority_healthy_minority_collapsed()
+        scores = compute_embedding_collapse(emb, lbl, reduction="none")
+        self.assertLess(float(scores["effective_rank_score"]), 0.2)
+        self.assertLess(float(scores["centroid_similarity"]), 0.2)
+
+    def test_per_class_contributes_one_term_to_mean(self):
+        """Three classes must not outvote the global indicators 3:4 under `mean`."""
+        torch.manual_seed(23)
+        emb = torch.cat([torch.randn(40, 32) + k * 6.0 for k in range(3)])
+        lbl = torch.tensor([0] * 40 + [1] * 40 + [2] * 40, dtype=torch.long)
+        scores = compute_embedding_collapse(emb, lbl, reduction="mean")
+        globals_ = [
+            float(scores[k])
+            for k in ("centroid_similarity", "effective_rank_score", "separation")
+            if scores.get(k) is not None
+        ]
+        per_class = [
+            float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None
+        ]
+        expected = (sum(globals_) + max(per_class)) / (len(globals_) + 1)
+        self.assertAlmostEqual(float(scores["aggregate"]), expected, places=5)
+
+
 if __name__ == "__main__":
     unittest.main()
