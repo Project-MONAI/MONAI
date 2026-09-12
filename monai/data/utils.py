@@ -686,28 +686,40 @@ def worker_init_fn(worker_id: int) -> None:
     set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
-def set_rnd(obj, seed: int) -> int:
+def set_rnd(obj, seed: int, _seen: set[int] | None = None) -> int:
     """
     Set seed or random state for all randomizable properties of obj.
 
     Args:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
+        _seen: internal set of already-visited object ids, used to guard against
+            infinite recursion on cyclic object graphs (e.g. OmegaConf/Hydra
+            configs whose child nodes back-reference their parent, see issue #8087).
     """
+    if _seen is None:
+        _seen = set()
     if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
-        _seed = seed
+        if id(obj) in _seen:
+            return seed
+        _seen.add(id(obj))
+        has_randomizable = False
         for item in obj:
-            _seed = set_rnd(item, seed=seed)
-        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
+            item_seed = set_rnd(item, seed=seed, _seen=_seen)
+            has_randomizable = has_randomizable or item_seed != seed
+        return seed + 1 if has_randomizable else seed
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
+    if id(obj) in _seen:
+        return seed  # already visited: avoid infinite recursion on cyclic references
+    _seen.add(id(obj))
     if hasattr(obj, "set_random_state"):
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
         if key.startswith("__"):  # skip the private methods
             continue
-        seed = set_rnd(obj.__dict__[key], seed=seed)
+        seed = set_rnd(obj.__dict__[key], seed=seed, _seen=_seen)
     return seed
 
 

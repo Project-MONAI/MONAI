@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import sys
+import types
 import unittest
 
 import numpy as np
@@ -19,6 +20,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, Dataset, ZipDataset
+from monai.data.utils import set_rnd
 from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
 from monai.utils import convert_to_numpy, set_determinism
 from tests.test_utils import assert_allclose
@@ -26,6 +28,11 @@ from tests.test_utils import assert_allclose
 TEST_CASE_1 = [[{"image": np.asarray([1, 2, 3])}, {"image": np.asarray([4, 5])}]]
 
 TEST_CASE_2 = [[{"label": torch.as_tensor([[3], [2]])}, {"label": np.asarray([[1], [2]])}]]
+
+_CYCLIC_DATASET_SIZE = 4
+_CYCLIC_BATCH_SIZE = 1
+_CYCLIC_NUM_WORKERS = 0
+_CYCLIC_TEST_SEED = 42
 
 
 class TestDataLoader(unittest.TestCase):
@@ -97,6 +104,69 @@ class TestLoaderRandom(unittest.TestCase):
             for batch in dataloader:
                 output.extend([convert_to_numpy(batch, wrap_sequence=False)])
         assert_allclose(np.stack(output).flatten()[:7], np.array([594, 170, 594, 170, 594, 170, 524]))
+
+
+class _CyclicConfigDataset(torch.utils.data.Dataset):
+    """
+    Dataset holding an attribute whose object graph contains a reference cycle.
+
+    This mirrors OmegaConf/Hydra configs, whose child nodes hold a back-reference
+    to their parent node. Seeding such a dataset used to recurse forever in
+    ``monai.data.utils.set_rnd`` (see issue #8087).
+    """
+
+    def __init__(self):
+        parent = types.SimpleNamespace()
+        child = types.SimpleNamespace()
+        parent.child = child
+        child.parent = parent  # reference cycle, as in an OmegaConf parent/child graph
+        self.cfg = parent
+
+    def __len__(self):
+        return _CYCLIC_DATASET_SIZE
+
+    def __getitem__(self, index):
+        return torch.tensor([index])
+
+
+class _SeedRecorder:
+    def __init__(self):
+        self.seed = None
+
+    def set_random_state(self, seed):
+        self.seed = seed
+
+
+class TestLoaderRecursion(unittest.TestCase):
+    def test_cyclic_reference_no_recursion(self):
+        # Constructing the loader seeds the dataset (num_workers=0). A reference cycle in the
+        # dataset's attributes must not raise RecursionError while walking the object graph.
+        dataloader = DataLoader(
+            _CyclicConfigDataset(), batch_size=_CYCLIC_BATCH_SIZE, num_workers=_CYCLIC_NUM_WORKERS, shuffle=False
+        )
+        self.assertEqual(len(list(dataloader)), _CYCLIC_DATASET_SIZE)
+
+    def test_cyclic_list_reference_no_recursion(self):
+        """Test seeding a dataset whose configuration list contains itself."""
+        dataset = _CyclicConfigDataset()
+        dataset.cfg = []
+        dataset.cfg.append(dataset.cfg)
+        dataloader = DataLoader(dataset, batch_size=_CYCLIC_BATCH_SIZE, num_workers=_CYCLIC_NUM_WORKERS, shuffle=False)
+        self.assertEqual(len(list(dataloader)), _CYCLIC_DATASET_SIZE)
+
+    def test_cyclic_list_preserves_seed_advancement(self):
+        """Test a cyclic list does not erase seed advancement from an earlier item."""
+        dataset = _CyclicConfigDataset()
+        nested_randomizable = _SeedRecorder()
+        following_randomizable = _SeedRecorder()
+        dataset.cfg = [nested_randomizable]
+        dataset.cfg.append(dataset.cfg)
+        dataset.following_randomizable = following_randomizable
+
+        set_rnd(dataset, seed=_CYCLIC_TEST_SEED)
+
+        self.assertEqual(nested_randomizable.seed, _CYCLIC_TEST_SEED)
+        self.assertEqual(following_randomizable.seed, _CYCLIC_TEST_SEED + 1)
 
 
 if __name__ == "__main__":
