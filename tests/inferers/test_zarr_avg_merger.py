@@ -195,11 +195,20 @@ TEST_CASE_12_CHUNKS = [
 ]
 
 # Define zarr v3 codec configurations with proper bytes codec
-ZARR_V3_LZ4_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "lz4"}}]
+ZARR_V3_LZ4_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "lz4"}},
+]
 
-ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}]
+ZARR_V3_PICKLE_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "zstd"}},
+]
 
-ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}]
+ZARR_V3_LZMA_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "zlib"}},
+]
 
 # test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
@@ -289,7 +298,10 @@ TEST_CASE_18_CODECS = [
 TEST_CASE_19_VALUE_CODECS = [
     dict(
         merged_shape=TENSOR_4x4.shape,
-        value_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}],
+        value_codecs=[
+            {"name": "bytes", "configuration": {"endian": "little"}},
+            {"name": "blosc", "configuration": {"cname": "zstd"}},
+        ],
     ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -304,7 +316,10 @@ TEST_CASE_19_VALUE_CODECS = [
 TEST_CASE_20_COUNT_CODECS = [
     dict(
         merged_shape=TENSOR_4x4.shape,
-        count_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}],
+        count_codecs=[
+            {"name": "bytes", "configuration": {"endian": "little"}},
+            {"name": "blosc", "configuration": {"cname": "zlib"}},
+        ],
     ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -448,6 +463,11 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None, store=self.merged_name)
+
+    def test_zarr_avg_merger_default_chunks_auto(self):
+        """chunks=True must mean auto-chunking, not one whole-shape chunk (zarr 3.3 removed boolean chunks)."""
+        merger = ZarrAvgMerger(merged_shape=(4096, 4096), store=self.merged_name)
+        self.assertNotEqual(merger.output.chunks, (4096, 4096))
 
 
 if __name__ == "__main__":
