@@ -19,7 +19,7 @@ import unittest
 from tests.test_utils import TimedCall
 
 
-@TimedCall(seconds=20 if sys.platform == "linux" else 60, force_quit=False)
+@TimedCall(seconds=20 if sys.platform == "linux" else 60, force_quit=True)
 def case_1_seconds(arg=None):
     time.sleep(1)
     return "good" if not arg else arg

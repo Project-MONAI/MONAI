@@ -50,7 +50,16 @@ from .decathlon_datalist import (
 from .folder_layout import FolderLayout, FolderLayoutBase
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
+from .image_reader import (
+    ImageReader,
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    NvImgCodecPydicomReader,
+    PILReader,
+    PydicomReader,
+)
 from .image_writer import (
     SUPPORTED_WRITERS,
     ImageWriter,
@@ -71,7 +80,7 @@ from .itk_torch_bridge import (
     monai_to_itk_ddf,
 )
 from .meta_obj import MetaObj, get_track_meta, set_track_meta
-from .meta_tensor import MetaTensor
+from .meta_tensor import MetaTensor, get_spatial_ndim
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation

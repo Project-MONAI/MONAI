@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from copy import copy
@@ -32,6 +33,23 @@ from monai.utils import BundleProperty, BundlePropertyConfig, ensure_tuple
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
 logger = get_logger(module_name=__name__)
+
+
+def _warn_logging_file_execution(logging_file: str) -> None:
+    """
+    Warn that ``logging_file`` is about to be executed by `logging.config.fileConfig`.
+
+    Called immediately before every `fileConfig` invocation in this module, so the warning is only
+    raised when the file is really executed -- not when it is missing or logging is disabled.
+    """
+    warnings.warn(
+        f"applying logging config {logging_file}: `logging.config.fileConfig` passes the `class=` and "
+        "`args=` fields of the INI's handler and formatter sections to Python `eval()`, so this file "
+        "runs as code. A bundle ships its own `configs/logging.conf` and it is applied by default, "
+        "before any of the bundle's config is parsed. Only proceed if this file is from a source you "
+        "trust (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).",
+        stacklevel=3,
+    )
 
 
 class BundleWorkflow(ABC):
@@ -55,6 +73,10 @@ class BundleWorkflow(ABC):
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
+            `eval()`, so this file runs as code and applying it raises a warning -- once per call
+            site, as Python's default warning filter suppresses repeats
+            (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
 
     """
 
@@ -72,6 +94,7 @@ class BundleWorkflow(ABC):
             if not os.path.isfile(logging_file):
                 raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             logger.info(f"Setting logging properties based on config: {logging_file}.")
+            _warn_logging_file_execution(logging_file)
             fileConfig(logging_file, disable_existing_loggers=False)
 
         if meta_file is not None:
@@ -224,6 +247,7 @@ class BundleWorkflow(ABC):
             desc: descriptions for the property.
         """
         if self.properties is None:
+            # pyrefly: ignore [bad-assignment]
             self.properties = {}
         if name in self.properties:
             logger.warning(f"property '{name}' already exists in the properties list, overriding it.")
@@ -272,6 +296,10 @@ class PythonicWorkflow(BundleWorkflow):
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
+            `eval()`, so this file runs as code and applying it raises a warning -- once per call
+            site, as Python's default warning filter suppresses repeats
+            (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
 
     """
 
@@ -329,6 +357,7 @@ class PythonicWorkflow(BundleWorkflow):
         elif name in self._props_vals:
             value = self._props_vals[name]
         elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
+            # pyrefly: ignore [missing-attribute]
             id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
             value = self.parser[id]
         else:
@@ -373,6 +402,10 @@ class ConfigWorkflow(BundleWorkflow):
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
             If False, the logging logic for the bundle will not be modified.
+            Security note: `fileConfig` passes the INI's `class=` and `args=` fields to Python
+            `eval()`, so this file runs as code and applying it raises a warning -- once per call
+            site, as Python's default warning filter suppresses repeats
+            (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         run_id: ID name of the expected config expression to run, default to "run".
@@ -442,6 +475,7 @@ class ConfigWorkflow(BundleWorkflow):
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
+                _warn_logging_file_execution(str(logging_file))
                 fileConfig(str(logging_file), disable_existing_loggers=False)
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
 
@@ -621,6 +655,7 @@ class ConfigWorkflow(BundleWorkflow):
         else:
             ref = self.parser.get(ref_id, None)
         # for reference IDs that not refer to a property directly but using expressions, skip the check
+        # pyrefly: ignore [unsupported-operation]
         if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True

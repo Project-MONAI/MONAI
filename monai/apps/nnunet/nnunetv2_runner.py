@@ -14,8 +14,11 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import shlex
 import subprocess
+import warnings
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import monai
@@ -33,6 +36,8 @@ nib, _ = optional_import("nibabel")
 logger = monai.apps.utils.get_logger(__name__)
 
 __all__ = ["nnUNetV2Runner"]
+
+DATASET_ID_FORMAT = r"Dataset[0-9]{3}|[0-9]+"  # regex format for a valid nnUnet dataset name
 
 
 class nnUNetV2Runner:  # noqa: N801
@@ -195,6 +200,13 @@ class nnUNetV2Runner:  # noqa: N801
 
         # dataset_name_or_id has to be a string
         self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
+        self.dataset_name: str | None = None
+
+        # ensure the dataset name is a single identifier/number, this prevents code injection when composing commands
+        if re.fullmatch(DATASET_ID_FORMAT, self.dataset_name_or_id) is None:
+            raise ValueError(
+                f"Value for dataset_name_or_id `{self.dataset_name_or_id}` not a valid dataset name or ID."
+            )
 
         try:
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
@@ -239,7 +251,7 @@ class nnUNetV2Runner:  # noqa: N801
 
             from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-            self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
+            self.dataset_name = maybe_convert_to_dataset_name(self.dataset_name_or_id)
 
             datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
 
@@ -264,6 +276,7 @@ class nnUNetV2Runner:  # noqa: N801
                 modality = [modality]
 
             create_new_dataset_json(
+                # pyrefly: ignore [bad-argument-type]
                 modality=modality,
                 num_foreground_classes=num_foreground_classes,
                 num_input_channels=num_input_channels,
@@ -548,7 +561,7 @@ class nnUNetV2Runner:  # noqa: N801
         Raises:
             ValueError: If gpu_id is an empty tuple or list.
         """
-        env = os.environ.copy()
+        env: dict[str, str] = os.environ.copy()
         device_setting: str = "0"
         num_gpus = 1
         if isinstance(gpu_id, str):
@@ -574,22 +587,29 @@ class nnUNetV2Runner:  # noqa: N801
 
         cmd = [
             "nnUNetv2_train",
-            f"{self.dataset_name_or_id}",
-            f"{config}",
-            f"{fold}",
+            self.dataset_name_or_id,
+            config,
+            fold,
             "-tr",
-            f"{self.trainer_class_name}",
+            self.trainer_class_name,
             "-num_gpus",
-            f"{num_gpus}",
+            num_gpus,
         ]
+
         if self.export_validation_probabilities:
             cmd.append("--npz")
+
         for _key, _value in kwargs.items():
-            if _key == "p" or _key == "pretrained_weights":
-                cmd.extend([f"-{_key}", f"{_value}"])
+            prefix = "-" if _key in {"p", "pretrained_weights"} else "--"
+            if isinstance(_value, bool):
+                if _value:
+                    cmd.append(f"{prefix}{_key}")
             else:
-                cmd.extend([f"--{_key}", f"{_value}"])
-        return cmd, env
+                cmd += [f"{prefix}{_key}", str(_value)]
+
+        cmd_str: list[str] = [str(c) for c in cmd]
+
+        return cmd_str, env
 
     def train(
         self,
@@ -641,7 +661,14 @@ class nnUNetV2Runner:  # noqa: N801
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -685,7 +712,11 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
-        Create the line command for subprocess call for parallel training.
+        Launch subprocesses for parallel training.
+
+        The commands for each GPU run sequentially on that device, while different devices run in
+        parallel. Each stage waits for all of its devices to finish before the next stage starts.
+
         Note: to set the number of GPUs to use, use ``gpu_id_for_all`` instead of the `CUDA_VISIBLE_DEVICES`
         environment variable.
 
@@ -696,7 +727,14 @@ class nnUNetV2Runner:  # noqa: N801
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         all_cmds = self.train_parallel_cmd(configs=configs, gpu_id_for_all=gpu_id_for_all, **kwargs)
         for s, cmds in enumerate(all_cmds):
             for gpu_id, gpu_cmd in cmds.items():
@@ -709,17 +747,19 @@ class nnUNetV2Runner:  # noqa: N801
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
-            processes = []
-            for device_id in stage:
-                if not stage[device_id]:
-                    continue
-                cmd_str = "; ".join(shlex.join(cmd) for cmd, _ in stage[device_id])
-                env = stage[device_id][0][1]
-                logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, env=env, stdout=subprocess.DEVNULL))
-            # finish this stage first
-            for p in processes:
-                p.wait()
+            device_cmds = [(device_id, gpu_cmds) for device_id, gpu_cmds in stage.items() if gpu_cmds]
+            if not device_cmds:
+                continue
+
+            def _run_device_commands(item):
+                device_id, gpu_cmds = item
+                for cmd, env in gpu_cmds:
+                    cmd_str = shlex.join(cmd)
+                    logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
+                    subprocess.Popen(cmd, shell=False, env=env, stdout=subprocess.DEVNULL).wait()
+
+            with ThreadPoolExecutor(max_workers=len(device_cmds)) as executor:
+                list(executor.map(_run_device_commands, device_cmds))
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
@@ -731,7 +771,7 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-        self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
+        self.train_single_model(config=config, fold=fold, val=True, **kwargs)
 
     def validate(
         self, configs: tuple = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES), **kwargs: Any
@@ -908,7 +948,14 @@ class nnUNetV2Runner:  # noqa: N801
             run_postprocessing: whether to conduct post-processing
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``predict`` method.
+
+        Raises:
+            ValueError: self.dataset_name must have a value, ie. when using an existing dataset or after creating one.
         """
+
+        if self.dataset_name is None:
+            raise ValueError(f"A valid dataset name must be given in {self.dataset_name=}.")
+
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
@@ -957,7 +1004,16 @@ class nnUNetV2Runner:  # noqa: N801
 
         # apply postprocessing
         if run_postprocessing:
-            pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
+            postprocessing_file = self.best_configuration["best_model_or_ensemble"]["postprocessing_file"]
+            warnings.warn(
+                f"unpickling postprocessing_file {postprocessing_file}: this path is read from "
+                "inference_information.json and is loaded with Python pickle without any allow list, "
+                "which gives whoever controls that file arbitrary code execution. Only proceed if the "
+                "inference_information.json is from a source you trust "
+                "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87).",
+                stacklevel=2,
+            )
+            pp_fns, pp_fn_kwargs = load_pickle(postprocessing_file)
             apply_postprocessing_to_folder(
                 folder_for_pp,
                 join(target_dir_base, "ensemble_predictions_postprocessed"),

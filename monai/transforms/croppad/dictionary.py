@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias, cast  # pyrefly: ignore [missing-module-attribute]
 
 import numpy as np
 import torch
@@ -943,7 +943,11 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         w_key: key for the weight map. The corresponding value will be used as the sampling weights,
-            it should be a single-channel array in size, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
+            it should be a single-channel array with shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
+            The weight map is only used to compute the patch sample locations; it is not cropped itself.
+            To obtain the cropped weight map (e.g. to batch it alongside the image), include ``w_key`` in
+            ``keys`` so it is cropped with the same sample centers; otherwise it is passed through unchanged
+            at its original spatial size.
         spatial_size: the spatial size of the image patch e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
@@ -1100,6 +1104,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         self.cropper.set_random_state(seed, state)
         return self
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,
@@ -1262,6 +1267,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper.set_random_state(seed, state)
         return self
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
     ) -> None:

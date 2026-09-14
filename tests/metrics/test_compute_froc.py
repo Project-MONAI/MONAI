@@ -60,6 +60,34 @@ TEST_CASE_3 = [
     3,
 ]
 
+TEST_CASE_EXCLUDE_ABSENT = [
+    {
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "y_coord": torch.tensor([0, 2, 3]),
+        "x_coord": torch.tensor([3, 0, 1]),
+        "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
+        "labels_to_exclude": [5],
+        "resolution_level": 0,
+    },
+    np.array([0.6]),
+    np.array([1, 0, 0.8]),
+    3,
+]
+
+TEST_CASE_EXCLUDE_DUPLICATE = [
+    {
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "y_coord": torch.tensor([0, 2, 3]),
+        "x_coord": torch.tensor([3, 0, 1]),
+        "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
+        "labels_to_exclude": [2, 2],
+        "resolution_level": 0,
+    },
+    np.array([0.6]),
+    np.array([1, 0, 0.8]),
+    2,
+]
+
 TEST_CASE_4 = [
     {
         "fp_probs": np.array([0.8, 0.6]),
@@ -112,7 +140,9 @@ TEST_CASE_ND_2 = [
 
 class TestComputeFpTp(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_EXCLUDE_ABSENT, TEST_CASE_EXCLUDE_DUPLICATE]
+    )
     def test_value(self, input_data, expected_fp, expected_tp, expected_num):
         fp_probs, tp_probs, num_tumors = compute_fp_tp_probs(**input_data)
         np.testing.assert_allclose(fp_probs, expected_fp, rtol=1e-5)

@@ -116,6 +116,25 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
+    def test_gaussian_bin_centers_registered_buffer(self):
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=16)
+
+        self.assertIn("bin_centers", dict(loss.named_buffers()))
+        self.assertIsNotNone(loss.bin_centers)
+        self.assertFalse(loss.bin_centers.requires_grad)
+
+        loss = loss.to(dtype=torch.float64)
+        self.assertEqual(loss.bin_centers.dtype, torch.float64)
+
+        if torch.cuda.is_available():
+            loss = loss.to(device="cuda:0")
+            self.assertEqual(loss.bin_centers.device, torch.device("cuda:0"))
+
+    def test_b_spline_bin_centers_exists_as_none(self):
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        self.assertIsNone(loss.bin_centers)
+
     @parameterized.expand(
         [
             (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims
@@ -143,6 +162,52 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         with self.assertRaisesRegex(expected_exception, expected_message):
             GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
+
+
+class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
+    def test_gaussian_kernel_registers_buffers(self):
+        """Verify gaussian kernel registers preterm and bin_centers as non-trainable, non-persistent buffers."""
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        self.assertIn("preterm", loss._buffers)
+        self.assertIn("bin_centers", loss._buffers)
+        self.assertFalse(loss.preterm.requires_grad)
+        self.assertFalse(loss.bin_centers.requires_grad)
+        self.assertEqual(loss.bin_centers.ndim, 3)
+        state = loss.state_dict()
+        self.assertNotIn("preterm", state)
+        self.assertNotIn("bin_centers", state)
+
+    def test_bspline_kernel_has_no_gaussian_buffers(self):
+        """Verify b-spline kernel does not populate gaussian-specific buffers."""
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+        self.assertIsNone(loss.preterm)
+        self.assertIsNone(loss.bin_centers)
+        state = loss.state_dict()
+        self.assertNotIn("preterm", state)
+        self.assertNotIn("bin_centers", state)
+
+    def test_gaussian_kernel_forward_correct(self):
+        """Verify gaussian kernel forward pass returns a scalar loss tensor."""
+        pred = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        target = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        result = loss(pred, target)
+        self.assertEqual(result.shape, torch.Size([]))
+
+    def test_gaussian_buffers_move_with_module(self):
+        """Verify preterm and bin_centers buffers move to the target device with the module."""
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        self.assertEqual(loss.preterm.device.type, "cpu")
+        self.assertEqual(loss.bin_centers.device.type, "cpu")
+        if not torch.cuda.is_available():
+            self.skipTest("CUDA not available")
+        loss = loss.cuda()
+        self.assertEqual(loss.preterm.device.type, "cuda")
+        self.assertEqual(loss.bin_centers.device.type, "cuda")
+        pred = torch.rand(2, 1, 8, 8, device="cuda")
+        target = torch.rand(2, 1, 8, 8, device="cuda")
+        result = loss(pred, target)
+        self.assertEqual(result.device.type, "cuda")
 
 
 if __name__ == "__main__":

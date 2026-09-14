@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -22,6 +24,11 @@ class TransformerBlock(nn.Module):
     A transformer block, based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
+
+    # Treat ``with_cross_attention`` as a TorchScript constant so the cross-attention branch in
+    # ``forward`` is pruned when it is False. Otherwise scripting tries to compile the
+    # ``self.cross_attn(..., context=context)`` call against ``nn.Identity`` and fails.
+    __constants__ = ["with_cross_attention"]
 
     def __init__(
         self,
@@ -102,7 +109,10 @@ class TransformerBlock(nn.Module):
             self.cross_attn = nn.Identity()
 
     def forward(
-        self, x: torch.Tensor, context: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None
+        self,
+        x: torch.Tensor,
+        context: Optional[torch.Tensor] = None,  # noqa: UP045
+        attn_mask: Optional[torch.Tensor] = None,  # noqa: UP045
     ) -> torch.Tensor:
         x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         if self.with_cross_attention:

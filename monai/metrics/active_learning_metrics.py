@@ -137,7 +137,7 @@ def compute_variance(
     n_len = len(y_pred.shape)
 
     if n_len < 4 and spatial_map:
-        warnings.warn("Spatial map requires a 2D/3D image with N-repeats and C-channels")
+        warnings.warn("Spatial map requires a 2D/3D image with N-repeats and C-channels", stacklevel=2)
         return None
 
     # Create new shape list
@@ -190,7 +190,10 @@ def label_quality_score(
 
     n_len = len(y_pred.shape)
     if n_len < 4 and scalar_reduction == "none":
-        warnings.warn("Reduction set to None, Spatial map return requires a 2D/3D image of B-Batchsize and C-channels")
+        warnings.warn(
+            "Reduction set to None, Spatial map return requires a 2D/3D image of B-Batchsize and C-channels",
+            stacklevel=2,
+        )
         return None
 
     abs_diff_map = torch.abs(y_pred - y)

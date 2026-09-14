@@ -257,9 +257,11 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
     if not pending:
         return data, []
 
+    _rank = data.spatial_ndim if isinstance(data, MetaTensor) else 3
+
     cumulative_xform = affine_from_pending(pending[0])
-    if cumulative_xform.shape[0] == 3:
-        cumulative_xform = to_affine_nd(3, cumulative_xform)
+    if cumulative_xform.shape[0] < _rank + 1:
+        cumulative_xform = to_affine_nd(_rank, cumulative_xform)
 
     cur_kwargs = kwargs_from_pending(pending[0])
     override_kwargs: dict[str, Any] = {}
@@ -284,8 +286,8 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
             data = resample(data.to(device), cumulative_xform, _cur_kwargs)
 
         next_matrix = affine_from_pending(p)
-        if next_matrix.shape[0] == 3:
-            next_matrix = to_affine_nd(3, next_matrix)
+        if next_matrix.shape[0] < _rank + 1:
+            next_matrix = to_affine_nd(_rank, next_matrix)
 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)

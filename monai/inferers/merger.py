@@ -309,9 +309,6 @@ class ZarrAvgMerger(Merger):
 
         self.chunks = chunks
 
-        # Handle compressor/codecs based on zarr version
-        is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
-
         # Initialize codecs/compressor attributes with proper types
         self.codecs: list | None = None
         self.value_codecs: list | None = None

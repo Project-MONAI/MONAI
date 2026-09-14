@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias  # pyrefly: ignore [missing-module-attribute]
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -64,7 +64,22 @@ if TYPE_CHECKING:
 else:
     NdarrayOrCupy: TypeAlias = Any
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
+__all__ = [
+    "ImageReader",
+    "ITKReader",
+    "NibabelReader",
+    "NumpyReader",
+    "PILReader",
+    "PydicomReader",
+    "NvImgCodecPydicomReader",
+    "NrrdReader",
+    "DICOM_READER_ENV_MAP",
+    "get_preferred_dicom_reader_key",
+    "is_dicom_path",
+]
+
+# Maps ``MONAI_DICOM_READER`` env values to keys in :py:data:`monai.transforms.io.array.SUPPORTED_READERS`.
+DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
 
 
 class ImageReader(ABC):
@@ -347,6 +362,7 @@ class ITKReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
         affine[:sr, -1] = origin[:sr]
+
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
         return affine
@@ -735,17 +751,42 @@ class PydicomReader(ImageReader):
             metadata: metadata with dict type.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Warns:
+            UserWarning: when ImageOrientationPatient (00200037) or ImagePositionPatient
+                (00200032) is missing from metadata. The affine matrix is set to identity,
+                which may be incorrect. Common with multiframe DICOM files.
+
         """
         affine: np.ndarray = np.eye(4)
         if not ("00200037" in metadata and "00200032" in metadata):
+            warnings.warn(
+                "PydicomReader: ImageOrientationPatient (0020,0037) and/or "
+                "ImagePositionPatient (0020,0032) tags are missing, so the affine "
+                "matrix cannot be derived and defaults to the identity. The image "
+                "orientation and spacing may be incorrect (e.g. for multi-frame "
+                "Enhanced DICOM); consider using ITKReader for such files.",
+                stacklevel=2,
+            )
             return affine
+
+        def _raise_if_not_finite(values: Sequence[Any], tag: str) -> None:
+            if not np.isfinite(tuple(values)).all():
+                raise ValueError(
+                    f"PydicomReader: cannot derive affine matrix because DICOM tag {tag} "
+                    f"has a non-finite value: {values}."
+                )
+
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
+        _raise_if_not_finite((rx, ry, rz, cx, cy, cz), "ImageOrientationPatient (0020,0037)")
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
+        _raise_if_not_finite((sx, sy, sz), "ImagePositionPatient (0020,0032)")
         # "00280030" is the tag of `PixelSpacing`
         spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
+        _raise_if_not_finite(tuple(spacing), "PixelSpacing (0028,0030)")
         dr, dc = metadata.get("spacing", spacing)[:2]
+        _raise_if_not_finite((dr, dc), "spacing")
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -760,11 +801,15 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
+            _raise_if_not_finite((t1n, t2n, t3n), "lastImagePositionPatient")
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
-            k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
-            affine[0, 2] = k1
-            affine[1, 2] = k2
-            affine[2, 2] = k3
+            if n > 1:
+                affine[0, 2] = (t1n - sx) / (n - 1)
+                affine[1, 2] = (t2n - sy) / (n - 1)
+                affine[2, 2] = (t3n - sz) / (n - 1)
+
+        if not np.isfinite(affine).all():
+            raise ValueError("PydicomReader: affine matrix not finite after composition.")
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -997,6 +1042,141 @@ class PydicomReader(ImageReader):
         return data
 
 
+def is_dicom_path(filename: Sequence[PathLike] | PathLike) -> bool:
+    """
+    Return ``True`` if ``filename`` refers to a DICOM file or a directory that may contain a DICOM series.
+    """
+    for name in ensure_tuple(filename):
+        name = f"{name}"
+        path = Path(name)
+        if path.is_dir():
+            return True
+        if path.suffix.lower() == ".dcm":
+            return True
+        if has_pydicom:
+            try:
+                if pydicom.misc.is_dicom(name):
+                    return True
+            except Exception:
+                pass
+    return False
+
+
+def get_preferred_dicom_reader_key() -> str:
+    """
+    Return the :py:class:`~monai.transforms.LoadImage` registration key for the preferred DICOM reader.
+
+    Controlled by the ``MONAI_DICOM_READER`` environment variable. Supported values are
+    ``itk``, ``pydicom``, and ``nvimgcodec``. Returns an empty string when the variable is
+    unset or set to an unsupported value (in which case :py:data:`~monai.transforms.io.array.SUPPORTED_READERS`
+    dict order is used unchanged).
+    """
+    pref = os.environ.get("MONAI_DICOM_READER")
+    if pref is None:
+        return ""
+    pref = pref.lower()
+    if pref not in DICOM_READER_ENV_MAP:
+        warnings.warn(f"Unknown MONAI_DICOM_READER='{pref}', ignoring preference.")
+        return ""
+    return DICOM_READER_ENV_MAP[pref]
+
+
+@require_pkg(pkg_name="pydicom")
+class NvImgCodecPydicomReader(PydicomReader):
+    """
+    Load DICOM images using Pydicom with GPU-accelerated decompression via nvImageCodec.
+
+    This reader extends :py:class:`PydicomReader` and registers the nvImageCodec pydicom
+    decoder plugin on initialization. The plugin accelerates decoding of compressed pixel data
+    for JPEG, JPEG 2000, and HTJ2K transfer syntaxes when CUDA, CuPy and ``nvidia-nvimgcodec`` are available.
+
+    If nvImageCodec is not available, a warning is issued and the reader falls back to the
+    default pydicom decoders (same behavior as :py:class:`PydicomReader`).
+
+    Requires the optional extra ``nvimgcodec`` (``pip install 'monai[nvimgcodec]'``), which installs ``pydicom``,
+    CuPy, and ``nvidia-nvimgcodec-cu13`` on Linux. GPU decompression uses
+    ``nvidia.nvimgcodec.tools.dicom.pydicom_plugin`` from the nvImageCodec package. CUDA 13 is strongly
+    recommended because the nvJPEG library has addressed a known issue with JPEG lossless decoding in
+    CUDA 13.2.0+. For CUDA 12, install matching ``cupy-cuda12x`` and ``nvidia-nvimgcodec-cu12`` wheels instead.
+
+    Set environment variable ``MONAI_DICOM_READER=nvimgcodec`` to use this reader by default
+    with :py:class:`monai.transforms.LoadImage` without explicit configuration.
+
+    Note:
+        GPU direct loading bypasses Pydicom pixel data interpretation mechanism hence disables GPU decompression
+        via Pydicom decoder plugin that is used by this reader. So, GPU direct loading (``to_gpu=True``)
+        cannot be supported by this reader. The ``to_gpu`` init argument is accepted for API compatibility
+        with :py:class:`PydicomReader` but is always ignored so that GPU-accelerated decompression via nvImageCodec
+        is not bypassed.
+
+        Also noted is that the current implementation of GPU direct loading has a serious flaw as it simply loads
+        the raw bytes of pixel data into GPU memory and parses them into integers without any required processing,
+        e.g. applying rescale slope and intercept, `PhotometricInterpretation`, etc., and not processing compressed
+        pixel data. As such, the resulting data array will not represent the original pixel data faithfully except for
+        the simplest case of uncompressed pixel data.
+
+        This reader only declares ``@require_pkg(pkg_name="pydicom")`` so that :py:class:`monai.transforms.LoadImage`
+        can register it without hard-failing when GPU dependencies are missing. ``pydicom`` is required to construct
+        the reader; nvimgcodec, CUDA, and CuPy availability is checked at runtime with a warning issued and fallback to
+        default pydicom decoders if missing.
+
+    Args:
+        channel_dim: the channel dimension of the input image, default is None.
+            This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
+            If None, `original_channel_dim` will be either `no_channel` or `-1`.
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+        swap_ij: whether to swap the first two spatial axes. Default to ``True``.
+        prune_metadata: whether to prune the saved information in metadata. Default to ``True``.
+        label_dict: label of the dicom data for segmentation loading.
+        fname_regex: a regular expression to match file names when the input is a folder.
+        to_gpu: accepted for API compatibility with :py:class:`PydicomReader` but always ignored (always ``False``).
+        kwargs: additional args for `pydicom.dcmread` API.
+    """
+
+    def __init__(
+        self,
+        channel_dim: str | int | None = None,
+        affine_lps_to_ras: bool = True,
+        swap_ij: bool = True,
+        prune_metadata: bool = True,
+        label_dict: dict | None = None,
+        fname_regex: str = "",
+        to_gpu: bool = False,
+        **kwargs,
+    ):
+        if to_gpu:
+            warnings.warn(
+                "NvImgCodecPydicomReader ignores to_gpu=True; GPU direct loading is disabled to preserve "
+                "GPU-accelerated decompression."
+            )
+        super().__init__(
+            channel_dim=channel_dim,
+            affine_lps_to_ras=affine_lps_to_ras,
+            swap_ij=swap_ij,
+            prune_metadata=prune_metadata,
+            label_dict=label_dict,
+            fname_regex=fname_regex,
+            to_gpu=False,
+            **kwargs,
+        )
+        from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available, register_as_decoder_plugin
+
+        self._nvimgcodec_available = is_nvimgcodec_available()
+        if not register_as_decoder_plugin():
+            warnings.warn(
+                "NvImgCodecPydicomReader: nvImageCodec decoder plugin did not register successfully. "
+                "Falling back to default pydicom decoders."
+            )
+
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
+        """
+        Verify whether the specified file or files are DICOM and nvImageCodec is available.
+        """
+        if not has_pydicom or not self._nvimgcodec_available:
+            return False
+        return is_dicom_path(filename)
+
+
 @require_pkg(pkg_name="nibabel")
 class NibabelReader(ImageReader):
     """
@@ -1205,7 +1385,7 @@ class NibabelReader(ImageReader):
             with kvikio.CuFile(filename, "r") as f:
                 f.read(image)
             if filename.endswith(".nii.gz"):
-                # for compressed data, have to tansfer to CPU to decompress
+                # for compressed data, have to transfer to CPU to decompress
                 # and then transfer back to GPU. It is not efficient compared to .nii file
                 # and may be slower than CPU loading in some cases.
                 warnings.warn("Loading compressed NIfTI file into GPU may not be efficient.")
@@ -1231,17 +1411,26 @@ class NumpyReader(ImageReader):
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
         channel_dim: if not None, explicitly specify the channel dim, otherwise, treat the array as no channel.
+        allow_pickle: if True, allows loading pickled contents from NPY/NPZ files. Note that the default value of False
+            prevents the risk of remote code execution, set this to True only for loading known trusted data. If this
+            argument is False and pickled data is loaded, a ValueError will be raised.
         kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
             https://numpy.org/doc/stable/reference/generated/numpy.load.html
-
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
+    def __init__(
+        self,
+        npz_keys: KeysCollection | None = None,
+        channel_dim: str | int | None = None,
+        allow_pickle: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
+        self.allow_pickle = allow_pickle
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1267,6 +1456,8 @@ class NumpyReader(ImageReader):
                 More details about available args:
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
+        Raises:
+            ValueError: when `self.allow_pickle` is False but loaded data contains pickled objects.
         """
         img_: list[Nifti1Image] = []
 
@@ -1274,7 +1465,16 @@ class NumpyReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **kwargs_)
+            try:
+                img = np.load(name, allow_pickle=self.allow_pickle, **kwargs_)
+            except ValueError as e:
+                # if a ValueError is raised, this is likely about pickle loading so raise an exception about this
+                raise ValueError(
+                    "MONAI default value for argument `allow_pickle` of `np.load` changed to `False`, "
+                    "explicitly pass `allow_pickle=True` as a constructor argument to NumpyReader "
+                    "to enable pickle loading."
+                ) from e
+
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys

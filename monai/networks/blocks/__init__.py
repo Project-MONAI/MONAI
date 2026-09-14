@@ -26,6 +26,13 @@ from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlo
 from .encoder import BaseEncoder
 from .fcn import FCN, GCN, MCFCN, Refine
 from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, LastLevelP6P7
+from .hyena import (
+    DepthwiseFFTConv2d,
+    DepthwiseFFTConv3d,
+    HyenaMixer,
+    HyenaTransformerBlock,
+    is_nvsubquadratic_available,
+)
 from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlock, LocalNetUpSampleBlock
 from .mednext_block import MedNeXtBlock, MedNeXtDownBlock, MedNeXtOutBlock, MedNeXtUpBlock
 from .mlp import MLPBlock

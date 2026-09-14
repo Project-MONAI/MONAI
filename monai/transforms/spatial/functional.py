@@ -26,7 +26,7 @@ from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import get_boxmode
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
@@ -140,9 +140,10 @@ def spatial_resample(
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta())
     # ensure spatial rank is <= 3
-    spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+    max_rank = max(int(img.ndim) - 1, 1)
+    spatial_rank = min(get_spatial_ndim(img), max_rank, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-        spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
+        spatial_rank = min(len(ensure_tuple(spatial_size)), max_rank, 3)  # infer spatial rank based on spatial_size
     src_affine = to_affine_nd(spatial_rank, src_affine).to(torch.float64)
     dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
     dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
@@ -382,7 +383,9 @@ def resize(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def rotate(
+    img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info, rotate_order="XYZ"
+):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -404,6 +407,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
             the output data type is always ``float32``.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+        rotate_order: the order in which the axes are rotated about for 3D inputs, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See :py:func:`monai.transforms.utils.create_rotate`.
+            Defaults to ``"XYZ"`` (the legacy behaviour). Ignored for 2D inputs.
 
     """
 
@@ -412,7 +418,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    transform = create_rotate(input_ndim, _angle)
+    transform = create_rotate(input_ndim, _angle, rotate_order=rotate_order)
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore

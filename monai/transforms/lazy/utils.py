@@ -228,11 +228,13 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             img.affine = call_kwargs["dst_affine"]
             img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
             return img
+        # pyrefly: ignore [bad-argument-type, implicit-import]
         img = monai.transforms.crop_or_pad_nd(img, matrix_np, out_spatial_size, mode=call_kwargs["padding_mode"])
         img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
         img.affine = call_kwargs["dst_affine"]
         return img
 
+    # pyrefly: ignore [bad-argument-type, implicit-import]
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`

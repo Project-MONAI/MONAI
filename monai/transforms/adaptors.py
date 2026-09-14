@@ -140,7 +140,7 @@ def adaptor(function, outputs, inputs=None):
             raise TypeError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
 
     def map_names(ditems, input_map):
-        return {input_map(k, k): v for k, v in ditems.items()}
+        return {input_map.get(k, k): v for k, v in ditems.items()}
 
     def map_only_names(ditems, input_map):
         return {v: ditems[k] for k, v in input_map.items()}

@@ -142,6 +142,7 @@ class PatchIterd:
         self, data: Mapping[Hashable, NdarrayTensor]
     ) -> Generator[tuple[Mapping[Hashable, NdarrayTensor], np.ndarray], None, None]:
         d = dict(data)
+        # pyrefly: ignore [missing-attribute]
         original_spatial_shape = d[first(self.keys)].shape[1:]
 
         for patch in zip(*[self.patch_iter(d[key]) for key in self.keys]):

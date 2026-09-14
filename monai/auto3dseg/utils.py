@@ -284,7 +284,7 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
 
         if isinstance(v_fmt, list) and isinstance(v, list):
             if len(v_fmt) != 1:
-                raise UserWarning("list length in report_format is not 1")
+                warnings.warn("list length in report_format is not 1", stacklevel=2)
             if len(v_fmt) > 0 and len(v) > 0:
                 return verify_report_format(v[0], v_fmt[0])
             else:
@@ -492,6 +492,14 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
             state_template_path = state.get("template_path")
             if state_template_path:
                 algo_config["template_path"] = state_template_path
+
+            warnings.warn(
+                f"Loading {filename}: the file's `_target_` value is resolved to an imported callable and "
+                "invoked, and template directories from the file may be added to `sys.path`; only load "
+                "algo_object.json files from a source you trust "
+                "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv).",
+                stacklevel=2,
+            )
 
             parser = ConfigParser(algo_config)
             algo = parser.get_parsed_content()

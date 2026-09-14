@@ -138,7 +138,7 @@ class NACLLoss(_Loss):
         if self.distance_type == "l1":
             loss_conf = utargets.sub(inputs).abs_().mean()
         elif self.distance_type == "l2":
-            loss_conf = utargets.sub(inputs).pow_(2).abs_().mean()
+            loss_conf = utargets.sub(inputs).pow_(2).mean()
 
         loss: torch.Tensor = loss_ce + self.alpha * loss_conf
 
