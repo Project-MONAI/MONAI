@@ -9,27 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
+if __name__ == "__main__":
+    import monai
 
-from .deviceconfig import (
-    USE_COMPILED,
-    USE_META_DICT,
-    get_config_values,
-    get_gpu_info,
-    get_optional_config_values,
-    get_system_info,
-    print_config,
-    print_debug_info,
-    print_gpu_info,
-    print_system_info,
-)
-from .type_definitions import (
-    DtypeLike,
-    IndexSelection,
-    KeysCollection,
-    NdarrayOrTensor,
-    NdarrayTensor,
-    PathLike,
-    SequenceStr,
-    TensorOrList,
-)
+    monai.config.print_debug_info()  # type: ignore
