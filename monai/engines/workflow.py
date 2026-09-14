@@ -165,7 +165,7 @@ class Workflow(Engine):
         self.amp = amp
         self.to_kwargs = {} if to_kwargs is None else to_kwargs
         self.amp_kwargs = {} if amp_kwargs is None else amp_kwargs
-        self.scaler: torch.cuda.amp.GradScaler | None = None
+        self.scaler: torch.amp.GradScaler | None = None
 
         if event_names is None:
             event_names = [IterationEvents]
