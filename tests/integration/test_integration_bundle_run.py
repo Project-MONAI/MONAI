@@ -29,7 +29,7 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser
 from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.transforms import LoadImage
-from monai.utils import path_to_uri
+from monai.utils import path_to_sqlite_uri
 from tests.test_utils import command_line_tests
 
 TESTS_PATH = Path(__file__).parents[1]
@@ -175,7 +175,7 @@ class TestBundleRun(unittest.TestCase):
                 "no_epoch": True,  # test override config in the settings file
                 "evaluator": {
                     "_target_": "MLFlowHandler",
-                    "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlflow_override1'",
+                    "tracking_uri": "$monai.utils.path_to_sqlite_uri(@output_dir + '/mlflow_override1.db')",
                     "iteration_log": "@no_epoch",
                 },
             },
@@ -208,16 +208,17 @@ class TestBundleRun(unittest.TestCase):
         command_line_tests(la + ["--args_file", def_args_file] + ["--tracking", settings_file])
         loader = LoadImage(image_only=True)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
-        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override1"))
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override1.db"))
 
-        tracking_uri = path_to_uri(tempdir) + "/mlflow_override2"  # test override experiment management configs
+        # test override experiment management configs
+        tracking_uri = path_to_sqlite_uri(os.path.join(tempdir, "mlflow_override2.db"))
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --tracking mlflow --evaluator#amp False"
         cmd += f" --tracking_uri {tracking_uri} {override} --output_dir {tempdir} --device {device}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
-        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override2"))
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override2.db"))
         # test the saved execution configs
         self.assertTrue(len(glob(f"{tempdir}/config_*.json")), 2)
 
