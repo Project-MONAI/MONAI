@@ -63,7 +63,7 @@ def _require_pickle_allowed() -> None:
         raise RuntimeError(_PICKLE_DISABLED_MSG)
 
 
-def _reject_non_algo_target(target: object, filename: str) -> None:
+def _reject_non_algo_target(target: Any, filename: str) -> None:
     """
     Require that ``target`` names an ``Algo`` subclass before it is instantiated.
 
@@ -86,15 +86,15 @@ def _reject_non_algo_target(target: object, filename: str) -> None:
             template path.
     """
     if not isinstance(target, str):
-        raise ValueError(f"invalid `_target_` in {filename}: expected a string, got {type(target).__name__}.")
+        raise ValueError(f"Invalid `_target_` in {filename}: expected a string, got {type(target).__name__}.")
     resolved = locate(target)
     if resolved is None:
-        raise ModuleNotFoundError(f"cannot resolve `_target_` {target!r} from {filename}.")
+        raise ModuleNotFoundError(f"Cannot resolve `_target_` {target!r} from {filename}.")
     if not (isinstance(resolved, type) and resolved is not Algo and issubclass(resolved, Algo)):
         raise ValueError(
-            f"refusing to instantiate `_target_` {target!r} from {filename}: it resolves to "
-            f"{resolved!r}, which is not a subclass of monai.auto3dseg.Algo. Only Algo subclasses "
-            "may be named in an algo_object.json "
+            f"Refusing to instantiate `_target_` {target!r} from {filename}: it resolves to "
+            f"{resolved!r}, which is not a subclass of `monai.auto3dseg.Algo`. Only Algo subclasses "
+            "may be named in a configuration "
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv)."
         )
 

@@ -647,7 +647,7 @@ class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
             with open(algo_file, "w", encoding="utf-8") as f:
                 json.dump({"_target_": f"{__name__}._DummyAlgo"}, f)
 
-            with self.assertRaisesRegex(ValueError, "refusing to instantiate"):
+            with self.assertRaisesRegex(ValueError, "(?i)refusing to instantiate"):
                 algo_from_json(algo_file)
 
 
