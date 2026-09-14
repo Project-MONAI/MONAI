@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import copy
 import datetime
 import functools
@@ -20,6 +21,7 @@ import json
 import operator
 import os
 import queue
+import shutil
 import ssl
 import subprocess
 import sys
@@ -360,7 +362,8 @@ def make_nifti_image(
 ):
     """
     Create a temporary nifti image on the disk and return the image name.
-    User is responsible for deleting the temporary file when done with it.
+    If `dir` is not given, a temporary directory is created to hold the image and removed at
+    interpreter exit. If `dir` is given, the caller owns it.
     """
     if isinstance(array, torch.Tensor):
         array, *_ = convert_data_type(array, np.ndarray)
@@ -373,6 +376,7 @@ def make_nifti_image(
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
         dir = tempfile.mkdtemp()
+        atexit.register(shutil.rmtree, dir, ignore_errors=True)
     else:
         os.makedirs(dir, exist_ok=True)
 
