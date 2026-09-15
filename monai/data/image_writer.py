@@ -62,6 +62,7 @@ __all__ = [
 ]
 
 SUPPORTED_WRITERS: dict = {}
+WRITER_DEPENDENCY_HINTS: dict[type, tuple[str, str]] = {}
 
 
 def register_writer(ext_name, *im_writers):
@@ -106,17 +107,34 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
     if fmt.startswith("."):
         fmt = fmt[1:]
     avail_writers = []
+    dependency_hints: set[tuple[str, str]] = set()
     default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
     for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
         except OptionalImportError:
+            hint = WRITER_DEPENDENCY_HINTS.get(_writer)
+            if hint:
+                dependency_hints.add(hint)
             continue
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        hint_msg = ""
+        if dependency_hints:
+            sorted_hints = sorted(dependency_hints, key=lambda item: item[0].lower())
+            if len(sorted_hints) == 1:
+                pkg, cmd = sorted_hints[0]
+                hint_msg = f" Install `{pkg}` (e.g. `{cmd}`) to enable writing {fmt} images."
+            else:
+                pkg_names = ", ".join(f"`{pkg}`" for pkg, _ in sorted_hints)
+                commands = ", ".join(f"`{cmd}`" for _, cmd in sorted_hints)
+                hint_msg = (
+                    f" Install one of the supported dependencies {pkg_names} "
+                    f"(for example: {commands}) to enable writing {fmt} images."
+                )
+        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.{hint_msg}")
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
@@ -860,6 +878,15 @@ class PILWriter(ImageWriter):
             data = np.moveaxis(data, 0, 1)
 
         return PILImage.fromarray(data, mode=kwargs.pop("image_mode", None))
+
+
+WRITER_DEPENDENCY_HINTS.update(
+    {
+        ITKWriter: ("ITK", "pip install itk"),
+        NibabelWriter: ("Nibabel", "pip install nibabel"),
+        PILWriter: ("Pillow", "pip install pillow"),
+    }
+)
 
 
 def init():
