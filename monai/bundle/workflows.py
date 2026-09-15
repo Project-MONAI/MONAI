@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
@@ -161,17 +161,10 @@ def _reject_non_logging_class(value: str, logging_file: str, section: str) -> No
             _fail(f"does not name a handler or formatter in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
         return
     # An attribute chain must be rooted in an allowlisted module and end at a handler/formatter.
+    # `ast.unparse` renders the chain directly; a root that isn't a bare name (e.g. `a().b`) still
+    # can't equal a literal allowlist entry once rendered, so no separate root check is needed.
     if isinstance(node, ast.Attribute):
-        parts: list[str] = []
-        current: ast.AST = node
-        while isinstance(current, ast.Attribute):
-            parts.append(current.attr)
-            current = current.value
-        if not isinstance(current, ast.Name):
-            _fail("is not a simple dotted name")
-        root = cast(ast.Name, current).id
-        parts.append(root)
-        dotted = ".".join(reversed(parts))
+        dotted = ast.unparse(node)
         module, _, attribute = dotted.rpartition(".")
         if module not in _ALLOWED_LOGGING_CLASS_MODULES:
             _fail(f"references {dotted!r}, which is not in {sorted(_ALLOWED_LOGGING_CLASS_MODULES)}")
@@ -208,18 +201,6 @@ def _reject_non_literal_expression(value: str, logging_file: str, section: str, 
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3)."
         )
 
-    def _dotted_name(node: ast.AST) -> str | None:
-        """Render an attribute/name chain such as ``sys.stdout``, or None if it is not one."""
-        parts: list[str] = []
-        current = node
-        while isinstance(current, ast.Attribute):
-            parts.append(current.attr)
-            current = current.value
-        if not isinstance(current, ast.Name):
-            return None
-        parts.append(current.id)
-        return ".".join(reversed(parts))
-
     try:
         tree = ast.parse(value, mode="eval")
     except SyntaxError as e:
@@ -229,9 +210,10 @@ def _reject_non_literal_expression(value: str, logging_file: str, section: str, 
         if isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Dict, ast.Set, ast.Load)):
             continue
         if isinstance(node, (ast.Attribute, ast.Name)):
-            name = _dotted_name(node)
-            if name is None:
-                _fail("uses a name this allowlist does not cover")
+            # `ast.unparse` renders the attribute/name chain (e.g. ``sys.stdout``) without
+            # re-walking it by hand; a chain rooted in anything but a bare name (e.g. `a().b`) is
+            # still rejected below, since it cannot equal a literal entry in the allowlist.
+            name = ast.unparse(node)
             # Sub-nodes of an allowed chain (e.g. the `sys` of `sys.stdout`) are reached by the
             # walk too; accept any prefix of a permitted name.
             if name not in _ALLOWED_LOGGING_ARG_NAMES and not any(

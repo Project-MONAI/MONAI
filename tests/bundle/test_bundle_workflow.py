@@ -419,6 +419,10 @@ class TestConfigWorkflowWarnsOnLoggingConf(unittest.TestCase):
                     "[formatter_f]\nformat=%(message)s\n"
                 )
             ConfigWorkflow(config_file=os.path.join(configs, "train.json"), workflow_type="train")
+            # Close the file handler `fileConfig` attached to the root logger before the tempdir is
+            # removed -- otherwise Windows cannot delete `run.log` while it is still open.
+            for handler in logging.getLogger().handlers:
+                handler.close()
 
     def test_default_logging_conf_payload_is_rejected(self):
         """The `class=` payload is refused and never runs."""
