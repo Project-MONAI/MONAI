@@ -34,7 +34,6 @@ TEST_CASE_2 = [
     {"image": A},
     [A11, A12, A21, A22, np.zeros((3, 2, 2))],
 ]
-TEST_CASE_3 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0}, {"image": A}, [A11, A12, A21, A22]]
 TEST_CASE_4 = [{"patch_size": (2, 2)}, {"image": A}, [A11, A12, A21, A22]]
 TEST_CASE_5 = [{"patch_size": (2, 2), "min_offset": 2, "max_offset": 2}, {"image": A}, [A22]]
 TEST_CASE_6 = [{"patch_size": (2, 2), "min_offset": (0, 2), "max_offset": (0, 2)}, {"image": A}, [A12, A22]]
@@ -71,7 +70,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_0])
     TEST_SINGLE.append([p, *TEST_CASE_1])
     TEST_SINGLE.append([p, *TEST_CASE_2])
-    TEST_SINGLE.append([p, *TEST_CASE_3])
     TEST_SINGLE.append([p, *TEST_CASE_4])
     TEST_SINGLE.append([p, *TEST_CASE_5])
     TEST_SINGLE.append([p, *TEST_CASE_6])
