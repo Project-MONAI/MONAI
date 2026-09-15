@@ -26,7 +26,7 @@ from monai.apps.nnunet.utils import NNUNETMode as M
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import, require_pkg
-from monai.utils.misc import run_cmd
+from monai.utils.misc import MONAIEnvVars, run_cmd
 
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
@@ -64,9 +64,9 @@ def _confine_to_dir(candidate: str, allowed_dir: str, description: str) -> str:
     allowed_root = os.path.realpath(allowed_dir)
     if os.path.commonpath([resolved, allowed_root]) != allowed_root:
         raise ValueError(
-            f"refusing to load {description} from '{candidate}': it resolves to '{resolved}', outside the "
-            f"expected directory '{allowed_root}'. This path is read from inference_information.json; a value "
-            "pointing outside the results directory indicates that file has been tampered with "
+            f"Refusing to load {description} from '{candidate}': it resolves to '{resolved}', outside the "
+            f"expected directory '{allowed_root}'. This path is read from `inference_information.json`; a "
+            "value pointing outside the results directory indicates that file has been tampered with "
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87)."
         )
     return resolved
@@ -1055,12 +1055,13 @@ class nnUNetV2Runner:  # noqa: N801
                 "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87).",
                 stacklevel=2,
             )
-            warnings.warn(
-                "loading nnU-Net postprocessing via Python pickle will require the environment variable "
-                "MONAI_ALLOW_PICKLE=1 from MONAI 1.7. Set it now to keep this call working after the change.",
-                FutureWarning,
-                stacklevel=2,
-            )
+            if not MONAIEnvVars.allow_pickle():
+                warnings.warn(
+                    "Loading nnU-Net postprocessing via Python pickle will require the environment variable "
+                    "MONAI_ALLOW_PICKLE=1 from MONAI 1.7. Set it now to keep this call working after the change.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
             pp_fns, pp_fn_kwargs = load_pickle(postprocessing_file)
             apply_postprocessing_to_folder(
                 folder_for_pp,
