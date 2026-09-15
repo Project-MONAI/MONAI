@@ -271,10 +271,18 @@ class ResNet(nn.Module):
         self.bn1 = norm_layer
         self.act = get_act_layer(name=act)
         self.maxpool = pool_type(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
-        self.layer2 = self._make_layer(block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2)
-        self.layer3 = self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
-        self.layer4 = self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
+        self.layer1 = self._make_layer(
+            block, block_inplanes[0], layers[0], spatial_dims, shortcut_type, act=act, norm=norm
+        )
+        self.layer2 = self._make_layer(
+            block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2, act=act, norm=norm
+        )
+        self.layer3 = self._make_layer(
+            block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2, act=act, norm=norm
+        )
+        self.layer4 = self._make_layer(
+            block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2, act=act, norm=norm
+        )
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
         self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes) if feed_forward else None
 
@@ -282,8 +290,11 @@ class ResNet(nn.Module):
             if isinstance(m, conv_type):
                 nn.init.kaiming_normal_(torch.as_tensor(m.weight), mode="fan_out", nonlinearity="relu")
             elif isinstance(m, type(norm_layer)):
-                nn.init.constant_(torch.as_tensor(m.weight), 1)
-                nn.init.constant_(torch.as_tensor(m.bias), 0)
+                # non-affine norm layers (e.g. instance/layer norm defaults) have no weight/bias
+                if m.weight is not None:
+                    nn.init.constant_(torch.as_tensor(m.weight), 1)
+                if m.bias is not None:
+                    nn.init.constant_(torch.as_tensor(m.bias), 0)
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
@@ -301,6 +312,7 @@ class ResNet(nn.Module):
         spatial_dims: int,
         shortcut_type: str,
         stride: int = 1,
+        act: str | tuple = ("relu", {"inplace": True}),
         norm: str | tuple = "batch",
     ) -> nn.Sequential:
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -333,13 +345,14 @@ class ResNet(nn.Module):
                 spatial_dims=spatial_dims,
                 stride=stride,
                 downsample=downsample,
+                act=act,
                 norm=norm,
             )
         ]
 
         self.in_planes = planes * block.expansion
         for _i in range(1, blocks):
-            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, norm=norm))
+            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, act=act, norm=norm))
 
         return nn.Sequential(*layers)
 
