@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import unittest
 
+import torch
+
 from monai.networks.blocks import Convolution, ResidualUnit
 from tests.test_utils import TorchImageTestCase2D, TorchImageTestCase3D
 
@@ -65,6 +67,12 @@ class TestConvolution2D(TorchImageTestCase2D):
         conv = Convolution(2, self.input_channels, self.output_channels, strides=2, is_transposed=True)
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0] * 2, self.im_shape[1] * 2)
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_padding0(self):
+        conv = Convolution(2, self.input_channels, self.output_channels, kernel_size=3, padding=0)
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0] - 2, self.im_shape[1] - 2)
         self.assertEqual(out.shape, expected_shape)
 
 
@@ -149,6 +157,24 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         conv = ResidualUnit(2, 1, self.output_channels, dropout=0.15)
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_padding0(self):
+        conv = ResidualUnit(2, 1, self.output_channels, kernel_size=3, subunits=1, padding=0)
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0] - 2, self.im_shape[1] - 2)
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_padding0_identity_residual(self):
+        conv = ResidualUnit(2, 2, 2, kernel_size=3, subunits=1, padding=0)
+        out = conv(torch.rand(1, 2, 8, 8))
+        expected_shape = (1, 2, 6, 6)
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_padding0_default_subunits(self):
+        conv = ResidualUnit(2, 2, 2, kernel_size=3, padding=0)
+        out = conv(torch.rand(1, 2, 8, 8))
+        expected_shape = (1, 2, 4, 4)
         self.assertEqual(out.shape, expected_shape)
 
 
