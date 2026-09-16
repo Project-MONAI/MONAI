@@ -80,3 +80,8 @@ Ordering
 --------
 .. automodule:: monai.utils.ordering
   :members:
+
+Safe Evaluation
+---------------
+.. automodule:: monai.utils.safeeval
+  :members:

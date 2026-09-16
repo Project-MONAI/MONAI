@@ -7,6 +7,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
   group: bundle-tests-${{ github.event.pull_request.number || github.ref }}
@@ -29,8 +32,8 @@ jobs:
     - name: Install dependencies
       run: |
         rm -rf /github/home/.cache/torch/hub/bundle/
-        python -m pip install --no-build-isolation --upgrade pip wheel wheel-stub
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -U pip wheel wheel-stub
+        python -m pip install .[all,testing]
     - name: Loading Bundles
       run: |
         # clean up temporary files

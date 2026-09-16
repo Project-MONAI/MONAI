@@ -288,6 +288,7 @@ class AddRandomGuidanced(Randomizable, Transform):
         self._will_interact = None
 
     def randomize(self, data=None):
+        # pyrefly: ignore [unsupported-operation]
         probability = data[self.probability]
         self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
 

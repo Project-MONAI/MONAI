@@ -495,7 +495,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             _kwargs: additional kwargs (currently unused).
 
         Returns:
-            data array instance
+            ``MetaTensor`` when a torch dtype is given (metadata is preserved),
+            or ``np.ndarray`` when a numpy dtype is given.
         """
         if isinstance(dtype, str):
             mod_str, *dtype = dtype.split(".", 1)
@@ -506,7 +507,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         out_type: type[torch.Tensor] | type[np.ndarray] | None
         if mod_str == "torch":
-            out_type = torch.Tensor
+            out_type = type(self)
         elif mod_str in ("numpy", "np"):
             out_type = np.ndarray
         else:

@@ -20,10 +20,10 @@ from pathlib import Path
 def run_testsuit():
     """
     Load test cases by excluding those need external dependencies.
-    The loaded cases should work with "requirements-min.txt"::
+    The loaded cases should work with testing requirements::
 
         # in the monai repo folder:
-        pip install -r requirements-min.txt
+        pip install -e .[testing]
         QUICKTEST=true python -m tests.min_tests
 
     :return: a test suite
@@ -147,6 +147,7 @@ def run_testsuit():
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
+        "test_navit",
         "test_nuclick_transforms",
         "test_nrrd_reader",
         "test_occlusion_sensitivity",

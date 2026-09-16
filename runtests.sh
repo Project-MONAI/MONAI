@@ -49,10 +49,11 @@ doRuffFix=false
 doClangFormat=false
 doCopyRight=false
 doPytypeFormat=false
-doMypyFormat=false
+doPyreflyFormat=false
 doCleanup=false
 doDistTests=false
 doPrecommit=false
+doSetup=false
 testTimeout=0
 
 NUM_PARALLEL=1
@@ -61,7 +62,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--pylint] [--ruff]"
-    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
+    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--pyrefly] [--setup]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
     echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
@@ -87,9 +88,9 @@ function print_usage {
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
     echo "Python type check options:"
-    echo "    --pytype          : perform \"pytype\" static type checks"
-    echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
-    echo "    --mypy            : perform \"mypy\" static type checks"
+    echo "    --pytype          : perform \"pytype\" static type checks (deprecated, may be removed in future)"
+    echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL) (deprecated)"
+    echo "    --pyrefly         : perform \"pyrefly\" static type checks"
     echo ""
     echo "MONAI unit testing options:"
     echo "    -u, --unittests   : perform unit testing"
@@ -103,6 +104,7 @@ function print_usage {
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
+    echo "    --setup           : install git pre-commit hooks (black, isort, ruff, DCO sign-off)"
     echo "    --copyright       : check whether every source code has a copyright header"
     echo "    -f, --codeformat  : shorthand to run all code style and static analysis tests"
     echo "    -c, --clean       : clean temporary files from tests and exit"
@@ -137,8 +139,14 @@ function print_version {
 }
 
 function install_deps {
-    echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}"${PY_EXE}" -m pip install --no-build-isolation -r requirements-dev.txt
+    echo "Pip installing MONAI development dependencies..."
+    # needed for Python<3.11
+    ${cmdPrefix}"${PY_EXE}" -m pip install -U tomli
+    # create a temporary requirements file and install using it
+    REQ=$(mktemp --tmpdir XXX.txt)
+    trap 'rm -f -- "$REQ"' EXIT
+    ${cmdPrefix}"${PY_EXE}" monai/config/print_dependencies.py all testing > "$REQ"
+    ${cmdPrefix}"${PY_EXE}" -m pip install -r "$REQ"
 }
 
 function compile_cpp {
@@ -196,8 +204,8 @@ function clean_py {
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pyrefly_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
 }
@@ -215,7 +223,7 @@ function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
     if [ "$homedir" = "$currentdir" ]
     then
-        echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+        echo "Please run auto style fixes if necessary: ${green}./runtests.sh --autofix${noColor}"
     else :
     fi
 }
@@ -271,6 +279,7 @@ do
             doIsortFormat=true
             # doPylintFormat=true  # https://github.com/Project-MONAI/MONAI/issues/7094
             doRuffFormat=true
+            doPyreflyFormat=true
             doCopyRight=true
         ;;
         --disttests)
@@ -313,11 +322,15 @@ do
         --precommit)
             doPrecommit=true
         ;;
+        --setup)
+            doSetup=true
+        ;;
         --pytype)
+            echo "${yellow}WARNING: --pytype is deprecated and may be removed in a future release.${noColor}"
             doPytypeFormat=true
         ;;
-        --mypy)
-            doMypyFormat=true
+        --pyrefly)
+            doPyreflyFormat=true
         ;;
         -j|--jobs)
             NUM_PARALLEL=$2
@@ -419,6 +432,25 @@ then
     clang_format
 
     echo "${green}done!${noColor}"
+fi
+
+if [ $doSetup = true ]
+then
+    echo "${separator}${blue}setup${noColor}"
+
+    # ensure pre-commit is available
+    if ! is_pip_installed pre_commit
+    then
+        install_deps
+    fi
+
+    ${cmdPrefix}"${PY_EXE}" -m pre_commit install
+
+    if [[ -z "$cmdPrefix" ]]; then
+        echo "${green}done! git hooks installed (black, isort, ruff, DCO sign-off).${noColor}"
+    else
+        echo "dry-run: git hooks would be installed (black, isort, ruff, DCO sign-off)."
+    fi
 fi
 
 # unconditionally report on the state of monai
@@ -587,13 +619,13 @@ then
     then
         install_deps
     fi
-    ruff --version
+    "${PY_EXE}" -m ruff --version
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix --unsafe-fixes --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        "${PY_EXE}" -m ruff check --fix --unsafe-fixes "$homedir"
     else
-        ruff check --exclude versioneer.py --exclude "monai/_version.py" "$homedir"
+        "${PY_EXE}" -m ruff check "$homedir"
     fi
 
     ruff_status=$?
@@ -611,7 +643,9 @@ fi
 if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${yellow}WARNING: pytype is deprecated and may be removed in a future release.${noColor}"
     echo "${separator}${blue}pytype${noColor}"
+
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed pytype
     then
@@ -639,26 +673,27 @@ then
 fi
 
 
-if [ $doMypyFormat = true ]
+if [ $doPyreflyFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
-    echo "${separator}${blue}mypy${noColor}"
+    echo "${separator}${blue}pyrefly${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed mypy
+    if ! is_pip_installed pyrefly
     then
         install_deps
     fi
-    ${cmdPrefix}"${PY_EXE}" -m mypy --version
-    ${cmdPrefix}"${PY_EXE}" -m mypy "$homedir"
+    ${cmdPrefix}"${PY_EXE}" -m pyrefly --version
+    # Run without file arguments to respect project-includes/excludes from pyproject.toml
+    ${cmdPrefix}"${PY_EXE}" -m pyrefly check
 
-    mypy_status=$?
-    if [ ${mypy_status} -ne 0 ]
+    pyrefly_status=$?
+    if [ ${pyrefly_status} -ne 0 ]
     then
-        : # mypy output already follows format
-        exit ${mypy_status}
+        echo "${red}failed!${noColor}"
+        exit ${pyrefly_status}
     else
-        : # mypy output already follows format
+        echo "${green}passed!${noColor}"
     fi
     set -e # enable exit on failure
 fi

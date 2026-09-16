@@ -17,9 +17,17 @@ import unittest
 
 import numpy as np
 
-from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
+from monai.data import (
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    NvImgCodecPydicomReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.transforms import LoadImage, LoadImaged
-from monai.utils import MetaKeys
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule
 
 
@@ -30,8 +38,31 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
+        optional_readers = {
+            "NibabelReader": "nibabel",
+            "PILReader": "PIL",
+            "ITKReader": "itk",
+            "NrrdReader": "nrrd",
+            "PydicomReader": "pydicom",
+        }
+        for r, module in optional_readers.items():
+            with self.subTest(reader=r):
+                _, has_module = optional_import(module, allow_namespace_pkg=module in ("itk", "nrrd"))
+                if has_module:
+                    inst = LoadImaged("image", reader=r)
+                    self.assertIsInstance(inst, LoadImaged)
+                else:
+                    with self.assertRaises(OptionalImportError):
+                        LoadImaged("image", reader=r)
+
+        inst = LoadImaged("image", reader="NumpyReader")
+        self.assertIsInstance(inst, LoadImaged)
+        inst = LoadImaged("image", reader=None)
+        self.assertIsInstance(inst, LoadImaged)
+
+        _, has_pydicom = optional_import("pydicom")
+        if has_pydicom:
+            inst = LoadImaged("image", reader="NvImgCodecPydicomReader")
             self.assertIsInstance(inst, LoadImaged)
 
     @SkipIfNoModule("nibabel")
@@ -61,6 +92,9 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = PydicomReader()
         self.assertIsInstance(inst, PydicomReader)
+
+        inst = NvImgCodecPydicomReader()
+        self.assertIsInstance(inst, NvImgCodecPydicomReader)
 
         inst = NumpyReader()
         self.assertIsInstance(inst, NumpyReader)

@@ -112,6 +112,7 @@ class Novograd(Optimizer):
                 norm = torch.sum(torch.pow(grad, 2))
 
                 if exp_avg_sq == 0:
+                    # pyrefly: ignore [missing-attribute]
                     exp_avg_sq.copy_(norm)
                 else:
                     exp_avg_sq.mul_(beta2).add_(norm, alpha=1 - beta2)
