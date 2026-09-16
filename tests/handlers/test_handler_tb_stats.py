@@ -167,7 +167,7 @@ class TestTensorBoardHandlerMissingDependency(unittest.TestCase):
 
     def test_raises_when_tensorboard_unavailable(self):
         with patch("monai.handlers.tensorboard_handlers._tb_available", False):
-            with self.assertRaises(RuntimeError):
+            with self.assertRaisesRegex(RuntimeError, r"pip install tensorboard"):
                 TensorBoardHandler()
 
 
