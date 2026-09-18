@@ -66,7 +66,7 @@ def create_test_image_2d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width))
-    instance_ids = np.zeros((height, width), dtype=np.int32)
+    instance_ids = np.zeros((height, width), dtype=np.int32) if return_instance_id else None
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
     for obj_id in range(1, num_objs + 1):
@@ -80,7 +80,8 @@ def create_test_image_2d(
             image[circle] = np.ceil(rs.random() * num_seg_classes)
         else:
             image[circle] = rs.random() * 0.5 + 0.5
-        instance_ids[circle] = obj_id
+        if instance_ids is not None:
+            instance_ids[circle] = obj_id
 
     labels = np.ceil(image).astype(np.int32, copy=False)
 
@@ -93,13 +94,15 @@ def create_test_image_2d(
         if channel_dim == 0:
             noisyimage = noisyimage[None]
             labels = labels[None]
-            instance_ids = instance_ids[None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[None]
         else:
             noisyimage = noisyimage[..., None]
             labels = labels[..., None]
-            instance_ids = instance_ids[..., None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[..., None]
 
-    if return_instance_id:
+    if instance_ids is not None:
         return noisyimage, labels, instance_ids
     return noisyimage, labels
 
@@ -153,7 +156,7 @@ def create_test_image_3d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width, depth))
-    instance_ids = np.zeros((height, width, depth), dtype=np.int32)
+    instance_ids = np.zeros((height, width, depth), dtype=np.int32) if return_instance_id else None
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
     for obj_id in range(1, num_objs + 1):
@@ -168,7 +171,8 @@ def create_test_image_3d(
             image[circle] = np.ceil(rs.random() * num_seg_classes)
         else:
             image[circle] = rs.random() * 0.5 + 0.5
-        instance_ids[circle] = obj_id
+        if instance_ids is not None:
+            instance_ids[circle] = obj_id
 
     labels = np.ceil(image).astype(np.int32, copy=False)
 
@@ -181,12 +185,14 @@ def create_test_image_3d(
         if channel_dim == 0:
             noisyimage = noisyimage[None]
             labels = labels[None]
-            instance_ids = instance_ids[None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[None]
         else:
             noisyimage = noisyimage[..., None]
             labels = labels[..., None]
-            instance_ids = instance_ids[..., None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[..., None]
 
-    if return_instance_id:
+    if instance_ids is not None:
         return noisyimage, labels, instance_ids
     return noisyimage, labels

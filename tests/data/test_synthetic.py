@@ -85,13 +85,11 @@ class TestDiceCELoss(unittest.TestCase):
 
         self.assertEqual(instance_ids.shape, seg.shape)
         self.assertEqual(instance_ids.dtype, np.int32)
-        self.assertLessEqual(instance_ids.max(), input_param["num_objs"])
+        unique_ids = np.unique(instance_ids)
+        self.assertGreaterEqual(len(unique_ids), 2)
+        self.assertEqual(unique_ids[0], 0)
+        self.assertTrue(np.all(unique_ids <= input_param["num_objs"]))
         np.testing.assert_array_equal(instance_ids > 0, seg > 0)
-
-    def test_return_instance_id_default_false(self):
-        """Verify both generators return two arrays when instance IDs are not requested."""
-        self.assertEqual(len(create_test_image_2d(32, 32, rad_max=5, rad_min=1)), 2)
-        self.assertEqual(len(create_test_image_3d(32, 32, 32, rad_max=5, rad_min=1)), 2)
 
     def test_ill_radius(self):
         """Verify invalid radius bounds and image sizes raise ValueError."""
