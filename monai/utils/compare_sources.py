@@ -22,7 +22,7 @@ from os.path import splitext
 
 PathLike = str | os.PathLike  # needs to be duplicated here to avoid importing anything from MONAI inside actions
 
-SKIP_EXTS = (".md", ".rst")
+SKIP_EXTS = (".md", ".rst", ".cff")
 
 
 class RemoveDocstrings(ast.NodeTransformer):
