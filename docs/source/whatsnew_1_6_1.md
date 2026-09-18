@@ -5,7 +5,7 @@ This is primarily a security release with fixes for vulnerabilities identified t
 
 ## Security Fixes
 
-A number of recent security alerts are addressed in this release: GHSA-vm9c-7j6g-c7mm, GHSA-8f32-8649-rv87, 
+A number of recent security alerts are addressed in this release: GHSA-vm9c-7j6g-c7mm, GHSA-8f32-8649-rv87,
 GHSA-x6pr-233j-x5cw, GHSA-wvpx-5qmp-46g3, GHSA-2wx3-8x3w-r8qv, GHSA-x4pc-gj5h-3pq7, GHSA-hhh4-h52m-fqh6, and GHSA-6hp3-vr39-rqw8.
 These will be published after the release and will be marked as being fixed by version 1.6.1.
 
@@ -25,7 +25,7 @@ A number of additions are included with this security release:
 MONAI was updated in this release to use the `pyproject.toml` file exclusively for building and package definition, thus
 the requirements text files and `setup.*` files have been removed. An added script `monai/config/print_dependencies.py` is
 used to recreate the requirements files when needed, see the docstring for this file for use or see how the Dockerfile
-uses it for no-build-isolation installation of MONAI. 
+uses it for no-build-isolation installation of MONAI.
 
 With the current version of `pip` the default behaviour is to build MONAI in an isolated environment. This can install
 a version of PyTorch that varies from the one in the target environment if already present, this is a problem when compiling
@@ -37,5 +37,5 @@ RUN python monai/config/print_dependencies.py build-system | xargs -d '\n' pip i
   && FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation -e .[all,testing]
 ```
 
-This uses the dependencies script to install the build dependencies then builds MONAI. If build issues are encountered 
+This uses the dependencies script to install the build dependencies then builds MONAI. If build issues are encountered
 you can use this two-step method to setup your environment correctly then install without isolation.
