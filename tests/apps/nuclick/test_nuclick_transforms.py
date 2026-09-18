@@ -65,6 +65,11 @@ LABEL_3 = np.array([[[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]]], d
 
 LABEL_4 = np.array([[[4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4]]], dtype=np.uint8)
 
+# mask_value block (class 1, area 9), a 1-pixel object (class 2), a 9-pixel object (class 3)
+LABEL_5 = np.array(
+    [[[1, 1, 1, 0, 2, 0, 3, 3, 3], [1, 1, 1, 0, 0, 0, 3, 3, 3], [1, 1, 1, 0, 0, 0, 3, 3, 3]]], dtype=np.uint8
+)
+
 IL_IMAGE_1 = np.array(
     [
         [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
@@ -125,6 +130,72 @@ DATA_LABEL_FILTER_1 = {
     "img_width": 6,
 }
 
+# two above-threshold blobs: a 3x3 block (area 9) and a 2x2 block (area 4)
+PRED_2 = np.array(
+    [
+        [
+            [1, 1, 1, 0, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 1, 0],
+            [0, 0, 0, 0, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+        ]
+    ],
+    dtype=np.float32,
+)
+# click point inside the smaller blob
+NUC_POINTS_2 = np.array(
+    [
+        [
+            [
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+            ]
+        ]
+    ],
+    dtype=np.float32,
+)
+# click point on background (outside any mask component)
+NUC_POINTS_3 = np.array(
+    [
+        [
+            [
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+            ]
+        ]
+    ],
+    dtype=np.float32,
+)
+BB_2 = np.array([[0, 0, 7, 7]], dtype=np.uint8)
+
+DATA_LABEL_FILTER_2 = {
+    "pred": PRED_2,
+    "nuc_points": NUC_POINTS_2,
+    "bounding_boxes": BB_2,
+    "img_height": 7,
+    "img_width": 7,
+}
+DATA_LABEL_FILTER_3 = {
+    "pred": PRED_2,
+    "nuc_points": NUC_POINTS_3,
+    "bounding_boxes": BB_2,
+    "img_height": 7,
+    "img_width": 7,
+}
+
 # Result Definitions
 EXTRACT_RESULT_TC1 = np.array([[[0, 0, 0], [0, 0, 0], [0, 0, 1]]], dtype=np.uint8)
 EXTRACT_RESULT_TC2 = np.array([[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
@@ -155,6 +226,19 @@ EXTRACT_KW_TEST_CASE_1 = [
 SPLIT_TEST_CASE_1 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 1}, DATA_SPLIT_1, SPLIT_RESULT_TC1]
 SPLIT_TEST_CASE_2 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 3}, DATA_SPLIT_2, SPLIT_RESULT_TC2]
 
+# the 1-pixel "others" object is dropped with min_area=5 (the surviving object keeps
+# its original component label 2), kept with min_area=1
+SPLIT_MIN_AREA_CASE_1 = [
+    {"keys": ["label"], "mask_value": "mask_value", "min_area": 5},
+    {"label": LABEL_5, "mask_value": 1},
+    [0, 2],
+]
+SPLIT_MIN_AREA_CASE_2 = [
+    {"keys": ["label"], "mask_value": "mask_value", "min_area": 1},
+    {"label": LABEL_5, "mask_value": 1},
+    [0, 1, 2],
+]
+
 GUIDANCE_TEST_CASE_1 = [{"image": "image", "label": "label", "others": "others"}, DATA_GUIDANCE_1, [5, 5, 5]]
 GUIDANCE_TEST_CASE_2 = [
     {"image": "image", "label": "label", "others": "others", "gaussian": True, "use_distance": True},
@@ -170,6 +254,13 @@ CLICK_TEST_CASE_2 = [
 ]
 
 LABEL_FILTER_TEST_CASE_1 = [{"keys": ["pred"]}, DATA_LABEL_FILTER_1, [6, 6]]
+
+# without reconstruction both blobs survive (9 + 4 = 13 pixels); with reconstruction
+# only the blob containing the click point is kept (4 pixels)
+LABEL_FILTER_TEST_CASE_2 = [{"keys": ["pred"], "min_size": 3}, DATA_LABEL_FILTER_2, 13]
+LABEL_FILTER_TEST_CASE_3 = [{"keys": ["pred"], "min_size": 3, "do_reconstruction": True}, DATA_LABEL_FILTER_2, 4]
+# a click point outside every mask component leaves the filtered mask unchanged
+LABEL_FILTER_TEST_CASE_4 = [{"keys": ["pred"], "min_size": 3, "do_reconstruction": True}, DATA_LABEL_FILTER_3, 13]
 
 LABEL_GUIDANCE_TEST_CASE_1 = [{"keys": ["image"], "source": "label"}, DATA_GUIDANCE_1, [4, 5, 5]]
 
@@ -214,6 +305,12 @@ class TestSplitLabelsd(unittest.TestCase):
         result = SplitLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
 
+    @parameterized.expand([SPLIT_MIN_AREA_CASE_1, SPLIT_MIN_AREA_CASE_2])
+    def test_min_area_filters_others(self, arguments, input_data, expected_values):
+        """Test that ``others`` objects below ``min_area`` are dropped from the output."""
+        result = SplitLabeld(**arguments)(input_data)
+        np.testing.assert_equal(np.unique(result["others"]), expected_values)
+
 
 class TestGuidanceSignal(unittest.TestCase):
 
@@ -237,6 +334,12 @@ class TestPostFilterLabel(unittest.TestCase):
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["pred"].shape, expected_shape)
+
+    @parameterized.expand([LABEL_FILTER_TEST_CASE_2, LABEL_FILTER_TEST_CASE_3, LABEL_FILTER_TEST_CASE_4])
+    def test_do_reconstruction(self, arguments, input_data, expected_count):
+        """Test that reconstruction keeps only the blob containing the click point."""
+        result = PostFilterLabeld(**arguments)(input_data)
+        np.testing.assert_equal(np.count_nonzero(result["pred"]), expected_count)
 
 
 class TestAddLabelAsGuidance(unittest.TestCase):
