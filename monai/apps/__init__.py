@@ -17,6 +17,7 @@ from .utils import (
     SUPPORTED_HASH_TYPES,
     HashCheckError,
     check_hash,
+    create_temp_dir,
     download_and_extract,
     download_url,
     extractall,
