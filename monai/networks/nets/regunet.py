@@ -295,7 +295,7 @@ class AffineHead(nn.Module):
 
     def forward(self, x: list[torch.Tensor], image_size: list[int]) -> torch.Tensor:
         f = x[0]
-        self.grid = self.grid.to(device=f.device)
+        self.grid = self.grid.to(device=f.device, dtype=f.dtype)
         theta = self.fc(f.reshape(f.shape[0], -1))
         if self.save_theta:
             self.theta = theta.detach()
