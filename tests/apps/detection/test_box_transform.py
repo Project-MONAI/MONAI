@@ -139,11 +139,7 @@ class TestBoxTransform(unittest.TestCase):
         # Box [1, 1, 3, 6] on a (1, 10, 10) image must therefore fill rows 1:3,
         # cols 1:6. This differs from the matplotlib convention (x=cols, y=rows).
         for ellipse_mask in [False, True]:
-            data = {
-                "image": np.zeros((1, 10, 10)),
-                "boxes": np.array([[1, 1, 3, 6]]),
-                "labels": np.array([1]),
-            }
+            data = {"image": np.zeros((1, 10, 10)), "boxes": np.array([[1, 1, 3, 6]]), "labels": np.array([1])}
             transform_to_mask = BoxToMaskd(
                 box_keys="boxes",
                 box_mask_keys="box_mask",
