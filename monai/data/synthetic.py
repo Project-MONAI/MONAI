@@ -28,7 +28,8 @@ def create_test_image_2d(
     num_seg_classes: int = 5,
     channel_dim: int | None = None,
     random_state: np.random.RandomState | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
+    return_instance_id: bool = False,
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum and minimum radii of the circles
     are given as `rad_max` and `rad_min`. The mask will have `num_seg_classes` number of classes for segmentations labeled
@@ -48,9 +49,12 @@ def create_test_image_2d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+        return_instance_id: if True, also return an instance ID mask where every generated
+            object is assigned a unique positive integer. Defaults to `False`.
 
     Returns:
-        Randomised Numpy array with shape (`height`, `width`)
+        A tuple of image and segmentation label arrays. If `return_instance_id=True`, also returns
+        an instance ID array as the third element.
     """
 
     if rad_max <= rad_min:
@@ -62,9 +66,10 @@ def create_test_image_2d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width))
+    instance_ids = np.zeros((height, width), dtype=np.int32) if return_instance_id else None
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
-    for _ in range(num_objs):
+    for obj_id in range(1, num_objs + 1):
         x = rs.randint(rad_max, height - rad_max)
         y = rs.randint(rad_max, width - rad_max)
         rad = rs.randint(rad_min, rad_max)
@@ -75,6 +80,8 @@ def create_test_image_2d(
             image[circle] = np.ceil(rs.random() * num_seg_classes)
         else:
             image[circle] = rs.random() * 0.5 + 0.5
+        if instance_ids is not None:
+            instance_ids[circle] = obj_id
 
     labels = np.ceil(image).astype(np.int32, copy=False)
 
@@ -87,10 +94,16 @@ def create_test_image_2d(
         if channel_dim == 0:
             noisyimage = noisyimage[None]
             labels = labels[None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[None]
         else:
             noisyimage = noisyimage[..., None]
             labels = labels[..., None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[..., None]
 
+    if instance_ids is not None:
+        return noisyimage, labels, instance_ids
     return noisyimage, labels
 
 
@@ -105,7 +118,8 @@ def create_test_image_3d(
     num_seg_classes: int = 5,
     channel_dim: int | None = None,
     random_state: np.random.RandomState | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
+    return_instance_id: bool = False,
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Return a noisy 3D image and segmentation.
 
@@ -122,9 +136,12 @@ def create_test_image_3d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+        return_instance_id: if True, also return an instance ID mask where every generated
+            object is assigned a unique positive integer. Defaults to `False`.
 
     Returns:
-        Randomised Numpy array with shape (`height`, `width`, `depth`)
+        A tuple of image and segmentation label arrays. If `return_instance_id=True`, also returns
+        an instance ID array as the third element.
 
     See also:
         :py:meth:`~create_test_image_2d`
@@ -139,9 +156,10 @@ def create_test_image_3d(
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width, depth))
+    instance_ids = np.zeros((height, width, depth), dtype=np.int32) if return_instance_id else None
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
-    for _ in range(num_objs):
+    for obj_id in range(1, num_objs + 1):
         x = rs.randint(rad_max, height - rad_max)
         y = rs.randint(rad_max, width - rad_max)
         z = rs.randint(rad_max, depth - rad_max)
@@ -153,6 +171,8 @@ def create_test_image_3d(
             image[circle] = np.ceil(rs.random() * num_seg_classes)
         else:
             image[circle] = rs.random() * 0.5 + 0.5
+        if instance_ids is not None:
+            instance_ids[circle] = obj_id
 
     labels = np.ceil(image).astype(np.int32, copy=False)
 
@@ -162,8 +182,17 @@ def create_test_image_3d(
     if channel_dim is not None:
         if not (isinstance(channel_dim, int) and channel_dim in (-1, 0, 3)):
             raise AssertionError("invalid channel dim.")
-        noisyimage, labels = (
-            (noisyimage[None], labels[None]) if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
-        )
+        if channel_dim == 0:
+            noisyimage = noisyimage[None]
+            labels = labels[None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[None]
+        else:
+            noisyimage = noisyimage[..., None]
+            labels = labels[..., None]
+            if instance_ids is not None:
+                instance_ids = instance_ids[..., None]
 
+    if instance_ids is not None:
+        return noisyimage, labels, instance_ids
     return noisyimage, labels
