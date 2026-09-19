@@ -401,6 +401,10 @@ class BoxToMask(Transform):
     """
     Convert box to int16 mask image, which has the same size with the input image.
 
+    Boxes are assumed to be in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D): box axis 0 maps to mask
+    spatial dim 0 (``H``), box axis 1 maps to mask spatial dim 1 (``W``).
+
     Args:
         bg_label: background labels for the output mask image, make sure it is smaller than any foreground(fg) labels.
         ellipse_mask: bool.
@@ -422,9 +426,10 @@ class BoxToMask(Transform):
     ) -> NdarrayOrTensor:
         """
         Args:
-            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+                with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``.
             labels: classification foreground(fg) labels corresponding to `boxes`, dtype should be int, sized (N,).
-            spatial_size: image spatial size.
+            spatial_size: image spatial size, e.g. ``(H, W)`` in 2D.
 
         Return:
             - int16 array, sized (num_box, H, W). Each channel represents a box.
@@ -439,6 +444,8 @@ class MaskToBox(Transform):
     Convert int16 mask image to box, which has the same size with the input image.
     Pairs with :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
+    Output boxes are in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D).
 
     Args:
         bg_label: background labels for the output mask image, make sure it is smaller than any foreground(fg) labels.
