@@ -38,6 +38,7 @@ from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlo
 from .mednext_block import MedNeXtBlock, MedNeXtDownBlock, MedNeXtOutBlock, MedNeXtUpBlock
 from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
+from .primus_block import LayerNormNd, PrimusPatchDecode, PrimusPatchEmbed, ResidualBlockD
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
 from .rope import SpatialRotaryEmbedding, apply_rotary_embedding
 from .segresnet_block import ResBlock

@@ -120,6 +120,20 @@ Blocks
 .. autoclass:: SwiGLUMLP
     :members:
 
+`Primus Blocks`
+~~~~~~~~~~~~~~~
+.. autoclass:: PrimusPatchEmbed
+    :members:
+
+.. autoclass:: PrimusPatchDecode
+    :members:
+
+.. autoclass:: ResidualBlockD
+    :members:
+
+.. autoclass:: LayerNormNd
+    :members:
+
 `SpatialRotaryEmbedding`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SpatialRotaryEmbedding
