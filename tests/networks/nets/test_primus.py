@@ -122,6 +122,42 @@ class TestPrimus(unittest.TestCase):
             _, mask = net(x, return_mask=True)
         self.assertIsNone(mask)
 
+    def test_patch_drop_2d(self):
+        net = Primus(1, 2, (32, 16), spatial_dims=2, patch_drop_rate=0.5, **SMALL)
+        net.train()
+        out, mask = net(torch.randn(2, 1, 32, 16), return_mask=True)
+        self.assertEqual(out.shape, (2, 2, 32, 16))
+        # 8 tokens of 8x8 pixels, 4 of them kept per sample
+        self.assertEqual(mask.shape, (2, 1, 32, 16))
+        self.assertEqual(mask.flatten(1).sum(1).tolist(), [4 * 64] * 2)
+
+    def test_restore_patches(self):
+        net = Primus(1, 2, 16, **SMALL)  # 8 tokens
+        net.mask_token.fill_(-1.0)
+        keep_indices = torch.tensor([[5, 0, 3], [7, 2, 6]])
+        kept_tokens = torch.arange(2 * 3 * 48, dtype=torch.float32).reshape(2, 3, 48)
+        full, kept = net._restore_patches(kept_tokens, keep_indices)
+        self.assertEqual(full.shape, (2, 8, 48))
+        for b in range(2):
+            for i, pos in enumerate(keep_indices[b].tolist()):
+                torch.testing.assert_close(full[b, pos], kept_tokens[b, i])
+            dropped = [p for p in range(8) if p not in keep_indices[b].tolist()]
+            self.assertTrue(torch.all(full[b, dropped] == -1.0))
+            self.assertEqual(kept[b].nonzero().flatten().tolist(), sorted(keep_indices[b].tolist()))
+
+    def test_eval_deterministic(self):
+        net = Primus(1, 2, 16, patch_drop_rate=0.5, dropout_rate=0.1, attention_dropout_rate=0.1, **SMALL)
+        x = torch.randn(1, 1, 16, 16, 16)
+        with eval_mode(net):
+            torch.testing.assert_close(net(x), net(x))
+
+    def test_gradients_reach_all_parameters(self):
+        net = Primus(1, 2, 16, num_register_tokens=2, drop_path_rate=0.0, **SMALL)
+        net.train()
+        net(torch.randn(2, 1, 16, 16, 16)).sum().backward()
+        missing = [name for name, p in net.named_parameters() if p.grad is None]
+        self.assertEqual(missing, [])
+
     def test_depth_per_level(self):
         net = Primus(1, 2, (8, 16, 4), depth_per_level=(2, 1), **{**SMALL, "channels_per_level": (4, 8, 16)})
         self.assertEqual(net.patch_size, (4, 4, 4))
