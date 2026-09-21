@@ -487,10 +487,4 @@ def download_and_extract(
     with tempfile.TemporaryDirectory() as tmp_dir:
         filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(
-            filepath=filename,
-            output_dir=output_dir,
-            hash_type=hash_type,
-            file_type=file_type,
-            has_base=has_base,
-        )
+        extractall(filepath=filename, output_dir=output_dir, hash_type=hash_type, file_type=file_type, has_base=has_base)
