@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
-from monai.utils import look_up_option, min_version, optional_import
+from monai.utils import deprecated_arg_default, look_up_option, min_version, optional_import
 
 requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
@@ -54,6 +54,11 @@ __all__ = [
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+_HASH_TYPE_DEFAULT_CHANGE_VERSION = "1.6.1"
+_HASH_TYPE_DEFAULT_CHANGE_MSG = (
+    "The default was updated to SHA-256 for stronger integrity verification. "
+    'Pass `hash_type="md5"` explicitly only when you need backward compatibility with existing MD5 hashes.'
+)
 
 
 class HashCheckError(ValueError):
@@ -166,9 +171,22 @@ def safe_extract_member(member, extract_to):
     return full_path
 
 
+@deprecated_arg_default(
+    "hash_type",
+    old_default="md5",
+    new_default="sha256",
+    since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
+)
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
     """
     Verify hash signature of specified file.
+
+    .. versionchanged:: 1.6.1
+        The default ``hash_type`` changed from ``"md5"`` to ``"sha256"`` for stronger integrity verification.
+        Pass ``hash_type="md5"`` explicitly only when you need backward compatibility with existing MD5 hashes.
 
     Args:
         filepath: path of source file to verify hash value.
@@ -200,6 +218,15 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
     return True
 
 
+@deprecated_arg_default(
+    "hash_type",
+    old_default="md5",
+    new_default="sha256",
+    since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
+)
 def download_url(
     url: str,
     filepath: PathLike = "",
@@ -210,6 +237,10 @@ def download_url(
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
+
+    .. versionchanged:: 1.6.1
+        The default ``hash_type`` changed from ``"md5"`` to ``"sha256"`` for stronger integrity verification.
+        Pass ``hash_type="md5"`` explicitly only when you need backward compatibility with existing MD5 hashes.
 
     Args:
         url: source URL link to download file.
@@ -312,6 +343,15 @@ def _extract_tar(filepath, output_dir):
                         shutil.copyfileobj(source, target)
 
 
+@deprecated_arg_default(
+    "hash_type",
+    old_default="md5",
+    new_default="sha256",
+    since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
+)
 def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
@@ -323,6 +363,10 @@ def extractall(
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
+
+    .. versionchanged:: 1.6.1
+        The default ``hash_type`` changed from ``"md5"`` to ``"sha256"`` for stronger integrity verification.
+        Pass ``hash_type="md5"`` explicitly only when you need backward compatibility with existing MD5 hashes.
 
     Args:
         filepath: the file path of compressed file.
@@ -390,6 +434,15 @@ def get_filename_from_url(data_url: str) -> str:
         raise Exception(f"Error processing URL: {e}") from e
 
 
+@deprecated_arg_default(
+    "hash_type",
+    old_default="md5",
+    new_default="sha256",
+    since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
+)
 def download_and_extract(
     url: str,
     filepath: PathLike = "",
@@ -402,6 +455,10 @@ def download_and_extract(
 ) -> None:
     """
     Download file from URL and extract it to the output directory.
+
+    .. versionchanged:: 1.6.1
+        The default ``hash_type`` changed from ``"md5"`` to ``"sha256"`` for stronger integrity verification.
+        Pass ``hash_type="md5"`` explicitly only when you need backward compatibility with existing MD5 hashes.
 
     Args:
         url: source URL link to download file.
@@ -433,4 +490,4 @@ def download_and_extract(
     with tempfile.TemporaryDirectory() as tmp_dir:
         filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
+        extractall(filepath=filename, output_dir=output_dir, hash_type=hash_type, file_type=file_type, has_base=has_base)
