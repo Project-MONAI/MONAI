@@ -116,6 +116,19 @@ class Primus(nn.Module):
         decoder_act: tuple | str = "gelu",
     ) -> None:
         super().__init__()
+        if spatial_dims not in (2, 3):
+            raise ValueError(f"spatial_dims must be 2 or 3, got {spatial_dims}.")
+        if len(depth_per_level) == 0:
+            raise ValueError("depth_per_level must have at least one level.")
+        if num_register_tokens < 0:
+            raise ValueError(f"num_register_tokens must be non-negative, got {num_register_tokens}.")
+        for name, rate in (
+            ("drop_path_rate", drop_path_rate),
+            ("proj_drop_rate", proj_drop_rate),
+            ("attn_drop_rate", attn_drop_rate),
+        ):
+            if not 0.0 <= rate <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1], got {rate}.")
         self.img_size = ensure_tuple_rep(img_size, spatial_dims)
         self.patch_size = (2 ** len(depth_per_level),) * spatial_dims
         if any(s % p != 0 for s, p in zip(self.img_size, self.patch_size)):

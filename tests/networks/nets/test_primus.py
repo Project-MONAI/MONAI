@@ -146,6 +146,18 @@ class TestPrimus(unittest.TestCase):
             Primus(1, 2, 16, **{**SMALL, "num_heads": 3})  # rope needs head_dim 16 divisible by 2 * spatial_dims
         with self.assertRaises(ValueError):
             Primus(1, 2, 16, patch_drop_rate=1.0, **SMALL)
+        bad_args = [
+            {"spatial_dims": 4},
+            {"spatial_dims": 1},
+            {"depth_per_level": (), "channels_per_level": (4,)},
+            {"num_register_tokens": -1},
+            {"drop_path_rate": -0.1},
+            {"attn_drop_rate": 1.5},
+            {"proj_drop_rate": -1.0},
+        ]
+        for args in bad_args:
+            with self.subTest(**args), self.assertRaises(ValueError):
+                Primus(1, 2, 16, **{**SMALL, **args})
         net = Primus(1, 2, 16, **SMALL)
         with self.assertRaises(ValueError):
             net(torch.randn(1, 1, 32, 32, 32))
