@@ -68,6 +68,9 @@ class TestEVABlock(unittest.TestCase):
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             EVAAttention(10, 3)
+        for num_heads in (0, -2):
+            with self.assertRaises(ValueError):
+                EVAAttention(8, num_heads)
 
 
 if __name__ == "__main__":

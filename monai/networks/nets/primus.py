@@ -120,6 +120,8 @@ class Primus(nn.Module):
         self.patch_size = (2 ** len(depth_per_level),) * spatial_dims
         if any(s % p != 0 for s, p in zip(self.img_size, self.patch_size)):
             raise ValueError(f"img_size {self.img_size} must be divisible by the patch size {self.patch_size}.")
+        if num_heads <= 0:
+            raise ValueError(f"num_heads must be positive, got {num_heads}.")
         if embed_dim % num_heads != 0:
             raise ValueError(f"embed_dim ({embed_dim}) must be divisible by num_heads ({num_heads}).")
         if not 0.0 <= patch_drop_rate < 1.0:

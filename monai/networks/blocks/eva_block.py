@@ -52,6 +52,8 @@ class EVAAttention(nn.Module):
         scale_norm: bool = False,
     ) -> None:
         super().__init__()
+        if num_heads <= 0:
+            raise ValueError(f"num_heads must be positive, got {num_heads}.")
         if hidden_size % num_heads != 0:
             raise ValueError(f"hidden_size ({hidden_size}) must be divisible by num_heads ({num_heads}).")
         self.num_heads = num_heads

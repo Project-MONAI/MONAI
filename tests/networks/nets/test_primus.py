@@ -141,6 +141,8 @@ class TestPrimus(unittest.TestCase):
         with self.assertRaises(ValueError):
             Primus(1, 2, 16, **{**SMALL, "num_heads": 5})
         with self.assertRaises(ValueError):
+            Primus(1, 2, 16, **{**SMALL, "num_heads": 0})
+        with self.assertRaises(ValueError):
             Primus(1, 2, 16, **{**SMALL, "num_heads": 3})  # rope needs head_dim 16 divisible by 2 * spatial_dims
         with self.assertRaises(ValueError):
             Primus(1, 2, 16, patch_drop_rate=1.0, **SMALL)
