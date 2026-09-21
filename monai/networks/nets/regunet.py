@@ -294,6 +294,17 @@ class AffineHead(nn.Module):
         return grid_warped
 
     def forward(self, x: list[torch.Tensor], image_size: list[int]) -> torch.Tensor:
+        """
+        Predict an affine transform from the first feature map and return it as a displacement field.
+
+        Args:
+            x: feature maps from the network; only the first, ``x[0]``, is used. The reference grid is moved to its
+                device and dtype, so a network cast to half precision stays in half precision.
+            image_size: spatial size of the input image; not used by this head.
+
+        Returns:
+            The displacement field, the warped reference grid minus the reference grid.
+        """
         f = x[0]
         self.grid = self.grid.to(device=f.device, dtype=f.dtype)
         theta = self.fc(f.reshape(f.shape[0], -1))

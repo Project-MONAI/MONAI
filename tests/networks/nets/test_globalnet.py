@@ -100,11 +100,17 @@ class TestGlobalNet(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES_GLOBAL_NET)
     def test_half_precision_forward(self, input_param, input_shape, expected_shape):
-        # AffineHead.grid was a plain float32 attribute, moved by device only
-        # (`self.grid.to(device=f.device)`) in forward(). Casting the network to half
-        # precision left `self.grid` at float32 while theta became float16, and
-        # `affine_transform`'s einsum raised `RuntimeError: expected scalar type Half
-        # but found Float` on the very first half-precision forward call.
+        """Check that a GlobalNet cast to half precision can run a forward pass and returns float16.
+
+        `AffineHead.grid` used to be moved by device only, so casting the network left it at float32 while theta
+        became float16, and the einsum in `affine_transform` raised `RuntimeError: expected scalar type Half but
+        found Float` on the first half-precision forward call.
+
+        Args:
+            input_param: keyword arguments used to build the GlobalNet.
+            input_shape: shape of the random float16 input.
+            expected_shape: shape the returned displacement field must have.
+        """
         net = GlobalNet(**input_param).half()
         with eval_mode(net):
             img = torch.randn(input_shape, dtype=torch.float16)
