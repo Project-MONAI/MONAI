@@ -67,6 +67,7 @@ class EVAAttention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def _rotate(self, t: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
+        """Apply ``rope`` to the non-prefix tokens of ``t`` of shape ``(B, num_heads, N, head_dim)``."""
         npt = self.num_prefix_tokens
         return torch.cat([t[:, :, :npt], apply_rotary_embedding(t[:, :, npt:], rope)], dim=2)
 

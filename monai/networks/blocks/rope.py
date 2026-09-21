@@ -24,7 +24,7 @@ __all__ = ["SpatialRotaryEmbedding", "apply_rotary_embedding"]
 
 
 def _rotate_interleaved(x: torch.Tensor) -> torch.Tensor:
-    # [x0, x1, x2, x3, ...] -> [-x1, x0, -x3, x2, ...]
+    """Rotate consecutive channel pairs by 90 degrees: ``[x0, x1, x2, x3, ...] -> [-x1, x0, -x3, x2, ...]``."""
     return torch.stack([-x[..., 1::2], x[..., ::2]], -1).reshape(x.shape)
 
 
@@ -73,6 +73,7 @@ class SpatialRotaryEmbedding(nn.Module):
         self.register_buffer("embedding", self._build(), persistent=False)
 
     def _build(self) -> torch.Tensor:
+        """Compute the ``[sin, cos]`` embedding of shape ``(num_tokens, 2 * head_dim)`` for ``feat_shape``."""
         num_bands = self.head_dim // (2 * len(self.feat_shape))
         bands = 1.0 / (self.temperature ** (torch.arange(num_bands, dtype=torch.float32) / num_bands))
         coords = [torch.arange(s, dtype=torch.float32) for s in self.feat_shape]

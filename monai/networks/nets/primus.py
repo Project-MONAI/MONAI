@@ -171,6 +171,7 @@ class Primus(nn.Module):
         self._init_weights()
 
     def _init_weights(self) -> None:
+        """Initialize as upstream: truncated normal transformer weights, rescaled by depth, He-normal convolutions."""
         for m in self.blocks.modules():
             if isinstance(m, nn.Linear):
                 trunc_normal_(m.weight, std=0.02)
