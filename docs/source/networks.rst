@@ -837,6 +837,13 @@ Nets
 .. autoclass:: MedNeXt
    :members:
 
+`Primus`
+~~~~~~~~
+.. autoclass:: Primus
+   :members:
+
+.. autofunction:: create_primus
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
