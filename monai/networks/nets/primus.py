@@ -23,7 +23,6 @@ from typing import Any, Literal, cast, overload
 
 import torch
 import torch.nn as nn
-from torch.nn.modules.conv import _ConvNd
 
 from monai.networks.blocks.eva_block import EVABlock
 from monai.networks.blocks.primus_block import PrimusPatchDecode, PrimusPatchEmbed
@@ -216,7 +215,7 @@ class Primus(nn.Module):
             nn.init.normal_(self.register_tokens, std=1e-6)
         for module in (self.down_projection, self.up_projection):
             for m in module.modules():
-                if isinstance(m, _ConvNd):
+                if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.ConvTranspose2d, nn.ConvTranspose3d)):
                     nn.init.kaiming_normal_(m.weight, a=1e-2)
                     if m.bias is not None:
                         nn.init.zeros_(m.bias)
