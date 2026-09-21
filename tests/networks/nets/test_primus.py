@@ -19,7 +19,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import Primus, PrimusS, convert_primus_state_dict, create_primus
+from monai.networks.nets import Primus, create_primus
+from monai.networks.nets.primus import convert_primus_state_dict
 from monai.utils import optional_import
 from tests.test_utils import dict_product
 
@@ -135,9 +136,10 @@ class TestPrimus(unittest.TestCase):
             self.assertEqual(net(torch.randn(1, 1, 16, 16, 16)).shape, (1, 2, 16, 16, 16))
 
     def test_variant(self):
-        net = PrimusS(in_channels=1, out_channels=2, img_size=16)
+        net = create_primus("s", in_channels=1, out_channels=2, img_size=16)
         self.assertEqual(len(net.blocks), 12)
         self.assertEqual(net.norm.normalized_shape, (396,))
+        self.assertEqual(len(create_primus("S", in_channels=1, out_channels=2, img_size=16, num_layers=1).blocks), 1)
         with self.assertRaises(ValueError):
             create_primus("XL", in_channels=1, out_channels=2, img_size=16)
 

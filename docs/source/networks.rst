@@ -114,24 +114,12 @@ Blocks
 .. autoclass:: EVABlock
     :members:
 
-.. autoclass:: EVAAttention
-    :members:
-
-.. autoclass:: SwiGLUMLP
-    :members:
-
 `Primus Blocks`
 ~~~~~~~~~~~~~~~
 .. autoclass:: PrimusPatchEmbed
     :members:
 
 .. autoclass:: PrimusPatchDecode
-    :members:
-
-.. autoclass:: ResidualBlockD
-    :members:
-
-.. autoclass:: LayerNormNd
     :members:
 
 `SpatialRotaryEmbedding`
@@ -843,8 +831,6 @@ Nets
    :members:
 
 .. autofunction:: create_primus
-
-.. autofunction:: convert_primus_state_dict
 
 Utilities
 ---------

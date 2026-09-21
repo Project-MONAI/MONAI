@@ -18,8 +18,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Sequence
-from functools import partial
-from typing import Any, cast
+from typing import Any, Literal, cast, overload
 
 import torch
 import torch.nn as nn
@@ -31,7 +30,7 @@ from monai.networks.blocks.rope import SpatialRotaryEmbedding
 from monai.networks.layers.weight_init import trunc_normal_
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["Primus", "create_primus", "convert_primus_state_dict", "PrimusS", "PrimusB", "PrimusM", "PrimusL"]
+__all__ = ["Primus", "create_primus", "convert_primus_state_dict"]
 
 _PRIMUS_VARIANTS: dict[str, dict[str, Any]] = {
     "S": {"embed_dim": 396, "num_layers": 12, "num_heads": 6},
@@ -228,14 +227,24 @@ class Primus(nn.Module):
         kept.scatter_(1, keep_indices, True)
         return full, kept
 
+    @overload
+    def forward(self, x: torch.Tensor, return_mask: Literal[False] = False) -> torch.Tensor: ...
+
+    @overload
+    def forward(self, x: torch.Tensor, return_mask: Literal[True]) -> tuple[torch.Tensor, torch.Tensor | None]: ...
+
     def forward(
         self, x: torch.Tensor, return_mask: bool = False
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor | None]:
         """
         Args:
             x: input of shape ``(B, in_channels, *img_size)``.
-            return_mask: whether to also return the boolean mask of shape ``(B, 1, *img_size)`` that is True
-                on voxels whose token was kept, or ``None`` when no tokens were dropped.
+            return_mask: whether to also return the mask of kept voxels.
+
+        Returns:
+            The output of shape ``(B, out_channels, *img_size)``. With ``return_mask=True``, a tuple of the output
+            and a boolean mask of shape ``(B, 1, *img_size)`` that is True on voxels whose token was kept, or
+            ``None`` when no tokens were dropped (evaluation mode or ``patch_drop_rate=0``).
         """
         if tuple(x.shape[2:]) != self.img_size:
             raise ValueError(f"expected input spatial size {self.img_size}, got {tuple(x.shape[2:])}.")
@@ -309,14 +318,9 @@ def create_primus(variant: str, **kwargs) -> Primus:
     Args:
         variant: one of ``"S"``, ``"B"``, ``"M"`` or ``"L"``.
         kwargs: other arguments of :py:class:`Primus`, e.g. ``in_channels``, ``out_channels`` and ``img_size``.
+            They may also override the variant configuration (``embed_dim``, ``num_layers``, ``num_heads``).
     """
     config = _PRIMUS_VARIANTS.get(variant.upper())
     if config is None:
         raise ValueError(f"invalid Primus variant {variant}, expected one of {list(_PRIMUS_VARIANTS)}.")
-    return Primus(**config, **kwargs)
-
-
-PrimusS = partial(create_primus, "S")
-PrimusB = partial(create_primus, "B")
-PrimusM = partial(create_primus, "M")
-PrimusL = partial(create_primus, "L")
+    return Primus(**{**config, **kwargs})
