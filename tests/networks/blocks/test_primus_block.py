@@ -68,6 +68,8 @@ class TestPrimusBlocks(unittest.TestCase):
         with self.assertRaises(ValueError):
             PrimusPatchEmbed(3, 1, 24, (1, 0), (8, 16, 32))
         with self.assertRaises(ValueError):
+            PrimusPatchEmbed(3, 1, 24, (), (8,))
+        with self.assertRaises(ValueError):
             PrimusPatchDecode(3, (8, 8, 6), 24, 2)
         with self.assertRaises(ValueError):
             PrimusPatchDecode(3, (8, 8), 24, 2)

@@ -177,6 +177,8 @@ class TestPrimus(unittest.TestCase):
         self.assertEqual(net.norm.normalized_shape, (396,))
         self.assertEqual(len(create_primus("S", in_channels=1, out_channels=2, img_size=16, num_layers=1).blocks), 1)
         with self.assertRaises(ValueError):
+            create_primus(None, in_channels=1, out_channels=2, img_size=16)
+        with self.assertRaises(ValueError):
             create_primus("XL", in_channels=1, out_channels=2, img_size=16)
 
     def test_ill_arg(self):
@@ -198,6 +200,9 @@ class TestPrimus(unittest.TestCase):
             {"drop_path_rate": -0.1},
             {"attention_dropout_rate": 1.5},
             {"dropout_rate": -1.0},
+            {"num_layers": 0},
+            {"embed_dim": 0},
+            {"mlp_ratio": 0.0},
         ]
         for args in bad_args:
             with self.subTest(**args), self.assertRaises(ValueError):

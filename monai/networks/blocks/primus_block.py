@@ -134,6 +134,8 @@ class PrimusPatchEmbed(nn.Module):
     ) -> None:
         super().__init__()
         num_levels = len(depth_per_level)
+        if num_levels == 0:
+            raise ValueError("depth_per_level must have at least one level.")
         if len(channels_per_level) != num_levels + 1:
             raise ValueError(
                 f"channels_per_level must have len(depth_per_level) + 1 = {num_levels + 1} entries, "

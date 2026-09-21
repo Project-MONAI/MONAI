@@ -52,6 +52,8 @@ class EVAAttention(nn.Module):
         scale_norm: bool = False,
     ) -> None:
         super().__init__()
+        if num_prefix_tokens < 0:
+            raise ValueError(f"num_prefix_tokens must be non-negative, got {num_prefix_tokens}.")
         if num_heads <= 0:
             raise ValueError(f"num_heads must be positive, got {num_heads}.")
         if hidden_size % num_heads != 0:
@@ -79,6 +81,8 @@ class EVAAttention(nn.Module):
                 of shape ``(N - num_prefix_tokens, 2 * head_dim)`` or ``(B, 1, N - num_prefix_tokens, 2 * head_dim)``.
         """
         b, n, c = x.shape
+        if rope is not None and self.num_prefix_tokens > n:
+            raise ValueError(f"num_prefix_tokens ({self.num_prefix_tokens}) exceeds the sequence length ({n}).")
         q, k, v = (
             proj(x).reshape(b, n, self.num_heads, -1).transpose(1, 2)
             for proj in (self.q_proj, self.k_proj, self.v_proj)
@@ -154,6 +158,8 @@ class EVABlock(nn.Module):
         init_values: float | None = None,
     ) -> None:
         super().__init__()
+        if mlp_ratio <= 0:
+            raise ValueError(f"mlp_ratio must be positive, got {mlp_ratio}.")
         self.norm1 = nn.LayerNorm(hidden_size)
         self.attn = EVAAttention(
             hidden_size,

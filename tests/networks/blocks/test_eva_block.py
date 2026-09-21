@@ -71,6 +71,13 @@ class TestEVABlock(unittest.TestCase):
         for num_heads in (0, -2):
             with self.assertRaises(ValueError):
                 EVAAttention(8, num_heads)
+        with self.assertRaises(ValueError):
+            EVAAttention(8, 2, num_prefix_tokens=-1)
+        with self.assertRaises(ValueError):
+            EVABlock(8, 2, mlp_ratio=0.0)
+        attn = EVAAttention(8, 2, num_prefix_tokens=5)
+        with self.assertRaises(ValueError):
+            attn(torch.randn(1, 3, 8), rope=SpatialRotaryEmbedding(4, (2,))())
 
 
 if __name__ == "__main__":

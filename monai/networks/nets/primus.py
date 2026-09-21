@@ -29,7 +29,7 @@ from monai.networks.blocks.eva_block import EVABlock
 from monai.networks.blocks.primus_block import PrimusPatchDecode, PrimusPatchEmbed
 from monai.networks.blocks.rope import SpatialRotaryEmbedding
 from monai.networks.layers.weight_init import trunc_normal_
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, look_up_option
 
 __all__ = ["Primus", "create_primus", "convert_primus_state_dict"]
 
@@ -141,6 +141,12 @@ class Primus(nn.Module):
         self.patch_size = (2 ** len(depth_per_level),) * spatial_dims
         if any(s % p != 0 for s, p in zip(self.img_size, self.patch_size)):
             raise ValueError(f"img_size {self.img_size} must be divisible by the patch size {self.patch_size}.")
+        if embed_dim <= 0:
+            raise ValueError(f"embed_dim must be positive, got {embed_dim}.")
+        if num_layers < 1:
+            raise ValueError(f"num_layers must be at least 1, got {num_layers}.")
+        if mlp_ratio <= 0:
+            raise ValueError(f"mlp_ratio must be positive, got {mlp_ratio}.")
         if num_heads <= 0:
             raise ValueError(f"num_heads must be positive, got {num_heads}.")
         if embed_dim % num_heads != 0:
@@ -328,7 +334,7 @@ def create_primus(variant: str, **kwargs) -> Primus:
         kwargs: other arguments of :py:class:`Primus`, e.g. ``in_channels``, ``out_channels`` and ``img_size``.
             They may also override the variant configuration (``embed_dim``, ``num_layers``, ``num_heads``).
     """
-    config = _PRIMUS_VARIANTS.get(variant.upper())
-    if config is None:
-        raise ValueError(f"invalid Primus variant {variant}, expected one of {list(_PRIMUS_VARIANTS)}.")
+    if not isinstance(variant, str):
+        raise ValueError(f"variant must be a string, one of {list(_PRIMUS_VARIANTS)}, got {variant!r}.")
+    config = look_up_option(variant.upper(), _PRIMUS_VARIANTS)
     return Primus(**{**config, **kwargs})
