@@ -81,6 +81,7 @@ class Primus(nn.Module):
         attention_dropout_rate: dropout rate of the attention weights.
         init_values: initial LayerScale value, ``None`` disables LayerScale.
         scale_attn_inner: whether to apply a LayerNorm to the attention output.
+        stem_norm: feature normalization of the convolutional stem.
         stem_act: activation of the convolutional stem.
         decoder_act: activation of the decoder.
 
@@ -112,6 +113,7 @@ class Primus(nn.Module):
         attention_dropout_rate: float = 0.0,
         init_values: float | None = 0.1,
         scale_attn_inner: bool = True,
+        stem_norm: tuple | str = ("instance", {"affine": True}),
         stem_act: tuple | str = ("leakyrelu", {"inplace": True}),
         decoder_act: tuple | str = "gelu",
     ) -> None:
@@ -151,6 +153,7 @@ class Primus(nn.Module):
             depth_per_level=depth_per_level,
             channels_per_level=channels_per_level,
             add_skips=add_skips,
+            norm=stem_norm,
             act=stem_act,
         )
         self.register_tokens = (

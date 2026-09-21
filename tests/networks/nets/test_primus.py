@@ -128,6 +128,12 @@ class TestPrimus(unittest.TestCase):
         with eval_mode(net):
             self.assertEqual(net(torch.randn(1, 1, 8, 16, 4)).shape, (1, 2, 8, 16, 4))
 
+    def test_stem_norm(self):
+        net = Primus(1, 2, 16, stem_norm=("group", {"num_groups": 2}), **SMALL)
+        self.assertIsInstance(net.down_projection.stem.norm1, torch.nn.GroupNorm)
+        with eval_mode(net):
+            self.assertEqual(net(torch.randn(1, 1, 16, 16, 16)).shape, (1, 2, 16, 16, 16))
+
     def test_variant(self):
         net = PrimusS(in_channels=1, out_channels=2, img_size=16)
         self.assertEqual(len(net.blocks), 12)
