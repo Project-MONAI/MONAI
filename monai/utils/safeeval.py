@@ -71,11 +71,12 @@ def safe_eval(
     expressions with constants and names can be evaluated, so excludes attribute access, indexing, and calls. Code
     injection is infeasible through such expressions, so this is a safe and secure way of evaluating simple expressions.
 
-    Names are resolved only against `globals_vars` and `locals_vars`. The builtins are not placed in scope and the
-    globals of this module are never used as a fallback, so an expression naming anything the caller did not supply
-    raises a `NameError` instead of silently resolving to a builtin or to an imported module. This matters when
+    Names are resolved only against `globals_vars` and `locals_vars`, so an expression naming anything the caller did
+    not supply raises a `NameError` rather than silently resolving to a builtin or to a module imported here. Two
+    names resolve without being supplied: `__builtins__`, which is bound to an empty mapping so that nothing can be
+    reached through it, and `np`, which `rewrite_np` adds because the rewritten constants need it. This matters when
     `allowed_types` is widened beyond `SAFE_TYPES`, since node types such as `ast.Attribute` and `ast.Call` would
-    otherwise make those objects reachable.
+    otherwise make the builtins and this module's imports reachable.
 
     If `rewrite_np` is True, int and float constants in the given expression will be wrapped with Numpy types as given
     by `int_type_str` and `float_type_str`. These are expected to be constructor names prefixed with `np.` as Numpy
@@ -95,7 +96,8 @@ def safe_eval(
 
     Raises:
         ValueError: raised when any node in the AST parsed from `expr` has a type not in `allowed_types`
-        NameError: raised when `expr` names a variable not present in `globals_vars` or `locals_vars`
+        NameError: raised when `expr` names a variable not present in `globals_vars` or `locals_vars`, other than
+            `__builtins__` and, when `rewrite_np` is True, `np`
 
     Returns:
         The evaluated expression value, using `eval` with `globals_vars` and `locals_vars`

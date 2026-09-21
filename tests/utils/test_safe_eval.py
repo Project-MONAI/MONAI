@@ -101,6 +101,9 @@ class TestSafeEval(unittest.TestCase):
             with self.subTest(expr=expr), self.assertRaises(NameError):
                 safe_eval(expr)
 
+        # `rewrite_np` supplies `np` itself, since the constants it rewrites are calls into it
+        self.assertIs(safe_eval("np", rewrite_np=True), np)
+
     def test_unknown_name_raises(self):
         """Test that a name the caller did not supply raises NameError rather than resolving elsewhere."""
         with self.assertRaises(NameError):
