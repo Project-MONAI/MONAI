@@ -109,6 +109,17 @@ Blocks
 .. autoclass:: ResBlock
     :members:
 
+`EVABlock`
+~~~~~~~~~~
+.. autoclass:: EVABlock
+    :members:
+
+.. autoclass:: EVAAttention
+    :members:
+
+.. autoclass:: SwiGLUMLP
+    :members:
+
 `SpatialRotaryEmbedding`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SpatialRotaryEmbedding

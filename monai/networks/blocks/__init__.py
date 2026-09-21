@@ -24,6 +24,7 @@ from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedR
 from .downsample import DownSample, Downsample, MaxAvgPool, SubpixelDownsample, SubpixelDownSample, Subpixeldownsample
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .encoder import BaseEncoder
+from .eva_block import EVAAttention, EVABlock, SwiGLUMLP
 from .fcn import FCN, GCN, MCFCN, Refine
 from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, LastLevelP6P7
 from .hyena import (
