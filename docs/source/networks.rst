@@ -844,6 +844,8 @@ Nets
 
 .. autofunction:: create_primus
 
+.. autofunction:: convert_primus_state_dict
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils

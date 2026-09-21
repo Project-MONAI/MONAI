@@ -17,8 +17,11 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import Primus, PrimusS, create_primus
+from monai.networks.nets import Primus, PrimusS, convert_primus_state_dict, create_primus
+from monai.utils import optional_import
 from tests.test_utils import dict_product
+
+dna_primus, has_dna = optional_import("dynamic_network_architectures.architectures.primus")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -95,6 +98,41 @@ class TestPrimus(unittest.TestCase):
         net = Primus(1, 2, 16, **SMALL)
         with self.assertRaises(ValueError):
             net(torch.randn(1, 1, 32, 32, 32))
+
+    def test_convert_state_dict_keys(self):
+        old = {
+            "eva.blocks.0.attn.q_proj.weight": 0,
+            "eva.pos_embed": 1,
+            "down_projection.stem.blocks.0.conv1.conv.weight": 2,
+            "down_projection.stem.blocks.0.conv1.all_modules.0.weight": 2,
+            "down_projection.stem.blocks.0.conv2.norm.bias": 3,
+            "down_projection.stem.blocks.0.skip.0.conv.weight": 4,
+            "down_projection.stem.blocks.0.skip.0.norm.weight": 5,
+            "down_projection.stages.1.blocks.2.skip.1.norm.weight": 6,
+            "up_projection.decode.0.1.weight": 7,
+        }
+        expected = {
+            "blocks.0.attn.q_proj.weight": 0,
+            "pos_embed": 1,
+            "down_projection.stem.conv1.weight": 2,
+            "down_projection.stem.norm2.bias": 3,
+            "down_projection.stem.skip.0.weight": 4,
+            "down_projection.stem.skip.1.weight": 5,
+            "down_projection.stages.1.2.skip.2.weight": 6,
+            "up_projection.decode.0.1.weight": 7,
+        }
+        self.assertEqual(convert_primus_state_dict(old), expected)
+
+    @unittest.skipUnless(has_dna, "Requires dynamic-network-architectures.")
+    def test_load_old_state_dict(self):
+        old = dna_primus.PrimusV3(
+            1, 48, (8, 8, 8), 2, eva_depth=2, eva_numheads=2, input_shape=(16, 16, 16), num_register_tokens=2
+        )
+        net = Primus(1, 2, 16, num_register_tokens=2, **SMALL | {"channels_per_level": (32, 64, 256, 1024)})
+        net.load_old_state_dict(old.state_dict())
+        x = torch.randn(1, 1, 16, 16, 16)
+        with eval_mode(old, net):
+            torch.testing.assert_close(net(x), old(x))
 
 
 if __name__ == "__main__":

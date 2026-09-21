@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Sequence
 from functools import partial
 from typing import Any, cast
@@ -29,7 +30,7 @@ from monai.networks.blocks.rope import SpatialRotaryEmbedding
 from monai.networks.layers.weight_init import trunc_normal_
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["Primus", "create_primus", "PrimusS", "PrimusB", "PrimusM", "PrimusL"]
+__all__ = ["Primus", "create_primus", "convert_primus_state_dict", "PrimusS", "PrimusB", "PrimusM", "PrimusL"]
 
 _PRIMUS_VARIANTS: dict[str, dict[str, Any]] = {
     "S": {"embed_dim": 396, "num_layers": 12, "num_heads": 6},
@@ -51,6 +52,9 @@ class Primus(nn.Module):
     Setting ``patch_drop_rate > 0`` randomly drops tokens during training (e.g. for masked-image-modeling
     pre-training); dropped tokens are replaced by a mask token before decoding. Use ``return_mask=True`` in
     :py:meth:`forward` to also get the mask of kept voxels.
+
+    State dicts of ``PrimusV3`` models from ``dynamic-network-architectures`` (as trained by nnU-Net) can be
+    converted with :py:meth:`load_old_state_dict`.
 
     Args:
         in_channels: number of input channels.
@@ -243,6 +247,39 @@ class Primus(nn.Module):
         x = x.transpose(1, 2).reshape(b, c, *self.grid_size)
         out = self.up_projection(x)
         return (out, mask) if return_mask else out
+
+    def load_old_state_dict(self, old_state_dict: dict[str, torch.Tensor]) -> None:
+        """
+        Load a state dict of a ``PrimusV3`` model from ``dynamic-network-architectures``.
+
+        Args:
+            old_state_dict: the state dict to convert and load.
+        """
+        self.load_state_dict(convert_primus_state_dict(old_state_dict))
+
+
+def convert_primus_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """
+    Convert a ``PrimusV3`` state dict from ``dynamic-network-architectures`` to the layout of :py:class:`Primus`.
+    """
+    rules = [
+        (r"^eva\.", ""),
+        (r"stem\.blocks\.0\.", "stem."),
+        (r"stages\.(\d+)\.blocks\.(\d+)\.", r"stages.\1.\2."),
+        (r"conv([12])\.conv\.", r"conv\1."),
+        (r"conv([12])\.norm\.", r"norm\1."),
+        (r"skip\.(\d+)\.conv\.", r"skip.\1."),
+    ]
+    out = {}
+    for key, value in state_dict.items():
+        if ".all_modules." in key:  # aliases of the conv/norm parameters
+            continue
+        for pattern, repl in rules:
+            key = re.sub(pattern, repl, key)
+        # the skip norm directly follows the skip conv in a flat nn.Sequential
+        key = re.sub(r"skip\.(\d+)\.norm\.", lambda m: f"skip.{int(m.group(1)) + 1}.", key)
+        out[key] = value
+    return out
 
 
 def create_primus(variant: str, **kwargs) -> Primus:
