@@ -66,7 +66,8 @@ class Primus(nn.Module):
         out_channels: number of output channels.
         img_size: spatial size of the input. The transformer's position embeddings are built for this size, so
             the network only accepts inputs of this size. Each entry must be divisible by the patch size
-            ``2 ** len(depth_per_level)``.
+            ``2 ** len(depth_per_level)``. To segment larger images, use
+            :py:func:`monai.inferers.sliding_window_inference` with ``roi_size=img_size``.
         spatial_dims: number of spatial dimensions.
         embed_dim: token dimension.
         num_layers: number of transformer blocks.
