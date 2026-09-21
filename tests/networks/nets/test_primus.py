@@ -116,9 +116,9 @@ class TestPrimus(unittest.TestCase):
             "pos_embed": 1,
             "down_projection.stem.conv1.weight": 2,
             "down_projection.stem.norm2.bias": 3,
-            "down_projection.stem.skip.0.weight": 4,
-            "down_projection.stem.skip.1.weight": 5,
-            "down_projection.stages.1.2.skip.2.weight": 6,
+            "down_projection.stem.skip.conv.weight": 4,
+            "down_projection.stem.skip.norm.weight": 5,
+            "down_projection.stages.1.2.skip.norm.weight": 6,
             "up_projection.decode.0.1.weight": 7,
         }
         self.assertEqual(convert_primus_state_dict(old), expected)

@@ -228,11 +228,12 @@ class Primus(nn.Module):
             x = x + self.pos_embed
 
         rope = self.rope() if self.rope is not None else None
-        registers, x = x[:, : self.num_register_tokens], x[:, self.num_register_tokens :]
-        x, keep_indices = self._drop_patches(x)
-        if rope is not None and keep_indices is not None:
-            rope = rope[keep_indices].unsqueeze(1)  # (B, 1, num_keep, 2 * head_dim)
-        x = torch.cat([registers, x], dim=1)
+        registers, patches = x[:, : self.num_register_tokens], x[:, self.num_register_tokens :]
+        patches, keep_indices = self._drop_patches(patches)
+        if keep_indices is not None:
+            x = torch.cat([registers, patches], dim=1)
+            if rope is not None:
+                rope = rope[keep_indices].unsqueeze(1)  # (B, 1, num_keep, 2 * head_dim)
 
         for block in self.blocks:
             x = block(x, rope=rope)
@@ -241,9 +242,10 @@ class Primus(nn.Module):
         mask = None
         if keep_indices is not None:
             x, kept = self._restore_patches(x, keep_indices)
-            mask = kept.view(b, 1, *self.grid_size)
-            for dim, p in enumerate(self.patch_size, start=2):
-                mask = mask.repeat_interleave(p, dim=dim)
+            # upsample the token mask to voxels: (B, g0, 1, g1, 1, ...) -> (B, g0, p0, g1, p1, ...)
+            interleaved = [n for g, p in zip(self.grid_size, self.patch_size) for n in (g, p)]
+            mask = kept.view(b, *[n for g in self.grid_size for n in (g, 1)]).expand(b, *interleaved)
+            mask = mask.reshape(b, 1, *self.img_size)
         x = x.transpose(1, 2).reshape(b, c, *self.grid_size)
         out = self.up_projection(x)
         return (out, mask) if return_mask else out
@@ -268,7 +270,8 @@ def convert_primus_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, 
         (r"stages\.(\d+)\.blocks\.(\d+)\.", r"stages.\1.\2."),
         (r"conv([12])\.conv\.", r"conv\1."),
         (r"conv([12])\.norm\.", r"norm\1."),
-        (r"skip\.(\d+)\.conv\.", r"skip.\1."),
+        (r"skip\.\d+\.conv\.", "skip.conv."),
+        (r"skip\.\d+\.norm\.", "skip.norm."),
     ]
     out = {}
     for key, value in state_dict.items():
@@ -276,8 +279,6 @@ def convert_primus_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, 
             continue
         for pattern, repl in rules:
             key = re.sub(pattern, repl, key)
-        # the skip norm directly follows the skip conv in a flat nn.Sequential
-        key = re.sub(r"skip\.(\d+)\.norm\.", lambda m: f"skip.{int(m.group(1)) + 1}.", key)
         out[key] = value
     return out
 

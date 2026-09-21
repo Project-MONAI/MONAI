@@ -64,6 +64,10 @@ class EVAAttention(nn.Module):
         self.proj = nn.Linear(hidden_size, hidden_size)
         self.proj_drop = nn.Dropout(proj_drop)
 
+    def _rotate(self, t: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
+        npt = self.num_prefix_tokens
+        return torch.cat([t[:, :, :npt], apply_rotary_embedding(t[:, :, npt:], rope)], dim=2)
+
     def forward(self, x: torch.Tensor, rope: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
@@ -77,9 +81,7 @@ class EVAAttention(nn.Module):
             for proj in (self.q_proj, self.k_proj, self.v_proj)
         )
         if rope is not None:
-            npt = self.num_prefix_tokens
-            q = torch.cat([q[:, :, :npt], apply_rotary_embedding(q[:, :, npt:], rope)], dim=2).type_as(v)
-            k = torch.cat([k[:, :, :npt], apply_rotary_embedding(k[:, :, npt:], rope)], dim=2).type_as(v)
+            q, k = (self._rotate(t, rope).type_as(v) for t in (q, k))
         x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop if self.training else 0.0)
         x = x.transpose(1, 2).reshape(b, n, c)
         return self.proj_drop(self.proj(self.norm(x)))

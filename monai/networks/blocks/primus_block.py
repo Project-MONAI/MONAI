@@ -85,13 +85,12 @@ class ResidualBlockD(nn.Module):
         self.norm2 = get_norm_layer(norm, spatial_dims=spatial_dims, channels=out_channels)
         self.act2 = get_act_layer(act)
 
-        skip: list[nn.Module] = []
+        self.skip = nn.Sequential()
         if stride != 1:
-            skip.append(Pool[Pool.AVG, spatial_dims](stride, stride))
+            self.skip.add_module("pool", Pool[Pool.AVG, spatial_dims](stride, stride))
         if in_channels != out_channels:
-            skip.append(conv_type(in_channels, out_channels, 1, bias=False))
-            skip.append(get_norm_layer(norm, spatial_dims=spatial_dims, channels=out_channels))
-        self.skip = nn.Sequential(*skip)
+            self.skip.add_module("conv", conv_type(in_channels, out_channels, 1, bias=False))
+            self.skip.add_module("norm", get_norm_layer(norm, spatial_dims=spatial_dims, channels=out_channels))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.norm2(self.conv2(self.act1(self.norm1(self.conv1(x)))))
