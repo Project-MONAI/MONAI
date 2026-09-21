@@ -123,6 +123,8 @@ class EVABlock(nn.Module):
     LayerScale and stochastic depth. Parameter names follow timm's ``EvaBlock`` with
     ``qkv_fused=False, swiglu_mlp=True``, so its state dicts load directly.
 
+    See `EVA-02: A Visual Representation for Neon Genesis <https://arxiv.org/abs/2303.11331>`_.
+
     Args:
         hidden_size: token dimension.
         num_heads: number of attention heads.

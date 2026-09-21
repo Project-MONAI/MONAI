@@ -51,6 +51,9 @@ class SpatialRotaryEmbedding(nn.Module):
     angles are concatenated and interleaved so that consecutive channel pairs of a head are rotated together.
     The embedding for the flattened grid (row-major, "ij" indexing) is cached as a non-persistent buffer.
 
+    See `RoFormer: Enhanced Transformer with Rotary Position Embedding <https://arxiv.org/abs/2104.09864>`_ and
+    `EVA-02: A Visual Representation for Neon Genesis <https://arxiv.org/abs/2303.11331>`_.
+
     Args:
         head_dim: per-head channel dimension the embedding is applied to. Must be divisible by
             ``2 * len(feat_shape)``.

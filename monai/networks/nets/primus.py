@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Portions of this code are derived from the original repository at:
+# Portions of this code are derived from the original repositories at:
 # https://github.com/MIC-DKFZ/dynamic-network-architectures
+# https://github.com/huggingface/pytorch-image-models (patch dropout)
 # and are used under the terms of the Apache License, Version 2.0.
 
 from __future__ import annotations
@@ -50,8 +51,13 @@ class Primus(nn.Module):
     processes the tokens, and a light transposed-convolution decoder restores the input resolution.
 
     Setting ``patch_drop_rate > 0`` randomly drops tokens during training (e.g. for masked-image-modeling
-    pre-training); dropped tokens are replaced by a mask token before decoding. Use ``return_mask=True`` in
-    :py:meth:`forward` to also get the mask of kept voxels.
+    pre-training); dropped tokens are replaced by ``mask_token`` before decoding. As upstream, ``mask_token`` is
+    a fixed all-zero buffer, not a learned parameter. Use ``return_mask=True`` in :py:meth:`forward` to also get
+    the voxel-level mask of kept tokens.
+
+    The paper's variants (see :py:func:`create_primus`) are 3D models. In 2D, rotary embeddings require
+    ``embed_dim // num_heads`` to be divisible by 4, which only holds for the ``"M"`` configuration; use a
+    compatible ``num_heads`` or ``use_rope=False`` otherwise.
 
     State dicts of ``PrimusV3`` models from ``dynamic-network-architectures`` (as trained by nnU-Net) can be
     converted with :py:meth:`load_old_state_dict`.
@@ -281,7 +287,9 @@ class Primus(nn.Module):
 
     def load_old_state_dict(self, old_state_dict: dict[str, torch.Tensor]) -> None:
         """
-        Load a state dict of a ``PrimusV3`` model from ``dynamic-network-architectures``.
+        Load a state dict of a ``PrimusV3`` model from ``dynamic-network-architectures`` (the layout of
+        version 0.4.4). The converted state dict is loaded strictly, so a model configuration that does not match
+        the checkpoint raises an error.
 
         Args:
             old_state_dict: the state dict to convert and load.
