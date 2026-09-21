@@ -38,6 +38,7 @@ from .mednext_block import MedNeXtBlock, MedNeXtDownBlock, MedNeXtOutBlock, MedN
 from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
+from .rope import SpatialRotaryEmbedding, apply_rotary_embedding
 from .segresnet_block import ResBlock
 from .selfattention import SABlock
 from .spade_norm import SPADE

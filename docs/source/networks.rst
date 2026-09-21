@@ -109,6 +109,13 @@ Blocks
 .. autoclass:: ResBlock
     :members:
 
+`SpatialRotaryEmbedding`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SpatialRotaryEmbedding
+    :members:
+
+.. autofunction:: monai.networks.blocks.apply_rotary_embedding
+
 `SABlock Block`
 ~~~~~~~~~~~~~~~
 .. autoclass:: SABlock
