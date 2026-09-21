@@ -118,11 +118,7 @@ class TestCheckMD5(unittest.TestCase):
             assert_single_future_warning(check_hash, filename, sha256)
             with patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)):
                 assert_single_future_warning(
-                    download_url,
-                    "https://example.com/fixture.bin",
-                    download_target,
-                    hash_val=sha256,
-                    progress=False,
+                    download_url, "https://example.com/fixture.bin", download_target, hash_val=sha256, progress=False
                 )
             assert_single_future_warning(extractall, archive, os.path.join(tempdir, "extract"), hash_val=archive_sha256)
             with (
@@ -151,7 +147,9 @@ class TestCheckMD5(unittest.TestCase):
             with warnings.catch_warnings(record=True) as recorded:
                 warnings.simplefilter("always")
                 self.assertTrue(check_hash(filename, sha256, hash_type="sha256"))
-                with patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)):
+                with patch(
+                    "monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)
+                ):
                     download_url(
                         "https://example.com/fixture.bin",
                         download_target,
@@ -189,11 +187,7 @@ class TestCheckMD5(unittest.TestCase):
             self.assertTrue(check_hash(filename, md5, hash_type="md5"))
             with patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)):
                 download_url(
-                    "https://example.com/fixture.bin",
-                    download_target,
-                    hash_val=md5,
-                    hash_type="md5",
-                    progress=False,
+                    "https://example.com/fixture.bin", download_target, hash_val=md5, hash_type="md5", progress=False
                 )
             extractall(archive, os.path.join(tempdir, "extract"), hash_val=archive_md5, hash_type="md5")
             with (
