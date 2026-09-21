@@ -96,6 +96,16 @@ class TestCheckMD5(unittest.TestCase):
             self.assertTrue(check_hash(filename, sha256, hash_type="sha256"))
 
     def test_omitting_hash_type_emits_future_warning(self):
+        def assert_single_future_warning(callable_obj, *args, **kwargs):
+            with warnings.catch_warnings(record=True) as recorded:
+                warnings.simplefilter("always")
+                callable_obj(*args, **kwargs)
+
+            future_warnings = [w for w in recorded if issubclass(w.category, FutureWarning)]
+            self.assertEqual(len(future_warnings), 1)
+            self.assertIn('hash_type="md5"', str(future_warnings[0].message))
+            self.assertIn('hash_type="sha256"', str(future_warnings[0].message))
+
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "fixture.bin")
             self._write_file(filename)
@@ -105,29 +115,28 @@ class TestCheckMD5(unittest.TestCase):
             archive = self._create_zip_fixture(tempdir)
             archive_sha256 = self._hash_file(archive, "sha256")
 
-            with warnings.catch_warnings(record=True) as recorded:
-                warnings.simplefilter("always")
-                self.assertTrue(check_hash(filename, sha256))
-                with patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)):
-                    download_url("https://example.com/fixture.bin", download_target, hash_val=sha256, progress=False)
-                extractall(archive, os.path.join(tempdir, "extract"), hash_val=archive_sha256)
-                with (
-                    patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(archive)),
-                    patch("monai.apps.utils.get_filename_from_url", return_value="fixture.zip"),
-                ):
-                    download_and_extract(
-                        "https://example.com/fixture.zip",
-                        filepath=os.path.join(tempdir, "downloaded.zip"),
-                        output_dir=os.path.join(tempdir, "download_and_extract"),
-                        hash_val=archive_sha256,
-                        progress=False,
-                    )
-
-            future_warnings = [w for w in recorded if issubclass(w.category, FutureWarning)]
-            self.assertEqual(len(future_warnings), 4)
-            for warning in future_warnings:
-                self.assertIn("hash_type=md5", str(warning.message))
-                self.assertIn("hash_type=sha256", str(warning.message))
+            assert_single_future_warning(check_hash, filename, sha256)
+            with patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(filename)):
+                assert_single_future_warning(
+                    download_url,
+                    "https://example.com/fixture.bin",
+                    download_target,
+                    hash_val=sha256,
+                    progress=False,
+                )
+            assert_single_future_warning(extractall, archive, os.path.join(tempdir, "extract"), hash_val=archive_sha256)
+            with (
+                patch("monai.apps.utils._download_with_progress", side_effect=self._download_side_effect(archive)),
+                patch("monai.apps.utils.get_filename_from_url", return_value="fixture.zip"),
+            ):
+                assert_single_future_warning(
+                    download_and_extract,
+                    "https://example.com/fixture.zip",
+                    filepath=os.path.join(tempdir, "downloaded.zip"),
+                    output_dir=os.path.join(tempdir, "download_and_extract"),
+                    hash_val=archive_sha256,
+                    progress=False,
+                )
 
     def test_explicit_sha256_does_not_emit_default_change_warning(self):
         with tempfile.TemporaryDirectory() as tempdir:

@@ -55,6 +55,7 @@ __all__ = [
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
 _HASH_TYPE_DEFAULT_CHANGE_VERSION = "1.6.1"
+_HASH_TYPE_DEFAULT_WARNING_REMOVAL_VERSION = "1.8"
 _HASH_TYPE_DEFAULT_CHANGE_MSG = (
     "The default was updated to SHA-256 for stronger integrity verification. "
     'Pass `hash_type="md5"` explicitly only when you need backward compatibility with existing MD5 hashes.'
@@ -173,11 +174,10 @@ def safe_extract_member(member, extract_to):
 
 @deprecated_arg_default(
     "hash_type",
-    old_default="md5",
-    new_default="sha256",
+    old_default='"md5"',
+    new_default='"sha256"',
     since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_WARNING_REMOVAL_VERSION,
     msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
 )
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
@@ -220,11 +220,10 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
 
 @deprecated_arg_default(
     "hash_type",
-    old_default="md5",
-    new_default="sha256",
+    old_default='"md5"',
+    new_default='"sha256"',
     since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_WARNING_REMOVAL_VERSION,
     msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
 )
 def download_url(
@@ -345,11 +344,10 @@ def _extract_tar(filepath, output_dir):
 
 @deprecated_arg_default(
     "hash_type",
-    old_default="md5",
-    new_default="sha256",
+    old_default='"md5"',
+    new_default='"sha256"',
     since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_WARNING_REMOVAL_VERSION,
     msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
 )
 def extractall(
@@ -436,11 +434,10 @@ def get_filename_from_url(data_url: str) -> str:
 
 @deprecated_arg_default(
     "hash_type",
-    old_default="md5",
-    new_default="sha256",
+    old_default='"md5"',
+    new_default='"sha256"',
     since=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    replaced=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
-    version_val=_HASH_TYPE_DEFAULT_CHANGE_VERSION,
+    replaced=_HASH_TYPE_DEFAULT_WARNING_REMOVAL_VERSION,
     msg_suffix=_HASH_TYPE_DEFAULT_CHANGE_MSG,
 )
 def download_and_extract(
@@ -490,4 +487,10 @@ def download_and_extract(
     with tempfile.TemporaryDirectory() as tmp_dir:
         filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(filepath=filename, output_dir=output_dir, hash_type=hash_type, file_type=file_type, has_base=has_base)
+        extractall(
+            filepath=filename,
+            output_dir=output_dir,
+            hash_type=hash_type,
+            file_type=file_type,
+            has_base=has_base,
+        )
