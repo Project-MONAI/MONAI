@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.utils import safe_eval
+from monai.utils import SAFE_TYPES, safe_eval
 
 GOOD_EXPRS = [
     ("1+2", None, None, 3),
@@ -85,6 +85,45 @@ class TestSafeEval(unittest.TestCase):
 
         result = safe_eval("False", rewrite_np=True)
         self.assertIs(result, False)
+
+    def test_builtins_not_in_scope(self):
+        """Test that builtins cannot be reached as bare names."""
+        for expr in ("int", "type", "object", "abs"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr)
+
+        # `__builtins__` itself still names the mapping `eval` looks names up in, but it is now empty
+        self.assertEqual(safe_eval("__builtins__"), {})
+
+    def test_module_globals_not_in_scope(self):
+        """Test that the names imported by the safeeval module itself cannot be reached."""
+        for expr in ("np", "ast", "safe_eval", "SAFE_TYPES"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr)
+
+    def test_unknown_name_raises(self):
+        """Test that a name the caller did not supply raises NameError rather than resolving elsewhere."""
+        with self.assertRaises(NameError):
+            safe_eval("x+1", {"y": 2})
+
+        self.assertEqual(safe_eval("x+1", {"x": 2}), 3)
+
+    def test_widened_allowed_types_cannot_escape(self):
+        """Test that attribute access and calls stay harmless once `allowed_types` is widened."""
+        allowed = (*SAFE_TYPES, ast.Attribute, ast.Call, ast.Subscript)
+
+        for expr in ("int.__class__.__init__.__globals__", "np.ndarray", "safe_eval('1')"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr, allowed_types=allowed)
+
+        # the builtins mapping is reachable by name but holds nothing to escape with
+        with self.assertRaises(KeyError):
+            safe_eval("__builtins__['__import__']", allowed_types=allowed)
+
+    def test_globals_can_opt_out_of_empty_builtins(self):
+        """Test that a caller supplying its own `__builtins__` keeps control of the namespace."""
+        result = safe_eval("abs", {"__builtins__": {"abs": abs}})
+        self.assertIs(result, abs)
 
     def test_rewrite_np_inf_constant(self):
         """Test that rewrite_np handles overflowing infinity literals."""

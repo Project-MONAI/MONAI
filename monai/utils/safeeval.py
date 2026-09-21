@@ -71,6 +71,12 @@ def safe_eval(
     expressions with constants and names can be evaluated, so excludes attribute access, indexing, and calls. Code
     injection is infeasible through such expressions, so this is a safe and secure way of evaluating simple expressions.
 
+    Names are resolved only against `globals_vars` and `locals_vars`. The builtins are not placed in scope and the
+    globals of this module are never used as a fallback, so an expression naming anything the caller did not supply
+    raises a `NameError` instead of silently resolving to a builtin or to an imported module. This matters when
+    `allowed_types` is widened beyond `SAFE_TYPES`, since node types such as `ast.Attribute` and `ast.Call` would
+    otherwise make those objects reachable.
+
     If `rewrite_np` is True, int and float constants in the given expression will be wrapped with Numpy types as given
     by `int_type_str` and `float_type_str`. These are expected to be constructor names prefixed with `np.` as Numpy
     will be present in the expression global variables under that name. The values can be changed to other types if
@@ -79,7 +85,8 @@ def safe_eval(
 
     Args:
         expr: expression to evaluate, this will be stripped before parsing to avoid indentation complaints
-        globals_vars: global variable mapping, this will be treated as read-only for this function, unlike `eval`
+        globals_vars: global variable mapping, this will be treated as read-only for this function, unlike `eval`.
+            An empty `__builtins__` is added to the copy unless the mapping provides its own value for that key
         locals_vars: local variable mapping
         allowed_types: sequence of allowed AST types which can be found in `expr` when parsed
         rewrite_np: if True, wrap int or float literals in Numpy types
@@ -88,6 +95,7 @@ def safe_eval(
 
     Raises:
         ValueError: raised when any node in the AST parsed from `expr` has a type not in `allowed_types`
+        NameError: raised when `expr` names a variable not present in `globals_vars` or `locals_vars`
 
     Returns:
         The evaluated expression value, using `eval` with `globals_vars` and `locals_vars`
@@ -105,4 +113,9 @@ def safe_eval(
         ast.fix_missing_locations(parsed)
         locals_vars = {**(locals_vars or {}), "np": np}
 
-    return eval(compile(parsed, "<safe_eval>", "eval"), dict(globals_vars) if globals_vars else None, locals_vars)
+    # an explicit globals mapping stops `eval` from falling back to this module's globals, and an empty
+    # `__builtins__` keeps the builtins out of scope, so only names the caller supplied can be resolved
+    eval_globals: dict[str, Any] = dict(globals_vars) if globals_vars else {}
+    eval_globals.setdefault("__builtins__", {})
+
+    return eval(compile(parsed, "<safe_eval>", "eval"), eval_globals, locals_vars)
