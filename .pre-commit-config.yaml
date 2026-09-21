@@ -1,6 +1,8 @@
 default_language_version:
   python: python3
 
+default_install_hook_types: [pre-commit, commit-msg]
+
 ci:
   autofix_prs: true
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit suggestions'
@@ -62,3 +64,10 @@ repos:
               ^versioneer.py|
               ^monai/_version.py
           )
+  - repo: local
+    hooks:
+      - id: dco
+        name: DCO sign-off
+        entry: .github/hooks/check-dco.sh
+        language: script
+        stages: [commit-msg]

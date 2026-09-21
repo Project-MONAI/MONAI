@@ -14,6 +14,9 @@ on:
   merge_group:  # needed for merge queue
     types: [checks_requested]
 
+permissions:
+  contents: read
+
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
   group: build-docs-${{ github.event.pull_request.number || github.ref }}

@@ -17,7 +17,15 @@ import unittest
 
 import numpy as np
 
-from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
+from monai.data import (
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    NvImgCodecPydicomReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.transforms import LoadImage, LoadImaged
 from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule
@@ -52,6 +60,11 @@ class TestInitLoadImage(unittest.TestCase):
         inst = LoadImaged("image", reader=None)
         self.assertIsInstance(inst, LoadImaged)
 
+        _, has_pydicom = optional_import("pydicom")
+        if has_pydicom:
+            inst = LoadImaged("image", reader="NvImgCodecPydicomReader")
+            self.assertIsInstance(inst, LoadImaged)
+
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
     @SkipIfNoModule("kvikio")
@@ -79,6 +92,9 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = PydicomReader()
         self.assertIsInstance(inst, PydicomReader)
+
+        inst = NvImgCodecPydicomReader()
+        self.assertIsInstance(inst, NvImgCodecPydicomReader)
 
         inst = NumpyReader()
         self.assertIsInstance(inst, NumpyReader)
