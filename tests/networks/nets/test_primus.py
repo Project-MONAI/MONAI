@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import unittest
 
 import torch
@@ -22,6 +24,20 @@ from monai.utils import optional_import
 from tests.test_utils import dict_product
 
 dna_primus, has_dna = optional_import("dynamic_network_architectures.architectures.primus")
+
+TESTS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# upstream PrimusV3 state dict layout for this config, see "source" in the json file
+UPSTREAM_STATE_DICT = os.path.join(TESTS_PATH, "testing_data", "primus_v3_state_dict.json")
+UPSTREAM_CONFIG = {
+    "in_channels": 1,
+    "out_channels": 2,
+    "img_size": 16,
+    "embed_dim": 48,
+    "num_layers": 2,
+    "num_heads": 2,
+    "num_register_tokens": 2,
+    "channels_per_level": (4, 8, 8, 16),
+}
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -122,6 +138,13 @@ class TestPrimus(unittest.TestCase):
             "up_projection.decode.0.1.weight": 7,
         }
         self.assertEqual(convert_primus_state_dict(old), expected)
+
+    def test_convert_upstream_layout(self):
+        # every upstream key maps to a MONAI key of the same shape and vice versa (strict load)
+        with open(UPSTREAM_STATE_DICT) as f:
+            shapes = json.load(f)["shapes"]
+        net = Primus(**UPSTREAM_CONFIG)
+        net.load_old_state_dict({k: torch.zeros(v) for k, v in shapes.items()})
 
     @unittest.skipUnless(has_dna, "Requires dynamic-network-architectures.")
     def test_load_old_state_dict(self):
