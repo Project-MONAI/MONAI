@@ -40,6 +40,11 @@ class TestPixelUnshuffle(unittest.TestCase):
         out = pixelunshuffle(x, spatial_dims=2, scale_factor=3)
         torch.testing.assert_close(out, torch.pixel_unshuffle(x, 3))
 
+    def test_indivisible_spatial_dims(self):
+        x = torch.randn(1, 2, 7, 8)
+        with self.assertRaisesRegex(ValueError, r"divisible by factor 2, spatial shape is: \[7, 8\]"):
+            pixelunshuffle(x, spatial_dims=2, scale_factor=2)
+
     def test_inverse_operation(self):
         x = torch.arange(4096).reshape(1, 8, 8, 8, 8)
         shuffled = pixelshuffle(x, spatial_dims=3, scale_factor=2)
