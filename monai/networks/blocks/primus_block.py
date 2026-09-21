@@ -60,7 +60,8 @@ class ResidualBlockD(nn.Module):
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
-        stride: stride of the first convolution and of the skip path.
+        stride: stride of the first convolution and of the skip path. The input spatial size must be divisible
+            by ``stride``, otherwise the two paths have different sizes.
         conv_bias: whether the 3x3 convolutions have a bias.
         norm: feature normalization type and arguments.
         act: activation type and arguments.
@@ -77,6 +78,7 @@ class ResidualBlockD(nn.Module):
         act: tuple | str = ("leakyrelu", {"inplace": True}),
     ) -> None:
         super().__init__()
+        self.stride = stride
         conv_type = Conv[Conv.CONV, spatial_dims]
         self.conv1 = conv_type(in_channels, out_channels, 3, stride=stride, padding=1, bias=conv_bias)
         self.norm1 = get_norm_layer(norm, spatial_dims=spatial_dims, channels=out_channels)
@@ -93,6 +95,8 @@ class ResidualBlockD(nn.Module):
             self.skip.add_module("norm", get_norm_layer(norm, spatial_dims=spatial_dims, channels=out_channels))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if any(s % self.stride != 0 for s in x.shape[2:]):
+            raise ValueError(f"input spatial size {tuple(x.shape[2:])} must be divisible by stride {self.stride}.")
         out = self.norm2(self.conv2(self.act1(self.norm1(self.conv1(x)))))
         return self.act2(out + self.skip(x))
 
@@ -101,6 +105,7 @@ class PrimusPatchEmbed(nn.Module):
     """
     Convolutional patch embedding of PrimusV3: a residual stem followed by one stride-2 residual stage
     per level, so the output token grid is downsampled by ``2 ** len(depth_per_level)`` along every axis.
+    The input spatial size must be divisible by ``2 ** len(depth_per_level)``.
     Optionally, the features of every level but the last are projected onto the token grid and added
     with learnable scales initialized near zero.
 
@@ -167,6 +172,9 @@ class PrimusPatchEmbed(nn.Module):
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        patch_size = 2 ** len(self.stages)
+        if any(s % patch_size != 0 for s in x.shape[2:]):
+            raise ValueError(f"input spatial size {tuple(x.shape[2:])} must be divisible by {patch_size}.")
         x = self.stem(x)
         skips = self.scale_proj_to_tokens[0] * self.proj_to_tokens[0](x) if self.add_skips else None
         for i, stage in enumerate(self.stages):

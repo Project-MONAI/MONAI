@@ -56,6 +56,12 @@ class TestPrimusBlocks(unittest.TestCase):
         expected = torch.nn.functional.layer_norm(x.movedim(1, -1), (6,), eps=1e-6).movedim(-1, 1)
         torch.testing.assert_close(LayerNormNd(6)(x), expected)
 
+    def test_non_divisible_input(self):
+        with self.assertRaises(ValueError):
+            ResidualBlockD(3, 4, 8, stride=2)(torch.randn(1, 4, 9, 8, 8))
+        with self.assertRaises(ValueError):
+            PrimusPatchEmbed(3, 1, 24, channels_per_level=(4, 8, 8, 16))(torch.randn(1, 1, 16, 12, 16))
+
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             PrimusPatchEmbed(3, 1, 24, (1, 1), (8, 16))
