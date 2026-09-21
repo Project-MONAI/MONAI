@@ -59,6 +59,39 @@ TEST_CASE_PRIMUS = [
     )
 ]
 
+# outputs of upstream PrimusV3 for UPSTREAM_CONFIG with deterministic_weights and deterministic_input (float64)
+UPSTREAM_TOKENS = [
+    0.585765320134539,
+    -0.4004680850654125,
+    0.18435013358440758,
+    0.44993196022974735,
+    0.386034922766048,
+    -0.3517999822712953,
+    0.2974185279001581,
+    -0.23754968692199674,
+]
+UPSTREAM_OUTPUT = [
+    -0.35732740945891495,
+    -0.38404543372147304,
+    -0.4494280946488171,
+    -0.3842308424323807,
+    -0.3326295288644062,
+    -0.685464194443321,
+    -0.666793117906307,
+    -0.6244707660537548,
+]
+
+
+def deterministic_weights(state_dict):
+    """Fan-in scaled sinusoidal values for every entry, seeded by the sorted key order."""
+    order = {k: i for i, k in enumerate(sorted(state_dict))}
+    weights = {}
+    for k, v in state_dict.items():
+        w = torch.sin(torch.arange(v.numel(), dtype=torch.float64) * 0.37 + order[k]).reshape(v.shape)
+        is_matrix = v.ndim > 1 and v.shape[0] > 1 and v.shape[1:].numel() > 1
+        weights[k] = w / v[0].numel() ** 0.5 if is_matrix else 0.5 * w
+    return weights
+
 
 class TestPrimus(unittest.TestCase):
     @parameterized.expand(TEST_CASE_PRIMUS)
@@ -145,6 +178,22 @@ class TestPrimus(unittest.TestCase):
             shapes = json.load(f)["shapes"]
         net = Primus(**UPSTREAM_CONFIG)
         net.load_old_state_dict({k: torch.zeros(v) for k, v in shapes.items()})
+
+    def test_upstream_golden_values(self):
+        net = Primus(**UPSTREAM_CONFIG).double()
+        net.load_state_dict(deterministic_weights(net.state_dict()))
+        x = torch.sin(torch.arange(16**3, dtype=torch.float64) * 0.11).reshape(1, 1, 16, 16, 16)
+        tokens = []
+        net.norm.register_forward_hook(lambda module, inputs, output: tokens.append(output))
+        with eval_mode(net), torch.no_grad():
+            out = net(x)
+        # transformer tokens are sensitive to details the decoder damps (e.g. LayerNorm eps), so check both
+        expected_tokens = torch.tensor(UPSTREAM_TOKENS, dtype=torch.float64)
+        expected_output = torch.tensor(UPSTREAM_OUTPUT, dtype=torch.float64)
+        torch.testing.assert_close(
+            tokens[0].flatten()[torch.arange(8) * 59 + 7], expected_tokens, rtol=1e-10, atol=1e-12
+        )
+        torch.testing.assert_close(out.flatten()[torch.arange(8) * 997 + 13], expected_output, rtol=1e-10, atol=1e-12)
 
     @unittest.skipUnless(has_dna, "Requires dynamic-network-architectures.")
     def test_load_old_state_dict(self):
