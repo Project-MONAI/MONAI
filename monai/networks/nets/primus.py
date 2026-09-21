@@ -23,6 +23,7 @@ from typing import Any, cast
 
 import torch
 import torch.nn as nn
+from torch.nn.modules.conv import _ConvNd
 
 from monai.networks.blocks.eva_block import EVABlock
 from monai.networks.blocks.primus_block import PrimusPatchDecode, PrimusPatchEmbed
@@ -204,7 +205,7 @@ class Primus(nn.Module):
             nn.init.normal_(self.register_tokens, std=1e-6)
         for module in (self.down_projection, self.up_projection):
             for m in module.modules():
-                if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.ConvTranspose2d, nn.ConvTranspose3d)):
+                if isinstance(m, _ConvNd):
                     nn.init.kaiming_normal_(m.weight, a=1e-2)
                     if m.bias is not None:
                         nn.init.zeros_(m.bias)
@@ -289,8 +290,7 @@ def convert_primus_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, 
         (r"stages\.(\d+)\.blocks\.(\d+)\.", r"stages.\1.\2."),
         (r"conv([12])\.conv\.", r"conv\1."),
         (r"conv([12])\.norm\.", r"norm\1."),
-        (r"skip\.\d+\.conv\.", "skip.conv."),
-        (r"skip\.\d+\.norm\.", "skip.norm."),
+        (r"skip\.\d+\.(conv|norm)\.", r"skip.\1."),
     ]
     out = {}
     for key, value in state_dict.items():

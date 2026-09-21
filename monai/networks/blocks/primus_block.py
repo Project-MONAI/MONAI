@@ -147,16 +147,11 @@ class PrimusPatchEmbed(nn.Module):
         self.stem = ResidualBlockD(spatial_dims, in_channels, channels_per_level[0], conv_bias=True, norm=norm, act=act)
         self.stages = nn.ModuleList()
         for i in range(num_levels):
-            blocks = [
-                ResidualBlockD(
-                    spatial_dims,
-                    channels_per_level[i] if j == 0 else channels_per_level[i + 1],
-                    channels_per_level[i + 1],
-                    stride=2 if j == 0 else 1,
-                    norm=norm,
-                    act=act,
-                )
-                for j in range(depth_per_level[i])
+            in_ch, out_ch = channels_per_level[i], channels_per_level[i + 1]
+            # the first block of each level downsamples and changes the channels
+            blocks = [ResidualBlockD(spatial_dims, in_ch, out_ch, stride=2, norm=norm, act=act)]
+            blocks += [
+                ResidualBlockD(spatial_dims, out_ch, out_ch, norm=norm, act=act) for _ in range(depth_per_level[i] - 1)
             ]
             self.stages.append(nn.Sequential(*blocks))
         self.final_proj = conv_type(channels_per_level[-1], embed_dim, 1)
