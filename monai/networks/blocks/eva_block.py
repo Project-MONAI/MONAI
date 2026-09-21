@@ -36,8 +36,8 @@ class EVAAttention(nn.Module):
         num_heads: number of attention heads.
         qkv_bias: whether the query and value projections have a bias.
         num_prefix_tokens: number of leading tokens (e.g. register tokens) that are not rotated.
-        attn_drop: dropout rate on the attention weights.
-        proj_drop: dropout rate after the output projection.
+        dropout_rate: dropout rate after the output projection.
+        attention_dropout_rate: dropout rate on the attention weights.
         scale_norm: whether to apply a LayerNorm to the attention output.
     """
 
@@ -47,8 +47,8 @@ class EVAAttention(nn.Module):
         num_heads: int,
         qkv_bias: bool = True,
         num_prefix_tokens: int = 0,
-        attn_drop: float = 0.0,
-        proj_drop: float = 0.0,
+        dropout_rate: float = 0.0,
+        attention_dropout_rate: float = 0.0,
         scale_norm: bool = False,
     ) -> None:
         super().__init__()
@@ -58,13 +58,13 @@ class EVAAttention(nn.Module):
             raise ValueError(f"hidden_size ({hidden_size}) must be divisible by num_heads ({num_heads}).")
         self.num_heads = num_heads
         self.num_prefix_tokens = num_prefix_tokens
-        self.attn_drop = attn_drop
+        self.attention_dropout_rate = attention_dropout_rate
         self.q_proj = nn.Linear(hidden_size, hidden_size, bias=qkv_bias)
         self.k_proj = nn.Linear(hidden_size, hidden_size, bias=False)
         self.v_proj = nn.Linear(hidden_size, hidden_size, bias=qkv_bias)
         self.norm = nn.LayerNorm(hidden_size) if scale_norm else nn.Identity()
         self.proj = nn.Linear(hidden_size, hidden_size)
-        self.proj_drop = nn.Dropout(proj_drop)
+        self.proj_drop = nn.Dropout(dropout_rate)
 
     def _rotate(self, t: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
         """Apply ``rope`` to the non-prefix tokens of ``t`` of shape ``(B, num_heads, N, head_dim)``."""
@@ -85,7 +85,7 @@ class EVAAttention(nn.Module):
         )
         if rope is not None:
             q, k = (self._rotate(t, rope).type_as(v) for t in (q, k))
-        x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop if self.training else 0.0)
+        x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attention_dropout_rate if self.training else 0.0)
         x = x.transpose(1, 2).reshape(b, n, c)
         return self.proj_drop(self.proj(self.norm(x)))
 
@@ -131,9 +131,9 @@ class EVABlock(nn.Module):
         scale_mlp: whether to apply a LayerNorm inside the MLP.
         scale_attn_inner: whether to apply a LayerNorm to the attention output.
         num_prefix_tokens: number of leading tokens that are not rotated.
-        proj_drop: dropout rate of the attention and MLP output projections.
-        attn_drop: dropout rate on the attention weights.
-        drop_path: stochastic depth rate.
+        dropout_rate: dropout rate of the attention and MLP output projections.
+        attention_dropout_rate: dropout rate on the attention weights.
+        drop_path_rate: stochastic depth rate.
         init_values: initial LayerScale value, ``None`` disables LayerScale.
     """
 
@@ -146,9 +146,9 @@ class EVABlock(nn.Module):
         scale_mlp: bool = True,
         scale_attn_inner: bool = False,
         num_prefix_tokens: int = 0,
-        proj_drop: float = 0.0,
-        attn_drop: float = 0.0,
-        drop_path: float = 0.0,
+        dropout_rate: float = 0.0,
+        attention_dropout_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
         init_values: float | None = None,
     ) -> None:
         super().__init__()
@@ -158,16 +158,16 @@ class EVABlock(nn.Module):
             num_heads,
             qkv_bias=qkv_bias,
             num_prefix_tokens=num_prefix_tokens,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
+            dropout_rate=dropout_rate,
+            attention_dropout_rate=attention_dropout_rate,
             scale_norm=scale_attn_inner,
         )
         self.gamma_1 = nn.Parameter(init_values * torch.ones(hidden_size)) if init_values is not None else None
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path1 = DropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
         self.norm2 = nn.LayerNorm(hidden_size)
-        self.mlp = SwiGLUMLP(hidden_size, int(hidden_size * mlp_ratio), dropout_rate=proj_drop, scale_norm=scale_mlp)
+        self.mlp = SwiGLUMLP(hidden_size, int(hidden_size * mlp_ratio), dropout_rate=dropout_rate, scale_norm=scale_mlp)
         self.gamma_2 = nn.Parameter(init_values * torch.ones(hidden_size)) if init_values is not None else None
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
 
     def forward(self, x: torch.Tensor, rope: torch.Tensor | None = None) -> torch.Tensor:
         attn = self.attn(self.norm1(x), rope=rope)

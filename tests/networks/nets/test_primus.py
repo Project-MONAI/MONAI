@@ -152,8 +152,8 @@ class TestPrimus(unittest.TestCase):
             {"depth_per_level": (), "channels_per_level": (4,)},
             {"num_register_tokens": -1},
             {"drop_path_rate": -0.1},
-            {"attn_drop_rate": 1.5},
-            {"proj_drop_rate": -1.0},
+            {"attention_dropout_rate": 1.5},
+            {"dropout_rate": -1.0},
         ]
         for args in bad_args:
             with self.subTest(**args), self.assertRaises(ValueError):

@@ -77,8 +77,8 @@ class Primus(nn.Module):
         mlp_ratio: ratio of the transformer MLP hidden dimension to ``embed_dim``.
         drop_path_rate: maximum stochastic depth rate, increasing linearly over the blocks.
         patch_drop_rate: fraction of tokens dropped during training.
-        proj_drop_rate: dropout rate of the transformer projections.
-        attn_drop_rate: dropout rate of the attention weights.
+        dropout_rate: dropout rate of the transformer projections.
+        attention_dropout_rate: dropout rate of the attention weights.
         init_values: initial LayerScale value, ``None`` disables LayerScale.
         scale_attn_inner: whether to apply a LayerNorm to the attention output.
         stem_act: activation of the convolutional stem.
@@ -108,8 +108,8 @@ class Primus(nn.Module):
         mlp_ratio: float = 4 * 2 / 3,
         drop_path_rate: float = 0.2,
         patch_drop_rate: float = 0.0,
-        proj_drop_rate: float = 0.0,
-        attn_drop_rate: float = 0.0,
+        dropout_rate: float = 0.0,
+        attention_dropout_rate: float = 0.0,
         init_values: float | None = 0.1,
         scale_attn_inner: bool = True,
         stem_act: tuple | str = ("leakyrelu", {"inplace": True}),
@@ -124,8 +124,8 @@ class Primus(nn.Module):
             raise ValueError(f"num_register_tokens must be non-negative, got {num_register_tokens}.")
         for name, rate in (
             ("drop_path_rate", drop_path_rate),
-            ("proj_drop_rate", proj_drop_rate),
-            ("attn_drop_rate", attn_drop_rate),
+            ("dropout_rate", dropout_rate),
+            ("attention_dropout_rate", attention_dropout_rate),
         ):
             if not 0.0 <= rate <= 1.0:
                 raise ValueError(f"{name} must be in [0, 1], got {rate}.")
@@ -169,9 +169,9 @@ class Primus(nn.Module):
                 mlp_ratio=mlp_ratio,
                 scale_attn_inner=scale_attn_inner,
                 num_prefix_tokens=num_register_tokens,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=drop_path_rate * i / max(num_layers - 1, 1),
+                dropout_rate=dropout_rate,
+                attention_dropout_rate=attention_dropout_rate,
+                drop_path_rate=drop_path_rate * i / max(num_layers - 1, 1),
                 init_values=init_values,
             )
             for i in range(num_layers)

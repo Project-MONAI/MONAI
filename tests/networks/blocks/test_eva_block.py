@@ -37,7 +37,7 @@ class TestEVABlock(unittest.TestCase):
             scale_attn_inner=scale_attn_inner,
             init_values=init_values,
             num_prefix_tokens=num_prefix_tokens,
-            drop_path=0.1,
+            drop_path_rate=0.1,
         )
         rope = SpatialRotaryEmbedding(12, (2, 2, 2))() if use_rope else None
         x = torch.randn(2, 8 + num_prefix_tokens, 48)
