@@ -399,20 +399,25 @@ class TestFLMonaiAlgoWarnsOnProvisionedConfig(unittest.TestCase):
             self.assertFalse(os.path.exists(logging_marker))
 
     @parameterized.expand([[MonaiAlgoStats], [MonaiAlgo]])
-    def test_logging_file_opt_in_applies_provisioned_conf(self, algo_class):
+    def test_logging_file_opt_in_still_rejects_executable_conf(self, algo_class):
+        """Opting back in to logging does not opt in to code execution.
+
+        Passing `ExtraItems.LOGGING_FILE` explicitly re-enables `fileConfig`, but the INI is still
+        screened: a `class=`/`args=` payload is refused and never runs
+        (see GHSA-wvpx-5qmp-46g3).
+        """
         with tempfile.TemporaryDirectory() as tempdir:
             app_root, _, logging_marker = self._stage_malicious_app(tempdir)
             algo = self._algo(algo_class)
-            with self.assertWarnsRegex(UserWarning, r"GHSA-wvpx-5qmp-46g3"):
-                with self.assertRaises(KeyError):
-                    algo.initialize(
-                        extra={
-                            ExtraItems.CLIENT_NAME: "test_fl",
-                            ExtraItems.APP_ROOT: app_root,
-                            ExtraItems.LOGGING_FILE: os.path.join(app_root, "configs", "logging.conf"),
-                        }
-                    )
-            self.assertTrue(os.path.exists(logging_marker))
+            with self.assertRaisesRegex(ValueError, r"GHSA-wvpx-5qmp-46g3"):
+                algo.initialize(
+                    extra={
+                        ExtraItems.CLIENT_NAME: "test_fl",
+                        ExtraItems.APP_ROOT: app_root,
+                        ExtraItems.LOGGING_FILE: os.path.join(app_root, "configs", "logging.conf"),
+                    }
+                )
+            self.assertFalse(os.path.exists(logging_marker), "the provisioned logging.conf payload executed")
 
     def test_no_logging_warning_when_logging_disabled(self):
         """The `fileConfig` warning must not fire when nothing is actually executed."""
