@@ -25,6 +25,10 @@ sklearn_logistic, has_sklearn_linear = optional_import("sklearn.linear_model", n
 __all__ = ["EmbeddingCollapseMetric", "compute_embedding_collapse"]
 
 _VALID_REDUCTIONS = ("max", "mean", "none")
+# The unbiased HSIC estimator carries an ``n - 3`` factor, so linear CKA needs at least
+# four samples per domain to be defined at all.
+_MIN_HSIC_SAMPLES = 4
+
 _VALID_INDICATORS = frozenset({"centroid_similarity", "effective_rank", "per_class_rank", "domain_shift", "separation"})
 
 
@@ -336,10 +340,11 @@ def _domain_shift(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor | 
         target: ``[M, D]`` float tensor.
 
     Returns:
-        Scalar tensor in ``[0, 1]``, or ``None`` if either set has < 2 samples.
+        Scalar tensor in ``[0, 1]``, or ``None`` if either set has fewer than
+        ``_MIN_HSIC_SAMPLES`` samples.
         1.0 = representations identical. 0.0 = representations orthogonal.
     """
-    if source.shape[0] < 2 or target.shape[0] < 2:
+    if source.shape[0] < _MIN_HSIC_SAMPLES or target.shape[0] < _MIN_HSIC_SAMPLES:
         return None
 
     if source.shape[0] != target.shape[0]:
@@ -354,10 +359,11 @@ def _domain_shift(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor | 
     hsic_xy = _hsic(source, target)
     hsic_xx = _hsic(source, source)
     hsic_yy = _hsic(target, target)
-    denom = (hsic_xx * hsic_yy).sqrt()
-    if denom == 0.0:
+    # The unbiased estimator can return a non-positive self-HSIC on degenerate
+    # or very small samples, which would make the normaliser NaN.
+    if hsic_xx <= 0.0 or hsic_yy <= 0.0:
         return source.new_tensor(0.0)
-    return (hsic_xy / denom).clamp(0.0, 1.0)
+    return (hsic_xy / (hsic_xx * hsic_yy).sqrt()).clamp(0.0, 1.0)
 
 
 def _separation(emb: torch.Tensor, labels: torch.Tensor) -> torch.Tensor | None:
@@ -396,12 +402,34 @@ def _separation(emb: torch.Tensor, labels: torch.Tensor) -> torch.Tensor | None:
 
 
 def _hsic(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Unbiased linear HSIC estimator."""
+    """Unbiased linear HSIC estimator of Song et al. (2007), Eq. 5.
+
+    The Gram matrices have their diagonals zeroed before the trace terms are
+    formed, which is what removes the ``O(1/n)`` bias of the plug-in estimator.
+
+    Args:
+        x: ``[N, D]`` float tensor.
+        y: ``[N, D]`` float tensor with the same ``N`` as ``x``.
+
+    Returns:
+        Scalar tensor. Unlike the biased estimator this may be negative, since
+        an unbiased estimate of a non-negative quantity is not itself bounded
+        below by zero; callers must handle that.
+
+    Note:
+        Requires ``N >= 4``; the ``n - 3`` factor makes the estimator undefined
+        below that. ``_domain_shift`` enforces this before calling.
+    """
     n = x.shape[0]
     gram_x = x @ x.T
     gram_y = y @ y.T
-    centering = torch.eye(n, dtype=x.dtype, device=x.device) - torch.ones(n, n, dtype=x.dtype, device=x.device) / n
-    return torch.sum((centering @ gram_x @ centering) * (centering @ gram_y @ centering)) / ((n - 1) ** 2)
+    gram_x.fill_diagonal_(0)
+    gram_y.fill_diagonal_(0)
+    sum_x, sum_y = gram_x.sum(), gram_y.sum()
+    term_trace = (gram_x * gram_y).sum()
+    term_product = sum_x * sum_y / ((n - 1) * (n - 2))
+    term_cross = 2.0 * (gram_x.sum(dim=0) @ gram_y.sum(dim=0)) / (n - 2)
+    return (term_trace + term_product - term_cross) / (n * (n - 3))
 
 
 def _validate_embeddings(embeddings: torch.Tensor) -> None:
