@@ -1127,7 +1127,7 @@ class DiffusionInferer(Inferer):
         scheduler_name = self._get_scheduler_name(scheduler)
         if scheduler_name != "DDPMScheduler":
             raise NotImplementedError(
-                f"Likelihood computation is only compatible with DDPMScheduler," f" you are using {scheduler_name}"
+                f"Likelihood computation is only compatible with DDPMScheduler, you are using {scheduler_name},"
             )
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
@@ -1741,7 +1741,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         scheduler_name = self._get_scheduler_name(scheduler)
         if scheduler_name != "DDPMScheduler":
             raise NotImplementedError(
-                f"Likelihood computation is only compatible with DDPMScheduler," f" you are using {scheduler_name}"
+                f"Likelihood computation is only compatible with DDPMScheduler, you are using {scheduler_name}."
             )
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
