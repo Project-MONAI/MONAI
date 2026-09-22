@@ -249,7 +249,7 @@ def download_url(
         warn_deprecated(
             "monai.apps.utils.download_url",
             'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
-            "set to explicit value to suppress this warning. Defaulting to md5 checking. In MONAI 1.8 the"
+            "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the"
             'default will be set to "sha256".',
         )
         hash_type = "sha256"
@@ -369,7 +369,7 @@ def extractall(
         warn_deprecated(
             "monai.apps.utils.extractall",
             'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
-            "set to an explicit value to suppress this warning. Defaulting to md5 checking. In MONAI 1.8 the"
+            "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the"
             'default will be set to "sha256".',
         )
         hash_type = "sha256"
