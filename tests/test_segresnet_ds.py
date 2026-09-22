@@ -16,6 +16,14 @@ class TestSegResNetDSShapeLogic(unittest.TestCase):
         (3, [1, 2, 4],    [4, 4, 4]),
     ])
     def test_shape_factor_isotropic(self, spatial_dims, blocks_down, expected):
+        """
+        Test shape_factor() calculation for isotropic (resolution=None) configurations.
+
+        Args:
+            spatial_dims: Number of spatial dimensions (2 or 3).
+            blocks_down: List of integers defining the downsampling blocks.
+            expected: Expected divisor factors per spatial dimension.
+        """
         model = SegResNetDS(
             spatial_dims=spatial_dims,
             in_channels=1,
@@ -33,6 +41,15 @@ class TestSegResNetDSShapeLogic(unittest.TestCase):
         (3, [1, 2, 2, 4], [1, 2, 3], [8, 4, 4]),
     ])
     def test_shape_factor_anisotropic(self, spatial_dims, blocks_down, resolution, expected):
+        """
+        Test shape_factor() calculation for anisotropic (resolution set) configurations.
+
+        Args:
+            spatial_dims: Number of spatial dimensions.
+            blocks_down: List of integers defining the downsampling blocks.
+            resolution: List of resolutions for anisotropic scaling.
+            expected: Expected divisor factors per spatial dimension.
+        """
         model = SegResNetDS(
             spatial_dims=spatial_dims,
             in_channels=1,
@@ -52,6 +69,15 @@ class TestSegResNetDSShapeLogic(unittest.TestCase):
         (3, [1, 2, 2, 4], [1, 2, 3],  (1, 1, 16, 16, 16)),
     ])
     def test_is_valid_shape_true(self, spatial_dims, blocks_down, resolution, shape):
+        """
+        Test is_valid_shape() returns True for inputs with valid shapes.
+
+        Args:
+            spatial_dims: Number of spatial dimensions.
+            blocks_down: List of integers defining the downsampling blocks.
+            resolution: List of resolutions for anisotropic scaling.
+            shape: Input tensor shape to validate.
+        """
         model = SegResNetDS(
             spatial_dims=spatial_dims,
             in_channels=1,
@@ -70,6 +96,15 @@ class TestSegResNetDSShapeLogic(unittest.TestCase):
         (3, [1, 2, 2, 4], [1, 2, 3],  (1, 1, 16, 16, 15)),      # 15 not divisible by 4
     ])
     def test_is_valid_shape_false(self, spatial_dims, blocks_down, resolution, shape):
+        """
+        Test is_valid_shape() returns False for inputs with invalid shapes.
+
+        Args:
+            spatial_dims: Number of spatial dimensions.
+            blocks_down: List of integers defining the downsampling blocks.
+            resolution: List of resolutions for anisotropic scaling.
+            shape: Input tensor shape to validate.
+        """
         model = SegResNetDS(
             spatial_dims=spatial_dims,
             in_channels=1,
@@ -82,6 +117,9 @@ class TestSegResNetDSShapeLogic(unittest.TestCase):
 
     # ---- integration: forward pass raises on invalid shape ----
     def test_forward_raises_on_invalid_shape(self):
+        """
+        Test that the forward pass raises ValueError when the input shape is invalid.
+        """
         model = SegResNetDS(
             spatial_dims=3,
             in_channels=1,
