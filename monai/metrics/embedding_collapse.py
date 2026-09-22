@@ -163,7 +163,8 @@ def compute_embedding_collapse(
           effective rank. Always present.
         - ``per_class_rank_<cls>``: per-class effective rank score.
         - ``domain_shift``: linear CKA between source and target domains.
-          ``None`` if ``target_embeddings`` not provided.
+          ``None`` if ``target_embeddings`` is not provided, or if either
+          domain has fewer than ``_MIN_HSIC_SAMPLES`` samples.
         - ``separation``: silhouette-based inter-class separation score.
           ``None`` if sklearn unavailable or fewer than 2 classes.
         - ``aggregate``: reduced score. Omitted when ``reduction="none"``.
