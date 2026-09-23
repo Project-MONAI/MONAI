@@ -469,14 +469,14 @@ class TestAggregateIncludesPerClassRank(unittest.TestCase):
         return emb, lbl
 
     def test_collapsed_minority_class_reaches_aggregate(self):
-        """A fully collapsed minority class should drive `aggregate` to 1.0 under `max`."""
+        """A fully collapsed minority class should drive ``aggregate`` to 1.0 under ``max``."""
         emb, lbl = self._majority_healthy_minority_collapsed()
         scores = compute_embedding_collapse(emb, lbl, reduction="max")
         self.assertAlmostEqual(float(scores["per_class_rank_1"]), 1.0, places=5)
         self.assertAlmostEqual(float(scores["aggregate"]), 1.0, places=5)
 
     def test_max_aggregate_at_least_worst_per_class(self):
-        """`aggregate` under `max` must never fall below the worst per-class score."""
+        """``aggregate`` under ``max`` must never fall below the worst per-class score."""
         emb, lbl = self._majority_healthy_minority_collapsed()
         scores = compute_embedding_collapse(emb, lbl, reduction="max")
         per_class = [float(v) for k, v in scores.items() if k.startswith("per_class_rank_") and v is not None]
