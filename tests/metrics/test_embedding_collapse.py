@@ -457,7 +457,7 @@ class TestAggregateIncludesPerClassRank(unittest.TestCase):
 
         Returns:
             Tuple of ``(embeddings, labels)`` with shapes ``[n_major + n_minor, d]``
-            and ``[n_major + n_minor]``.
+            and ``[n_major + n_minor]``, where ``labels`` has dtype ``torch.long``.
         """
         torch.manual_seed(seed)
         major = torch.randn(n_major, d)
