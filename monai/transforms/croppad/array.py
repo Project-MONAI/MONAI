@@ -823,11 +823,11 @@ class CropForeground(Crop):
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
         allow_smaller: bool = False,
-        keep_largest_component: bool = False,
         return_coords: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
         lazy: bool = False,
+        keep_largest_component: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -840,9 +840,6 @@ class CropForeground(Crop):
                 final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
                 the image edges will be used as the box edges. Default to `False`.
                 The default value is changed from `True` to `False` in v1.5.0.
-            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
-                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
-                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -853,6 +850,9 @@ class CropForeground(Crop):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
+                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
+                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -862,9 +862,9 @@ class CropForeground(Crop):
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
         self.allow_smaller = allow_smaller
-        self.keep_largest_component = keep_largest_component
         self.return_coords = return_coords
         self.k_divisible = k_divisible
+        self.keep_largest_component = keep_largest_component
         self.padder = Pad(mode=mode, lazy=lazy, **pad_kwargs)
 
     @Crop.lazy.setter  # type: ignore

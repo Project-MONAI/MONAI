@@ -855,13 +855,13 @@ class CropForegroundd(Cropd):
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
         allow_smaller: bool = False,
-        keep_largest_component: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         start_coord_key: str | None = "foreground_start_coord",
         end_coord_key: str | None = "foreground_end_coord",
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        keep_largest_component: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -877,9 +877,6 @@ class CropForegroundd(Cropd):
                 final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
                 the image edges will be used as the box edges. Default to `False`.
                 The default value is changed from `True` to `False` in v1.5.0.
-            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
-                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
-                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -893,6 +890,9 @@ class CropForegroundd(Cropd):
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
+                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
+                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
