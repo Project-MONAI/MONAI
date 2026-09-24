@@ -103,6 +103,7 @@ class TestInteractions(unittest.TestCase):
             loss_function=loss,
             postprocessing=post_transforms,
             iteration_update=i,
+            decollate=True,
         )
         engine.add_event_handler(IterationEvents.INNER_ITERATION_STARTED, add_one)
         engine.add_event_handler(IterationEvents.INNER_ITERATION_COMPLETED, add_one)
