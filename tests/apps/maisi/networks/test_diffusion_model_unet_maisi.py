@@ -491,9 +491,11 @@ class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_with_additional_inputs(self, input_param):
+        input_param = dict(input_param)
         input_param["include_top_region_index_input"] = True
         input_param["include_bottom_region_index_input"] = True
         input_param["include_spacing_input"] = True
+        input_param["include_modality_input"] = True
         net = DiffusionModelUNetMaisi(**input_param)
         with eval_mode(net):
             result = net.forward(
@@ -502,8 +504,41 @@ class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
                 top_region_index_tensor=torch.rand((1, 4)),
                 bottom_region_index_tensor=torch.rand((1, 4)),
                 spacing_tensor=torch.rand((1, 3)),
+                modality_tensor=torch.ones((1, 1)),
             )
             self.assertEqual(result.shape, (1, 1, 16, 16))
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_modality_input_missing(self):
+        net = DiffusionModelUNetMaisi(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            num_res_blocks=1,
+            num_channels=(8, 8, 8),
+            attention_levels=(False, False, False),
+            norm_num_groups=8,
+            include_modality_input=True,
+        )
+        with self.assertRaisesRegex(ValueError, "modality_tensor should be provided"):
+            with eval_mode(net):
+                net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long())
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_additional_input_missing(self):
+        net = DiffusionModelUNetMaisi(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            num_res_blocks=1,
+            num_channels=(8, 8, 8),
+            attention_levels=(False, False, False),
+            norm_num_groups=8,
+            include_spacing_input=True,
+        )
+        with self.assertRaisesRegex(ValueError, "spacing_tensor should be provided"):
+            with eval_mode(net):
+                net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long())
 
 
 class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
@@ -569,9 +604,11 @@ class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_3D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_with_additional_inputs(self, input_param):
+        input_param = dict(input_param)
         input_param["include_top_region_index_input"] = True
         input_param["include_bottom_region_index_input"] = True
         input_param["include_spacing_input"] = True
+        input_param["include_modality_input"] = True
         net = DiffusionModelUNetMaisi(**input_param)
         with eval_mode(net):
             result = net.forward(
@@ -580,6 +617,7 @@ class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
                 top_region_index_tensor=torch.rand((1, 4)),
                 bottom_region_index_tensor=torch.rand((1, 4)),
                 spacing_tensor=torch.rand((1, 3)),
+                modality_tensor=torch.ones((1, 1)),
             )
             self.assertEqual(result.shape, (1, 1, 16, 16, 16))
 
