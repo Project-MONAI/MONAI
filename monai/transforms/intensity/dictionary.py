@@ -47,6 +47,7 @@ from monai.transforms.intensity.array import (
     RandGibbsNoise,
     RandHistogramShift,
     RandKSpaceSpikeNoise,
+    RandNonCentralChiNoise,
     RandRicianNoise,
     RandScaleIntensity,
     RandScaleIntensityFixedMean,
@@ -68,6 +69,9 @@ from monai.utils.enums import PostFix
 __all__ = [
     "RandGaussianNoised",
     "RandRicianNoised",
+    "RandNonCentralChiNoised",
+    "RandNonCentralChiNoiseD",
+    "RandNonCentralChiNoiseDict",
     "ShiftIntensityd",
     "RandShiftIntensityd",
     "ScaleIntensityd",
@@ -232,6 +236,81 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
 
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
+        return d
+
+
+class RandNonCentralChiNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandNonCentralChiNoise`.
+    Add non-central chi noise to image. This transform assumes all the expected fields have same shape, if want to add
+    different noise for every field, please use this transform separately.
+    This is a generalization of Rician noise. `degrees_of_freedom=2` is Rician noise.
+
+    Args:
+        keys: Keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        prob: Probability to add non-central chi noise to the dictionary.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the noise.
+        degrees_of_freedom: Number of Gaussian distributions (degrees of freedom).
+            `degrees_of_freedom=2` is Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+        dtype: output data type, if None, same as input image. defaults to float32.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    backend = RandNonCentralChiNoise.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        mean: Sequence[float] | float = 0.0,
+        std: Sequence[float] | float = 1.0,
+        degrees_of_freedom: int = 64,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.rand_non_central_chi_noise = RandNonCentralChiNoise(
+            prob=1.0,
+            mean=mean,
+            std=std,
+            degrees_of_freedom=degrees_of_freedom,
+            channel_wise=channel_wise,
+            relative=relative,
+            sample_std=sample_std,
+            dtype=dtype,
+        )
+
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandNonCentralChiNoised:
+        super().set_random_state(seed, state)
+        self.rand_non_central_chi_noise.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
+        for key in self.key_iterator(d):
+            d[key] = self.rand_non_central_chi_noise(d[key], randomize=True)
         return d
 
 
@@ -1965,6 +2044,7 @@ class ComputeHoVerMapsd(MapTransform):
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
+RandNonCentralChiNoiseD = RandNonCentralChiNoiseDict = RandNonCentralChiNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
 StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
