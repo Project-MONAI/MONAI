@@ -10,6 +10,7 @@ on:
     branches:
       - dev
 
+
 env:
   PYTHON_VER: '3.10'
   PYTORCH_VER: '2.8.0'
@@ -66,10 +67,12 @@ jobs:
         cache: 'pip'
     - name: Install tools
       run: |
-        python -m pip install -U pip build
+        python -m pip install -U pip build twine
     - name: Build distribution
       run: |
         export HEAD_COMMIT_ID=$(git rev-parse HEAD)
+        # remove git clone dependencies, see https://github.com/Project-MONAI/MONAI/issues/5882
+        sed -i /git+/d pyproject.toml
         sed -i 's/name\ =\ "monai"$/name\ =\ "monai-weekly"/g' pyproject.toml
         echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
         git diff pyproject.toml monai/__init__.py
@@ -87,11 +90,12 @@ jobs:
         ls -lh dist
     - name: Test Installation
       run: |
+        twine check --strict dist/*
         pip install dist/*.whl
         pip list
         (cd "$(mktemp -d)" && python -c 'import monai; print(monai.__version__)')
     - name: Publish to PyPI
-      if: github.event_name == 'schedule'  # only publish on cron run
+      if: github.event_name == 'schedule' # only publish on cron run
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__

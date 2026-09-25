@@ -440,7 +440,7 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
 
     if any(d % factor != 0 for d in input_size[2:]):
         raise ValueError(
-            f"All spatial dimensions must be divisible by factor {factor}. " f", spatial shape is: {input_size[2:]}"
+            f"All spatial dimensions must be divisible by factor {factor}, spatial shape is: {input_size[2:]}"
         )
     output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
     reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
