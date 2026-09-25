@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -793,6 +798,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities

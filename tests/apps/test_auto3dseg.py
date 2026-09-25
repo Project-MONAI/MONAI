@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -36,6 +37,7 @@ from monai.auto3dseg import (
     SampleOperations,
     SegSummarizer,
     SummaryOperations,
+    algo_from_json,
     datafold_read,
     verify_report_format,
 )
@@ -175,6 +177,20 @@ class TestImageAnalyzer(Analyzer):
         report["test_stats"] = self.ops["test_stats"].evaluate(d[self.image_key])
         d[self.stats_name] = report
         return d
+
+
+class _DummyAlgo:
+    """Minimal stand-in for an Auto3DSeg Algo object used in warning tests."""
+
+    def __init__(self) -> None:
+        self.template_path: str | None = None
+        self.output_path = os.getcwd()
+
+    def load_state_dict(self, state: dict) -> None:
+        pass
+
+    def get_output_path(self) -> str:
+        return self.output_path
 
 
 class TestDataAnalyzer(unittest.TestCase):
@@ -617,6 +633,22 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
+
+
+class TestAlgoFromJsonSecurityWarning(unittest.TestCase):
+    def test_rejects_untrusted_target(self) -> None:
+        """Verify that a ``_target_`` pointing to a non-``Algo`` class is rejected.
+
+        ``_DummyAlgo`` is a plain class (not an ``Algo`` subclass); loading it must raise
+        ``ValueError`` rather than instantiate the class, per GHSA-2wx3.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            algo_file = os.path.join(tmpdir, "algo_object.json")
+            with open(algo_file, "w", encoding="utf-8") as f:
+                json.dump({"_target_": f"{__name__}._DummyAlgo"}, f)
+
+            with self.assertRaisesRegex(ValueError, "(?i)refusing to instantiate"):
+                algo_from_json(algo_file)
 
 
 if __name__ == "__main__":
