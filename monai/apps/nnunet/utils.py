@@ -12,7 +12,10 @@
 from __future__ import annotations
 
 import copy
+import glob
+import json
 import os
+import shutil
 
 import numpy as np
 
@@ -80,6 +83,10 @@ def create_new_data_copy(
         zip(["training", test_key], ["imagesTr", "imagesTs"], ["labelsTr", "labelsTs"])
     ):
         if _key is None:
+            continue
+
+        if _key not in datalist_json:
+            logger.warning(f"Key '{_key}' not found in datalist_json. Skipping this section.")
             continue
 
         logger.info(f"converting data section: {_key}...")
@@ -168,3 +175,104 @@ def create_new_dataset_json(
     )
 
     return
+
+
+def glob_to_datalist(glob_pattern, output_json="datalist.json", key="testing", dataroot=None):
+    files = sorted(glob.glob(glob_pattern, recursive=True))
+    if not files:
+        print(f"Warning: No files found matching pattern '{glob_pattern}'")
+
+    datalist = []
+    for filepath in files:
+        # If dataroot is specified, make path relative to dataroot
+        if dataroot:
+            rel_path = os.path.relpath(filepath, dataroot)
+            datalist.append({"image": rel_path})
+        else:
+            # Otherwise store file name
+            datalist.append({"image": os.path.basename(filepath)})
+
+    data = {key: datalist}  # why is this so horrible
+
+    with open(output_json, "w") as f:
+        json.dump(data, f, indent=2)
+
+    print(f"Successfully wrote {len(datalist)} items to '{output_json}' under key '{key}'.")
+
+
+def check_existing_data_indices(nnunet_raw_data_base):
+    existing_indices = []
+    if os.path.exists(nnunet_raw_data_base):
+        for entry in os.listdir(nnunet_raw_data_base):
+            if entry.startswith("Dataset"):
+                try:
+                    index = int(entry[7:10])  # Extract the three-digit index
+                    existing_indices.append(index)
+                except ValueError:
+                    print(f"Warning: Could not parse dataset index from '{entry}'")
+    return existing_indices
+
+
+def get_next_available_index(nnunet_raw_data_base):
+    existing_indices = check_existing_data_indices(nnunet_raw_data_base)
+    if not existing_indices:
+        return 1  # Start from 1 if no datasets exist
+    return max(existing_indices) + 1
+
+
+def get_info_from_dataset_json(model_dir):
+    # get the num_input channels and num_foreground_classes from the dataset.json file in the model_dir
+    dataset_json_path = os.path.join(model_dir, "dataset.json")
+    if not os.path.exists(dataset_json_path):
+        raise FileNotFoundError(f"dataset.json not found in model directory '{model_dir}'")
+
+    with open(dataset_json_path) as f:
+        dataset_info = json.load(f)
+
+    channel_names = dataset_info.get("channel_names", [])
+    num_input_channels = len(channel_names)
+
+    labels = dataset_info.get("labels", {})
+    num_foreground_classes = len(labels) - 1 if "background" in labels else len(labels)  # Exclude background if present
+
+    return num_input_channels, num_foreground_classes
+
+
+def move_predictions(raw_data_foldername, pred_work_folder, output_dir):
+    # the output is now per 'case'. We need to use the generated datalist to map the output back to the original input files.
+    # so we have the datalist
+    datalist_path = os.path.join(raw_data_foldername, "datalist.json")
+    with open(datalist_path) as f:
+        datalist = json.load(f)
+
+    if "test" in datalist:
+        key = "test"
+    elif "testing" in datalist:
+        key = "testing"
+    else:
+        raise ValueError(f"Warning: Neither 'test' nor 'testing' key found in datalist '{datalist_path}'")
+
+    test_cases = datalist[key]
+    if not test_cases:
+        raise ValueError(f"Warning: No test cases found in datalist '{datalist_path}'")
+
+    case_to_image_path = {item["new_name"]: item["image"] for item in test_cases}
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for case_name, image_path in case_to_image_path.items():
+        prediction_file = os.path.join(pred_work_folder, case_name + ".nii.gz")
+        if not os.path.exists(prediction_file):
+            print(f"Warning: Prediction file '{prediction_file}' does not exist for case '{case_name}'")
+            continue
+
+        # Copy the prediction file to the output directory with the original image name
+        image_extension = os.path.split(image_path, ".", 1)[1]  # assumes no periods in filename, supports .nii.gz
+        output_prediction_path = os.path.join(
+            output_dir, image_path.replace(image_extension, "_pred.nii.gz")
+        )  # nnunet outputs nii.gz
+        output_prediction_folder = os.path.dirname(output_prediction_path)
+        os.makedirs(output_prediction_folder, exist_ok=True)  # sometimes can be nested folders
+
+        shutil.move(prediction_file, output_prediction_path)
+        print(f"Moved prediction for case '{case_name}' to '{output_prediction_path}'")
