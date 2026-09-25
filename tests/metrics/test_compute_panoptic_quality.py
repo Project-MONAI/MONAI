@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import PanopticQualityMetric, compute_panoptic_quality
-from monai.metrics.panoptic_quality import compute_mean_iou
+from monai.metrics.panoptic_quality import _get_pairwise_iou, compute_mean_iou
 from tests.test_utils import SkipIfNoModule
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -214,6 +214,24 @@ class TestPanopticQualityMetric(unittest.TestCase):
         invalid_gt = torch.randint(0, 5, (1, 2, 8, 8, 8, 8))
         with self.assertRaises(ValueError):
             metric(invalid_pred, invalid_gt)
+
+    def test_pairwise_iou(self):
+        """`_get_pairwise_iou` returns the expected IoU matrix, including no-overlap and empty cases."""
+        gt = torch.as_tensor([[1, 1, 0], [0, 2, 2], [0, 0, 0]], device=_device)
+        pred = torch.as_tensor([[1, 0, 0], [0, 2, 2], [0, 0, 0]], device=_device)
+        pairwise, _, _ = _get_pairwise_iou(pred, gt, device=_device)
+        np.testing.assert_allclose(pairwise.cpu().numpy(), [[0.5, 0.0], [0.0, 1.0]], atol=1e-6)
+
+        # true instance with no overlapping prediction -> all-zero row, shape preserved
+        disjoint_pred = torch.as_tensor([[0, 0, 1], [0, 0, 0], [0, 0, 0]], device=_device)
+        pairwise, _, _ = _get_pairwise_iou(disjoint_pred, gt, device=_device)
+        self.assertEqual(pairwise.shape, torch.Size([2, 1]))
+        self.assertTrue(torch.all(pairwise == 0))
+
+        # empty gt / empty pred -> degenerate matrices, no error
+        empty = torch.zeros((3, 3), dtype=torch.int, device=_device)
+        self.assertEqual(_get_pairwise_iou(pred, empty, device=_device)[0].shape, torch.Size([0, 2]))
+        self.assertEqual(_get_pairwise_iou(empty, gt, device=_device)[0].shape, torch.Size([2, 0]))
 
     def test_compute_mean_iou_invalid_shape(self):
         """Test that compute_mean_iou raises ValueError for invalid shapes."""
