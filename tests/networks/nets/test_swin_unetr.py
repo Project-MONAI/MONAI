@@ -111,6 +111,19 @@ class TestSWINUNETR(unittest.TestCase):
         with self.assertRaises(ValueError):
             net_2d(torch.randn(1, 1, 48, 33))  # 33 is not divisible by 32
 
+    @skipUnless(has_einops, "Requires einops")
+    def test_flash_attention(self):
+        input_param = {"in_channels": 1, "out_channels": 2, "feature_size": 12, "spatial_dims": 3}
+        net_ref = SwinUNETR(use_flash_attention=False, **input_param).double()
+        net_flash = SwinUNETR(use_flash_attention=True, **input_param).double()
+        net_flash.load_state_dict(net_ref.state_dict())
+        x = torch.randn(1, 1, 64, 64, 64, dtype=torch.float64)
+        with eval_mode(net_ref, net_flash):
+            ref = net_ref.swinViT(x, net_ref.normalize)
+            out = net_flash.swinViT(x, net_flash.normalize)
+        for a, b in zip(ref, out, strict=True):
+            assert_allclose(a, b, atol=1e-6, rtol=1e-6, type_test=False)
+
     def test_patch_merging(self):
         dim = 10
         t = PatchMerging(dim)(torch.zeros((1, 21, 20, 20, dim)))

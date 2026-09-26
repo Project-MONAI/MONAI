@@ -4,12 +4,109 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+
+## [1.6.1] - 2026-09-25
 ### Added
 * `NaViT` (`monai.networks.nets.NaViT`): Native Resolution Vision Transformer with Patch n' Pack, supporting variable-resolution 2D and 3D inputs. Implements factorized positional embeddings, token dropout, attention pooling, and QK normalization, based on ["Patch n' Pack: NaViT, a Vision Transformer for any Aspect Ratio and Resolution"](https://arxiv.org/abs/2307.06304).
 * `HyenaMixer`, `HyenaTransformerBlock`, and `DepthwiseFFTConv{2,3}d` in `monai.networks.blocks`: subquadratic O(N log N) alternatives to windowed self-attention, backed by the HyenaND operator from the optional `nvsubquadratic` package.
 * `HyenaNDUNETR` (`monai.networks.nets.HyenaNDUNETR`): thin `SwinUNETR` subclass with a `get_variant(name)` classmethod for the three Hyena variants (`HHHH`, `HAHA`, `HHAA`) from the NeurIPS 2026 paper "Native Multi-Dimensional Subquadratic Operators via Input Dependent Long Convolutions" (paper id 26539).
 * `SwinUNETR.use_hyena` and `SwinUNETR.hyena_stages` kwargs to thread HyenaND blocks through any subset of Swin stages. Default `use_hyena=False` preserves bit-identical forward behavior of the existing code path.
-* New `[hyena]` extras_require in setup.cfg (`pip install monai[hyena]`).
+* New `[hyena]` extra added to optional dependencies, use this to install `nvsubquadratic` and other packages.
+* Add GPU-accelerated Dicom image decoding through the added `NvImgCodecPydicomReader` reader class. Use the `[nvimgcodec]` extra to install CUDA 13 dependencies.
+* Add explicit spatial_ndim tracking to MetaTensor (#8765)
+* Enabling MetaTensor Persistent Caching (#8940)
+* Add AbsoluteVolumeDifferenceMetric to monai.metrics (#8945)
+* Add BoundaryLoss (#8916)
+* SwinUNETR: optional flash attention (scaled_dot_product_attention) in WindowAttention (#8977)
+* Ignore_index support across dice and other losses (#8757)
+* Affine-aware landmark heatmap generation (#8957)
+
+## Security Fixes
+* Fix GHSA-873f-pvrv-4x83: warn before executing a bundle's config in load()/run() (#9057)
+* Safe eval (#8936)
+* fix(safeeval): evaluate rewritten AST instead of original string (#9063)
+* Fix GHSA-x6pr-233j-x5cw: warn before executing an FL-provisioned bundle config (#9078)
+* Update CodeQL Action (#9079)
+* Harden download/deserialize integrity (weights_only, hash checks, path confinement) (#9088)
+* Harden nnUNetV2Runner against code execution (#9086)
+* Actions Permission and Other CodeQL Fixes (#9098)
+* fix: confine nnUNet postprocessing pickle loads to the results directory (GHSA-8f32) (#9113)
+* fix: screen logging.conf class=/args= before fileConfig (GHSA-wvpx) (#9114)
+* fix: restrict algo_from_json _target_ to Algo subclasses (GHSA-2wx3) (#9115)
+* Validate downloaded file integrity and raise ValueError on hash mismatch (#8833)
+* Warn before instantiating _target_ from algo_object.json (#9085)
+
+## CI/Testing Fixes
+* ci: mute dynamic __warningregistry__ logs noise in pytest suite (#8893)
+* tests: remove more duplicate test cases (#8943)
+* Enable macOS Install Test Only (#8976)
+* feat: replace mypy and pytype with pyrefly for static type analysis (#8868)
+* Modernising Build Process (#9010)
+* Weekly Preview Fix (#9075)
+* Precommit Autofixing (#9061)
+* Fixing Git Dependency Weekly Build Issue (#9081)
+* Check Environment Script (#9038)
+* ci: add local pre-commit DCO hook and setup command (#9094)
+* Declare ruff's vendored-file excludes once in pyproject.toml (#9090)
+* Route runtests.sh ruff invocations through PY_EXE (#9089)
+* tests: remove the temporary directory make_nifti_image creates (#9042)
+
+## Other Fixes
+* Add docstring note that Transpose/Transposed do not update the affine matrix (#8888)
+* Fix nnUNet test directory leakage into current working directory (#8887)
+* tests: remove duplicate and dead test cases (#8896)
+* Improve Affine transform documentation and add compute_w_affine tests (#8727)
+* fix: update Dockerfile and requirements-dev.txt for MONAI 1.6 tutorial compatibility (#8912)
+* Fix division by zero in clDice loss harmonic mean (#8739)
+* fix(losses): register buffers in GlobalMutualInformationLoss (#8872)
+* Fix batched_nms for ndarray inputs (#8901)
+* fix: add missing stacklevel=2 to warnings.warn() in metrics/ (Fixes #8931) (#8932)
+* fix: add missing stacklevel=2 to warnings.warn() in losses/ (Fixes #8929) (#8930)
+* fix: adaptor map_names calls dict as function when inputs is a name-mapping dict (#8907)
+* Use compact [1,-2,1] kernel for BendingEnergyLoss second derivatives (#8918)
+* Force GC in WSIReader tests to suppress ResourceWarning for unclosed files (#8919)
+* fix: guard division by zero in DICOMReader._get_affine for single-slice volumes (Fixes #8925) (#8926)
+* fix: replace `raise UserWarning` with `warnings.warn()` in verify_report_format (Fixes #8927) (#8928)
+* Fix FROC num_targets miscount when labels_to_exclude is set (#8951)
+* Remove dead and redundant code across monai (#8952)
+* docs: add Windows BUILD_MONAI install instructions (#8906)
+* Perf: Use a KDTree on CPU instead of full EDT for 1.5x to 16x faster metric computation (#8910)
+* Fix nnUNet runner store_true flag command construction (#8941) (#8944)
+* fix: emit nnUNet store_true flags as bare CLI args in nnUNetV2Runner (#8968)
+* Support configurable rotation order in create_rotate (#8963)
+* docs: clarify RandWeightedCrop(d) does not crop the weight map (#7851) (#8962)
+* fix(data): avoid divide-by-zero in pydicom affine for single-slice volumes (#8956)
+* Perf: skip redundant full-image mask on StdShiftIntensity nonzero=False path (#8975)
+* Fix division by zero in Warp for singleton spatial dimensions (#8946)
+* fix: warn when PydicomReader cannot determine affine from DICOM metadata (Fixes #8468) (#8922)
+* Warn when PydicomReader falls back to an identity affine (#8468) (#8934)
+* Fix non-functional jitter in Warp.get_reference_grid (#8953)
+* Make Fuzzy Gdown Argument Version-dependent (#8986)
+* Perf: faster get_largest_connected_component_mask (bincount + LUT gather) (#8978)
+* fix typos in docs: lazy_resampling, modules, whatsnew_1_5 (#9012)
+* docs: add documentation to CONTRIBUTING.md (#8878)
+* Fix class_labels mutation across multi-metric write_metrics_reports (#8902)
+* fix(MetaTensor): astype with torch dtype now returns MetaTensor preserving metadata (#8911)
+* Fix clipping boxes with large coordinates (#9047)
+* Raise OptionalImportError for unavailable explicit image readers (#9006)
+* Lazily import onnx so a broken onnx does not block 'import monai' (#8455) (#8937)
+* Fix ClipIntensityPercentiles metadata accumulation (#9003)
+* Fix NaN gradient in PerceptualLoss normalize_tensor (#8982)
+* Fix dot-notation read on $@ref-backed ConfigParser proxies (#8994)
+* fix: address Dependabot alerts for mlflow, transformers, setuptools (#9032)
+* fix(transforms): make Crop.compute_slices torch.compile-friendly (#8960)
+* Reject non-finite DICOM affine metadata in PydicomReader (#9087)
+* Fix VarAutoEncoder reparameterize returning mu+std at inference (#8413) (#8933)
+* Clarify CUDA/CuPy install requirements in docs (#8106) (#8983)
+* Fix tracing-state leak after transform exceptions (#9019)
+* Fix QuickNAT indexed skip connections (#9021)
+* Fix AutoRunner to honor num_fold when generating folds (#9110)
+* Fix three malformed error messages (#9065)
+* Fix 1/N floor in effective-rank collapse score after mean-centering (#8997)
+* Adding MedNeXt to documentation (#9074)
+* Report a missing nnunetv2 as an optional dependency in nnUNetV2Runner (#9054)
+* Improve/writer error messages (#8753)
 
 ## [1.6.0] - 2026-06-12
 
