@@ -82,7 +82,7 @@ def _cov(input_data: torch.Tensor, rowvar: bool = True) -> torch.Tensor:
 
 def _sqrtm(input_data: torch.Tensor) -> torch.Tensor:
     """Compute the square root of a matrix."""
-    scipy_res, _ = scipy.linalg.sqrtm(input_data.detach().cpu().numpy().astype(np.float64), disp=False)
+    scipy_res = scipy.linalg.sqrtm(input_data.detach().cpu().numpy().astype(np.float64))
     return torch.from_numpy(scipy_res)
 
 
