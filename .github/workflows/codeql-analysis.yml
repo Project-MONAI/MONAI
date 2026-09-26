@@ -16,6 +16,8 @@ on:
     branches: [ dev, main ]
   pull_request:
     branches: [ dev ]
+  merge_group:  # needed for merge queue
+    types: [checks_requested]
   schedule:
     - cron: '0 2 * * 1'  # 2AM Monday
 

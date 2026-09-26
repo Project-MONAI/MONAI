@@ -12,6 +12,8 @@ on:
       - dev
       - main
       - releasing/*
+  merge_group:  # needed for merge queue
+    types: [checks_requested]
 
 permissions:
   contents: read
