@@ -24,8 +24,39 @@ from monai.transforms import ToNumpyd
 from tests.test_utils import skip_if_windows
 
 
+class _OneShotChunks:
+    """Yield one DataFrame chunk and reject a second iteration."""
+
+    def __init__(self):
+        self.iterations = 0
+
+    def __iter__(self):
+        """Yield the source's single DataFrame chunk.
+
+        Yields:
+            A DataFrame containing two test records.
+
+        Raises:
+            RuntimeError: When the source is iterated more than once.
+        """
+        self.iterations += 1
+        if self.iterations > 1:
+            raise RuntimeError("one-shot source reused")
+        yield pd.DataFrame({"subject_id": ["s0", "s1"], "label": [0, 1]})
+
+
 @skip_if_windows
 class TestCSVIterableDataset(unittest.TestCase):
+    def test_shuffle_consumes_one_shot_source_once(self):
+        source = _OneShotChunks()
+        dataset = CSVIterableDataset(src=source, chunksize=2, buffer_size=2, shuffle=True, seed=7)
+
+        items = list(dataset)
+
+        self.assertEqual(source.iterations, 1)
+        self.assertEqual(len(items), 2)
+        self.assertEqual({item["subject_id"] for item in items}, {"s0", "s1"})
+
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [
