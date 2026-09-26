@@ -30,6 +30,7 @@ from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
+from monai.utils.deprecate_utils import warn_deprecated
 
 requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
@@ -177,6 +178,9 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
             See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
+    .. versionchanged:: 1.6.1
+        The default `hash_type` changed from "md5" to "sha256" for stronger integrity verification.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes.
     """
     if val is None:
         warnings.warn(f"No hash value provided for {filepath}; file integrity is NOT verified.", stacklevel=2)
@@ -204,7 +208,7 @@ def download_url(
     url: str,
     filepath: PathLike = "",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     progress: bool = True,
     **gdown_kwargs: Any,
 ) -> None:
@@ -217,7 +221,7 @@ def download_url(
             If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
         progress: whether to display a progress bar.
         gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
@@ -234,7 +238,22 @@ def download_url(
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
         HashCheckError: When the hash validation of the ``url`` downloaded file fails.
+
+    .. versionchanged:: 1.6.1
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.download_url",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
+            "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the"
+            'default will be set to "sha256".',
+        )
+        hash_type = "sha256"
+
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
         logger.info(f"Default downloading to '{filepath}'")
@@ -316,7 +335,7 @@ def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
 ) -> None:
@@ -329,7 +348,7 @@ def extractall(
         output_dir: target directory to save extracted files.
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
@@ -340,7 +359,21 @@ def extractall(
         HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
+    .. versionchanged:: 1.6.1
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.extractall",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
+            "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the"
+            'default will be set to "sha256".',
+        )
+        hash_type = "sha256"
+
     filepath = Path(filepath)
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise HashCheckError(
@@ -395,7 +428,7 @@ def download_and_extract(
     filepath: PathLike = "",
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
     progress: bool = True,
@@ -411,7 +444,7 @@ def download_and_extract(
             default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
