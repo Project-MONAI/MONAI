@@ -14,9 +14,10 @@ from __future__ import annotations
 import ast
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
-from monai.utils import safe_eval
+from monai.utils import SAFE_TYPES, safe_eval
 
 GOOD_EXPRS = [
     ("1+2", None, None, 3),
@@ -61,6 +62,77 @@ class TestSafeEval(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             safe_eval("1*2", allowed_types=allowed)
+
+    def test_rewrite_np_produces_numpy_types(self):
+        """Test that rewrite_np wraps literals in numpy types."""
+        result = safe_eval("2 + 3", rewrite_np=True)
+        self.assertIsInstance(result, np.integer)
+
+        result = safe_eval("2.5 + 1.5", rewrite_np=True)
+        self.assertIsInstance(result, np.floating)
+
+    def test_rewrite_np_large_exponent(self):
+        """Test that rewrite_np prevents slow native-Python exponentiation."""
+        # Under native Python, 9**9**9 produces a ~369-million-digit integer;
+        # under np.int32 it overflows and completes almost instantly.
+        result = safe_eval("9**9**9", rewrite_np=True)
+        self.assertIsInstance(result, np.integer)
+
+    def test_rewrite_np_preserves_bool(self):
+        """Test that rewrite_np does not wrap bool constants."""
+        result = safe_eval("True", rewrite_np=True)
+        self.assertIs(result, True)
+
+        result = safe_eval("False", rewrite_np=True)
+        self.assertIs(result, False)
+
+    def test_builtins_not_in_scope(self):
+        """Test that builtins cannot be reached as bare names."""
+        for expr in ("int", "type", "object", "abs"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr)
+
+        # `__builtins__` itself still names the mapping `eval` looks names up in, but it is now empty
+        self.assertEqual(safe_eval("__builtins__"), {})
+
+    def test_module_globals_not_in_scope(self):
+        """Test that the names imported by the safeeval module itself cannot be reached."""
+        for expr in ("np", "ast", "safe_eval", "SAFE_TYPES"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr)
+
+        # `rewrite_np` supplies `np` itself, since the constants it rewrites are calls into it
+        self.assertIs(safe_eval("np", rewrite_np=True), np)
+
+    def test_unknown_name_raises(self):
+        """Test that a name the caller did not supply raises NameError rather than resolving elsewhere."""
+        with self.assertRaises(NameError):
+            safe_eval("x+1", {"y": 2})
+
+        self.assertEqual(safe_eval("x+1", {"x": 2}), 3)
+
+    def test_widened_allowed_types_cannot_escape(self):
+        """Test that attribute access and calls stay harmless once `allowed_types` is widened."""
+        allowed = (*SAFE_TYPES, ast.Attribute, ast.Call, ast.Subscript)
+
+        for expr in ("int.__class__.__init__.__globals__", "np.ndarray", "safe_eval('1')"):
+            with self.subTest(expr=expr), self.assertRaises(NameError):
+                safe_eval(expr, allowed_types=allowed)
+
+        # the builtins mapping is reachable by name but holds nothing to escape with
+        with self.assertRaises(KeyError):
+            safe_eval("__builtins__['__import__']", allowed_types=allowed)
+
+    def test_globals_can_opt_out_of_empty_builtins(self):
+        """Test that a caller supplying its own `__builtins__` keeps control of the namespace."""
+        result = safe_eval("abs", {"__builtins__": {"abs": abs}})
+        self.assertIs(result, abs)
+
+    def test_rewrite_np_inf_constant(self):
+        """Test that rewrite_np handles overflowing infinity literals."""
+        result = safe_eval("1e309", rewrite_np=True)
+        self.assertIsInstance(result, np.floating)
+        self.assertTrue(np.isinf(result))
 
 
 if __name__ == "__main__":

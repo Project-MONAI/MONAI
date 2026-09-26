@@ -14,9 +14,12 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.transforms import CenterSpatialCrop
+from monai.transforms.croppad.array import Crop
 from tests.croppers import CropTest
 
 TEST_SHAPES = [
@@ -49,6 +52,28 @@ class TestCenterSpatialCrop(CropTest):
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _, align_corners):
         self.crop_test_pending_ops(input_param, input_shape, align_corners)
+
+    def test_compute_slices_broadcast(self):
+        self.assertEqual(Crop.compute_slices(roi_center=2, roi_size=(4, 6, 8)), (slice(0, 4), slice(0, 6), slice(0, 8)))
+        self.assertEqual(Crop.compute_slices(roi_start=1, roi_end=(3, 5, 7)), (slice(1, 3), slice(1, 5), slice(1, 7)))
+        with self.assertRaises(ValueError):
+            Crop.compute_slices(roi_center=(2, 3), roi_size=(4, 5, 6))
+        with self.assertRaises(ValueError):
+            Crop.compute_slices(roi_start=(1, 2), roi_end=(3, 5, 7))
+        with self.assertRaises(TypeError):
+            Crop.compute_slices(roi_center="10", roi_size=(4, 6))
+
+    def test_torch_compile(self):
+        prev_track_meta = get_track_meta()
+        set_track_meta(False)
+        try:
+            # eager backend traces the transform without needing the Inductor C++ compiler
+            cropper = torch.compile(CenterSpatialCrop(roi_size=(1, 16, 16)), backend="eager")
+            img = torch.rand(1, 1, 32, 32, dtype=torch.float32)
+            self.assertEqual(tuple(cropper(img).shape), (1, 1, 16, 16))
+        finally:
+            set_track_meta(prev_track_meta)
+            torch._dynamo.reset()
 
 
 if __name__ == "__main__":
