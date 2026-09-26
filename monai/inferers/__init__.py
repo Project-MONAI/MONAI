@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .conformal_predictor import ConformalCalibrator, ConformalPredictor
 from .inferer import (
     ControlNetDiffusionInferer,
     ControlNetLatentDiffusionInferer,
