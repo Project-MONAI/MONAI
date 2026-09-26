@@ -155,6 +155,41 @@ for p in TEST_NDARRAYS_ALL:
             False,
         ]
     )
+    # a large 3x3 blob plus a single disconnected pixel (e.g. a scanner marker/text annotation) --
+    # keep_largest_component=True drops the isolated pixel before computing the box, so only the
+    # blob is cropped out instead of a box that stretches to cover both. Mirrors the equivalent
+    # case in test_crop_foreground.py, exercised here through the dict transform's forwarding.
+    TESTS.append(
+        [
+            {
+                "keys": ["img"],
+                "source_key": "img",
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": 0,
+                "keep_largest_component": True,
+            },
+            {
+                "img": p(
+                    np.array(
+                        [
+                            [
+                                [0, 0, 0, 0, 0, 0, 0],
+                                [0, 1, 1, 1, 0, 0, 0],
+                                [0, 1, 1, 1, 0, 0, 0],
+                                [0, 1, 1, 1, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 1, 0],
+                                [0, 0, 0, 0, 0, 0, 0],
+                            ]
+                        ]
+                    )
+                )
+            },
+            p(np.array([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])),
+            True,
+        ]
+    )
 
 
 class TestCropForegroundd(unittest.TestCase):

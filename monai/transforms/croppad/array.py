@@ -827,6 +827,7 @@ class CropForeground(Crop):
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
         lazy: bool = False,
+        keep_largest_component: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -849,6 +850,9 @@ class CropForeground(Crop):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
+                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
+                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -860,6 +864,7 @@ class CropForeground(Crop):
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
+        self.keep_largest_component = keep_largest_component
         self.padder = Pad(mode=mode, lazy=lazy, **pad_kwargs)
 
     @Crop.lazy.setter  # type: ignore
@@ -878,7 +883,7 @@ class CropForeground(Crop):
 
         """
         box_start, box_end = generate_spatial_bounding_box(
-            img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
+            img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller, self.keep_largest_component
         )
         box_start_, *_ = convert_data_type(box_start, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
         box_end_, *_ = convert_data_type(box_end, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
