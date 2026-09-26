@@ -24,6 +24,7 @@ from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedR
 from .downsample import DownSample, Downsample, MaxAvgPool, SubpixelDownsample, SubpixelDownSample, Subpixeldownsample
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .encoder import BaseEncoder
+from .eva_block import EVABlock
 from .fcn import FCN, GCN, MCFCN, Refine
 from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, LastLevelP6P7
 from .hyena import (
@@ -37,7 +38,9 @@ from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlo
 from .mednext_block import MedNeXtBlock, MedNeXtDownBlock, MedNeXtOutBlock, MedNeXtUpBlock
 from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
+from .primus_block import PrimusPatchDecode, PrimusPatchEmbed
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
+from .rope import SpatialRotaryEmbedding, apply_rotary_embedding
 from .segresnet_block import ResBlock
 from .selfattention import SABlock
 from .spade_norm import SPADE

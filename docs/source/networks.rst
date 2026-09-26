@@ -109,6 +109,26 @@ Blocks
 .. autoclass:: ResBlock
     :members:
 
+`EVABlock`
+~~~~~~~~~~
+.. autoclass:: EVABlock
+    :members:
+
+`Primus Blocks`
+~~~~~~~~~~~~~~~
+.. autoclass:: PrimusPatchEmbed
+    :members:
+
+.. autoclass:: PrimusPatchDecode
+    :members:
+
+`SpatialRotaryEmbedding`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SpatialRotaryEmbedding
+    :members:
+
+.. autofunction:: monai.networks.blocks.apply_rotary_embedding
+
 `SABlock Block`
 ~~~~~~~~~~~~~~~
 .. autoclass:: SABlock
@@ -804,6 +824,13 @@ Nets
 ~~~~~~~~~~~~
 .. autoclass:: MedNeXt
    :members:
+
+`Primus`
+~~~~~~~~
+.. autoclass:: Primus
+   :members:
+
+.. autofunction:: create_primus
 
 Utilities
 ---------
