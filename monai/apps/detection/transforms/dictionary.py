@@ -851,6 +851,10 @@ class BoxToMaskd(MapTransform):
         2) do transforms, e.g., rotation or cropping, on images and box_masks together;
         3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
 
+    Boxes are assumed to be in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D): box axis 0 maps to image
+    spatial dim 0 (``H``), box axis 1 maps to image spatial dim 1 (``W``).
+
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
@@ -938,6 +942,9 @@ class MaskToBoxd(MapTransform):
         1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
         2) do transforms, e.g., rotation or cropping, on images and box_masks together;
         3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
+
+    Output boxes are in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D).
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
