@@ -137,7 +137,8 @@ class SplitLabeld(MapTransform):
         label: key of the label source
         others: other labels storage key, defaults to ``"others"``
         mask_value: the mask_value that will be kept for binarization of the label, defaults to ``"mask_value"``
-        min_area: The smallest allowable object size.
+        min_area: The smallest allowable object size. Connected components of ``others``
+            smaller than ``min_area`` pixels are discarded during relabeling.
         others_value: Value/class for other nuclei;  Use this to separate core nuclei vs others.
         to_binary_mask: Convert mask to binary;  Set it false to restore original class values
     """
@@ -184,6 +185,14 @@ class SplitLabeld(MapTransform):
             others[others > 0] = 1
             if torch.count_nonzero(others):
                 others = measure.label(convert_to_numpy(others)[0], connectivity=1)
+                # discard ``others`` components smaller than ``min_area`` pixels
+                # (bincount-based so the semantics stay identical across skimage
+                # versions: skimage 0.26 changed remove_small_objects' threshold
+                # from "smaller than" to "smaller than or equal to")
+                sizes = np.bincount(others.ravel())
+                too_small = sizes < self.min_area
+                too_small[0] = False
+                others = np.where(too_small[others], 0, others)
                 others = torch.from_numpy(others)[None]
 
             label = mask.type(torch.uint8) if isinstance(mask, torch.Tensor) else mask
@@ -525,10 +534,17 @@ class PostFilterLabeld(MapTransform):
     Performs Filtering of Labels on the predicted probability map
 
     Args:
+        nuc_points: key of the click-point maps, used as reconstruction markers when
+            ``do_reconstruction`` is True.
+        bounding_boxes: key of the bounding boxes for each predicted instance.
+        img_height: key of the output image height.
+        img_width: key of the output image width.
         thresh: probability threshold for classifying a pixel as a mask
         min_size: min_size objects that will be removed from the image, refer skimage remove_small_objects
         min_hole: min_hole that will be removed from the image, refer skimage remove_small_holes
-        do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage
+        do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage.
+            When enabled, only the mask components containing click points (from the ``nuc_points``
+            key) are kept and regrown; components without a click point are discarded.
         allow_missing_keys: don't raise exception if key is missing.
         pred_classes: List of Predicted class for each instance
     """
@@ -569,15 +585,51 @@ class PostFilterLabeld(MapTransform):
 
         for key in self.keys:
             label = d[key].astype(np.uint8)
-            masks = self.post_processing(label, self.thresh, self.min_size, self.min_hole)
+            masks = self.post_processing(
+                label,
+                self.thresh,
+                self.min_size,
+                self.min_hole,
+                do_reconstruction=self.do_reconstruction,
+                nuc_points=d.get(self.nuc_points) if self.do_reconstruction else None,
+            )
             d[key] = self.gen_instance_map(masks, bounding_boxes, x, y, pred_classes=pred_classes).astype(np.uint8)
         return d
 
-    def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30):
+    def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30, do_reconstruction=False, nuc_points=None):
+        """
+        Convert predicted probability maps into cleaned binary instance masks.
+
+        Each channel is thresholded at ``thresh``, small objects and holes are removed, and,
+        when enabled, the mask is morphologically reconstructed from the nuclear marker points.
+
+        Args:
+            preds: predicted probability maps, as an array of shape ``(n_instances, H, W)``.
+            thresh: threshold used to binarize the predictions.
+            min_size: minimum area for a connected component to be kept,
+                passed to ``morphology.remove_small_objects``.
+            min_hole: maximum area of the holes to be filled,
+                passed to ``morphology.remove_small_holes``.
+            do_reconstruction: whether to morphologically reconstruct each mask from the
+                corresponding nuclear marker points.
+            nuc_points: optional nuclear points, one entry per instance, used as
+                reconstruction markers when ``do_reconstruction`` is enabled.
+
+        Returns:
+            Binary masks with the same shape as ``preds``.
+        """
         masks = preds > thresh
         for i in range(preds.shape[0]):
             masks[i] = morphology.remove_small_objects(masks[i], min_size=min_size)
             masks[i] = morphology.remove_small_holes(masks[i], area_threshold=min_hole)
+            if do_reconstruction and nuc_points is not None and i < len(nuc_points):
+                points = convert_to_numpy(nuc_points[i])
+                marker = points[0] > 0 if points.ndim == 3 else points > 0
+                # intersect with the filtered mask so that the marker always
+                # satisfies skimage's ``marker <= mask`` requirement
+                marker = np.logical_and(marker, masks[i])
+                if np.any(marker):
+                    masks[i] = morphology.reconstruction(marker, masks[i], footprint=morphology.disk(1))
         return masks
 
     def gen_instance_map(self, masks, bounding_boxes, x, y, flatten=True, pred_classes=None):
