@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
+from unittest.mock import Mock
 
 import numpy as np
 from parameterized import parameterized
@@ -83,6 +85,7 @@ class TestDiceCELoss(unittest.TestCase):
         else:  # dim == 3
             img, seg, instance_ids = create_test_image_3d(**input_param, return_instance_id=True)
 
+        self.assertEqual(img.shape, seg.shape)
         self.assertEqual(instance_ids.shape, seg.shape)
         self.assertEqual(instance_ids.dtype, np.int32)
         unique_ids = np.unique(instance_ids)
@@ -90,6 +93,37 @@ class TestDiceCELoss(unittest.TestCase):
         self.assertEqual(unique_ids[0], 0)
         self.assertTrue(np.all(unique_ids <= input_param["num_objs"]))
         np.testing.assert_array_equal(instance_ids > 0, seg > 0)
+
+    @parameterized.expand(product((2, 3), (0, 2, 12), (None, 0, -1)))
+    def test_instance_id_overlap(self, dim, offset, channel_dim):
+        """Check distinct IDs and later-object precedence at fixed object positions."""
+        generator = create_test_image_2d if dim == 2 else create_test_image_3d
+        centers = [(8,) * dim, (8 + offset,) + (8,) * (dim - 1)]
+        rs = Mock(spec=np.random.RandomState, wraps=np.random.RandomState(0))
+        rs.randint.side_effect = [value for center in centers for value in (*center, 3)]
+        image, labels, instance_ids = generator(
+            *((32,) * dim),
+            num_objs=2,
+            rad_min=3,
+            rad_max=4,
+            num_seg_classes=1,
+            channel_dim=channel_dim,
+            random_state=rs,
+            return_instance_id=True,
+        )
+
+        self.assertEqual(image.shape, labels.shape)
+        self.assertEqual(instance_ids.shape, labels.shape)
+        ids = instance_ids.squeeze()
+        self.assertEqual(ids[(0,) * dim], 0)
+        self.assertEqual(ids[centers[1]], 2)
+        first_only = (5,) + (8,) * (dim - 1)
+        self.assertEqual(ids[first_only], 2 if offset == 0 else 1)
+        if offset <= 2:
+            self.assertEqual(ids[centers[0]], 2)
+        expected_ids = [0, 2] if offset == 0 else [0, 1, 2]
+        np.testing.assert_array_equal(np.unique(ids), expected_ids)
+        np.testing.assert_array_equal(instance_ids > 0, labels > 0)
 
     def test_ill_radius(self):
         """Verify invalid radius bounds and image sizes raise ValueError."""

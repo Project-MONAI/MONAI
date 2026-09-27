@@ -50,7 +50,8 @@ def create_test_image_2d(
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
         return_instance_id: if True, also return an instance ID mask where every generated
-            object is assigned a unique positive integer. Defaults to `False`.
+            object is assigned a unique positive integer. Later objects overwrite earlier IDs
+            where they overlap, so fully covered objects may not appear in the mask. Defaults to `False`.
 
     Returns:
         A tuple of image and segmentation label arrays. If `return_instance_id=True`, also returns
@@ -137,7 +138,8 @@ def create_test_image_3d(
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
         return_instance_id: if True, also return an instance ID mask where every generated
-            object is assigned a unique positive integer. Defaults to `False`.
+            object is assigned a unique positive integer. Later objects overwrite earlier IDs
+            where they overlap, so fully covered objects may not appear in the mask. Defaults to `False`.
 
     Returns:
         A tuple of image and segmentation label arrays. If `return_instance_id=True`, also returns
