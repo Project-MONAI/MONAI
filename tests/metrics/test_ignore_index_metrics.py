@@ -24,6 +24,8 @@ from monai.metrics import (
     MeanIoU,
     SurfaceDiceMetric,
     SurfaceDistanceMetric,
+    compute_dice,
+    compute_iou,
 )
 from monai.utils import optional_import
 
@@ -141,6 +143,20 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
             res2 = res2[0]
 
         torch.testing.assert_close(res1, res2, msg=f"Failed for {metric_class.__name__}")
+
+    def test_ignored_voxels_excluded_from_other_classes(self):
+        """Ignored voxels must be dropped from every class score, not just their own."""
+        # 4 voxels, 3 one-hot classes; voxel 1 belongs to the ignored class 1
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        # a perfect prediction except the ignored voxel is called class 0
+        y_pred = torch.tensor([[[1.0, 1.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+
+        iou = compute_iou(y_pred, y, include_background=True, ignore_index=1)
+        dice = compute_dice(y_pred, y, include_background=True, ignore_index=1)
+
+        # the mislabelled voxel is ignored, so class 0 is scored as perfect
+        self.assertEqual(iou[0, 0].item(), 1.0)
+        torch.testing.assert_close(iou, dice, equal_nan=True)
 
 
 @unittest.skipUnless(has_scipy, "Scipy required for surface metrics")
