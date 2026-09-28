@@ -26,7 +26,7 @@ from monai.transforms import ForegroundMask, Randomizable, apply_transform
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import CommonKeys, ProbMapKeys, WSIPatchKeys
 
-__all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset", "MaskedPatchWSIDataset"]
+__all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset", "MaskedPatchWSIDataset", "AnnotationPatchWSIDataset"]
 
 
 class PatchWSIDataset(Dataset):
@@ -416,3 +416,166 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
             {**sample, WSIPatchKeys.LOCATION.value: np.array(loc), ProbMapKeys.LOCATION.value: mask_loc}
             for loc, mask_loc in zip(patch_locations, mask_locations)
         ]
+
+
+class AnnotationPatchWSIDataset(Randomizable, PatchWSIDataset):
+    """
+    This dataset extracts patches from whole slide images at locations sampled from user-provided
+    annotation masks with class-based weighted sampling.
+
+    Unlike `MaskedPatchWSIDataset` which uses automatic foreground detection, this dataset accepts
+    user-provided annotation masks where each pixel value represents a class label. Patches are
+    sampled based on configurable class weights, enabling balanced or custom sampling strategies.
+
+    Args:
+        data: the list of input samples including image and mask paths (see the note below for more details).
+        patch_size: the size of patch to be extracted from the whole slide image.
+        patch_level: the level at which the patches to be extracted (default to 0).
+        mask_level: the resolution level at which the annotation mask is provided.
+        num_patches_per_image: number of patches to sample per image.
+        sampling_weights: a dictionary mapping class labels (int) to sampling probabilities (float).
+            If None, uniform sampling across all annotated classes is used.
+        transform: transforms to be executed on input data.
+        include_label: whether to load and include labels in the output
+        center_location: whether the input location information is the position of the center of the patch
+        additional_meta_keys: the list of keys for items to be copied to the output metadata from the input data
+        reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
+            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
+        seed: random seed for reproducibility. Defaults to 0.
+        kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
+
+    Note:
+        The input data has the following form as an example:
+
+        .. code-block:: python
+
+            [
+                {"image": "path/to/image1.tiff", "mask": "path/to/mask1.npy"},
+                {"image": "path/to/image2.tiff", "mask": "path/to/mask2.npy"},
+            ]
+
+        The mask should be a numpy array (or loadable file) where each pixel value is an integer
+        class label. Background (class 0) is excluded from sampling by default.
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        patch_size: int | tuple[int, int] | None = None,
+        patch_level: int | None = None,
+        mask_level: int = 0,
+        num_patches_per_image: int = 100,
+        sampling_weights: dict[int, float] | None = None,
+        transform: Callable | None = None,
+        include_label: bool = True,
+        center_location: bool = False,
+        additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.NAME),
+        reader="cuCIM",
+        seed: int = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            data=[],
+            patch_size=patch_size,
+            patch_level=patch_level,
+            transform=transform,
+            include_label=include_label,
+            center_location=center_location,
+            additional_meta_keys=additional_meta_keys,
+            reader=reader,
+            **kwargs,
+        )
+
+        self.mask_level = mask_level
+        self.num_patches_per_image = num_patches_per_image
+        self.sampling_weights = sampling_weights
+        self.set_random_state(seed)
+
+        self.data: list
+        self.image_data = list(data)
+        for sample in self.image_data:
+            patch_samples = self._sample_patch_locations(sample)
+            self.data.extend(patch_samples)
+
+    def _load_mask(self, sample: dict) -> np.ndarray:
+        """Load the annotation mask from the sample."""
+        mask_path = sample["mask"]
+        if isinstance(mask_path, np.ndarray):
+            return mask_path
+        return np.load(mask_path)
+
+    def _sample_patch_locations(self, sample: dict) -> list[dict]:
+        """Sample patch locations from the annotation mask based on class weights."""
+        patch_size = self._get_size(sample)
+        patch_level = self._get_level(sample)
+        wsi_obj = self._get_wsi_object(sample)
+
+        # Load the annotation mask
+        mask = self._load_mask(sample)
+
+        # Get unique classes (exclude background=0)
+        classes = np.unique(mask)
+        classes = classes[classes != 0]
+
+        if len(classes) == 0:
+            return []
+
+        # Determine sampling weights
+        if self.sampling_weights is not None:
+            weights = np.array([self.sampling_weights.get(int(c), 0.0) for c in classes])
+        else:
+            # Uniform sampling across classes
+            weights = np.ones(len(classes))
+
+        # Normalize weights
+        weight_sum = weights.sum()
+        if weight_sum == 0:
+            return []
+        weights = weights / weight_sum
+
+        # Pre-compute locations for each class
+        class_locations: dict[int, np.ndarray] = {}
+        for c in classes:
+            locs = np.vstack(np.where(mask == c)).T
+            if len(locs) > 0:
+                class_locations[int(c)] = locs
+
+        # Sample patches
+        mask_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, self.mask_level)
+        patch_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, patch_level)
+        patch_size_0 = np.array([p * patch_ratio for p in patch_size])
+
+        patch_samples = []
+        for _ in range(self.num_patches_per_image):
+            # Sample a class
+            class_idx = self.R.choice(len(classes), p=weights)
+            chosen_class = int(classes[class_idx])
+
+            if chosen_class not in class_locations:
+                continue
+
+            # Sample a location from that class
+            locs = class_locations[chosen_class]
+            loc_idx = self.R.randint(len(locs))
+            mask_loc = locs[loc_idx]
+
+            # Convert mask location to image location at level 0
+            patch_loc = np.round((mask_loc + 0.5) * float(mask_ratio) - patch_size_0 // 2).astype(int)
+
+            patch_sample = {
+                **sample,
+                WSIPatchKeys.LOCATION.value: patch_loc,
+                WSIPatchKeys.SIZE.value: patch_size,
+                WSIPatchKeys.LEVEL.value: patch_level,
+                ProbMapKeys.LOCATION.value: mask_loc,
+                ProbMapKeys.NAME.value: os.path.basename(sample[CommonKeys.IMAGE]),
+                CommonKeys.LABEL: chosen_class,
+            }
+            patch_samples.append(patch_sample)
+
+        return patch_samples
