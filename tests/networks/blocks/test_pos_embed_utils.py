@@ -17,7 +17,9 @@ from monai.networks.blocks.pos_embed_utils import build_sincos_position_embeddin
 
 
 class TestBuildSincosPositionEmbedding(unittest.TestCase):
+    """Tests for build_sincos_position_embedding."""
     def test_unsupported_spatial_dims(self):
+        """Check that an unsupported spatial_dims raises an error reporting the value."""
         with self.assertRaisesRegex(NotImplementedError, "Spatial Dimension Size 4 Not Implemented"):
             build_sincos_position_embedding(grid_size=[2, 2, 2, 2], embed_dim=8, spatial_dims=4)
 
