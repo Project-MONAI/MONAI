@@ -61,6 +61,11 @@ class TestHoVerNetInstanceMapPostProcessingd(unittest.TestCase):
         # instance map
         assert_allclose(outputs[inst_map_key], expected_map, type_test=False)
 
+    def test_existing_output_key(self):
+        input = {HoVerNetBranch.NP.value: image.astype(float), "instance_map": image}
+        with self.assertRaisesRegex(ValueError, r"\['instance_map'\] already exists"):
+            HoVerNetInstanceMapPostProcessingd()(input)
+
 
 if __name__ == "__main__":
     unittest.main()
