@@ -65,6 +65,21 @@ class TestDataset(Dataset):
         return {"image": MetaTensor(x=image, meta=metadata), "pred": index + 1}
 
 
+class FloatLocationDataset(TestDataset):
+    """A dataset whose probability-map locations are floats.
+
+    `SlidingPatchWSIDataset` builds them with `np.round(...)` and never casts back to int,
+    so this is what the handler actually receives in the sliding-window WSI pipeline.
+    """
+
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
+    def __init__(self, name, size):
+        super().__init__(name, size)
+        for sample in self.data:
+            sample[ProbMapKeys.LOCATION.value] = sample[ProbMapKeys.LOCATION.value].astype(float)
+
+
 class TestEvaluator(Evaluator):
     __test__ = False  # indicate to pytest that this class is not intended for collection
 
@@ -73,10 +88,7 @@ class TestEvaluator(Evaluator):
 
 
 class TestHandlerProbMapGenerator(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
-    def test_prob_map_generator(self, name, size):
-        # set up dataset
-        dataset = TestDataset(name, size)
+    def run_and_check(self, dataset, name, size):
         batch_size = 2
         data_loader = DataLoader(dataset, batch_size=batch_size)
 
@@ -105,6 +117,14 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
         self.assertListEqual(np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)])
         self.assertListEqual(prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)])
+
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    def test_prob_map_generator(self, name, size):
+        self.run_and_check(TestDataset(name, size), name, size)
+
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    def test_prob_map_generator_float_locations(self, name, size):
+        self.run_and_check(FloatLocationDataset(name, size), name, size)
 
 
 if __name__ == "__main__":
