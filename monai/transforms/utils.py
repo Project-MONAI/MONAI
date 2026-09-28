@@ -2281,7 +2281,8 @@ def squarepulse(sig, duty: float = 0.5):
     w = convert_to_tensor(w)
     t = convert_to_tensor(t)
 
-    y = torch.zeros(t.shape)
+    out_dtype = t.dtype if t.is_floating_point() else torch.get_default_dtype()
+    y = torch.zeros_like(t, dtype=out_dtype)
 
     mask1 = (w > 1) | (w < 0)
 
