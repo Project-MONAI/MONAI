@@ -108,7 +108,9 @@ class ProbMapProducer:
         locs = engine.state.batch[CommonKeys.IMAGE].meta[ProbMapKeys.LOCATION]
         probs = engine.state.output[self.prob_key]
         for name, loc, prob in zip(names, locs, probs):
-            self.prob_map[name][tuple(loc)] = prob
+            # `SlidingPatchWSIDataset` derives these locations with `np.round` and never casts
+            # back to int, and numpy 2.x rejects non-integer array indices.
+            self.prob_map[name][tuple(int(i) for i in loc)] = prob
             with self.lock:
                 self.counter[name] -= 1
                 if self.counter[name] == 0:
