@@ -136,6 +136,21 @@ class TestLoadSavePNG(unittest.TestCase):
         self.png_rw(test_data, reader, writer, np.uint8, False)
 
 
+class UnavailableWriter:
+    """
+    Simulates a registered writer whose backend dependency is not installed:
+    ``require_pkg``-decorated writers raise ``OptionalImportError`` on instantiation.
+    """
+
+    pkg_name: str | None = "test123"
+
+    def __init__(self):
+        raise OptionalImportError(
+            f"required package `{self.pkg_name}` is not installed or the version doesn't match requirement.",
+            pkg_name=self.pkg_name,
+        )
+
+
 class TestRegRes(unittest.TestCase):
     def test_0_default(self):
         self.assertTrue(len(resolve_writer(".png")) > 0, "has png writer")
@@ -149,6 +164,62 @@ class TestRegRes(unittest.TestCase):
         register_writer("new", lambda x: x + 1)
         register_writer("new2", lambda x: x + 1)
         self.assertEqual(resolve_writer("new")[0](0), 1)
+
+    def test_2_install_hint(self):
+        register_writer("unknown2", UnavailableWriter)
+        with self.assertRaises(OptionalImportError) as cm:
+            resolve_writer("unknown2")
+        self.assertIn("pip install test123", str(cm.exception))
+
+    def test_3_install_hint_alias(self):
+        # the `PIL` import name should be translated to the installable name `pillow`
+
+        class NoPillow(UnavailableWriter):
+            pkg_name = "PIL"
+
+        register_writer("unknown3", NoPillow)
+        with self.assertRaises(OptionalImportError) as cm:
+            resolve_writer("unknown3")
+        self.assertIn("pip install pillow", str(cm.exception))
+
+    def test_4_multiple_install_hints(self):
+
+        class NoItk(UnavailableWriter):
+            pkg_name = "itk"
+
+        class NoNibabel(UnavailableWriter):
+            pkg_name = "nibabel"
+
+        register_writer("unknown4", NoItk, NoNibabel)
+        with self.assertRaises(OptionalImportError) as cm:
+            resolve_writer("unknown4")
+        self.assertIn("pip install itk", str(cm.exception))
+        self.assertIn("pip install nibabel", str(cm.exception))
+
+    def test_5_no_install_hint(self):
+        # a writer failing without package details keeps the generic message
+
+        class NoPkgName(UnavailableWriter):
+            def __init__(self):
+                raise OptionalImportError("some other reason")
+
+        register_writer("unknown5", NoPkgName)
+        with self.assertRaises(OptionalImportError) as cm:
+            resolve_writer("unknown5")
+        self.assertEqual(str(cm.exception), "No ImageWriter backend found for unknown5.")
+
+    def test_6_empty_result_not_cached(self):
+
+        class NoPkg456(UnavailableWriter):
+            pkg_name = "test456"
+
+        register_writer("unknown6", NoPkg456)
+        # a non-raising lookup with no available writer must not cache the empty result,
+        # so that a later lookup still reports the installation hint
+        self.assertEqual(resolve_writer("unknown6", error_if_not_found=False), ())
+        with self.assertRaises(OptionalImportError) as cm:
+            resolve_writer("unknown6")
+        self.assertIn("pip install test456", str(cm.exception))
 
 
 @unittest.skipUnless(has_itk, "itk not installed")
