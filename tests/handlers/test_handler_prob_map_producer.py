@@ -66,10 +66,10 @@ class TestDataset(Dataset):
 
 
 class FloatLocationDataset(TestDataset):
-    """A dataset whose probability-map locations are floats.
+    """A test fixture whose probability-map locations are floats.
 
-    `SlidingPatchWSIDataset` builds them with `np.round(...)` and never casts back to int,
-    so this is what the handler actually receives in the sliding-window WSI pipeline.
+    The bundled WSI datasets emit integer locations, so this stands in for a third-party
+    dataset that does not, which the handler still has to index the probability map with.
     """
 
     __test__ = False  # indicate to pytest that this class is not intended for collection
