@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .compare_sources import SKIP_EXTS, files_considered_equal, sources_equal
 from .component_store import ComponentStore
 from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
