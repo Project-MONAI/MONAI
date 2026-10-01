@@ -478,6 +478,7 @@ def max(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.max(x, int(dim), **kwargs)  # type: ignore
 
+    # pyrefly: ignore [bad-index]
     return ret[0] if isinstance(ret, tuple) else ret
 
 
@@ -544,6 +545,7 @@ def min(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.min(x, int(dim), **kwargs)  # type: ignore
 
+    # pyrefly: ignore [bad-index]
     return ret[0] if isinstance(ret, tuple) else ret
 
 
