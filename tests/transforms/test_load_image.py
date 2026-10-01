@@ -15,7 +15,9 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
+from unittest.mock import patch
 
 import nibabel as nib
 import numpy as np
@@ -24,11 +26,11 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.apps import download_and_extract
-from monai.data import NibabelReader, PydicomReader
+from monai.data import ImageReader, NibabelReader, PydicomReader
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
-from monai.utils import optional_import
+from monai.utils import OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -52,9 +54,39 @@ class _MiniReader:
         return np.zeros((1, 1, 1)), {"name": "my test"}
 
 
-TEST_CASE_1 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
+class _MissingDependencyReader(ImageReader):
+    """a test reader that simulates a missing optional dependency"""
 
-TEST_CASE_2 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
+    def __init__(self):
+        raise OptionalImportError("mock missing dependency")
+
+    def verify_suffix(self, _filename):
+        return True
+
+    def read(self, _data, **_kwargs):
+        return None
+
+    def get_data(self, _img):
+        return np.zeros((1, 1)), {}
+
+
+class _FallbackReader(ImageReader):
+    """a test reader that should not be used after an explicit reader import failure"""
+
+    read_called = False
+
+    def verify_suffix(self, _filename):
+        return True
+
+    def read(self, data, **_kwargs):
+        type(self).read_called = True
+        return data
+
+    def get_data(self, _img):
+        return np.zeros((1, 1)), {"name": "fallback"}
+
+
+TEST_CASE_1 = [{}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_3 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
 
@@ -63,8 +95,6 @@ TEST_CASE_3_1 = [  # .mgz format
     ["test_image.mgz", "test_image2.mgz", "test_image3.mgz"],
     (3, 128, 128, 128),
 ]
-
-TEST_CASE_4 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], (3, 128, 128, 128)]
 
 TEST_CASE_4_1 = [  # additional parameter
     {"mmap": False},
@@ -92,8 +122,6 @@ TEST_CASE_GPU_4 = [
 
 TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
-
 TEST_CASE_8 = [
     {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
@@ -104,12 +132,6 @@ TEST_CASE_8_1 = [
     {"reader": ITKReader(channel_dim=0) if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (384, 128, 128),
-]
-
-TEST_CASE_9 = [
-    {"reader": ITKReader() if has_itk else "itkreader"},
-    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    (3, 128, 128, 128),
 ]
 
 TEST_CASE_10 = [
@@ -184,6 +206,25 @@ for track_meta in (False, True):
     TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
 
 
+class TestLoadImageReaderSelection(unittest.TestCase):
+    def test_explicit_string_reader_missing_dependency_raises(self):
+        """test explicitly requested string readers don't fall back when their dependency is missing"""
+        _FallbackReader.read_called = False
+        readers = {"missingreader": _MissingDependencyReader, "fallbackreader": _FallbackReader}
+        with patch("monai.transforms.io.array.SUPPORTED_READERS", readers):
+            loader = LoadImage()
+            self.assertEqual(len(loader.readers), 1)
+            self.assertIsInstance(loader.readers[0], _FallbackReader)
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                with self.assertRaises(OptionalImportError):
+                    LoadImage(reader="missingreader")
+
+            self.assertEqual(len(caught), 0)
+            self.assertFalse(_FallbackReader.read_called)
+
+
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImage(unittest.TestCase):
     @classmethod
@@ -205,9 +246,7 @@ class TestLoadImage(unittest.TestCase):
         shutil.rmtree(cls.tmpdir)
         super().tearDownClass()
 
-    @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
-    )
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4_1, TEST_CASE_5])
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -249,7 +288,7 @@ class TestLoadImage(unittest.TestCase):
             result_cpu = LoadImage(image_only=True, **input_param_cpu)(filenames)
             assert_allclose(result_cpu, result.cpu(), atol=1e-6)
 
-    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_8, TEST_CASE_8_1])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
         print("Test image value range:", test_image.min(), test_image.max())

@@ -12,6 +12,9 @@ on:
       - main
       - releasing/*
 
+permissions:
+  contents: read
+
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
   group: build-docs-${{ github.event.pull_request.number || github.ref }}
@@ -23,6 +26,8 @@ jobs:
     env:
       # minimum supported version of Python
       PYTHON_VER1: '3.10'
+      # force installation of CPU-only PyTorch
+      PIP_EXTRA_INDEX_URL: 'https://download.pytorch.org/whl/cpu'
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}

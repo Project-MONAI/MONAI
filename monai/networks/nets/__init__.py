@@ -94,6 +94,7 @@ from .mednext import (
     MedNextSmall,
 )
 from .milmodel import MILModel
+from .navit import NaViT
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
 from .quicknat import Quicknat
