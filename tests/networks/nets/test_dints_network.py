@@ -212,19 +212,23 @@ class TestDintsArchCode(unittest.TestCase):
 
 
 class TestDintsTopologyCache(unittest.TestCase):
-    """`forward` branches on cached Python copies of `node_a` / `arch_code_a`.
+    """When compiling, `forward` branches on Python snapshots of `node_a` / `arch_code_a`.
 
-    The caches exist so torch.compile can constant-fold the branches instead of breaking the
-    graph on a tensor read. A cache that disagreed with its source would silently change which
-    cells are executed, so these tests pin the equivalence.
+    These tests pin both halves of that: the snapshot agrees with its source, and eager -- which
+    still reads the tensors -- honours mutations of the source.
     """
 
-    def _build(self, node_a=None):
+    def _build(self, node_a=None, all_paths_active=False):
         num_blocks, num_depths, spatial_dims = 6, 3, 3
         cell = Cell(1, 1, 0, spatial_dims=spatial_dims)
         rng = np.random.RandomState(0)
-        arch_code_a = rng.randint(0, 2, size=(num_blocks, 3 * num_depths - 2))
-        arch_code_a[0, 0] = 1  # keep at least one active path
+        if all_paths_active:
+            # a random code can leave a block with no active path, handing the next block a
+            # scalar; tests that actually run `forward` need every path live.
+            arch_code_a = np.ones((num_blocks, 3 * num_depths - 2), dtype=int)
+        else:
+            arch_code_a = rng.randint(0, 2, size=(num_blocks, 3 * num_depths - 2))
+            arch_code_a[0, 0] = 1  # keep at least one active path
         arch_code_c = rng.randint(len(cell.OPS), size=(num_blocks, 3 * num_depths - 2))
         grid = TopologyInstance(
             num_blocks=num_blocks,
@@ -252,12 +256,41 @@ class TestDintsTopologyCache(unittest.TestCase):
         self.assertEqual(net._node_a_py, (node_a != 0).tolist())
 
     def test_cache_resyncs_when_node_a_is_replaced(self):
-        """Deployment code assigns `node_a` after construction; the cache must follow."""
+        """Deployment code assigns `node_a` after construction; the snapshot must follow."""
         net, _ = self._build()
         replacement = torch.zeros_like(torch.as_tensor(net.node_a))
         replacement[0, 0] = 1
         net.node_a = replacement
         self.assertEqual(net._node_a_py, (replacement != 0).tolist())
+
+    def test_eager_honours_in_place_node_a_edit(self):
+        """Eager reads the live tensor, so an in-place edit changes the output as before."""
+        net, _ = self._build(node_a=torch.ones((7, 3)), all_paths_active=True)
+        net.eval()
+        x = torch.randn(1, 1, 32, 32, 32)
+        with torch.no_grad():
+            before = net(x).clone()
+        net.node_a[0][0] = 0
+        with torch.no_grad():
+            after = net(x)
+        self.assertFalse(torch.allclose(before, after))
+
+    def test_eager_honours_caller_owned_arch_code_array(self):
+        """`torch.from_numpy` aliases the caller's array; eager must see edits to it."""
+        num_blocks, num_depths, spatial_dims = 6, 3, 3
+        cell = Cell(1, 1, 0, spatial_dims=spatial_dims)
+        arch_code_a = np.ones((num_blocks, 3 * num_depths - 2))
+        arch_code_c = np.random.RandomState(0).randint(len(cell.OPS), size=(num_blocks, 3 * num_depths - 2))
+        grid = TopologyInstance(
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            device="cpu",
+            arch_code=[arch_code_a, arch_code_c],
+        )
+        self.assertTrue(bool(grid.arch_code_a[0, 0]))
+        arch_code_a[0, 0] = 0  # caller edits the array it passed in
+        self.assertFalse(bool(grid.arch_code_a[0, 0]))
 
 
 class TestDintsTS(unittest.TestCase):

@@ -485,12 +485,7 @@ class DiNTS(nn.Module):
     def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
         if name == "node_a" and value is not None:
-            # `forward` branches on these flags. Reading them from a tensor forces a graph
-            # break under torch.compile, so mirror them into a plain Python list that can be
-            # constant-folded. `!= 0` reproduces the truthiness of the original tensor test
-            # exactly; casting to int would make fractional values such as 0.5 falsy.
-            # This tracks rebinding only -- mutating `node_a` in place leaves the mirror
-            # stale, so replace the attribute rather than editing it.
+            # `!= 0`, not an int cast: casting would make a fractional flag such as 0.5 falsy.
             object.__setattr__(self, "_node_a_py", (torch.as_tensor(value) != 0).tolist())
 
     def weight_parameters(self):
@@ -503,12 +498,20 @@ class DiNTS(nn.Module):
         Args:
             x: input tensor.
         """
+        # Branching on `node_a` elements is a data-dependent tensor read that dynamo cannot
+        # constant-fold, costing 13 graph breaks; hand it the folded snapshot instead. Eager
+        # keeps the live tensor, so in-place edits still apply. TorchScript cannot type
+        # `tolist()` and folds `is_scripting()` away, so it indexes the tensor as before.
+        node_a = self.node_a != 0
+        if not torch.jit.is_scripting():
+            node_a = self._node_a_py if torch.compiler.is_compiling() else node_a.tolist()
+
         inputs = []
         for d in range(self.num_depths):
             # allow multi-resolution input
             _mod_w: StemInterface = self.stem_down[str(d)]  # type: ignore[assignment]
             x_out = _mod_w.forward(x)
-            if self._node_a_py[0][d]:
+            if node_a[0][d]:
                 inputs.append(x_out)
             else:
                 inputs.append(torch.zeros_like(x_out))
@@ -522,7 +525,7 @@ class DiNTS(nn.Module):
             _mod_up: StemInterface = self.stem_up[str(res_idx)]  # type: ignore[assignment]
             if start:
                 _temp = _mod_up.forward(outputs[res_idx] + _temp)
-            elif self._node_a_py[blk_idx + 1][res_idx]:
+            elif node_a[blk_idx + 1][res_idx]:
                 start = True
                 _temp = _mod_up.forward(outputs[res_idx])
         prediction = self.stem_finals(_temp)
@@ -644,9 +647,7 @@ class TopologyConstruction(nn.Module):
     def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
         if name == "arch_code_a" and value is not None:
-            # Mirrored for the same reason as `DiNTS._node_a_py`: `TopologyInstance.forward`
-            # branches on these flags, and reading them from a tensor breaks the
-            # torch.compile graph. Tracks rebinding only, not in-place mutation.
+            # See `DiNTS._node_a_py`.
             object.__setattr__(self, "_arch_code_a_py", (torch.as_tensor(value) != 0).tolist())
 
     def forward(self, x):
@@ -695,11 +696,16 @@ class TopologyInstance(TopologyConstruction):
         Args:
             x: input tensor.
         """
+        # See `DiNTS.forward`.
+        arch_code_a = self.arch_code_a != 0
+        if not torch.jit.is_scripting():
+            arch_code_a = self._arch_code_a_py if torch.compiler.is_compiling() else arch_code_a.tolist()
+
         # generate path activation probability
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
-            for res_idx, activation in enumerate(self._arch_code_a_py[blk_idx]):
+            for res_idx, activation in enumerate(arch_code_a[blk_idx]):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore[assignment]
                     _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
