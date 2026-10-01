@@ -1,10 +1,10 @@
 
-# This action will keep PRs branches updated which have been approved and have automerge enabled. This is meant to 
+# This action will keep PRs branches updated which have been approved and have automerge enabled. This is meant to
 # automate the integration of PRs which have been reviewed but will be stopped from merging when something else gets
 # merged first. Needing to manually update branches whenever this happens slows the review process so this action
 # should speed things along, but a PR with failed tests will stop this automation from helping. The key control is that
-# reviewers must approve AND enable automerge, a PR that's approved but should wait will be left alone if automerge 
-# isn't on. This action updates the oldest approved-automerging PR only to avoid wasting compute. 
+# reviewers must approve AND enable automerge, a PR that's approved but should wait will be left alone if automerge
+# isn't on. This action updates the oldest approved-automerging PR only to avoid wasting compute.
 
 # IMPORTANT: requires a personal access token (PAT_UPDATE_TOKEN) with contents and pull request read/write access.
 
