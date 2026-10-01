@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime
 import warnings
+from typing import Any
 
 import numpy as np
 import torch
@@ -481,6 +482,17 @@ class DiNTS(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
                 )
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+        if name == "node_a" and value is not None:
+            # `forward` branches on these flags. Reading them from a tensor forces a graph
+            # break under torch.compile, so mirror them into a plain Python list that can be
+            # constant-folded. `!= 0` reproduces the truthiness of the original tensor test
+            # exactly; casting to int would make fractional values such as 0.5 falsy.
+            # This tracks rebinding only -- mutating `node_a` in place leaves the mirror
+            # stale, so replace the attribute rather than editing it.
+            object.__setattr__(self, "_node_a_py", (torch.as_tensor(value) != 0).tolist())
+
     def weight_parameters(self):
         return [param for name, param in self.named_parameters()]
 
@@ -496,7 +508,7 @@ class DiNTS(nn.Module):
             # allow multi-resolution input
             _mod_w: StemInterface = self.stem_down[str(d)]  # type: ignore[assignment]
             x_out = _mod_w.forward(x)
-            if self.node_a[0][d]:
+            if self._node_a_py[0][d]:
                 inputs.append(x_out)
             else:
                 inputs.append(torch.zeros_like(x_out))
@@ -510,7 +522,7 @@ class DiNTS(nn.Module):
             _mod_up: StemInterface = self.stem_up[str(res_idx)]  # type: ignore[assignment]
             if start:
                 _temp = _mod_up.forward(outputs[res_idx] + _temp)
-            elif self.node_a[blk_idx + 1][res_idx]:
+            elif self._node_a_py[blk_idx + 1][res_idx]:
                 start = True
                 _temp = _mod_up.forward(outputs[res_idx])
         prediction = self.stem_finals(_temp)
@@ -628,6 +640,14 @@ class TopologyConstruction(nn.Module):
                         self._norm_name,
                     )
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+        if name == "arch_code_a" and value is not None:
+            # Mirrored for the same reason as `DiNTS._node_a_py`: `TopologyInstance.forward`
+            # branches on these flags, and reading them from a tensor breaks the
+            # torch.compile graph. Tracks rebinding only, not in-place mutation.
+            object.__setattr__(self, "_arch_code_a_py", (torch.as_tensor(value) != 0).tolist())
+
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
 
@@ -678,7 +698,7 @@ class TopologyInstance(TopologyConstruction):
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
-            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
+            for res_idx, activation in enumerate(self._arch_code_a_py[blk_idx]):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore[assignment]
                     _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)

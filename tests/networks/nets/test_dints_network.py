@@ -153,6 +153,55 @@ class TestDints(unittest.TestCase):
         self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
+class TestDintsTopologyCache(unittest.TestCase):
+    """`forward` branches on cached Python copies of `node_a` / `arch_code_a`.
+
+    The caches exist so torch.compile can constant-fold the branches instead of breaking the
+    graph on a tensor read. A cache that disagreed with its source would silently change which
+    cells are executed, so these tests pin the equivalence.
+    """
+
+    def _build(self, node_a=None):
+        num_blocks, num_depths, spatial_dims = 6, 3, 3
+        cell = Cell(1, 1, 0, spatial_dims=spatial_dims)
+        rng = np.random.RandomState(0)
+        arch_code_a = rng.randint(0, 2, size=(num_blocks, 3 * num_depths - 2))
+        arch_code_a[0, 0] = 1  # keep at least one active path
+        arch_code_c = rng.randint(len(cell.OPS), size=(num_blocks, 3 * num_depths - 2))
+        grid = TopologyInstance(
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            device="cpu",
+            arch_code=[arch_code_a, arch_code_c],
+        )
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, spatial_dims=spatial_dims, node_a=node_a)
+        return net, grid
+
+    def test_cache_matches_source_at_construction(self):
+        net, grid = self._build()
+        self.assertEqual(net._node_a_py, (net.node_a != 0).tolist())
+        self.assertEqual(grid._arch_code_a_py, (grid.arch_code_a != 0).tolist())
+
+    def test_cache_preserves_truthiness_not_int_value(self):
+        """Any non-zero entry is active; truncating to int would make 0.5 and -0.5 falsy."""
+        node_a = torch.ones((7, 3))
+        node_a[0, 0], node_a[1, 1], node_a[2, 2] = 0.5, -0.5, 0.0
+        net, _ = self._build(node_a=node_a)
+        self.assertEqual(net._node_a_py[0][0], True)
+        self.assertEqual(net._node_a_py[1][1], True)
+        self.assertEqual(net._node_a_py[2][2], False)
+        self.assertEqual(net._node_a_py, (node_a != 0).tolist())
+
+    def test_cache_resyncs_when_node_a_is_replaced(self):
+        """Deployment code assigns `node_a` after construction; the cache must follow."""
+        net, _ = self._build()
+        replacement = torch.zeros_like(torch.as_tensor(net.node_a))
+        replacement[0, 0] = 1
+        net.node_a = replacement
+        self.assertEqual(net._node_a_py, (replacement != 0).tolist())
+
+
 class TestDintsTS(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
