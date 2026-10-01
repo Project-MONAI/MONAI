@@ -34,7 +34,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_UPDATE_TOKEN }}  # PAT with read/write access to Contents and PullRequests
         run: |
           # Find all open PRs targeting this branch which are open and approved
-          PR_DATA=$(gh pr list --state open --search 'review:approved' --base ${{ github.ref_name }} --json number,reviewDecision,autoMergeRequest)
+          PR_DATA=$(gh pr list --state open --search 'review:approved sort:created-asc' --base ${{ github.ref_name }} --json number,reviewDecision,autoMergeRequest)
 
           echo '================================'
           echo "PR_DATA:"
