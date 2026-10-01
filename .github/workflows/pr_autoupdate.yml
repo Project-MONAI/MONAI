@@ -32,9 +32,10 @@ jobs:
       - name: Update the oldest PR which is approved and automerging-enabled
         env:
           GH_TOKEN: ${{ secrets.PAT_UPDATE_TOKEN }}  # PAT with read/write access to Contents and PullRequests
+          BASE_REF: ${{ github.ref_name }}  # neutralizes CWE-78 command injection through branch names with shell syntax
         run: |
           # Find all open PRs targeting this branch which are open and approved
-          PR_DATA=$(gh pr list --state open --search 'review:approved sort:created-asc' --base ${{ github.ref_name }} --json number,reviewDecision,autoMergeRequest)
+          PR_DATA=$(gh pr list --state open --search 'review:approved sort:created-asc' --base $BASE_REF --json number,reviewDecision,autoMergeRequest)
 
           echo '================================'
           echo "PR_DATA:"
