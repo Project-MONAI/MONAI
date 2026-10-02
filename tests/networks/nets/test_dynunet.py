@@ -17,6 +17,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.losses import DeepSupervisionLoss, DiceCELoss
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
 from monai.utils import optional_import
@@ -123,6 +124,40 @@ for params in dict_product(
     ]
     TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
+TEST_CASE_DEEP_SUPERVISION_LIST = []
+for params in dict_product(
+    spatial_dims=[2, 3],
+    res_block=[True, False],
+    deep_supr_num=[1, 2],
+    strides=[(1, 2, 1, 2, 1), (2, 2, 2, 1), (2, 1, 1, 2, 2)],
+):
+    spatial_dims = params["spatial_dims"]
+    deep_supr_num = params["deep_supr_num"]
+    strides = params["strides"]
+    res_block = params["res_block"]
+    # each head sits at a skip resolution: cumulative stride products of the input/downsample blocks
+    cum_strides = [strides[0]]
+    for stride in strides[1:-1]:
+        cum_strides.append(cum_strides[-1] * stride)
+    test_case = [
+        {
+            "spatial_dims": spatial_dims,
+            "in_channels": 1,
+            "out_channels": 2,
+            "kernel_size": [3] * len(strides),
+            "strides": strides,
+            "upsample_kernel_size": strides[1:],
+            "norm_name": ("group", {"num_groups": 16}),
+            "deep_supervision": True,
+            "deep_supr_num": deep_supr_num,
+            "deep_supr_output": "list",
+            "res_block": res_block,
+        },
+        (1, 1, *[in_size_ds] * spatial_dims),
+        [(1, 2, *[in_size_ds // cum_strides[level]] * spatial_dims) for level in range(deep_supr_num + 1)],
+    ]
+    TEST_CASE_DEEP_SUPERVISION_LIST.append(test_case)
+
 
 class TestDynUNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DYNUNET_3D)
@@ -183,6 +218,73 @@ class TestDynUNetDeepSupervision(unittest.TestCase):
         with torch.no_grad():
             results = net(torch.randn(input_shape).to(device))
             self.assertEqual(results.shape, expected_shape)
+
+
+TEST_CASE_DEEP_SUPERVISION_LIST_2D = {
+    "spatial_dims": 2,
+    "in_channels": 1,
+    "out_channels": 2,
+    "kernel_size": [3] * 5,
+    "strides": [1, 2, 1, 2, 1],
+    "upsample_kernel_size": [2, 1, 2, 1],
+    "deep_supervision": True,
+    "deep_supr_num": 2,
+    "deep_supr_output": "list",
+}
+
+
+class TestDynUNetDeepSupervisionList(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_DEEP_SUPERVISION_LIST)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        net = DynUNet(**input_param).to(device)
+        with torch.no_grad():
+            results = net(torch.randn(input_shape).to(device))
+        self.assertIsInstance(results, list)
+        self.assertEqual(len(results), len(expected_shapes))
+        for result, expected_shape in zip(results, expected_shapes):
+            self.assertEqual(tuple(result.shape), expected_shape)
+
+    def test_with_deep_supervision_loss(self):
+        net = DynUNet(**TEST_CASE_DEEP_SUPERVISION_LIST_2D).to(device)
+        net.train()
+        inputs = torch.randn(1, 1, 32, 32).to(device)
+        target = (torch.rand(1, 2, 32, 32).to(device) > 0.5).float()
+        outputs = net(inputs)
+        self.assertIsInstance(outputs, list)
+        loss = DeepSupervisionLoss(DiceCELoss(sigmoid=True))(outputs, target)
+        self.assertTrue(torch.isfinite(loss))
+        loss.backward()
+        for head in net.deep_supervision_heads:
+            for param in head.parameters():
+                self.assertIsNotNone(param.grad)
+
+    def test_eval_returns_single_tensor(self):
+        net = DynUNet(**TEST_CASE_DEEP_SUPERVISION_LIST_2D).to(device)
+        inputs = torch.randn(1, 1, 32, 32).to(device)
+        with eval_mode(net):
+            result = net(inputs)
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(tuple(result.shape), (1, 2, 32, 32))
+
+    def test_list_output_ignored_without_deep_supervision(self):
+        net = DynUNet(**{**TEST_CASE_DEEP_SUPERVISION_LIST_2D, "deep_supervision": False}).to(device)
+        net.train()
+        inputs = torch.randn(1, 1, 32, 32).to(device)
+        result = net(inputs)
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(tuple(result.shape), (1, 2, 32, 32))
+
+    def test_invalid_deep_supr_output(self):
+        with self.assertRaises(ValueError):
+            DynUNet(
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=2,
+                kernel_size=[3] * 4,
+                strides=[1, 2, 2, 1],
+                upsample_kernel_size=[2, 2, 1],
+                deep_supr_output="invalid",
+            )
 
 
 if __name__ == "__main__":
