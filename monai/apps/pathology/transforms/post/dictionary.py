@@ -536,7 +536,7 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
 
         for k in [self.instance_info_key, self.instance_map_key]:
             if k in d:
-                raise ValueError("The output key ['{k}'] already exists in the input dictionary!")
+                raise ValueError(f"The output key ['{k}'] already exists in the input dictionary!")
 
         d[self.instance_info_key], d[self.instance_map_key] = self.instance_map_post_process(
             d[self.nuclear_prediction_key], d[self.hover_map_key]
@@ -590,7 +590,7 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         )
         if self.return_type_map:
             if self.type_map_key in d:
-                raise ValueError("The output key ['{self.type_map_key}'] already exists in the input dictionary!")
+                raise ValueError(f"The output key ['{self.type_map_key}'] already exists in the input dictionary!")
             d[self.type_map_key] = type_map
 
         return d
