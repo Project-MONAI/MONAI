@@ -158,6 +158,28 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         self.assertEqual(iou[0, 0].item(), 1.0)
         torch.testing.assert_close(iou, dice, equal_nan=True)
 
+    def test_ignored_voxels_excluded_with_include_background_false(self):
+        """The ignore_index mask must line up with the ignore_background channel strip."""
+        # 4 one-hot classes: 0=background, 1, 2=ignored, 3
+        y = torch.zeros(1, 4, 4)
+        y[0, 0, 0] = 1  # voxel 0 -> background
+        y[0, 2, 1] = 1  # voxel 1 -> ignored class
+        y[0, 1, 2] = 1  # voxel 2 -> class 1
+        y[0, 3, 3] = 1  # voxel 3 -> class 3
+
+        y_pred = y.clone()
+        # mislabel the ignored voxel as class 1 instead of leaving it unpredicted
+        y_pred[0, 2, 1] = 0
+        y_pred[0, 1, 1] = 1
+
+        iou = compute_iou(y_pred, y, include_background=False, ignore_index=2)
+        dice = compute_dice(y_pred, y, include_background=False, ignore_index=2)
+
+        # class 1's false positive at the ignored voxel must be dropped, not just
+        # its own (now background-stripped) channel
+        self.assertEqual(iou[0, 0].item(), 1.0)
+        torch.testing.assert_close(iou, dice, equal_nan=True)
+
 
 @unittest.skipUnless(has_scipy, "Scipy required for surface metrics")
 class TestIgnoreIndexSurfaceMetrics(unittest.TestCase):
