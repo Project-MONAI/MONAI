@@ -311,7 +311,17 @@ class InvalidPyTorchVersionError(Exception):
 class OptionalImportError(ImportError):
     """
     Could not import APIs from an optional dependency.
+
+    Args:
+        msg: the error message.
+        pkg_name: name of the missing package that caused the import error, if known.
+            It is used to provide installation hints to the users. Defaults to ``None``.
+
     """
+
+    def __init__(self, msg: str = "", pkg_name: str | None = None):
+        super().__init__(msg)
+        self.pkg_name = pkg_name
 
 
 def optional_import(
@@ -464,6 +474,12 @@ def require_pkg(
         raise_error: if True, raise `OptionalImportError` error if the required package is not installed
             or the version doesn't match requirement, if False, print the error in a warning.
 
+    Raises:
+        OptionalImportError: When ``raise_error`` is True and the required package is not installed or its
+            version doesn't match the requirement. The error records the name of the package to install
+            in ``pkg_name``, with the required version constraint appended when ``version`` is specified
+            (e.g. ``itk>=5.2``), so that installation hints install a compatible version.
+
     """
 
     def _decorator(obj):
@@ -476,7 +492,12 @@ def require_pkg(
             if not has:
                 err_msg = f"required package `{pkg_name}` is not installed or the version doesn't match requirement."
                 if raise_error:
-                    raise OptionalImportError(err_msg)
+                    name = pkg_name
+                    if version:
+                        # record the version constraint so that installation hints install a compatible
+                        # version; `>=` is assumed for any `version_checker` other than `exact_version`
+                        name = f"{pkg_name}{'==' if version_checker is exact_version else '>='}{version}"
+                    raise OptionalImportError(err_msg, pkg_name=name)
                 else:
                     warnings.warn(err_msg)
 
