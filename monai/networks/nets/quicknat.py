@@ -128,7 +128,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     Every convolutional layer is preceded by a batch-normalization layer and a Rectifier Linear Unit (ReLU) layer.
     The first two convolutional layers are followed by a concatenation layer that concatenates
     the input feature map with outputs of the current and previous convolutional blocks.
-    Kernel size of two convolutional layers kept small to limit number of paramters.
+    Kernel size of two convolutional layers kept small to limit number of parameters.
     Appropriate padding is provided so that the size of feature maps before and after convolution remains constant.
     The output channels for each convolution layer is set to 64, which acts as a bottle- neck for feature map selectivity.
     The input channel size is variable, depending on the number of dense connections.
@@ -136,7 +136,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     but has a 1 * 1 kernel size to compress the feature map size to 64.
     Args:
         in_channels: variable depending on depth of the network
-        se_Layer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
+        se_layer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
         dropout_layer: Dropout block to be included, defaults to None.
     :return: forward passed tensor
     """
