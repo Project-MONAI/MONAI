@@ -135,8 +135,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     The third convolutional layer is also preceded by a batch normalization and ReLU,
     but has a 1 * 1 kernel size to compress the feature map size to 64.
     Args:
-        in_channles: variable depending on depth of the network
-        seLayer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
+        in_channels: variable depending on depth of the network
+        se_Layer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
         dropout_layer: Dropout block to be included, defaults to None.
     :return: forward passed tensor
     """
@@ -343,11 +343,11 @@ class Quicknat(nn.Module):
         num_filters: number of output channels for each convolutional layer in a Dense Block.
         kernel_size: size of the kernel of each convolutional layer in a Dense Block.
         kernel_c: convolution kernel size of classifier block kernel.
-        stride_convolution: convolution stride. Defaults to 1.
+        stride_conv: convolution stride. Defaults to 1.
         pool: kernel size of the pooling layer,
         stride_pool: stride for the pooling layer.
         se_block: Squeeze and Excite block type to include. Use ``None`` or ``"None"`` to disable it; valid enabled values are ``"CSE"``, ``"SSE"``, and ``"CSSE"``.
-        droup_out: dropout ratio. Defaults to no dropout.
+        drop_out: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         adn_ordering: a string representing the ordering of activation (A), normalization (N), and dropout (D).
