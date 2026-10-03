@@ -38,14 +38,19 @@ TESTS = []
 for type in (VanillaGrad, SmoothGrad, GuidedBackpropGrad, GuidedBackpropSmoothGrad):
     # 2D densenet
     TESTS.append([type, DENSENET2D, (1, 1, 48, 64)])
+    TESTS.append([type, DENSENET2D, (4, 1, 48, 64)])
     # 3D densenet
     TESTS.append([type, DENSENET3D, (1, 1, 6, 6, 6)])
+    TESTS.append([type, DENSENET3D, (2, 1, 6, 6, 6)])
     # 2D senet
     TESTS.append([type, SENET2D, (1, 3, 64, 64)])
+    TESTS.append([type, SENET2D, (3, 3, 64, 64)])
     # 3D senet
     TESTS.append([type, SENET3D, (1, 3, 8, 8, 48)])
+    TESTS.append([type, SENET3D, (2, 3, 8, 8, 48)])
     # 2D densenet - adjoint
     TESTS.append([type, DENSENET2DADJOINT, (1, 1, 48, 64)])
+    TESTS.append([type, DENSENET2DADJOINT, (3, 1, 48, 64)])
 
 
 class TestGradientClassActivationMap(unittest.TestCase):
