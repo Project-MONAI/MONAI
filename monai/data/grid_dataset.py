@@ -219,6 +219,8 @@ class GridPatchDataset(IterableDataset):
 
     """
 
+    _shards_by_worker = True
+
     def __init__(
         self,
         data: Iterable | Sequence,
@@ -404,6 +406,8 @@ class PatchDataset(IterableDataset):
         >>> torch.Size([2, 1, 3, 3])
 
     """
+
+    _shards_by_worker = True
 
     def __init__(
         self, data: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Callable | None = None
