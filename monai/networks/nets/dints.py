@@ -349,7 +349,7 @@ class DiNTS(nn.Module):
         use_downsample: use downsample in the stem.
             If ``False``, the search space will be in resolution [1, 1/2, 1/4, 1/8],
             if ``True``, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
-        node_a: node activation numpy matrix. Its shape is `(num_depths, num_blocks + 1)`.
+        node_a: node activation matrix (numpy array or tensor). Its shape is `(num_blocks + 1, num_depths)`.
             +1 for multi-resolution inputs.
             In model searching stage, ``node_a`` can be None. In deployment stage, ``node_a`` cannot be None.
     """
@@ -522,7 +522,8 @@ class TopologyConstruction(nn.Module):
     The base class for `TopologyInstance` and `TopologySearch`.
 
     Args:
-        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
+        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays, torch tensors or nested lists (anything
+            accepted by ``torch.as_tensor``). The architecture codes defining the model.
             For example, for a ``num_depths=4, num_blocks=12`` search space:
 
             - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
@@ -608,8 +609,12 @@ class TopologyConstruction(nn.Module):
             arch_code_a = torch.ones((self.num_blocks, len(self.arch_code2out))).to(self.device)
             arch_code_c = torch.ones((self.num_blocks, len(self.arch_code2out), self.num_cell_ops)).to(self.device)
         else:
-            arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
+            # accept numpy arrays (legacy search checkpoints), torch tensors (checkpoints that are
+            # loadable with ``torch.load(weights_only=True)``) or nested lists (JSON/YAML configs)
+            arch_code_a = torch.as_tensor(arch_code[0], device=self.device)
+            arch_code_c = F.one_hot(
+                torch.as_tensor(arch_code[1], device=self.device).to(torch.int64), self.num_cell_ops
+            )
 
         self.arch_code_a = arch_code_a
         self.arch_code_c = arch_code_c
