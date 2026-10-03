@@ -235,7 +235,6 @@ class BasicUNet(nn.Module):
         """
         super().__init__()
         fea = ensure_tuple_rep(features, 6)
-        print(f"BasicUNet features: {fea}.")
 
         self.conv_0 = TwoConv(spatial_dims, in_channels, features[0], act, norm, bias, dropout)
         self.down_1 = Down(spatial_dims, fea[0], fea[1], act, norm, bias, dropout)

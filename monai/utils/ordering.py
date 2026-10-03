@@ -148,7 +148,7 @@ class Ordering:
         else:
             rows, columns, depths = (template.shape[0], template.shape[1], template.shape[2])
 
-        sequence = eval(f"self.{self.ordering_type}_idx")(rows, columns, depths)
+        sequence = getattr(self, f"{self.ordering_type}_idx")(rows, columns, depths)
 
         ordering = np.array([template[tuple(e)] for e in sequence])
 

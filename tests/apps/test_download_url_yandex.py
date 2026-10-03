@@ -18,10 +18,6 @@ from urllib.error import HTTPError
 
 from monai.apps.utils import download_url
 
-YANDEX_MODEL_URL = (
-    "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
-    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2Fxs0gzlj2_irgWA"
-)
 YANDEX_MODEL_FLAWED_URL = (
     "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
     "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2Fxs0gzlj2_irgWA-url-with-error"
@@ -29,11 +25,6 @@ YANDEX_MODEL_FLAWED_URL = (
 
 
 class TestDownloadUrlYandex(unittest.TestCase):
-
-    @unittest.skip("data source unstable")
-    def test_verify(self):
-        with tempfile.TemporaryDirectory() as tempdir:
-            download_url(url=YANDEX_MODEL_URL, filepath=os.path.join(tempdir, "model.pt"))
 
     def test_verify_error(self):
         with tempfile.TemporaryDirectory() as tempdir:

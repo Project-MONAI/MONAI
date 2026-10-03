@@ -434,6 +434,7 @@ class AddInitialSeedPointDeepEditd(Randomizable, MapTransform):
         else:
             logger.info(f"Not slice IDs for label: {key_label}")
             sid = None
+        # pyrefly: ignore [unsupported-operation]
         self.sid[key_label] = sid
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
@@ -561,6 +562,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         self.guidance: dict[str, list[list[int]]] = {}
 
     def randomize(self, data=None):
+        # pyrefly: ignore [unsupported-operation]
         probability = data[self.probability]
         self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
 
@@ -885,6 +887,7 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         else:
             logger.info(f"Not slice IDs for label: {key_label}")
             sid = None
+        # pyrefly: ignore [unsupported-operation]
         self.sid[key_label] = sid
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:

@@ -160,6 +160,7 @@ class MILModel(nn.Module):
                 ]
             )
             self.transformer = transformer_list
+            # pyrefly: ignore [unsupported-operation]
             nfc = nfc + 256
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 

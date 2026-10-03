@@ -250,8 +250,10 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                     self.offset_limits = None
                 elif isinstance(offset_limits, tuple):
                     if isinstance(offset_limits[0], int):
+                        # pyrefly: ignore [bad-assignment]
                         self.offset_limits = (offset_limits, offset_limits)
                     elif isinstance(offset_limits[0], tuple):
+                        # pyrefly: ignore [bad-assignment]
                         self.offset_limits = offset_limits
                     else:
                         raise ValueError(

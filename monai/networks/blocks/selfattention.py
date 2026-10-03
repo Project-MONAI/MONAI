@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -70,6 +72,13 @@ class SABlock(nn.Module):
                 fast path via ``is_causal=True``. When an additive bias is required (for example,
                 ``rel_pos_embedding``, or ``causal``/``attn_mask`` merged with another bias),
                 PyTorch falls back to the memory-efficient or cuDNN SDPA backend.
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if ``causal`` is True and ``sequence_length`` is not provided.
+            ValueError: if both ``save_attn`` and ``use_flash_attention`` are True.
+            ValueError: if ``rel_pos_embedding`` is not None and ``use_flash_attention`` is True.
 
         """
 
@@ -153,7 +162,7 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x, attn_mask: torch.Tensor | None = None):
+    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):  # noqa: UP045
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
