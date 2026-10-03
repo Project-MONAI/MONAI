@@ -96,7 +96,7 @@ class TestRandGridDistortiond(unittest.TestCase):
         result = g(data)
         self.assertIsInstance(result["label"], int)
         self.assertIsInstance(result["filename"], str)
-        
+
     def test_no_transform_with_non_tensor_metadata(self):
         """When _do_transform is False, non-tensor values in the dict should not cause an error."""
         img = np.indices([6, 6]).astype(np.float32)
