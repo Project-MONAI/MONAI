@@ -1129,6 +1129,7 @@ def generate_spatial_bounding_box(
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
     allow_smaller: bool = False,
+    keep_largest_component: bool = False,
 ) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -1151,12 +1152,19 @@ def generate_spatial_bounding_box(
             final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
             the bounding boxes edges are aligned with the final box edges. Default to `False`.
             The default value is changed from `True` to `False` in v1.5.0.
+        keep_largest_component: if `True`, keep only the largest connected component of the `select_fn(img)` mask
+            before computing the bounding box, dropping smaller disconnected foreground regions (for example,
+            isolated text/marker annotations next to the anatomy of interest). Default to `False` to preserve
+            existing behavior, since `select_fn` can legitimately select multiple disjoint structures that should
+            all remain in the box (e.g. several organs in one volume).
 
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
+    if keep_largest_component:
+        data = get_largest_connected_component_mask(data)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
