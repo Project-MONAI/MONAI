@@ -152,16 +152,10 @@ def compute_iou(
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
-    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
-        ignore_channel = ignore_index if include_background else ignore_index - 1
-        if 0 <= ignore_channel < y_pred.shape[1]:
-            y_pred = y_pred.clone()
-            y = y.clone()
-            y_pred[:, ignore_channel] = 0
-            y[:, ignore_channel] = 0
-        mask = None
-    else:
-        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+    # Use the same spatial masking as DiceHelper so both metrics exclude the
+    # same voxels: zeroing the ignored channel alone would leave voxels of the
+    # ignored class counting as false positives for the other classes
+    mask = create_ignore_mask(original_y, ignore_index)
     if mask is not None:
         if mask.shape != y_pred.shape:
             mask = mask.expand_as(y_pred)
