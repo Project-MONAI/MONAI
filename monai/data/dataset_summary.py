@@ -219,7 +219,7 @@ class DatasetSummary:
         all_intensities = list(chain(*all_intensities))
         if not all_intensities:
             raise ValueError(
-                f"no foreground voxels found in any sample with foreground_threshold={foreground_threshold}; "
+                f"No foreground voxels found in any sample with {foreground_threshold=}; "
                 "set foreground_threshold=-1 to compute statistics over whole images."
             )
         self.data_min_percentile, self.data_max_percentile = np.percentile(
