@@ -36,7 +36,7 @@ from monai.utils import (
 tqdm, _ = optional_import("tqdm", name="tqdm")
 _nearest_mode = "nearest-exact"
 
-__all__ = ["sliding_window_inference"]
+__all__ = ["sliding_window_inference", "sliding_window_inference_with_reduction"]
 
 
 def sliding_window_inference(
@@ -439,3 +439,291 @@ def _pack_struct(seg_out, dict_keys=None):
     if isinstance(seg_out, (list, tuple)) and len(seg_out) == 1:
         return seg_out[0]
     return ensure_tuple(seg_out)
+
+
+def sliding_window_inference_with_reduction(
+    inputs: torch.Tensor | MetaTensor,
+    roi_size: Sequence[int] | int,
+    sw_batch_size: int,
+    predictor: Callable[..., torch.Tensor],
+    overlap: Sequence[float] | float = 0.25,
+    mode: BlendMode | str = BlendMode.CONSTANT,
+    sigma_scale: Sequence[float] | float = 0.125,
+    padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
+    cval: float = 0.0,
+    sw_device: torch.device | str | None = None,
+    device: torch.device | str | None = None,
+    progress: bool = False,
+    roi_weight_map: torch.Tensor | None = None,
+    reduction_fn: Callable | None = None,
+    reduction_dim: int = 1,
+    output_dtype: torch.dtype | None = None,
+    outer_dim: int | None = None,
+    *args: Any,
+    **kwargs: Any,
+) -> torch.Tensor:
+    """
+    Memory-efficient sliding window inference with online reduction.
+
+    Instead of accumulating full-resolution probabilities for the entire volume,
+    this function processes slabs along one spatial dimension and applies a
+    reduction function (e.g., ``torch.argmax``) as soon as each slab is complete.
+    This dramatically reduces peak memory for many-class segmentation tasks.
+
+    For example, 100-class segmentation on a 384-cubed volume with roi_size=128:
+
+    - Standard SWI: ~22 GB peak (B x 100 x 384^3 float32 buffer)
+    - This function: ~7.5 GB peak (B x 100 x 128 x 384^2 slab buffer + B x 1 x 384^3 uint8 output)
+
+    Note:
+        This function only supports single-tensor predictor output (not tuple/dict).
+        Multi-resolution outputs (where model output spatial size differs from ``roi_size``)
+        are not supported. For those cases, use ``sliding_window_inference``.
+
+    Args:
+        inputs: input image to be processed (assuming NCHW[D]).
+        roi_size: the spatial window size for inferences.
+            When its components have None or non-positives, the corresponding inputs dimension will be used.
+        sw_batch_size: the batch size to run window slices.
+        predictor: given input tensor ``patch_data`` in shape NCHW[D],
+            ``predictor(patch_data)`` should return a single tensor of shape NM'H'W'[D'],
+            where H'W'[D'] must equal the input patch spatial size.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+        sigma_scale: the standard deviation coefficient of the Gaussian window when `mode` is ``"gaussian"``.
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode for ``inputs``, when ``roi_size`` is larger than inputs.
+        cval: fill value for 'constant' padding mode. Default: 0
+        sw_device: device for the window data and slab accumulation buffer.
+            By default the device of the ``inputs`` is used.
+        device: device for the final reduced output tensor.
+            By default the device of the ``inputs`` is used.
+        progress: whether to print a `tqdm` progress bar.
+        roi_weight_map: pre-computed (non-negative) weight map for each ROI.
+        reduction_fn: function to reduce the accumulated probabilities per slab.
+            Signature: ``reduction_fn(tensor, dim) -> tensor``.
+            Default: ``lambda x, dim: torch.argmax(x, dim=dim)``.
+        reduction_dim: the dimension to reduce over. Default: 1 (channel dimension).
+        output_dtype: dtype for the reduced output tensor. Default: ``torch.uint8``.
+        outer_dim: spatial dimension index (0-based) to iterate slabs along.
+            Default: automatically selects the largest spatial dimension.
+        args: optional args to be passed to ``predictor``.
+        kwargs: optional keyword args to be passed to ``predictor``.
+
+    Returns:
+        Reduced output tensor. For the default ``argmax`` with ``reduction_dim=1``,
+        the output shape is ``(B, 1, *spatial)`` with dtype ``output_dtype``.
+
+    """
+    if reduction_fn is None:
+        reduction_fn = lambda x, dim: torch.argmax(x, dim=dim)
+    if output_dtype is None:
+        output_dtype = torch.uint8
+
+    num_spatial_dims = len(inputs.shape) - 2
+    if isinstance(roi_size, Sequence):
+        if num_spatial_dims != len(roi_size):
+            raise ValueError(
+                f"Inputs must have {len(roi_size) + 2} dimensions for {len(roi_size)}D roi_size "
+                f"(Batch, Channel, {', '.join(['Spatial'] * len(roi_size))}), "
+                f"but got inputs shape {inputs.shape}."
+            )
+
+    overlap = ensure_tuple_rep(overlap, num_spatial_dims)
+    for o in overlap:
+        if o < 0 or o >= 1:
+            raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
+    compute_dtype = inputs.dtype
+
+    batch_size, _, *image_size_ = inputs.shape
+    device = device or inputs.device
+    sw_device = sw_device or inputs.device
+
+    temp_meta = None
+    if isinstance(inputs, MetaTensor):
+        temp_meta = MetaTensor([]).copy_meta_from(inputs, copy_attr=False)
+    inputs = convert_data_type(inputs, torch.Tensor, wrap_sequence=True)[0]
+    roi_size = fall_back_tuple(roi_size, image_size_)
+
+    # pad if image is smaller than roi
+    image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
+    pad_size = []
+    for k in range(len(inputs.shape) - 1, 1, -1):
+        diff = max(roi_size[k - 2] - inputs.shape[k], 0)
+        half = diff // 2
+        pad_size.extend([half, diff - half])
+    if any(pad_size):
+        inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+
+    # auto-select outer_dim as the largest spatial dimension
+    if outer_dim is None:
+        outer_dim = max(range(num_spatial_dims), key=lambda d: image_size[d])
+    elif outer_dim < 0:
+        outer_dim += num_spatial_dims
+    if not (0 <= outer_dim < num_spatial_dims):
+        raise ValueError(f"outer_dim must be in [0, {num_spatial_dims}), got {outer_dim}.")
+
+    roi_d = roi_size[outer_dim]
+
+    # scan intervals and all patch positions
+    scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
+    all_slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=True)
+
+    # importance map
+    valid_patch_size = get_valid_patch_size(image_size, roi_size)
+    if valid_patch_size == roi_size and roi_weight_map is not None:
+        importance_map = roi_weight_map
+    else:
+        try:
+            valid_p_size = ensure_tuple(valid_patch_size)
+            importance_map = compute_importance_map(
+                valid_p_size, mode=mode, sigma_scale=sigma_scale, device=sw_device, dtype=compute_dtype
+            )
+            if len(importance_map.shape) == num_spatial_dims:
+                importance_map = importance_map[None, None]
+        except Exception as e:
+            raise RuntimeError(
+                f"patch size {valid_p_size}, mode={mode}, sigma_scale={sigma_scale}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
+            ) from e
+    importance_map = convert_data_type(importance_map, torch.Tensor, device=sw_device, dtype=compute_dtype)[0]
+
+    # group slices by outer_dim start position
+    slices_by_outer: dict[int, list] = {}
+    for s in all_slices:
+        key = s[outer_dim].start
+        if key not in slices_by_outer:
+            slices_by_outer[key] = []
+        slices_by_outer[key].append(s)
+    outer_starts = sorted(slices_by_outer.keys())
+
+    ndim_full = 2 + num_spatial_dims
+    slab_buffer: torch.Tensor | None = None
+    count_buffer: torch.Tensor | None = None
+    output: torch.Tensor | None = None
+    buf_start = 0
+
+    def _make_outer_idx(outer_slice, batch_s=slice(None), channel_s=slice(None)):
+        """Build index tuple with a specific slice along outer_dim, slice(None) elsewhere."""
+        idx: list[slice] = [batch_s, channel_s]
+        for d in range(num_spatial_dims):
+            idx.append(outer_slice if d == outer_dim else slice(None))
+        return tuple(idx)
+
+    def _flush_rows(n_rows):
+        """Reduce completed rows from the slab buffer and store in the output."""
+        nonlocal buf_start, slab_buffer, count_buffer
+        if n_rows <= 0 or slab_buffer is None or count_buffer is None or output is None:
+            return
+
+        flush_idx = _make_outer_idx(slice(0, n_rows))
+        count_flush_idx = _make_outer_idx(slice(0, n_rows), channel_s=slice(0, 1))
+
+        completed = slab_buffer[flush_idx] / count_buffer[count_flush_idx].clamp_(min=1e-8)
+        reduced = reduction_fn(completed.to(device), reduction_dim)
+        if reduced.dim() < ndim_full:
+            reduced = reduced.unsqueeze(reduction_dim)
+
+        out_idx = _make_outer_idx(slice(buf_start, buf_start + n_rows))
+        output[out_idx] = reduced.to(dtype=output_dtype)
+
+        remaining = roi_d - n_rows
+        if remaining > 0:
+            src_idx = _make_outer_idx(slice(n_rows, roi_d))
+            dst_idx = _make_outer_idx(slice(0, remaining))
+            count_src = _make_outer_idx(slice(n_rows, roi_d), channel_s=slice(0, 1))
+            count_dst = _make_outer_idx(slice(0, remaining), channel_s=slice(0, 1))
+            overlap_data = slab_buffer[src_idx].clone()
+            overlap_count = count_buffer[count_src].clone()
+            slab_buffer.zero_()
+            count_buffer.zero_()
+            slab_buffer[dst_idx] = overlap_data
+            count_buffer[count_dst] = overlap_count
+        else:
+            slab_buffer.zero_()
+            count_buffer.zero_()
+
+        buf_start += n_rows
+
+    # main loop over slab positions
+    windows_iter = tqdm(outer_starts) if progress else outer_starts
+    for p in windows_iter:
+        # flush rows completed before this outer position
+        _flush_rows(p - buf_start)
+
+        patches = slices_by_outer[p]
+        all_windows = [(b, s) for b in range(batch_size) for s in patches]
+
+        for chunk_start in range(0, len(all_windows), sw_batch_size):
+            chunk = all_windows[chunk_start : chunk_start + sw_batch_size]
+
+            win_data = torch.cat(
+                [inputs[(slice(b, b + 1), slice(None)) + tuple(s)] for b, s in chunk], dim=0
+            ).to(sw_device)
+
+            seg_prob = predictor(win_data, *args, **kwargs)
+            if not isinstance(seg_prob, torch.Tensor):
+                raise TypeError(
+                    "sliding_window_inference_with_reduction only supports single-tensor predictor output, "
+                    f"got {type(seg_prob)}. Use sliding_window_inference for tuple/dict outputs."
+                )
+
+            # initialize buffers on first prediction
+            if slab_buffer is None:
+                seg_shape = tuple(seg_prob.shape[2:])
+                if seg_shape != tuple(roi_size):
+                    raise NotImplementedError(
+                        f"Model output spatial size {seg_shape} differs from roi_size {tuple(roi_size)}. "
+                        "Multi-resolution output is not supported by "
+                        "sliding_window_inference_with_reduction."
+                    )
+                n_ch = seg_prob.shape[1]
+                buf_shape = [batch_size, n_ch]
+                count_shape = [batch_size, 1]
+                for d in range(num_spatial_dims):
+                    dim_size = roi_d if d == outer_dim else image_size[d]
+                    buf_shape.append(dim_size)
+                    count_shape.append(dim_size)
+                slab_buffer = torch.zeros(buf_shape, dtype=compute_dtype, device=sw_device)
+                count_buffer = torch.zeros(count_shape, dtype=compute_dtype, device=sw_device)
+
+                # determine output shape after reduction
+                dummy = torch.zeros([1, n_ch] + [1] * num_spatial_dims)
+                dummy_reduced = reduction_fn(dummy, reduction_dim)
+                if dummy_reduced.dim() < ndim_full:
+                    dummy_reduced = dummy_reduced.unsqueeze(reduction_dim)
+                out_ch = dummy_reduced.shape[1]
+                output = torch.zeros([batch_size, out_ch] + list(image_size), dtype=output_dtype, device=device)
+
+            # accumulate into slab buffer
+            w_t = importance_map
+            for i, (b, s) in enumerate(chunk):
+                local_outer = s[outer_dim].start - buf_start
+                local_s = list(s)
+                local_s[outer_dim] = slice(local_outer, local_outer + roi_d)
+                buf_idx = (slice(b, b + 1), slice(None)) + tuple(local_s)
+                count_idx = (slice(b, b + 1), slice(0, 1)) + tuple(local_s)
+
+                slab_buffer[buf_idx] += seg_prob[i : i + 1].to(dtype=compute_dtype, device=sw_device) * w_t
+                count_buffer[count_idx] += w_t
+
+    # flush remaining rows
+    if slab_buffer is not None:
+        _flush_rows(image_size[outer_dim] - buf_start)
+
+    if output is None:
+        raise RuntimeError("No windows were processed. Check roi_size and image dimensions.")
+
+    # remove padding
+    if any(pad_size):
+        final_slicing: list[slice] = [slice(None), slice(None)]
+        for sp in range(num_spatial_dims):
+            si = num_spatial_dims - sp - 1
+            final_slicing.insert(2, slice(pad_size[sp * 2], pad_size[sp * 2] + image_size_[si]))
+        output = output[tuple(final_slicing)]
+
+    if temp_meta is not None:
+        output = convert_to_dst_type(output, temp_meta, device=device)[0]
+
+    return output
