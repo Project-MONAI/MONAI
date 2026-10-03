@@ -170,7 +170,7 @@ class DatasetSummary:
 
         if voxel_ct == 0:
             raise ValueError(
-                f"no foreground voxels found in any sample with foreground_threshold={foreground_threshold}; "
+                f"No foreground voxels found in any sample with {foreground_threshold=}; "
                 "set foreground_threshold=-1 to compute statistics over whole images."
             )
         self.data_max, self.data_min = max(voxel_max), min(voxel_min)
