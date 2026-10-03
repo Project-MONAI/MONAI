@@ -24,6 +24,7 @@ from .scripts import (
     get_bundle_info,
     get_bundle_versions,
     init_bundle,
+    inspect_ckpt,
     load,
     onnx_export,
     push_to_hf_hub,
