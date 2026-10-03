@@ -55,8 +55,8 @@ class JukeboxLoss(_Loss):
         self.fft_norm = fft_norm
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        input_amplitude = self._get_fft_amplitude(target)
-        target_amplitude = self._get_fft_amplitude(input)
+        input_amplitude = self._get_fft_amplitude(input)
+        target_amplitude = self._get_fft_amplitude(target)
 
         # Compute distance between amplitude of frequency components
         # See Section 3.3 from https://arxiv.org/abs/2005.00341

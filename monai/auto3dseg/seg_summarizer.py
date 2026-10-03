@@ -208,6 +208,7 @@ class SegSummarizer(Compose):
 
         for analyzer in self.summary_analyzers:
             if callable(analyzer):
+                # pyrefly: ignore [missing-attribute]
                 report.update({analyzer.stats_name: analyzer(data)})
 
         return report

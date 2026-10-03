@@ -68,6 +68,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def check_meta(self, a: MetaTensor, b: MetaTensor) -> None:
         self.assertEqual(a.is_batch, b.is_batch)
+        self.assertEqual(a.spatial_ndim, b.spatial_ndim)
         meta_a, meta_b = a.meta, b.meta
         # need to split affine from rest of metadata
         aff_a = meta_a.get("affine", None)
@@ -434,8 +435,12 @@ class TestMetaTensor(unittest.TestCase):
         for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.uint16):
             self.assertIsInstance(t.astype(np_types), np.ndarray)
         for pt_types in ("torch.float", torch.float, "torch.float64"):
-            self.assertIsInstance(t.astype(pt_types), torch.Tensor)
-        self.assertIsInstance(t.astype("torch.float", device="cpu"), torch.Tensor)
+            result = t.astype(pt_types)
+            self.assertIsInstance(result, MetaTensor)
+            self.assertEqual(result.meta.get("fname"), "filename")
+        result = t.astype("torch.float", device="cpu")
+        self.assertIsInstance(result, MetaTensor)
+        self.assertEqual(result.meta.get("fname"), "filename")
 
     def test_transforms(self):
         key = "im"

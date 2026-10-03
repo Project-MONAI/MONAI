@@ -367,14 +367,14 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
     def exclusion_map(self, others, dtype, jitter_range, drop_rate):
         point_mask = torch.zeros_like(others, dtype=dtype)
-        if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
+        if self.R.choice([True, False], p=[drop_rate, 1 - drop_rate]):
             return point_mask
 
         max_x = point_mask.shape[0] - 1
         max_y = point_mask.shape[1] - 1
         stats = measure.regionprops(convert_to_numpy(others))
         for stat in stats:
-            if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
+            if self.R.choice([True, False], p=[drop_rate, 1 - drop_rate]):
                 continue
 
             # random jitter

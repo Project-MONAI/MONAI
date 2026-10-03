@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -63,6 +65,13 @@ class CrossAttentionBlock(nn.Module):
             attention_dtype: cast attention operations to this dtype.
             use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
                 (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads`` when ``dim_head`` is not set.
+            ValueError: if ``causal`` is True and ``sequence_length`` is not provided.
+            ValueError: if both ``save_attn`` and ``use_flash_attention`` are True.
+            ValueError: if ``rel_pos_embedding`` is not None and ``use_flash_attention`` is True.
         """
 
         super().__init__()
@@ -132,7 +141,7 @@ class CrossAttentionBlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None):  # noqa: UP045
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C

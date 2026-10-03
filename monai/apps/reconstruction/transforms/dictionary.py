@@ -20,6 +20,7 @@ from torch import Tensor
 from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import InvertibleTransform
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.intensity.array import NormalizeIntensity
@@ -33,15 +34,36 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
     Moves keys from meta to data. It is useful when a dataset of paired samples
     is loaded and certain keys should be moved from meta to data.
 
+    This transform supports two modes:
+
+    1. When ``meta_key`` references a metadata dictionary in the data (e.g., when
+       ``image_only=False`` was used with ``LoadImaged``), the requested keys are
+       extracted directly from that dictionary.
+
+    2. When ``meta_key`` references a ``MetaTensor`` in the data (e.g., when
+       ``image_only=True`` was used with ``LoadImaged``), the requested keys are
+       extracted from its ``.meta`` attribute.
+
     Args:
         keys: keys to be transferred from meta to data
-        meta_key: the meta key where all the meta-data is stored
+        meta_key: the key in the data dictionary where the metadata source is
+            stored. This can be either a metadata dictionary or a ``MetaTensor``.
         allow_missing_keys: don't raise exception if key is missing
 
     Example:
         When the fastMRI dataset is loaded, "kspace" is stored in the data dictionary,
         but the ground-truth image with the key "reconstruction_rss" is stored in the meta data.
         In this case, ExtractDataKeyFromMetaKeyd moves "reconstruction_rss" to data.
+
+        When ``LoadImaged`` is used with ``image_only=True`` (the default), the loaded
+        data is a ``MetaTensor`` with metadata accessible via ``.meta``. In this case,
+        set ``meta_key`` to the key of the ``MetaTensor`` itself::
+
+            li = LoadImaged(keys="image")  # image_only=True by default
+            dat = li({"image": "image.nii"})
+            e = ExtractDataKeyFromMetaKeyd("filename_or_obj", meta_key="image")
+            dat = e(dat)
+            assert dat["image"].meta["filename_or_obj"] == dat["filename_or_obj"]
     """
 
     def __init__(self, keys: KeysCollection, meta_key: str, allow_missing_keys: bool = False) -> None:
@@ -58,9 +80,18 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
             the new data dictionary
         """
         d = dict(data)
+        meta_obj = d[self.meta_key]
+
+        # If meta_key references a MetaTensor, extract from its .meta attribute;
+        # otherwise treat it as a metadata dictionary directly.
+        if isinstance(meta_obj, MetaTensor):
+            meta_dict: dict = meta_obj.meta
+        else:
+            meta_dict = dict(meta_obj)
+
         for key in self.keys:
-            if key in d[self.meta_key]:
-                d[key] = d[self.meta_key][key]  # type: ignore
+            if key in meta_dict:
+                d[key] = meta_dict[key]  # type: ignore
             elif not self.allow_missing_keys:
                 raise KeyError(
                     f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the meta data"

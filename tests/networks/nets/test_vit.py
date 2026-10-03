@@ -127,6 +127,33 @@ class TestViT(unittest.TestCase):
         matrix_acess_blk(torch.randn(in_shape))
         assert matrix_acess_blk.blocks[0].attn.att_mat.shape == (in_shape[0], 12, 216, 216)
 
+    def test_load_old_state_dict_drops_stale_cross_attn_keys(self):
+        # simulate an old checkpoint where CrossAttentionBlock was always instantiated
+        net = ViT(
+            in_channels=1,
+            img_size=(32, 32),
+            patch_size=(16, 16),
+            hidden_size=64,
+            mlp_dim=128,
+            num_layers=2,
+            num_heads=4,
+            spatial_dims=2,
+        )
+        old_state = {k: torch.rand_like(v) for k, v in net.state_dict().items()}
+        # inject stale cross_attn keys that the new model no longer has
+        old_state["blocks.0.cross_attn.to_q.weight"] = torch.randn(64, 64)
+        old_state["blocks.0.cross_attn.out_proj.weight"] = torch.randn(64, 64)
+        old_state["blocks.1.cross_attn.to_v.weight"] = torch.randn(64, 64)
+
+        # save expected values before the call since load_old_state_dict pops matching keys
+        expected = {k: v.clone() for k, v in old_state.items() if k in net.state_dict()}
+        net.load_old_state_dict(old_state)
+
+        # all current model keys should be loaded from old_state; stale keys silently dropped
+        loaded = net.state_dict()
+        for k in loaded:
+            self.assertTrue(torch.allclose(loaded[k], expected[k]))
+
 
 if __name__ == "__main__":
     unittest.main()

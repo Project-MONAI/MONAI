@@ -154,7 +154,7 @@ class CumulativeAverage:
         # account for possible non-finite numbers in val and replace them with 0s
         nfin = torch.isfinite(val)
         if not torch.all(nfin):
-            warnings.warn(f"non-finite inputs received: val: {val}, count: {count}")
+            warnings.warn(f"non-finite inputs received: val: {val}, count: {count}", stacklevel=2)
             count = torch.where(nfin, count, torch.zeros_like(count))
             val = torch.where(nfin, val, torch.zeros_like(val))
 
