@@ -19,6 +19,7 @@ import torch
 
 from monai.metrics.utils import (
     compute_voronoi_regions_fast,
+    create_ignore_mask,
     do_metric_reduction,
     get_edge_surface_distance,
     ignore_background,
@@ -65,8 +66,11 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
-
     """
 
     def __init__(
@@ -76,6 +80,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         distance_metric: str = "euclidean",
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
         per_component: bool = False,
     ) -> None:
         super().__init__()
@@ -84,6 +89,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.symmetric = symmetric
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
         self.per_component = per_component
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
@@ -120,6 +126,12 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
                     "(B, 2, H, W) or (B, 2, D, H, W). "
                     f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
                 )
+
+        mask = create_ignore_mask(y, self.ignore_index)
+        if mask is not None:
+            y_pred = y_pred * mask
+            y = y * mask
+
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
             y_pred=y_pred,
@@ -129,6 +141,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
             spacing=kwargs.get("spacing"),
             per_component=self.per_component,
+            ignore_index=self.ignore_index,
         )
 
     def aggregate(
@@ -159,6 +172,7 @@ def compute_average_surface_distance(
     symmetric: bool = False,
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
+    ignore_index: int | None = None,
     per_component: bool = False,
 ) -> torch.Tensor:
     """
@@ -187,6 +201,9 @@ def compute_average_surface_distance(
             If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
             else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
             for all images in batch. Defaults to ``None``.
+        ignore_index: optional class index used to suppress empty-mask warnings when that class is ignored.
+            For federated or aggregated settings, ensure all clients use the same ignore_index to keep score
+            values comparable.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
@@ -204,6 +221,8 @@ def compute_average_surface_distance(
 
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
+
+    class_offset = 0 if include_background else 1
 
     for b, c in np.ndindex(batch_size, n_class):
         if per_component:
@@ -270,16 +289,25 @@ def compute_average_surface_distance(
                     torch.tensor(np.nan) if surface_distance.shape == (0,) else surface_distance.mean()
                 )
             asd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
-        else:
+        else:            
+            yp = y_pred[b, c]
+            yt = y[b, c]
+
+            absolute_c = c + class_offset
+            warn_empty = ignore_index is None or absolute_c != ignore_index
             _, distances, _ = get_edge_surface_distance(
-                y_pred[b, c],
-                y[b, c],
+                yp,
+                yt,
                 distance_metric=distance_metric,
                 spacing=spacing_list[b],
                 symmetric=symmetric,
                 class_index=c,
+                warn_empty=warn_empty,
             )
+
             surface_distance = torch.cat(distances)
-            asd[b, c] = torch.tensor(np.nan) if surface_distance.shape == (0,) else surface_distance.mean()
+            asd[b, c] = (
+                torch.tensor(float("nan"), device=asd.device) if surface_distance.numel() == 0 else surface_distance.mean()
+            )
 
     return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]

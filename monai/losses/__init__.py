@@ -12,7 +12,9 @@
 from __future__ import annotations
 
 from .adversarial_loss import PatchAdversarialLoss
+from .aucm_loss import AUCMLoss
 from .barlow_twins import BarlowTwinsLoss
+from .boundary_loss import BoundaryLoss
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss, DiffusionLoss

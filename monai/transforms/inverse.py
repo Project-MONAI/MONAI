@@ -215,7 +215,7 @@ class TraceableTransform(Transform):
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
             try:
-                affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+                affine = orig_affine @ to_affine_nd(orig_affine.shape[-1] - 1, affine, dtype=torch.float64)
             except RuntimeError as e:
                 if orig_affine.ndim > 2:
                     if data_t.is_batch:
@@ -402,11 +402,20 @@ class TraceableTransform(Transform):
 
     @contextmanager
     def trace_transform(self, to_trace: bool):
-        """Temporarily set the tracing status of a transform with a context manager."""
+        """Temporarily set the tracing status of a transform.
+
+        The previous tracing state is restored when the context exits normally
+        or because of an exception.
+
+        Args:
+            to_trace: tracing state to use within the context.
+        """
         prev = self.tracing
         self.tracing = to_trace
-        yield
-        self.tracing = prev
+        try:
+            yield
+        finally:
+            self.tracing = prev
 
 
 class InvertibleTransform(TraceableTransform, InvertibleTrait):

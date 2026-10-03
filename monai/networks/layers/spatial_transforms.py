@@ -566,7 +566,7 @@ class AffineTransform(nn.Module):
                 affine=theta,
                 src_size=src_size[2:],
                 dst_size=dst_size[2:],
-                align_corners=False,
+                align_corners=self.align_corners,
                 zero_centered=self.zero_centered,
             )
         if self.reverse_indexing:

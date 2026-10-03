@@ -154,21 +154,21 @@ class TestAffineTransform(unittest.TestCase):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform()(image, affine, (1, 4))
-        expected = [[[[2.333333, 3.333333, 4.333333, 5.333333]]]]
+        expected = [[[[5.0, 6.0, 7.0, 8.0]]]]
         np.testing.assert_allclose(out, expected, atol=_rtol)
 
     def test_zoom_2(self):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float32)
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((1, 2))(image, affine)
-        expected = [[[[1.458333, 4.958333]]]]
+        expected = [[[[5.0, 7.0]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
 
     def test_zoom_zero_center(self):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float32)
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((1, 2), zero_centered=True)(image, affine)
-        expected = [[[[5.5, 7.5]]]]
+        expected = [[[[5.0, 8.0]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
 
     def test_affine_transform_minimum(self):
@@ -379,6 +379,55 @@ class TestAffineTransform(unittest.TestCase):
         actual = actual.detach().cpu().numpy()
         np.testing.assert_allclose(actual, expected)
         np.testing.assert_allclose(list(theta.shape), [1, 3, 4])
+
+    def test_align_corners_consistency(self):
+        """
+        Test that align_corners is consistently used between to_norm_affine and grid_sample.
+
+        With an identity affine transform, the output should match the input regardless of
+        the align_corners setting. This test verifies that the coordinate normalization
+        in to_norm_affine uses the same align_corners value as affine_grid/grid_sample.
+        """
+        # Create a simple test image
+        image = torch.arange(1.0, 13.0).view(1, 1, 3, 4)
+
+        # Identity affine in pixel space (i, j, k convention with reverse_indexing=True)
+        identity_affine = torch.eye(3, dtype=torch.float32).unsqueeze(0)
+
+        # Test with align_corners=True (the default)
+        xform_true = AffineTransform(align_corners=True)
+        out_true = xform_true(image, identity_affine)
+        np.testing.assert_allclose(out_true.detach().cpu().numpy(), image.detach().cpu().numpy(), atol=1e-5, rtol=_rtol)
+
+        # Test with align_corners=False
+        xform_false = AffineTransform(align_corners=False)
+        out_false = xform_false(image, identity_affine)
+        np.testing.assert_allclose(
+            out_false.detach().cpu().numpy(), image.detach().cpu().numpy(), atol=1e-5, rtol=_rtol
+        )
+
+    def test_align_corners_true_translation(self):
+        """
+        Test that translation works correctly with align_corners=True.
+
+        This ensures to_norm_affine correctly converts pixel-space translations
+        to normalized coordinates when align_corners=True.
+        """
+        # 4x4 image
+        image = torch.arange(1.0, 17.0).view(1, 1, 4, 4)
+
+        # Translate by +1 pixel in the j direction (column direction)
+        # With reverse_indexing=True (default), this is the last spatial dimension
+        # Positive translation in the affine shifts the sampling grid, resulting in
+        # the output appearing shifted in the opposite direction
+        affine = torch.tensor([[[1.0, 0.0, 0.0], [0.0, 1.0, 1.0], [0.0, 0.0, 1.0]]])
+
+        xform = AffineTransform(align_corners=True, padding_mode="zeros")
+        out = xform(image, affine)
+
+        # Expected: shift columns left by 1, rightmost column becomes 0
+        expected = torch.tensor([[[[2, 3, 4, 0], [6, 7, 8, 0], [10, 11, 12, 0], [14, 15, 16, 0]]]], dtype=torch.float32)
+        np.testing.assert_allclose(out.detach().cpu().numpy(), expected.detach().cpu().numpy(), atol=1e-4, rtol=_rtol)
 
 
 if __name__ == "__main__":

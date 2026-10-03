@@ -246,7 +246,9 @@ class MaisiConvolution(nn.Module):
 
         # update padding length if necessary
         padding = 3
+        # pyrefly: ignore [unsupported-operation]
         if padding % self.stride > 0:
+            # pyrefly: ignore [unsupported-operation]
             padding = (padding // self.stride + 1) * self.stride
         if self.print_info:
             logger.info(f"Padding size: {padding}")

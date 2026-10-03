@@ -5,6 +5,11 @@
             "hash_type": "sha256",
             "hash_val": "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
         },
+        "wsi_generic_tiff_correct_mpp": {
+            "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1_correct_mpp.tiff",
+            "hash_type": "sha256",
+            "hash_val": "65306e3f8f7f5282d19d942dadc525cd06a80d5fd8268053939751365226c65f"
+        },
         "wsi_aperio_svs": {
             "url": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/Aperio-CMU-1.svs",
             "hash_type": "sha256",
