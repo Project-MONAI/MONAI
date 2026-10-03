@@ -22,16 +22,20 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
+from monai.transforms.spatial.functional import _compiled_unsupported
 from monai.utils import fall_back_tuple
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product, skip_if_quick
 
-# Define the static parts of each test case
-_template_5_expected_output = (
-    torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
-    if USE_COMPILED
-    else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
-)
+_TEMPLATE_5_COMPILED = torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+_TEMPLATE_5_NATIVE = torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
+
+
+def _template_5_expected_output(device: torch.device) -> torch.Tensor:
+    if USE_COMPILED and not _compiled_unsupported(device):
+        return _TEMPLATE_5_COMPILED
+    return _TEMPLATE_5_NATIVE
+
 
 all_template_parts = [
     [
@@ -241,6 +245,8 @@ class TestSpacingCase(unittest.TestCase):
 
         test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)
 
+        if callable(expected_output):
+            expected_output = expected_output(device)
         assert_allclose(res, expected_output, atol=1e-1, rtol=1e-1)
         sr = min(len(res.shape) - 1, 3)
         if isinstance(init_param["pixdim"], float):

@@ -965,8 +965,7 @@ class ImageHistogram(Analyzer):
             self.hist_range = nr_channels * self.hist_range
         if len(self.hist_range) != nr_channels:
             raise ValueError(
-                f"There is a mismatch between the number of channels ({nr_channels}) "
-                f"and histogram ranges ({len(self.hist_range)})."
+                f"There is a mismatch between the number of channels ({nr_channels}) and histogram ranges ({len(self.hist_range)})."
             )
 
         # perform calculation

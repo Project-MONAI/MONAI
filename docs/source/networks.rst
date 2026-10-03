@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -127,6 +132,23 @@ Blocks
 `Transformer Block`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TransformerBlock
+    :members:
+
+`Hyena Mixer`
+~~~~~~~~~~~~~
+.. autoclass:: HyenaMixer
+    :members:
+
+`Hyena Transformer Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HyenaTransformerBlock
+    :members:
+
+`Depthwise FFT Convolution`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DepthwiseFFTConv2d
+    :members:
+.. autoclass:: DepthwiseFFTConv3d
     :members:
 
 `UNETR Block`
@@ -591,6 +613,11 @@ Nets
 .. autoclass:: SwinUNETR
     :members:
 
+`HyenaNDUNETR`
+~~~~~~~~~~~~~~
+.. autoclass:: HyenaNDUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -638,6 +665,11 @@ Nets
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
+  :members:
+
+`NaViT`
+~~~~~~~
+.. autoclass:: NaViT
   :members:
 
 `ViT`
@@ -766,6 +798,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities

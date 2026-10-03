@@ -133,7 +133,7 @@ def create_test_image_3d(
     if rad_max <= rad_min:
         raise ValueError(f"`rad_min` {rad_min} should be less than `rad_max` {rad_max}.")
     if rad_min < 1:
-        raise ValueError("f`rad_min` {rad_min} should be no less than 1.")
+        raise ValueError(f"`rad_min` {rad_min} should be no less than 1.")
     min_size = min(height, width, depth)
     if min_size <= 2 * rad_max:
         raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")

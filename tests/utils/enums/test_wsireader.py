@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import unittest
 from pathlib import Path
@@ -473,6 +474,21 @@ def setUpModule():
 class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
+
+        def tearDown(self):
+            """Force deterministic cleanup of any backend WSI handles.
+
+            ``LoadImage`` calls ``reader.read`` and then discards the returned
+            object after ``get_data`` (see ``monai/transforms/io/array.py``);
+            for WSI readers that object is a ``TiffFile`` / ``OpenSlide`` /
+            ``CuImage`` instance that owns an open file descriptor. Without
+            forcing a collection here, the temp TIFFs used by these tests
+            stay open long enough for the interpreter to emit
+            ``ResourceWarning: unclosed file ...``. Running ``gc.collect``
+            invokes the corresponding ``__del__`` finalizers, which all close
+            the underlying handle.
+            """
+            gc.collect()
 
         @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):

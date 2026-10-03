@@ -38,6 +38,7 @@ class TestSqueezeDim(unittest.TestCase):
         self.assertTupleEqual(result.shape, expected_shape)
         if "dim" in input_param and input_param["dim"] == 2 and isinstance(result, MetaTensor):
             assert_allclose(result.affine.shape, [3, 3])
+            self.assertEqual(result.spatial_ndim, result.affine.shape[-1] - 1)
 
     @parameterized.expand(TESTS_FAIL)
     def test_invalid_inputs(self, exception, input_param, test_data):

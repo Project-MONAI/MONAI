@@ -917,6 +917,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         align_corners: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         """
         Args:
@@ -969,6 +970,10 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
+            rotate_order: for 3D inputs, the order in which the axes are rotated about when building the rotation
+                from ``rotate_params``, following the convention of
+                :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+                :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
@@ -988,6 +993,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             dtype=dtype,  # type: ignore
             align_corners=align_corners,
             lazy=lazy,
+            rotate_order=rotate_order,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1161,8 +1167,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         # all the keys share the same random Affine factor
@@ -1322,8 +1327,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         device = self.rand_2d_elastic.device
@@ -1473,8 +1477,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
@@ -1752,6 +1755,9 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        rotate_order: for 3D inputs, the order in which the axes are rotated about, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See
+            :py:func:`monai.transforms.utils.create_rotate`. Defaults to ``"XYZ"`` (the legacy behaviour).
     """
 
     backend = Rotate.backend
@@ -1767,10 +1773,11 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        rotate_order: str = "XYZ",
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy=lazy)
-        self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy)
+        self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy, rotate_order=rotate_order)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -2134,8 +2141,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 
@@ -2311,8 +2317,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
 
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
             warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])
@@ -2634,8 +2639,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 
