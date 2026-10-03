@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 from monai.metrics.utils import (
+    compute_voronoi_regions_fast,
     create_ignore_mask,
     do_metric_reduction,
     get_edge_surface_distance,
@@ -40,6 +41,19 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
 
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
+
+    The ``per_component=True`` approach computes the Surface Distance on a per-connected component basis in the ground
+    truth segmentation. This ensures that each component contributes equally to the final metric, regardless of its size.
+    Traditional Surface Distance can be dominated by large structures, but the per-component method gives a more
+    balanced evaluation, particularly for small or fragmented objects. This provides a granular assessment of segmentation
+    quality, which is especially important in cases with multiple disconnected foreground components.
+    Note:
+    - The input prediction (`y_pred`) and ground truth (`y`) must both have 2 channels (foreground/background),
+    with binary segmentation (0 for background, 1 for foreground). That is, this assumes the shape of both prediction
+    and ground truth is B2HW[D].
+    - This method cannot be used with multiclass segmentation.
+    For more information, refer to the original paper: https://arxiv.org/abs/2410.18684
+
     Args:
         include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
@@ -56,7 +70,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
             or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
             ignore_index to keep score values comparable.
-
+        per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
     def __init__(
@@ -67,6 +81,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_index: int | None = None,
+        per_component: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -75,6 +90,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_index = ignore_index
+        self.per_component = per_component
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
@@ -100,6 +116,16 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         """
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
+        if self.per_component:
+            same_rank = y_pred.ndim == y.ndim and y_pred.ndim in (4, 5)
+            binary_channels = y_pred.shape[1] == 2 and y.shape[1] == 2
+            same_shape = y_pred.shape == y.shape
+            if not (same_rank and binary_channels and same_shape):
+                raise ValueError(
+                    "per_component requires matching 4D/5D binary tensors "
+                    "(B, 2, H, W) or (B, 2, D, H, W). "
+                    f"Got y_pred={tuple(y_pred.shape)}, y={tuple(y.shape)}."
+                )
 
         mask = create_ignore_mask(y, self.ignore_index)
         if mask is not None:
@@ -114,6 +140,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             symmetric=self.symmetric,
             distance_metric=self.distance_metric,
             spacing=kwargs.get("spacing"),
+            per_component=self.per_component,
             ignore_index=self.ignore_index,
         )
 
@@ -146,6 +173,7 @@ def compute_average_surface_distance(
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
     ignore_index: int | None = None,
+    per_component: bool = False,
 ) -> torch.Tensor:
     """
     This function is used to compute the Average Surface Distance from `y_pred` to `y`
@@ -176,6 +204,7 @@ def compute_average_surface_distance(
         ignore_index: optional class index used to suppress empty-mask warnings when that class is ignored.
             For federated or aggregated settings, ensure all clients use the same ignore_index to keep score
             values comparable.
+        per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
     if not include_background:
@@ -196,24 +225,91 @@ def compute_average_surface_distance(
     class_offset = 0 if include_background else 1
 
     for b, c in np.ndindex(batch_size, n_class):
-        yp = y_pred[b, c]
-        yt = y[b, c]
+        if per_component:
+            pred_empty = y_pred[b, c].sum() == 0
+            label_empty = y[b, c].sum() == 0
+            if pred_empty or label_empty:
+                asd[b, c] = 0.0 if (pred_empty and label_empty) else float("nan")
+                continue
+            cc_assignment = compute_voronoi_regions_fast(y[b, c].cpu().numpy())
+            if cc_assignment.device != y_pred[b, c].device:
+                cc_assignment = cc_assignment.to(y_pred[b, c].device)
+            component_scores = []
+            for cc_id in torch.unique(cc_assignment.view(-1)):
+                cc_mask = cc_assignment == cc_id
+                coords = torch.nonzero(cc_mask, as_tuple=False)
+                min_corner_idx = coords.min(dim=0).values
+                max_corner_idx = coords.max(dim=0).values
 
-        absolute_c = c + class_offset
-        warn_empty = ignore_index is None or absolute_c != ignore_index
-        _, distances, _ = get_edge_surface_distance(
-            yp,
-            yt,
-            distance_metric=distance_metric,
-            spacing=spacing_list[b],
-            symmetric=symmetric,
-            class_index=c,
-            warn_empty=warn_empty,
-        )
+                crop_pred = (
+                    y_pred[b, c][
+                        min_corner_idx[0] : max_corner_idx[0] + 1,
+                        min_corner_idx[1] : max_corner_idx[1] + 1,
+                        min_corner_idx[2] : max_corner_idx[2] + 1,
+                    ]
+                    if y_pred.ndim == 5
+                    else y_pred[b, c][
+                        min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1
+                    ]
+                )
 
-        surface_distance = torch.cat(distances)
-        asd[b, c] = (
-            torch.tensor(float("nan"), device=asd.device) if surface_distance.numel() == 0 else surface_distance.mean()
-        )
+                crop_label = (
+                    y[b, c][
+                        min_corner_idx[0] : max_corner_idx[0] + 1,
+                        min_corner_idx[1] : max_corner_idx[1] + 1,
+                        min_corner_idx[2] : max_corner_idx[2] + 1,
+                    ]
+                    if y.ndim == 5
+                    else y[b, c][min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1]
+                )
+
+                cc_crop_mask = (
+                    cc_mask[
+                        min_corner_idx[0] : max_corner_idx[0] + 1,
+                        min_corner_idx[1] : max_corner_idx[1] + 1,
+                        min_corner_idx[2] : max_corner_idx[2] + 1,
+                    ]
+                    if y_pred.ndim == 5
+                    else cc_mask[min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1]
+                )
+
+                pred_masked = crop_pred * cc_crop_mask
+                label_masked = crop_label * cc_crop_mask
+
+                _, distances, _ = get_edge_surface_distance(
+                    pred_masked,
+                    label_masked,
+                    distance_metric=distance_metric,
+                    spacing=spacing_list[b],
+                    symmetric=symmetric,
+                    class_index=c,
+                )
+                surface_distance = torch.cat(distances)
+                component_scores.append(
+                    torch.tensor(np.nan) if surface_distance.shape == (0,) else surface_distance.mean()
+                )
+            asd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
+        else:
+            yp = y_pred[b, c]
+            yt = y[b, c]
+
+            absolute_c = c + class_offset
+            warn_empty = ignore_index is None or absolute_c != ignore_index
+            _, distances, _ = get_edge_surface_distance(
+                yp,
+                yt,
+                distance_metric=distance_metric,
+                spacing=spacing_list[b],
+                symmetric=symmetric,
+                class_index=c,
+                warn_empty=warn_empty,
+            )
+
+            surface_distance = torch.cat(distances)
+            asd[b, c] = (
+                torch.tensor(float("nan"), device=asd.device)
+                if surface_distance.numel() == 0
+                else surface_distance.mean()
+            )
 
     return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
