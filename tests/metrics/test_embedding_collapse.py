@@ -16,10 +16,12 @@ import unittest
 import torch
 
 from monai.metrics.embedding_collapse import (
+    _MIN_HSIC_SAMPLES,
     EmbeddingCollapseMetric,
     _centroid_similarity,
     _domain_shift,
     _effective_rank_score,
+    _hsic,
     _per_class_rank,
     compute_embedding_collapse,
     linear_probe_accuracy,
@@ -301,6 +303,57 @@ class TestDomainShift(unittest.TestCase):
         self.assertIsNotNone(score)
         self.assertGreaterEqual(float(score), 0.0)
         self.assertLessEqual(float(score), 1.0)
+
+    def test_hsic_is_unbiased_for_independent_inputs(self):
+        """HSIC of independent representations must average to zero at every n.
+
+        The biased plug-in estimator carries an ``O(1/n)`` term, so on
+        independent inputs its mean sat tens of standard errors above zero
+        (t > 40 for every sample count tested) instead of at zero. The
+        unbiased estimator of Song et al. (2007) removes that term.
+        """
+        for n in (8, 32, 128):
+            with self.subTest(n=n):
+                values = []
+                for seed in range(100):
+                    torch.manual_seed(seed)
+                    values.append(float(_hsic(torch.randn(n, 8), torch.randn(n, 8))))
+                mean = sum(values) / len(values)
+                variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+                std_error = (variance / len(values)) ** 0.5
+                self.assertLess(
+                    abs(mean / std_error), 3.0, f"HSIC mean {mean:.4f} is {mean / std_error:.1f} SEs from 0 at n={n}"
+                )
+
+    def test_score_does_not_drift_with_sample_count(self):
+        """Unrelated representations must not look more similar at smaller n.
+
+        With the biased estimator the score fell as roughly ``1/n`` -- 0.20 at
+        n=32, 0.11 at n=64, 0.06 at n=128, 0.03 at n=256 -- so a score was only
+        comparable against another computed at the same sample count.
+        ``_domain_shift`` subsamples to the smaller of its two inputs, which
+        made that easy to hit.
+        """
+        means = []
+        for n in (32, 64, 128, 256):
+            scores = []
+            for seed in range(20):
+                torch.manual_seed(seed)
+                score = _domain_shift(torch.randn(n, 8), torch.randn(n, 8))
+                self.assertIsNotNone(score)
+                scores.append(float(score))
+            means.append(sum(scores) / len(scores))
+        self.assertLess(max(means), 0.1, f"independent inputs scored {means} at n=32,64,128,256")
+        self.assertLess(max(means) - min(means), 0.1, f"score drifts with sample count: {means}")
+
+    def test_below_minimum_samples_returns_none(self):
+        """Linear CKA is undefined below ``_MIN_HSIC_SAMPLES`` samples."""
+        torch.manual_seed(14)
+        target = torch.randn(10, 8)
+        for n in range(1, _MIN_HSIC_SAMPLES):
+            with self.subTest(n=n):
+                self.assertIsNone(_domain_shift(torch.randn(n, 8), target))
+                self.assertIsNone(_domain_shift(target, torch.randn(n, 8)))
 
     def test_single_sample_returns_none(self):
         src = torch.randn(1, 8)
