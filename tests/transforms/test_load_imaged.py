@@ -34,21 +34,21 @@ itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 KEYS = ["image", "label", "extra"]
 
-TEST_CASE_1 = [{"keys": KEYS}, (128, 128, 128)]
+TEST_CASE_1 = [{"keys": KEYS}, (32, 32, 32)]
 
-TEST_CASE_2 = [{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (128, 128, 128)]
+TEST_CASE_2 = [{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (32, 32, 32)]
 
 TESTS_META = []
 for track_meta in (False, True):
-    TESTS_META.append([{"keys": KEYS}, (128, 128, 128), track_meta])
-    TESTS_META.append([{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
+    TESTS_META.append([{"keys": KEYS}, (32, 32, 32), track_meta])
+    TESTS_META.append([{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (32, 32, 32), track_meta])
 
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImaged(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, expected_shape):
-        test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.rand(32, 32, 32), np.eye(4))
         test_data = {}
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:
@@ -159,7 +159,7 @@ class TestLoadImagedMeta(unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.tmpdir = tempfile.mkdtemp()
-        test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.rand(32, 32, 32), np.eye(4))
         cls.test_data = {}
         for key in KEYS:
             nib.save(test_image, os.path.join(cls.tmpdir, key + ".nii.gz"))

@@ -216,7 +216,8 @@ class GlobalMutualInformationLoss(_Loss):
                       IEEE Transactions in Medical Imaging. Vol.22, No.1,
                       January 2003. pp.120-128.
 
-            num_bins: number of bins for intensity
+            num_bins: number of bins for intensity. The Gaussian kernel requires
+                more than 1 bin, and the B-spline kernel requires more than 4 bins.
             sigma_ratio: a hyper param for gaussian function
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
@@ -228,8 +229,8 @@ class GlobalMutualInformationLoss(_Loss):
             smooth_dr: a small constant added to the denominator to avoid nan.
 
         Raises:
-            ValueError: if ``num_bins`` is not positive, or if the Gaussian kernel
-                has fewer than two bins or a non-finite, non-positive ``sigma_ratio``.
+            ValueError: if a Gaussian kernel has fewer than two bins or a non-finite, non-positive ``sigma_ratio``.
+            ValueError: if a B-spline kernel is configured with four or fewer bins.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
@@ -240,6 +241,8 @@ class GlobalMutualInformationLoss(_Loss):
                 raise ValueError(f"Gaussian kernel requires num_bins >= 2, got {num_bins}")
             if not math.isfinite(sigma_ratio) or sigma_ratio <= 0.0:
                 raise ValueError(f"Gaussian kernel requires a finite, positive sigma_ratio, got {sigma_ratio}")
+        elif self.kernel_type == "b-spline" and num_bins <= 4:
+            raise ValueError(f"num_bins must be greater than 4 for b-spline kernel, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.num_bins = num_bins
@@ -260,6 +263,7 @@ class GlobalMutualInformationLoss(_Loss):
             self._preterm_value = preterm_value
             self.register_buffer("preterm", preterm, persistent=False)
             self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
+
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
@@ -315,13 +319,22 @@ class GlobalMutualInformationLoss(_Loss):
         # Note that there can still be non-zero bin values in the padded region,
         # it's just that these bins will never be a central bin for the Parzen
         # window.
-        _max, _min = torch.max(img), torch.min(img)
+        compute_img = (
+            img.float() if not torch.is_floating_point(img) or img.dtype in (torch.float16, torch.bfloat16) else img
+        )
+        _max, _min = torch.max(compute_img), torch.min(compute_img)
         padding = 2
-        bin_size = (_max - _min) / (self.num_bins - 2 * padding)
+        interior_bins = self.num_bins - 2 * padding
+        value_range = _max - _min
+        raw_bin_size = value_range / interior_bins
+        # Fall back only when the promoted bin size is non-finite or too small
+        # to remain a nonzero normal value in the compute dtype.
+        valid_bin_size = torch.isfinite(raw_bin_size) & (raw_bin_size >= torch.finfo(compute_img.dtype).tiny)
+        bin_size = torch.where(valid_bin_size, raw_bin_size, torch.ones_like(raw_bin_size))
         norm_min = torch.div(_min, bin_size) - padding
 
         # assign bin/window index to each voxel
-        window_term = torch.div(img, bin_size) - norm_min  # B[NDHW]
+        window_term = torch.div(compute_img, bin_size) - norm_min  # B[NDHW]
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)

@@ -17,6 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
+from monai.losses.perceptual import normalize_tensor
 from monai.utils import optional_import
 from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
 
@@ -125,6 +126,16 @@ class TestPerceptualLoss(unittest.TestCase):
     def test_non_medicalnet_3d_without_fake_3d(self, network_type):
         with self.assertRaises(ValueError):
             PerceptualLoss(spatial_dims=3, network_type=network_type, is_fake_3d=False)
+
+    def test_normalize_tensor_zero_norm_finite_gradient(self):
+        # regression test for #8412: a zero-norm feature vector (e.g. from identical
+        # input/target features) must not produce NaN gradients via SqrtBackward.
+        x = torch.zeros(2, 4, 8, 8, requires_grad=True)
+        out = normalize_tensor(x)
+        out.sum().backward()
+        self.assertFalse(torch.isnan(out).any())
+        self.assertIsNotNone(x.grad)
+        self.assertFalse(torch.isnan(x.grad).any())
 
 
 if __name__ == "__main__":
