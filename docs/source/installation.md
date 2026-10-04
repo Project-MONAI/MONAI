@@ -4,6 +4,7 @@
 
 - [Installation Guide](#installation-guide)
 	- [Table of Contents](#table-of-contents)
+	- [GPU-enabled installation (CUDA and CuPy)](#gpu-enabled-installation-cuda-and-cupy)
 	- [From PyPI](#from-pypi)
 		- [Milestone release](#milestone-release)
 		- [Weekly preview release](#weekly-preview-release)
@@ -30,12 +31,36 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
-The installation commands below usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+---
+
+## GPU-enabled installation (CUDA and CuPy)
+
+The installation commands below usually end up installing the CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
-1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
+1. Check the [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip packages, PyTorch wheels already bundle the CUDA runtime, so you only need to pick the CUDA version matching your driver from the selector and install with the provided command. You do not need to manually download CUDA or set `CUDA_PATH`.
 1. Continue to follow the guide and install PyTorch.
-1. Install MONAI using one the ways described below.
+1. Install MONAI using one of the ways described below.
+
+Installing GPU-enabled PyTorch is enough to run models and transforms on the GPU. Some transforms,
+however, additionally use [CuPy](https://cupy.dev/) for GPU-accelerated array operations (for example
+when a transform converts a CUDA tensor via `convert_to_cupy`). If CuPy is not installed, these code
+paths raise `OptionalImportError: import cupy (No module named 'cupy')`.
+
+MONAI provides a dedicated `cupy` extra that installs a compatible CuPy build:
+
+```bash
+pip install 'monai[cupy]'
+```
+
+The `cucim` extra installs [cuCIM](https://github.com/rapidsai/cucim) (`cucim-cu12` or `cucim-cu13`
+depending on your Python version), which is a separate GPU image-processing library and does not
+install CuPy.
+
+If you prefer to install CuPy directly, note that the PyPI package name is CUDA-version specific
+(e.g. `cupy-cuda12x` for CUDA 12.x, `cupy-cuda13x` for CUDA 13.x) rather than plain `cupy`. See the
+[CuPy installation guide](https://docs.cupy.dev/en/stable/install.html) for the correct package for
+your CUDA toolkit.
 
 ---
 
@@ -52,13 +77,17 @@ pip install monai
 MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
 
 ```text
-clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, metrics_reloaded, mlflow, nibabel, nni, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
+clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, lpips, matplotlib, metrics_reloaded, mlflow, nibabel, nni, nvimgcodec, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
 ```
 
-which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
+which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `lpips`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `nvidia-nvimgcodec-cu13`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
 
-Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy is omitted from `all` since the choice between
-Cuda 12 and 13 versions of the library can't be resolved when installing and must be manually installed.
+Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy and `nvimgcodec` are omitted from `all` since the choice between
+Cuda 12 and 13 versions of the libraries can't be resolved when installing and must be manually installed.
+
+The `nvimgcodec` extra installs GPU-accelerated DICOM decoding for `NvImgCodecPydicomReader`
+(`pip install 'monai[nvimgcodec]'`). It is Linux-only in the extra definition; CUDA 13 is the
+default. CUDA 12 users should install matching `cupy-cuda12x` and `nvidia-nvimgcodec-cu12` wheels.
 
 The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
 required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
@@ -184,7 +213,7 @@ You can install it by running:
 ```bash
 cd MONAI/
 pip install -e .
-# or pip install -e .[all,testing] to include most of the dependencies
+# or pip install -e '.[all,testing]' to include most of the dependencies
 ```
 
 or, to build with MONAI C++/CUDA extensions and install:
@@ -212,7 +241,7 @@ $env:BUILD_MONAI="1"
 pip install -e .
 ```
 
-If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isoloation` flag to force the use of that version, or use the `--build-constraint` method.
+If the compiled extensions were built by pip against a different version of PyTorch than the one in your environment, you may need to run the above with the `--no-build-isolation` flag to force the use of that version, or use the `--build-constraint` method.
 
 To uninstall the package please run:
 
