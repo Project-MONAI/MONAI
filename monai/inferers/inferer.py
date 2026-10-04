@@ -1251,7 +1251,7 @@ class DiffusionInferer(Inferer):
         given image. Code adapted from https://github.com/openai/improved-diffusion.
 
         Args:
-            input: the target images. It is assumed that this was uint8 values,
+            inputs: the target images. It is assumed that this was uint8 values,
                       rescaled to the range [-1, 1].
             means: the Gaussian mean Tensor.
             log_scales: the Gaussian log stddev Tensor.
