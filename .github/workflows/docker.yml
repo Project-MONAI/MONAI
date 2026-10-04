@@ -13,6 +13,9 @@ on:
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   versioning_dev:
     # compute versioning file from python setup.py
