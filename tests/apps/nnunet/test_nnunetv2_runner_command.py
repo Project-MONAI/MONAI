@@ -11,10 +11,17 @@
 
 from __future__ import annotations
 
+import os
+import sys
+import tempfile
+import threading
+import types
 import unittest
 from unittest import mock
 
+from monai.apps.nnunet import nnunetv2_runner
 from monai.apps.nnunet.nnunetv2_runner import nnUNetV2Runner
+from monai.bundle import ConfigParser
 
 
 def _make_runner(export_validation_probabilities=False):
@@ -72,6 +79,246 @@ class TestValidateSingleModelCommand(unittest.TestCase):
         self.assertIn("--val", cmd)
         self.assertNotIn("--only_run_validation", cmd)
         self.assertNotIn("True", cmd)
+
+
+class TestTrainParallelCommand(unittest.TestCase):
+    def test_train_parallel_uses_argv_list_without_shell(self):
+        runner = _make_runner()
+        runner.dataset_name = "Dataset001_Test"
+        runner.nnunet_results = "/tmp/nnunet_results"
+
+        all_cmds = [
+            {
+                0: [
+                    (["python", "-m", "train", "--fold", "0"], {"CUDA_VISIBLE_DEVICES": "0"}),
+                    (["python", "-m", "train", "--fold", "1"], {"CUDA_VISIBLE_DEVICES": "0"}),
+                ],
+                1: [(["python", "-m", "train", "--fold", "2"], {"CUDA_VISIBLE_DEVICES": "1"})],
+            }
+        ]
+
+        with mock.patch.object(runner, "train_parallel_cmd", return_value=all_cmds):
+            with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.Popen") as popen:
+                popen.return_value.wait.return_value = None
+                runner.train_parallel()
+
+        self.assertEqual(popen.call_count, 3)
+        for call in popen.call_args_list:
+            self.assertIsInstance(call.args[0], list)
+            self.assertFalse(call.kwargs["shell"])
+
+    def test_commands_run_sequentially_per_device(self):
+        runner = _make_runner()
+        runner.dataset_name = "Dataset001_Test"
+        runner.nnunet_results = "/tmp/nnunet_results"
+
+        all_cmds = [
+            {0: [(["python", "-m", "train", "--fold", "0"], {}), (["python", "-m", "train", "--fold", "1"], {})]}
+        ]
+
+        events = []
+        lock = threading.Lock()
+
+        class _FakeProcess:
+            def __init__(self, cmd):
+                self.cmd = cmd
+
+            def wait(self):
+                with lock:
+                    events.append(("wait", self.cmd))
+                return 0
+
+        def _fake_popen(cmd, *args, **kwargs):
+            with lock:
+                events.append(("popen", cmd))
+            return _FakeProcess(cmd)
+
+        with mock.patch.object(runner, "train_parallel_cmd", return_value=all_cmds):
+            with mock.patch("monai.apps.nnunet.nnunetv2_runner.subprocess.Popen", side_effect=_fake_popen):
+                runner.train_parallel()
+
+        self.assertEqual(
+            events,
+            [
+                ("popen", ["python", "-m", "train", "--fold", "0"]),
+                ("wait", ["python", "-m", "train", "--fold", "0"]),
+                ("popen", ["python", "-m", "train", "--fold", "1"]),
+                ("wait", ["python", "-m", "train", "--fold", "1"]),
+            ],
+        )
+
+
+class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
+    def _run_postprocessing(self, runner, events, load_pickle):
+        """Drive ``predict_ensemble_postprocessing`` with nnU-Net's modules stubbed out.
+
+        Args:
+            runner: the runner under test.
+            events: list that records ``warn``/``load_pickle`` calls in order.
+            load_pickle: the mock standing in for ``load_pickle``.
+        """
+        ensemble_mod = types.ModuleType("nnunetv2.ensembling.ensemble")
+        ensemble_mod.ensemble_folders = mock.MagicMock()
+        pp_mod = types.ModuleType("nnunetv2.postprocessing.remove_connected_components")
+        pp_mod.apply_postprocessing_to_folder = mock.MagicMock()
+        fp_mod = types.ModuleType("nnunetv2.utilities.file_path_utilities")
+        fp_mod.get_output_folder = mock.MagicMock(return_value="/tmp/model_folder")
+
+        fake_modules = {
+            "nnunetv2.ensembling.ensemble": ensemble_mod,
+            "nnunetv2.postprocessing.remove_connected_components": pp_mod,
+            "nnunetv2.utilities.file_path_utilities": fp_mod,
+        }
+
+        def _warn(*args, **kwargs):
+            """Record a ``warnings.warn`` call.
+
+            Args:
+                *args: positional arguments passed to ``warnings.warn``.
+                **kwargs: keyword arguments passed to ``warnings.warn``.
+            """
+            events.append("warn")
+
+        with mock.patch.dict(sys.modules, fake_modules):
+            with mock.patch.object(ConfigParser, "load_config_file", return_value=runner.best_configuration):
+                with mock.patch.object(nnunetv2_runner, "join", os.path.join):
+                    with mock.patch.object(nnunetv2_runner, "load_pickle", load_pickle):
+                        with mock.patch.object(nnunetv2_runner.warnings, "warn", side_effect=_warn):
+                            runner.predict_ensemble_postprocessing(
+                                run_predict=False, run_ensemble=False, run_postprocessing=True
+                            )
+
+    def test_postprocessing_pickle_warns_on_untrusted_file(self):
+        """A pickle inside the results directory is loaded, but only after warning."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "Dataset001_Test")
+            os.makedirs(results_root)
+            pp_file = os.path.join(results_root, "postprocessing.pkl")
+            plans_file = os.path.join(results_root, "plans.json")
+            open(pp_file, "w").close()
+            open(plans_file, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = tempdir
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": pp_file,
+                    "some_plans_file": plans_file,
+                }
+            }
+
+            events = []
+
+            def _load_pickle(path):
+                """Record a ``load_pickle`` call and return an empty postprocessing pipeline.
+
+                Args:
+                    path: path to the pickle file (unused).
+
+                Returns:
+                    A tuple of ``(postprocessing_fns, postprocessing_kwargs)``.
+                """
+                events.append("load_pickle")
+                return [], {}
+
+            load_pickle = mock.MagicMock(side_effect=_load_pickle)
+            self._run_postprocessing(runner, events, load_pickle)
+
+            load_pickle.assert_called_once_with(os.path.realpath(pp_file))
+            # Two warnings now precede the load: the trust warning and the MONAI 1.7 FutureWarning.
+            self.assertEqual(events, ["warn", "warn", "load_pickle"])
+
+    def test_postprocessing_file_outside_results_dir_is_rejected(self):
+        """Regression test for GHSA-8f32-8649-rv87.
+
+        ``postprocessing_file`` is read from ``inference_information.json``; a value pointing
+        outside the dataset's results directory means that file has been tampered with, so the
+        pickle must never be opened.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            evil = os.path.join(tempdir, "evil.pkl")
+            open(evil, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": evil,
+                    "some_plans_file": os.path.join(results_root, "plans.json"),
+                }
+            }
+
+            events = []
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, events, load_pickle)
+            load_pickle.assert_not_called()
+
+    def test_postprocessing_traversal_is_rejected(self):
+        """A ``..`` traversal that escapes the results directory is rejected."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            evil = os.path.join(tempdir, "evil.pkl")
+            open(evil, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": os.path.join(results_root, "..", "..", "evil.pkl"),
+                    "some_plans_file": os.path.join(results_root, "plans.json"),
+                }
+            }
+
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, [], load_pickle)
+            load_pickle.assert_not_called()
+
+    def test_plans_file_outside_results_dir_is_rejected(self):
+        """Regression test for GHSA-8f32-8649-rv87 (``some_plans_file``).
+
+        ``some_plans_file`` is read from ``inference_information.json`` and handed to
+        ``apply_postprocessing_to_folder``; a value pointing outside the dataset's results
+        directory would let a tamperer name an arbitrary file on disk, so it must be rejected
+        even when ``postprocessing_file`` itself is valid and in-scope.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = os.path.join(tempdir, "results", "Dataset001_Test")
+            os.makedirs(results_root)
+            pp_file = os.path.join(results_root, "postprocessing.pkl")
+            open(pp_file, "w").close()
+            evil_plans = os.path.join(tempdir, "malicious_plans.json")
+            open(evil_plans, "w").close()
+
+            runner = _make_runner()
+            runner.dataset_name = "Dataset001_Test"
+            runner.nnunet_raw = "/tmp/nnunet_raw"
+            runner.nnunet_results = os.path.join(tempdir, "results")
+            runner.best_configuration = {
+                "best_model_or_ensemble": {
+                    "selected_model_or_models": [{"configuration": "3d_fullres"}],
+                    "postprocessing_file": pp_file,
+                    "some_plans_file": evil_plans,
+                }
+            }
+
+            load_pickle = mock.MagicMock()
+            with self.assertRaisesRegex(ValueError, r"some_plans_file.*GHSA-8f32-8649-rv87"):
+                self._run_postprocessing(runner, [], load_pickle)
+            load_pickle.assert_not_called()
 
 
 if __name__ == "__main__":

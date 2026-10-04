@@ -98,6 +98,7 @@ class SwinUNETR(nn.Module):
         hyena_omega_0: float = 10.0,
         hyena_l_cache: int = 32,
         hyena_short_conv_fft_chunks: int = 0,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -149,6 +150,7 @@ class SwinUNETR(nn.Module):
             hyena_omega_0: SIREN frequency. Default 10.0 (stable).
             hyena_l_cache: SIREN coordinate-grid cache size per spatial dim.
             hyena_short_conv_fft_chunks: channel chunk size for the FFT short conv (0 = no chunking).
+            use_flash_attention: use flash attention (scaled dot product attention) at inference.
 
         Examples::
 
@@ -224,6 +226,7 @@ class SwinUNETR(nn.Module):
             hyena_omega_0=hyena_omega_0,
             hyena_l_cache=hyena_l_cache,
             hyena_short_conv_fft_chunks=hyena_short_conv_fft_chunks,
+            use_flash_attention=use_flash_attention,
         )
 
         self.encoder1 = UnetrBasicBlock(
@@ -513,6 +516,7 @@ class WindowAttention(nn.Module):
         qkv_bias: bool = False,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -522,12 +526,17 @@ class WindowAttention(nn.Module):
             qkv_bias: add a learnable bias to query, key, value.
             attn_drop: attention dropout rate.
             proj_drop: dropout rate of output.
+            use_flash_attention: if True, use ``torch.nn.functional.scaled_dot_product_attention`` for the
+                windowed attention. Equivalent to the default path but faster at inference; only used when
+                autograd is disabled (e.g. under ``torch.no_grad()`` or ``torch.inference_mode()``, not
+                ``eval()`` alone) and the module is not scripted.
         """
 
         super().__init__()
         self.dim = dim
         self.window_size = window_size
         self.num_heads = num_heads
+        self.use_flash_attention = use_flash_attention
         head_dim = dim // num_heads
         self.scale = head_dim**-0.5
         mesh_args = torch.meshgrid.__kwdefaults__
@@ -584,12 +593,26 @@ class WindowAttention(nn.Module):
         b, n, c = x.shape
         qkv = self.qkv(x).reshape(b, n, 3, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
-        q = q * self.scale
-        attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
             self.relative_position_index.clone()[:n, :n].reshape(-1)  # type: ignore[operator]
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
+        if self.use_flash_attention and not torch.jit.is_scripting() and not torch.is_grad_enabled():
+            # additive bias combines the relative position bias and, for shifted windows, the attention mask
+            if mask is not None:
+                nw = mask.shape[0]
+                bias = relative_position_bias.view(1, 1, self.num_heads, n, n) + mask.reshape(1, nw, 1, n, n)
+                bias = bias.expand(b // nw, nw, self.num_heads, n, n).reshape(b, self.num_heads, n, n)
+            else:
+                bias = relative_position_bias.unsqueeze(0)
+            x = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, attn_mask=bias.to(q.dtype), dropout_p=0.0, scale=self.scale
+            )
+            x = x.transpose(1, 2).reshape(b, n, c)
+            return self.proj_drop(self.proj(x))
+
+        q = q * self.scale
+        attn = q @ k.transpose(-2, -1)
         attn = attn + relative_position_bias.unsqueeze(0)
         if mask is not None:
             nw = mask.shape[0]
@@ -628,6 +651,7 @@ class SwinTransformerBlock(nn.Module):
         act_layer: str = "GELU",
         norm_layer: type[LayerNorm] = nn.LayerNorm,
         use_checkpoint: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -643,6 +667,7 @@ class SwinTransformerBlock(nn.Module):
             act_layer: activation layer.
             norm_layer: normalization layer.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
+            use_flash_attention: use flash attention (scaled dot product attention) at inference.
         """
 
         super().__init__()
@@ -660,6 +685,7 @@ class SwinTransformerBlock(nn.Module):
             qkv_bias=qkv_bias,
             attn_drop=attn_drop,
             proj_drop=drop,
+            use_flash_attention=use_flash_attention,
         )
 
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -924,6 +950,7 @@ class BasicLayer(nn.Module):
         hyena_omega_0: float = 10.0,
         hyena_l_cache: int = 32,
         hyena_short_conv_fft_chunks: int = 0,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -946,6 +973,7 @@ class BasicLayer(nn.Module):
                 hyena_use_chunked_fft, hyena_use_fft_short_conv, hyena_omega_0, hyena_l_cache,
                 hyena_short_conv_fft_chunks: forwarded to :class:`HyenaTransformerBlock`. See its
                 docstring for semantics.
+            use_flash_attention: use flash attention (scaled dot product attention) at inference.
         """
 
         super().__init__()
@@ -996,6 +1024,7 @@ class BasicLayer(nn.Module):
                         drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
                         norm_layer=norm_layer,
                         use_checkpoint=use_checkpoint,
+                        use_flash_attention=use_flash_attention,
                     )
                     for i in range(depth)
                 ]
@@ -1079,6 +1108,7 @@ class SwinTransformer(nn.Module):
         hyena_omega_0: float = 10.0,
         hyena_l_cache: int = 32,
         hyena_short_conv_fft_chunks: int = 0,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -1112,6 +1142,7 @@ class SwinTransformer(nn.Module):
                 hyena_use_chunked_fft, hyena_use_fft_short_conv, hyena_omega_0, hyena_l_cache,
                 hyena_short_conv_fft_chunks: HyenaND configuration. See
                 :class:`monai.networks.blocks.HyenaTransformerBlock` for semantics.
+            use_flash_attention: use flash attention (scaled dot product attention) at inference.
         """
 
         super().__init__()
@@ -1193,6 +1224,7 @@ class SwinTransformer(nn.Module):
                 hyena_omega_0=hyena_omega_0,
                 hyena_l_cache=hyena_l_cache,
                 hyena_short_conv_fft_chunks=hyena_short_conv_fft_chunks,
+                use_flash_attention=use_flash_attention,
             )
             if i_layer == 0:
                 self.layers1.append(layer)

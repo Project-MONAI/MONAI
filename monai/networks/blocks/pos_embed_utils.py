@@ -150,7 +150,7 @@ def build_sincos_position_embedding(
             dim=1,
         )[None, :, :]
     else:
-        raise NotImplementedError("Spatial Dimension Size {spatial_dims} Not Implemented!")
+        raise NotImplementedError(f"Spatial Dimension Size {spatial_dims} Not Implemented!")
 
     pos_embed = nn.Parameter(pos_emb)
     pos_embed.requires_grad = False

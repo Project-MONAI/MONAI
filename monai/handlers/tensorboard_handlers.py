@@ -27,11 +27,13 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from tensorboardX import SummaryWriter as SummaryWriterX
     from torch.utils.tensorboard import SummaryWriter
+
+    _tb_available = True
 else:
     Engine, _ = optional_import(
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
     )
-    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryWriter, _tb_available = optional_import("torch.utils.tensorboard", name="SummaryWriter")
     SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
@@ -46,10 +48,18 @@ class TensorBoardHandler:
             default to create a new TensorBoard writer.
         log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
 
+    Raises:
+        RuntimeError: When ``summary_writer`` is ``None`` and the ``tensorboard`` package is not installed.
+
     """
 
     def __init__(self, summary_writer: SummaryWriter | SummaryWriterX | None = None, log_dir: str = "./runs"):
         if summary_writer is None:
+            if not _tb_available:
+                raise RuntimeError(
+                    "TensorBoardHandler requires tensorboard to be installed. "
+                    "Please install it with: pip install tensorboard"
+                )
             self._writer = SummaryWriter(log_dir=log_dir)
             self.internal_writer = True
         else:
