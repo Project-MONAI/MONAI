@@ -24,6 +24,7 @@ from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
 _, has_einops = optional_import("einops")
+DiffusersDDPMScheduler, has_diffusers = optional_import("diffusers", name="DDPMScheduler")
 
 TEST_CASES = [
     [
@@ -125,6 +126,63 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
         )
         self.assertEqual(len(intermediates), 10)
+
+    @skipUnless(has_einops and has_diffusers, "Requires einops and diffusers")
+    def test_diffusers_ddpm_call(self):
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model = DiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=[32, 64],
+            attention_levels=[False, True],
+            num_res_blocks=1,
+            num_head_channels=32,
+        )
+        model.to(device)
+        model.eval()
+        scheduler = DiffusersDDPMScheduler(num_train_timesteps=1000, beta_schedule="linear", prediction_type="epsilon")
+        scheduler.set_timesteps(num_inference_steps=50)
+        inferer = DiffusionInferer(scheduler=scheduler)
+
+        batch_size = 2
+        image_size = 32
+        inputs = torch.randn(batch_size, 1, image_size, image_size).to(device)
+        noise = torch.randn_like(inputs)
+        timesteps = torch.randint(0, scheduler.config.num_train_timesteps, (batch_size,)).long().to(device)
+        with torch.no_grad():
+            prediction = inferer(inputs=inputs, diffusion_model=model, noise=noise, timesteps=timesteps)
+
+        self.assertEqual(prediction.shape, inputs.shape)
+        scheduler.set_timesteps(num_inference_steps=2)
+        sample = inferer.sample(input_noise=noise, diffusion_model=model, scheduler=scheduler, verbose=False)
+        self.assertEqual(sample.shape, inputs.shape)
+
+    @skipUnless(has_einops and has_diffusers, "Requires einops and diffusers")
+    def test_diffusers_ddpm_get_likelihood(self):
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model = DiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=[8],
+            norm_num_groups=8,
+            attention_levels=[True],
+            num_res_blocks=1,
+            num_head_channels=8,
+        )
+        model.to(device)
+        model.eval()
+        inputs = torch.randn(2, 1, 8, 8).to(device)
+        scheduler = DiffusersDDPMScheduler(num_train_timesteps=10, beta_schedule="linear", prediction_type="epsilon")
+        inferer = DiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        likelihood, intermediates = inferer.get_likelihood(
+            inputs=inputs, diffusion_model=model, scheduler=scheduler, save_intermediates=True
+        )
+        self.assertEqual(len(intermediates), 10)
+        self.assertEqual(intermediates[0].shape, inputs.shape)
+        self.assertEqual(likelihood.shape[0], inputs.shape[0])
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")

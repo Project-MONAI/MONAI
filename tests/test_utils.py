@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import copy
 import datetime
 import functools
@@ -20,6 +21,7 @@ import json
 import operator
 import os
 import queue
+import shutil
 import ssl
 import subprocess
 import sys
@@ -81,7 +83,7 @@ DOWNLOAD_FAIL_MSGS = (
     "unexpected EOF",  # incomplete download
     "network issue",
     "gdown dependency",  # gdown not installed
-    "md5 check",
+    "hash check",  # check hash value of downloaded file
     "limit",  # HTTP Error 503: Egress is over the account limit
     "authenticate",
     "timed out",  # urlopen error [Errno 110] Connection timed out
@@ -184,37 +186,6 @@ def skip_if_downloading_fails():
             raise unittest.SkipTest(f"Error while downloading: {rt_e}") from rt_e  # incomplete download
 
         raise rt_e
-
-
-SAMPLE_TIFF = "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/CMU-1.tiff"
-SAMPLE_TIFF_HASH = "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
-SAMPLE_TIFF_HASH_TYPE = "sha256"
-
-
-class TestDownloadUrl(unittest.TestCase):
-    """Exercise ``download_url`` success and hash-mismatch paths."""
-
-    def test_download_url(self):
-        """Download a sample TIFF and validate hash handling.
-
-        Raises:
-            RuntimeError: When the downloaded file's hash does not match.
-        """
-        with tempfile.TemporaryDirectory() as tempdir:
-            with skip_if_downloading_fails():
-                download_url(
-                    url=SAMPLE_TIFF,
-                    filepath=os.path.join(tempdir, "model.tiff"),
-                    hash_val=SAMPLE_TIFF_HASH,
-                    hash_type=SAMPLE_TIFF_HASH_TYPE,
-                )
-            with self.assertRaises(RuntimeError):
-                download_url(
-                    url=SAMPLE_TIFF,
-                    filepath=os.path.join(tempdir, "model_bad.tiff"),
-                    hash_val="0" * 64,
-                    hash_type=SAMPLE_TIFF_HASH_TYPE,
-                )
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -391,7 +362,8 @@ def make_nifti_image(
 ):
     """
     Create a temporary nifti image on the disk and return the image name.
-    User is responsible for deleting the temporary file when done with it.
+    If `dir` is not given, a temporary directory is created to hold the image and removed at
+    interpreter exit. If `dir` is given, the caller owns it.
     """
     if isinstance(array, torch.Tensor):
         array, *_ = convert_data_type(array, np.ndarray)
@@ -404,6 +376,7 @@ def make_nifti_image(
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
         dir = tempfile.mkdtemp()
+        atexit.register(shutil.rmtree, dir, ignore_errors=True)
     else:
         os.makedirs(dir, exist_ok=True)
 

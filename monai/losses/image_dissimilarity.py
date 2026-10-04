@@ -251,6 +251,7 @@ class GlobalMutualInformationLoss(_Loss):
             sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
             self.register_buffer("preterm", 1 / (2 * sigma**2), persistent=False)
             self.register_buffer("bin_centers", bin_centers[None, None, ...], persistent=False)
+
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
