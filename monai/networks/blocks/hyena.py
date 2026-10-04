@@ -98,21 +98,21 @@ class _DepthwiseFFTForward:
     _spatial_dims: int  # set by subclasses
     fft_chunk_size: int = 0  # 0 = no chunking; set in subclass __init__
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        spatial = x.shape[2:]
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        spatial = input.shape[2:]
         kernel_shape = self.weight.shape[2:]  # type: ignore[attr-defined]
         fft_dims = tuple(range(-self._spatial_dims, 0))
         fft_size = [s + k - 1 for s, k in zip(spatial, kernel_shape)]
-        in_dtype = x.dtype
+        in_dtype = input.dtype
 
         slices = (slice(None), slice(None)) + tuple(slice(k // 2, k // 2 + s) for s, k in zip(spatial, kernel_shape))
 
         chunk = getattr(self, "fft_chunk_size", 0)
-        if chunk > 0 and x.shape[1] > chunk:
+        if chunk > 0 and input.shape[1] > chunk:
             parts = []
-            for c0 in range(0, x.shape[1], chunk):
-                c1 = min(c0 + chunk, x.shape[1])
-                xc = x[:, c0:c1].float()
+            for c0 in range(0, input.shape[1], chunk):
+                c1 = min(c0 + chunk, input.shape[1])
+                xc = input[:, c0:c1].float()
                 kc = self.weight[c0:c1].squeeze(1).float()  # type: ignore[attr-defined]
                 kc = kc.flip(list(range(1, self._spatial_dims + 1)))
                 xc_fft = torch.fft.rfftn(xc, s=fft_size, dim=fft_dims)
@@ -125,7 +125,7 @@ class _DepthwiseFFTForward:
                 del out_c
             return torch.cat(parts, dim=1)
 
-        x_f32 = x.float()
+        x_f32 = input.float()
         k_f32 = self.weight.squeeze(1).float()  # type: ignore[attr-defined]
         # PyTorch ``F.conv*`` computes cross-correlation; FFT computes convolution.
         # Flip the kernel so the FFT output matches ``Conv{2,3}d`` exactly.

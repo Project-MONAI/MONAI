@@ -202,7 +202,7 @@ class AutoRunner:
 
         For the datalist file format, see the description under :py:func:`monai.data.load_decathlon_datalist`.
         Note that the AutoRunner will use the "validation" key in the datalist file if it exists, otherwise
-        it will do cross-validation, by default with five folds (this is hardcoded).
+        It will do cross-validation with the configured `num_fold` number of folds (default 5).
     """
 
     analyze_params: dict | None
@@ -398,8 +398,15 @@ class AutoRunner:
         Args:
             datalist_filename: path to the datalist file.
 
+        Returns:
+            Number of existing or generated folds, or 1 when using a validation list.
+
+        Raises:
+            ValueError: If training data is missing, fold IDs are not continuous from zero,
+                or the automatic fold count is outside [2, number of training items].
+
         Notes:
-            If the fold key is not provided, it auto generates 5 folds assignments in the training key list.
+            If the fold key is not provided, it generates the configured num_fold assignments (default 5).
             If validation key list is available, then it assumes a single fold validation.
         """
 
@@ -440,7 +447,12 @@ class AutoRunner:
             num_fold = 1
 
         else:
-            num_fold = 5
+            num_fold = int(self.data_src_cfg.get("num_fold", 5))
+            if not 2 <= num_fold <= len(datalist["training"]):
+                raise ValueError(
+                    "num_fold must be at least 2 and no greater than the number of training items "
+                    "when AutoRunner generates folds."
+                )
 
             warnings.warn(
                 f"Datalist has no folds specified {datalist_filename}..."
@@ -790,6 +802,7 @@ class AutoRunner:
             nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
             ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
+            # pyrefly: ignore [redundant-cast]
             max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
             cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
 
@@ -805,6 +818,7 @@ class AutoRunner:
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
             cmd = "nnictl stop --all"
+            # pyrefly: ignore [bad-argument-type]
             run_cmd(cmd.split(), check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings

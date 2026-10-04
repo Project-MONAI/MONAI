@@ -172,6 +172,7 @@ def plot_2d_or_3d_image(
         max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         tag: tag of the plotted image on TensorBoard.
     """
+    # pyrefly: ignore [bad-index]
     data_index = data[index]
     # as the `d` data has no batch dim, reduce the spatial dim index if positive
     frame_dim = frame_dim - 1 if frame_dim > 0 else frame_dim
