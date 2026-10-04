@@ -142,7 +142,7 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
 
     def test_gaussian_num_bins_must_allow_spacing(self):
         """Verify Gaussian bin counts allow a finite bin-centre spacing."""
-        with self.assertRaisesRegex(ValueError,"Gaussian kernel requires num_bins >= 2, got 1"):
+        with self.assertRaisesRegex(ValueError, "Gaussian kernel requires num_bins >= 2, got 1"):
             GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=1)
 
     @parameterized.expand(
