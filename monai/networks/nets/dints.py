@@ -483,6 +483,13 @@ class DiNTS(nn.Module):
                 )
 
     def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Mirror ``node_a`` into ``_node_a_py`` on assignment. ``forward()`` branches on its
+        entries, which dynamo cannot constant-fold off a tensor, so a compiled model breaks into
+        one graph per branch (https://github.com/Project-MONAI/MONAI/issues/9144); the compiled
+        path reads the mirror instead. Mirroring here rather than in ``__init__()`` keeps code
+        that replaces ``node_a`` after construction correct.
+        """
         super().__setattr__(name, value)
         if name == "node_a" and value is not None:
             # `!= 0`, not an int cast: casting would make a fractional flag such as 0.5 falsy.
@@ -645,6 +652,10 @@ class TopologyConstruction(nn.Module):
                     )
 
     def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Mirror ``arch_code_a`` into ``_arch_code_a_py`` on assignment. See
+        ``DiNTS.__setattr__`` for why.
+        """
         super().__setattr__(name, value)
         if name == "arch_code_a" and value is not None:
             # See `DiNTS._node_a_py`.
