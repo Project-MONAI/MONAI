@@ -178,7 +178,7 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
             See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
-    .. versionchanged:: 1.6.1
+    .. versionchanged:: 1.7
         The default `hash_type` changed from "md5" to "sha256" for stronger integrity verification.
         Pass `hash_type="md5"` explicitly to verify against MD5 hashes.
     """
@@ -239,7 +239,7 @@ def download_url(
         IOError: See urllib.request.urlretrieve.
         HashCheckError: When the hash validation of the ``url`` downloaded file fails.
 
-    .. versionchanged:: 1.6.1
+    .. versionchanged:: 1.7
         The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
         when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
         Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
@@ -248,9 +248,10 @@ def download_url(
     if hash_val is not None and hash_type is None:
         warn_deprecated(
             "monai.apps.utils.download_url",
-            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
             "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
             'default will be set to "sha256".',
+            stacklevel=3
         )
         hash_type = "sha256"
 
@@ -368,9 +369,10 @@ def extractall(
     if hash_val is not None and hash_type is None:
         warn_deprecated(
             "monai.apps.utils.extractall",
-            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.6.1, '
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
             "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
             'default will be set to "sha256".',
+            stacklevel=3
         )
         hash_type = "sha256"
 
