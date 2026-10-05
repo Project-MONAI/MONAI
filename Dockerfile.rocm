@@ -1,0 +1,118 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MONAI on AMD ROCm (AMD Instinct GPUs).
+#
+# This image installs the upstream `monai` package.
+#
+#   docker build -f Dockerfile.rocm -t monai:rocm .
+#
+#   docker run --device=/dev/kfd --device=/dev/dri --group-add video \
+#              --ipc=host --shm-size=8g -it monai:rocm
+#
+# Select the GPU architecture with '--build-arg AMDGPU_TARGETS=gfx942|gfx950'. The default is gfx942.
+
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+LABEL maintainer="monai.contact@gmail.com"
+
+ARG AMDGPU_TARGETS="gfx942"
+ARG ROCM_SERIES="10.0"
+ARG ROCM_INDEX_URL="https://stable.repo.amd.com/rocm/whl-next/"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ninja-build: required for MONAI's JIT C++/HIP extensions (torch.utils.cpp_extension).
+# libstdc++-13-dev + libopenslide-dev: HIP compile headers and whole-slide-image backend.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       ca-certificates curl git openssh-client \
+       python3-venv python3-pip python3-dev \
+       build-essential cmake ninja-build yasm \
+       libgomp1 libstdc++-13-dev \
+       libopenslide-dev libwebp-dev libzstd-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+RUN pip install --no-cache-dir --upgrade pip wheel
+
+RUN pip install --no-cache-dir --index-url ${ROCM_INDEX_URL} \
+      "rocm[libraries,devel,device-${AMDGPU_TARGETS}]==${ROCM_SERIES}.*" \
+      "torch[device-${AMDGPU_TARGETS}]" \
+      "torchvision[device-${AMDGPU_TARGETS}]" \
+      torchaudio \
+  && rocm-sdk init
+
+ENV ROCM_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_core"
+ENV ROCM_HOME="${ROCM_PATH}"
+ENV ROCM_DEVEL_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_devel"
+ENV ROCM_LIBRARIES_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_libraries"
+ENV PATH="${ROCM_PATH}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${ROCM_PATH}/lib:${ROCM_PATH}/lib/rocm_sysdeps/lib:${ROCM_PATH}/lib/llvm/lib:${ROCM_LIBRARIES_PATH}/lib"
+ENV CPATH="${ROCM_DEVEL_PATH}/include:/usr/lib/gcc/x86_64-linux-gnu/13/include"
+ENV LIBRARY_PATH="${ROCM_DEVEL_PATH}/lib:${ROCM_PATH}/lib"
+ENV AMDGPU_TARGETS=${AMDGPU_TARGETS}
+ENV PYTORCH_ROCM_ARCH=${AMDGPU_TARGETS}
+
+# hipcc expects bitcode at ROCM_PATH/amdgcn/bitcode; the rocm-sdk wheel places it one level deeper.
+RUN mkdir -p "${ROCM_PATH}/amdgcn" \
+  && ln -sf "${ROCM_PATH}/lib/llvm/amdgcn/bitcode" "${ROCM_PATH}/amdgcn/bitcode"
+
+# Prevent OpenBLAS from spawning one thread per core under MONAI's multiprocessing dataloaders.
+ENV OMP_NUM_THREADS=1
+
+WORKDIR /opt/monai
+
+COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py pyproject.toml runtests.sh MANIFEST.in ./
+COPY tests ./tests
+COPY monai ./monai
+
+# Use print_dependencies.py rather than -e .[all,testing] to filter CUDA-only packages:
+#   cucim-cu* pulls in cuda-toolkit (~1.2 GB); nvidia-ml-py fails at import on ROCm; nni depends on it.
+# BUILD_MONAI is not set: docker build has no GPU, so extensions JIT-compile at container runtime.
+# pytest is not in the "testing" extra; it is added explicitly for running tests by hand.
+RUN python monai/config/print_dependencies.py build-system \
+      | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
+  && python monai/config/print_dependencies.py all testing \
+      | grep -vE '^cucim-cu|^nvidia-ml-py|^nni' > /tmp/rocm-requirements-$$.txt \
+  && pip install --no-cache-dir --no-build-isolation \
+      -r /tmp/rocm-requirements-$$.txt pytest -e . \
+  && rm -f /tmp/rocm-requirements-$$.txt
+
+# Set HIPCIM_INDEX_URL="" to build without WSI/cucim support.
+# CuImage is imported (not just cucim) because cucim uses lazy_loader -- a bare import
+# succeeds even when the native library is unresolvable. Failing here is deliberate: if
+# hipCIM was requested, an image where the cucim backends silently do not work is worse
+# than no image at all.
+ARG HIPCIM_INDEX_URL="https://pypi.amd.com/rocm-${ROCM_SERIES}.0/simple/"
+RUN if [ -n "${HIPCIM_INDEX_URL}" ]; then \
+      pip install --no-cache-dir --extra-index-url "${HIPCIM_INDEX_URL}" "amd-hipcim" \
+      && python -c "from cucim import CuImage"; \
+    else \
+      echo "hipCIM not installed; whole-slide-image (cucim) backends are unavailable."; \
+    fi
+
+RUN python - <<'PY'
+import torch, monai
+print('MONAI  :', monai.__version__)
+print('PyTorch:', torch.__version__)
+print('ROCm   :', torch.version.hip)
+try:
+    import cucim
+    from cucim import CuImage  # noqa: F401
+    print('hipCIM :', cucim.__version__)
+except ImportError as exc:
+    print('hipCIM : not available (%s)' % exc)
+PY
+
+CMD ["bash"]
