@@ -13,12 +13,8 @@ on:
             required: false
 
 permissions:
-  actions: write
-  checks: write
-  contents: write
-  issues: write
-  pull-requests: write
-  repository-projects: write
+  contents: read
+  pull-requests: read
   statuses: write
 
 jobs:
@@ -54,7 +50,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ${{ fromJson(needs.Authorization.outputs.args).repo }}
-          ref: ${{ fromJson(needs.Authorization.outputs.args).ref }}
+          ref: ${{ fromJson(needs.Authorization.outputs.args).sha }}
           lfs: 'true'
 
       # repo specific steps

@@ -1,5 +1,5 @@
 
-# What's new in 1.6.0 🎉🎉
+# What's new in 1.6.0
 
 - New losses: AUC-Margin Loss, Matthews Correlation Coefficient (MCC) Loss
   * AUC-Margin Loss: `AUCMarginLoss` directly optimizes the AUROC metric via a margin-based surrogate loss, enabling training workflows that target ranking-based performance rather than calibration-based objectives.
