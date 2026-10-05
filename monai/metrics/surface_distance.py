@@ -225,15 +225,17 @@ def compute_average_surface_distance(
     class_offset = 0 if include_background else 1
 
     for b, c in np.ndindex(batch_size, n_class):
+        yp = y_pred[b, c]
+        yt = y[b, c]
         if per_component:
-            pred_empty = y_pred[b, c].sum() == 0
-            label_empty = y[b, c].sum() == 0
+            pred_empty = yp.sum() == 0
+            label_empty = yt.sum() == 0
             if pred_empty or label_empty:
                 asd[b, c] = 0.0 if (pred_empty and label_empty) else float("nan")
                 continue
-            cc_assignment = compute_voronoi_regions_fast(y[b, c].cpu().numpy())
-            if cc_assignment.device != y_pred[b, c].device:
-                cc_assignment = cc_assignment.to(y_pred[b, c].device)
+            cc_assignment = compute_voronoi_regions_fast(yt.cpu().numpy())
+            if cc_assignment.device != yp.device:
+                cc_assignment = cc_assignment.to(yp.device)
             component_scores = []
             for cc_id in torch.unique(cc_assignment.view(-1)):
                 cc_mask = cc_assignment == cc_id
@@ -241,37 +243,12 @@ def compute_average_surface_distance(
                 min_corner_idx = coords.min(dim=0).values
                 max_corner_idx = coords.max(dim=0).values
 
-                crop_pred = (
-                    y_pred[b, c][
-                        min_corner_idx[0] : max_corner_idx[0] + 1,
-                        min_corner_idx[1] : max_corner_idx[1] + 1,
-                        min_corner_idx[2] : max_corner_idx[2] + 1,
-                    ]
-                    if y_pred.ndim == 5
-                    else y_pred[b, c][
-                        min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1
-                    ]
+                slices = tuple(
+                    slice(min_corner_idx[i], max_corner_idx[i] + 1) for i in range(3 if y_pred.ndim == 5 else 2)
                 )
-
-                crop_label = (
-                    y[b, c][
-                        min_corner_idx[0] : max_corner_idx[0] + 1,
-                        min_corner_idx[1] : max_corner_idx[1] + 1,
-                        min_corner_idx[2] : max_corner_idx[2] + 1,
-                    ]
-                    if y.ndim == 5
-                    else y[b, c][min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1]
-                )
-
-                cc_crop_mask = (
-                    cc_mask[
-                        min_corner_idx[0] : max_corner_idx[0] + 1,
-                        min_corner_idx[1] : max_corner_idx[1] + 1,
-                        min_corner_idx[2] : max_corner_idx[2] + 1,
-                    ]
-                    if y_pred.ndim == 5
-                    else cc_mask[min_corner_idx[0] : max_corner_idx[0] + 1, min_corner_idx[1] : max_corner_idx[1] + 1]
-                )
+                crop_pred = yp[slices]
+                crop_label = yt[slices]
+                cc_crop_mask = cc_mask[slices]
 
                 pred_masked = crop_pred * cc_crop_mask
                 label_masked = crop_label * cc_crop_mask
@@ -290,9 +267,6 @@ def compute_average_surface_distance(
                 )
             asd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
         else:
-            yp = y_pred[b, c]
-            yt = y[b, c]
-
             absolute_c = c + class_offset
             warn_empty = ignore_index is None or absolute_c != ignore_index
             _, distances, _ = get_edge_surface_distance(
