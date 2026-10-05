@@ -251,7 +251,7 @@ def download_url(
             'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
             "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
             'default will be set to "sha256".',
-            stacklevel=3
+            stacklevel=3,
         )
         hash_type = "sha256"
 
@@ -372,7 +372,7 @@ def extractall(
             'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
             "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
             'default will be set to "sha256".',
-            stacklevel=3
+            stacklevel=3,
         )
         hash_type = "sha256"
 
