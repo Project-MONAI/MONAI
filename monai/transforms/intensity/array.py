@@ -2614,7 +2614,7 @@ class IntensityRemap(RandomizableTransform):
         grid = torch.arange(len(noise)) / len(noise)
         noise += self.slope * grid
         # rescale
-        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img_.max() + img_.min()
+        noise = (noise - noise.min()) / (noise.max() - noise.min()) * (img_.max() - img_.min()) + img_.min()
 
         # intensity remapping function
         index_img = torch.bucketize(img_, torch.tensor(vals_to_sample))
