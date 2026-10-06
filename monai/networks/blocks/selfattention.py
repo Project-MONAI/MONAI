@@ -72,6 +72,7 @@ class SABlock(nn.Module):
                 fast path via ``is_causal=True``. When an additive bias is required (for example,
                 ``rel_pos_embedding``, or ``causal``/``attn_mask`` merged with another bias),
                 PyTorch falls back to the memory-efficient or cuDNN SDPA backend.
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
         Raises:
             ValueError: if ``dropout_rate`` is not between 0 and 1.
