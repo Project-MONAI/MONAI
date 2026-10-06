@@ -47,6 +47,20 @@ class TestLayerNormNd(unittest.TestCase):
         expected = norm_ref(x.permute(channel_last)).permute([0, spatial_dims + 1, *range(1, spatial_dims + 1)])
         self.assertTrue(torch.allclose(norm_nd(x), expected, atol=1e-5))
 
+    def test_backward(self):
+        """Regression test: the forward pass must not break autograd via an unsafe in-place op."""
+        norm = LayerNormNd(6, spatial_dims=2)
+        x = torch.randn(2, 6, 4, 4, requires_grad=True)
+        norm(x).sum().backward()
+        self.assertIsNotNone(x.grad)
+        self.assertIsNotNone(norm.weight.grad)
+        self.assertIsNotNone(norm.bias.grad)
+
+    @parameterized.expand([[0, 2], [-1, 2], [6, -1]])
+    def test_ill_arg(self, num_channels, spatial_dims):
+        with self.assertRaises(ValueError):
+            LayerNormNd(num_channels, spatial_dims=spatial_dims)
+
 
 if __name__ == "__main__":
     unittest.main()

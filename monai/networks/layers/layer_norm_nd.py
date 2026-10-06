@@ -28,10 +28,17 @@ class LayerNormNd(nn.Module):
         num_channels: number of channels of the input, i.e. the size of dimension 1.
         spatial_dims: number of spatial dimensions of the input image.
         eps: value added to the denominator for numerical stability.
+
+    Raises:
+        ValueError: if ``num_channels`` is not positive, or ``spatial_dims`` is negative.
     """
 
     def __init__(self, num_channels: int, spatial_dims: int, eps: float = 1e-6) -> None:
         super().__init__()
+        if num_channels <= 0:
+            raise ValueError(f"num_channels must be positive, got {num_channels}.")
+        if spatial_dims < 0:
+            raise ValueError(f"spatial_dims must be non-negative, got {spatial_dims}.")
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(num_channels))
         self.bias = nn.Parameter(torch.zeros(num_channels))
@@ -41,6 +48,11 @@ class LayerNormNd(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mean = x.mean(dim=1, keepdim=True)
-        var = (x - mean).pow(2).mean(dim=1, keepdim=True)
-        x = (x - mean) / torch.sqrt(var + self.eps)
-        return self.weight.view(self.param_shape) * x + self.bias.view(self.param_shape)
+        xmean = x - mean
+        var = xmean.pow(2).mean(dim=1, keepdim=True)
+        # `var` and the sqrt result are intermediates used nowhere else, so mutating them in place is
+        # safe; `xmean` must stay untouched since its pre-division value is what `pow(2)`'s backward
+        # needs, so the final division is deliberately out-of-place.
+        denom = var.add_(self.eps).sqrt_()
+        x = xmean / denom
+        return self.weight.view(self.param_shape).mul(x).add_(self.bias.view(self.param_shape))
