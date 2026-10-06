@@ -77,7 +77,6 @@ class CrossAttentionBlock(nn.Module):
             ValueError: if ``hidden_size`` is not divisible by ``num_heads`` when ``dim_head`` is not set.
             ValueError: if ``causal`` is True and ``sequence_length`` is not provided.
             ValueError: if both ``save_attn`` and ``use_flash_attention`` are True.
-            ValueError: if ``rel_pos_embedding`` is not None and ``use_flash_attention`` is True.
         """
 
         super().__init__()
