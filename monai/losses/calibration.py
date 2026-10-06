@@ -22,13 +22,17 @@ from monai.utils import LossReduction
 
 __all__ = ["HardL1ACELoss", "SoftL1ACELoss"]
 
+# Spell out float32 epsilon because torch.finfo is not supported by TorchScript.
+# Bind it through helper defaults because TorchScript cannot capture a global float.
+FLOAT32_EPS = 1.1920928955078125e-7
+
 
 def _accumulation_dtype(input: torch.Tensor) -> torch.dtype:
     return torch.float32 if input.dtype in (torch.float16, torch.bfloat16) else input.dtype
 
 
 def _hard_binned_calibration(
-    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool
+    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool, float32_eps: float = FLOAT32_EPS
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Return hard-binned prediction sums, target sums, and counts."""
     work_dtype = _accumulation_dtype(input)
@@ -36,8 +40,6 @@ def _hard_binned_calibration(
     target_flat = target.detach().flatten(start_dim=2).to(dtype=work_dtype)
 
     # Match calibration_binning's established boundaries, including its epsilon-expanded upper edge.
-    # Spell out float32 epsilon because torch.finfo is not supported by TorchScript.
-    float32_eps = 1.1920928955078125e-7
     boundaries = torch.linspace(0.0, 1.0 + float32_eps, num_bins + 1, dtype=work_dtype, device=input.device)
     bin_idx = torch.bucketize(input_flat, boundaries[1:], right=right).clamp(max=num_bins - 1)
     counts = torch.zeros(input_flat.shape[0], input_flat.shape[1], num_bins, dtype=work_dtype, device=input.device)
@@ -48,15 +50,13 @@ def _hard_binned_calibration(
 
 
 def _soft_binned_calibration(
-    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool
+    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool, float32_eps: float = FLOAT32_EPS
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Return soft-binned prediction sums, target sums, and effective counts."""
     work_dtype = _accumulation_dtype(input)
     input_flat = input.flatten(start_dim=2).to(dtype=work_dtype).contiguous()
     target_flat = target.detach().flatten(start_dim=2).to(dtype=work_dtype)
 
-    # Spell out float32 epsilon because torch.finfo is not supported by TorchScript.
-    float32_eps = 1.1920928955078125e-7
     half_boundaries = torch.linspace(0.0, 1.0 + float32_eps, 2 * num_bins + 1, dtype=work_dtype, device=input.device)
     centers = half_boundaries[1::2].contiguous()
     insertion_idx = torch.bucketize(input_flat, centers, right=right)
@@ -157,7 +157,7 @@ class _L1ACELoss(_Loss):
                 target = target[:, 1:]
 
         if target.shape != input.shape:
-            raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+            raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
         return input, target
 
     def _reduce(self, per_class_loss: torch.Tensor, valid_classes: torch.Tensor, input: torch.Tensor) -> torch.Tensor:
