@@ -47,6 +47,16 @@ class TestRandIntensityRemap(unittest.TestCase):
             assert_allclose(result[c].min(), low, type_test=False, atol=1e-3, rtol=1e-5)
             assert_allclose(result[c].max(), high, type_test=False, atol=1e-3, rtol=1e-5)
 
+    @parameterized.expand([[True], [False]])
+    def test_set_random_state(self, channel_wise):
+        img = torch.stack([torch.linspace(0.0, 100.0, 500).reshape(10, 50)] * 2)
+        results = []
+        for _ in range(2):
+            remap = RandIntensityRemap(prob=1.0, kernel_size=10, channel_wise=channel_wise)
+            remap.set_random_state(seed=0)
+            results.append(remap(img))
+        assert_allclose(results[0], results[1], type_test=False)
+
     def test_prob_zero(self):
         img = torch.linspace(-1.0, 1.0, 500).reshape(1, 10, 50)
         remap = RandIntensityRemap(prob=0.0)
