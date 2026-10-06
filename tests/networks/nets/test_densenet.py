@@ -95,8 +95,6 @@ class TestPretrainedDENSENET(unittest.TestCase):
         "ROCm may select different conv algorithms per graph; bit-exactness not guaranteed.",
     )
     def test_pretrain_consistency(self, model, input_param, input_shape):
-        if torch.version.hip is not None:
-            self.skipTest("ROCm may select different conv algorithms per graph; bit-exactness not guaranteed.")
         example = torch.randn(input_shape).to(device)
         with skip_if_downloading_fails():
             net = model(**input_param).to(device)

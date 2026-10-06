@@ -28,6 +28,8 @@ LABEL maintainer="monai.contact@gmail.com"
 ARG AMDGPU_TARGETS="gfx942"
 ARG ROCM_SERIES="10.0"
 ARG ROCM_INDEX_URL="https://stable.repo.amd.com/rocm/whl-next/"
+# Must match the python3 in BASE_IMAGE: it determines the venv's site-packages path below.
+ARG PYTHON_VERSION=3.12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -53,10 +55,10 @@ RUN pip install --no-cache-dir --index-url ${ROCM_INDEX_URL} \
       torchaudio \
   && rocm-sdk init
 
-ENV ROCM_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_core"
+ENV ROCM_PATH="/opt/venv/lib/python${PYTHON_VERSION}/site-packages/_rocm_sdk_core"
 ENV ROCM_HOME="${ROCM_PATH}"
-ENV ROCM_DEVEL_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_devel"
-ENV ROCM_LIBRARIES_PATH="/opt/venv/lib/python3.12/site-packages/_rocm_sdk_libraries"
+ENV ROCM_DEVEL_PATH="/opt/venv/lib/python${PYTHON_VERSION}/site-packages/_rocm_sdk_devel"
+ENV ROCM_LIBRARIES_PATH="/opt/venv/lib/python${PYTHON_VERSION}/site-packages/_rocm_sdk_libraries"
 ENV PATH="${ROCM_PATH}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${ROCM_PATH}/lib:${ROCM_PATH}/lib/rocm_sysdeps/lib:${ROCM_PATH}/lib/llvm/lib:${ROCM_LIBRARIES_PATH}/lib"
 ENV CPATH="${ROCM_DEVEL_PATH}/include:/usr/lib/gcc/x86_64-linux-gnu/13/include"
@@ -79,15 +81,21 @@ COPY monai ./monai
 
 # Use print_dependencies.py rather than -e .[all,testing] to filter CUDA-only packages:
 #   cucim-cu* pulls in cuda-toolkit (~1.2 GB); nvidia-ml-py fails at import on ROCm; nni depends on it.
-# BUILD_MONAI is not set: docker build has no GPU, so extensions JIT-compile at container runtime.
+# BUILD_MONAI=1 builds the C++/HIP extensions ahead of time; FORCE_CUDA=1 is required because the
+# build host has no GPU, so setup.py's `torch.cuda.is_available()` check would otherwise skip them.
+# Compilation itself needs only the toolkit and PYTORCH_ROCM_ARCH (set above), not a device.
 # pytest is not in the "testing" extra; it is added explicitly for running tests by hand.
 RUN python monai/config/print_dependencies.py build-system \
       | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
   && python monai/config/print_dependencies.py all testing \
       | grep -vE '^cucim-cu|^nvidia-ml-py|^nni' > /tmp/rocm-requirements-$$.txt \
-  && pip install --no-cache-dir --no-build-isolation \
+  && BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation \
       -r /tmp/rocm-requirements-$$.txt pytest -e . \
   && rm -f /tmp/rocm-requirements-$$.txt
+
+# Required at runtime too: monai.config.deviceconfig gates USE_COMPILED on this variable, so
+# without it the extensions built above would be present but never used.
+ENV BUILD_MONAI=1
 
 # Set HIPCIM_INDEX_URL="" to build without WSI/cucim support.
 # CuImage is imported (not just cucim) because cucim uses lazy_loader -- a bare import
