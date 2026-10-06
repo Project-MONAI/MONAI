@@ -117,7 +117,9 @@ def spatial_resample(
     Args:
         img: data to be resampled, assuming `img` is channel-first.
         dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
-        spatial_size: output spatial size, if the component is ``-1``, use the corresponding input spatial size.
+        spatial_size: output spatial size. Components set to ``-1`` or ``None`` use the corresponding input
+            spatial dimension. If the entire value is ``None``, the output size is computed automatically when
+            possible, otherwise the input spatial shape is used.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
             Interpolation mode to calculate output values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -135,6 +137,13 @@ def spatial_resample(
         dtype_pt: data `dtype` for resampling computation.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    Returns:
+        torch.Tensor: The resampled output tensor, with metadata preserved when metadata tracking is enabled.
+
+    Raises:
+        ValueError: If the affine or spatial dimensions are invalid, or if the output spatial size cannot be
+            computed.
     """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
@@ -156,7 +165,7 @@ def spatial_resample(
     elif spatial_size is None and spatial_rank > 1:  # auto spatial size
         spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
     spatial_size = torch.tensor(
-        fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x >= 0)
+        fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x is not None and x >= 0)
     )
     extra_info = {
         "dtype": str(dtype_pt)[6:],  # remove "torch": torch.float32 -> float32

@@ -378,7 +378,7 @@ def get_filename_from_url(data_url: str) -> str:
             filename = re.findall('filename="?([^";]+)"?', content_disposition)
             if filename:
                 return str(filename[0])
-        if "drive.google.com" in data_url:
+        if urlparse(data_url).netloc == "drive.google.com":
             response = requests.get(data_url)
             if "text/html" in response.headers.get("Content-Type", ""):
                 soup = BeautifulSoup(response.text, "html.parser")
