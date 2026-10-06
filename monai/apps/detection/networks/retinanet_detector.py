@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import Tensor, nn
@@ -59,10 +59,13 @@ from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep, optional_import
 
-BalancedPositiveNegativeSampler, _ = optional_import(
-    "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
-)
-Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
+if TYPE_CHECKING:
+    from torchvision.models.detection._utils import BalancedPositiveNegativeSampler, Matcher
+else:
+    BalancedPositiveNegativeSampler, _ = optional_import(
+        "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
+    )
+    Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
 
 
 class RetinaNetDetector(nn.Module):
@@ -769,10 +772,11 @@ class RetinaNetDetector(nn.Module):
             # BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
             if isinstance(self.proposal_matcher, Matcher):
                 # if torchvision matcher
+                matcher: Matcher = self.proposal_matcher
                 match_quality_matrix = self.box_overlap_metric(
                     targets_per_image[self.target_box_key].to(anchors_per_image.device), anchors_per_image
                 )
-                matched_idxs_per_image = self.proposal_matcher(match_quality_matrix)
+                matched_idxs_per_image = matcher(match_quality_matrix)
             elif isinstance(self.proposal_matcher, ATSSMatcher):
                 # if monai ATSS matcher
                 match_quality_matrix, matched_idxs_per_image = self.proposal_matcher(
