@@ -1251,7 +1251,7 @@ class DiffusionInferer(Inferer):
         given image. Code adapted from https://github.com/openai/improved-diffusion.
 
         Args:
-            input: the target images. It is assumed that this was uint8 values,
+            inputs: the target images. It is assumed that this was uint8 values,
                       rescaled to the range [-1, 1].
             means: the Gaussian mean Tensor.
             log_scales: the Gaussian log stddev Tensor.
@@ -1987,8 +1987,8 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             and autoencoder_model.decoder.label_nc != diffusion_model.label_nc
         ):
             raise ValueError(
-                "If both autoencoder_model and diffusion_model implement SPADE, the number of semantic"
-                "labels for each must be compatible. Got {autoencoder_model.decoder.label_nc} and {diffusion_model.label_nc}"
+                "If both autoencoder_model and diffusion_model implement SPADE, the number of semantic "
+                f"labels for each must be compatible. Got {autoencoder_model.decoder.label_nc} and {diffusion_model.label_nc}"
             )
 
         if cn_cond.shape[2:] != input_noise.shape[2:]:
