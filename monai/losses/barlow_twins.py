@@ -78,7 +78,7 @@ class BarlowTwinsLoss(_Loss):
         c = torch.mm(input_norm.t(), target_norm) / batch_size  # input_norm.t() is FxB, target_norm is BxF so c is FxF
 
         # loss
-        c_diff = (c - torch.eye(c.size(0), device=c.device)).pow_(2)  # FxF
+        c_diff = (c - torch.eye(c.size(0), dtype=c.dtype, device=c.device)).pow_(2)  # FxF
         c_diff[~torch.eye(c.size(0), device=c.device).bool()] *= lambd_tensor
 
         return c_diff.sum()
