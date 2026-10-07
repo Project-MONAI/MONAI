@@ -1868,7 +1868,8 @@ class RandAffineGrid(Randomizable, LazyTransform):
     ) -> None:
         """
         Args:
-            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
+                `uniform[rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
                 for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
                 This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
                 in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
@@ -2496,12 +2497,12 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
-            translate_relative: if True, `translate_range` values are interpreted as fractions of the
-                corresponding spatial dimension size (e.g. 0.5 allows translating up to half the image
-                size), instead of absolute voxels. Defaults to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
+            translate_relative: if True, `translate_range` values are interpreted as fractions of the
+                corresponding spatial dimension size (e.g. 0.5 allows translating up to half the image
+                size), instead of absolute voxels. Defaults to False.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
