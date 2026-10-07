@@ -491,7 +491,7 @@ class BundleGen(AlgoGen):
         mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
             the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
             the value is None.
-        mlfow_experiment_name: a string to specify the experiment name for MLflow server.
+        mlflow_experiment_name: a string to specify the experiment name for MLflow server.
     .. code-block:: bash
 
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"
