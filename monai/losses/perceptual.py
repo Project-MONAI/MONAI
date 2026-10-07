@@ -312,8 +312,10 @@ def spatial_average_3d(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
 
 
 def normalize_tensor(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
-    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True))
-    return x / (norm_factor + eps)
+    # Add eps inside the sqrt so the gradient stays finite when the norm is zero
+    # (e.g. identical input/target features), avoiding NaNs from SqrtBackward. See issue #8412.
+    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True) + eps)
+    return x / norm_factor
 
 
 def medicalnet_intensity_normalisation(volume):
