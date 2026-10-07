@@ -153,6 +153,146 @@ class TestDints(unittest.TestCase):
         self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
+class TestDintsArchCode(unittest.TestCase):
+    """arch_code entries loaded with `torch.load(..., weights_only=True)` are tensors, not numpy arrays."""
+
+    def setUp(self):
+        """Create a small CPU search space and numpy architecture codes shared by the tests.
+
+        Builds ``grid_params`` for a ``num_blocks=6, num_depths=3`` topology, a binary
+        ``arch_code_a`` path-activation matrix of ones, and a random integer ``arch_code_c``
+        cell-operation matrix valid for the ``Cell`` operation set.
+        """
+        self.grid_params = {
+            "channel_mul": 0.2,
+            "num_blocks": 6,
+            "num_depths": 3,
+            "device": "cpu",
+            "use_downsample": False,
+            "spatial_dims": 3,
+        }
+        _cell = Cell(1, 1, 0, spatial_dims=self.grid_params["spatial_dims"])
+        num_paths = 3 * self.grid_params["num_depths"] - 2
+        self.arch_code_a = np.ones((self.grid_params["num_blocks"], num_paths))
+        self.arch_code_c = np.random.randint(len(_cell.OPS), size=(self.grid_params["num_blocks"], num_paths))
+
+    def test_tensor_arch_code_matches_numpy(self):
+        """Tensor arch codes yield the same topology as the equivalent numpy arch codes.
+
+        Constructs ``TopologyInstance`` from numpy and from tensor inputs and asserts that
+        ``arch_code_a``, ``arch_code_c``, and the instantiated cell tree are identical.
+        """
+        grid_np = TopologyInstance(arch_code=[self.arch_code_a, self.arch_code_c], **self.grid_params)
+        grid_pt = TopologyInstance(
+            arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
+        )
+        torch.testing.assert_close(grid_pt.arch_code_a, grid_np.arch_code_a)
+        torch.testing.assert_close(grid_pt.arch_code_c, grid_np.arch_code_c)
+        self.assertEqual(set(grid_pt.cell_tree.keys()), set(grid_np.cell_tree.keys()))
+
+    def test_dints_forward_tensor_arch_code(self):
+        """DiNTS built from tensor arch codes runs a forward pass with the expected output shape.
+
+        Feeds a random ``(1, 1, 16, 16, 16)`` volume through the network and asserts the
+        segmentation output shape is ``(1, 2, 16, 16, 16)``.
+        """
+        grid = TopologyInstance(
+            arch_code=[torch.as_tensor(self.arch_code_a), torch.as_tensor(self.arch_code_c)], **self.grid_params
+        )
+        net = DiNTS(
+            dints_space=grid,
+            in_channels=1,
+            num_classes=2,
+            spatial_dims=3,
+            use_downsample=False,
+            node_a=torch.ones((self.grid_params["num_blocks"] + 1, self.grid_params["num_depths"])),
+        )
+        result = net(torch.randn(1, 1, 16, 16, 16))
+        self.assertEqual(result.shape, (1, 2, 16, 16, 16))
+
+
+class TestDintsTopologyCache(unittest.TestCase):
+    """When compiling, `forward` branches on Python snapshots of `node_a` / `arch_code_a`.
+
+    These tests pin both halves of that: the snapshot agrees with its source, and eager -- which
+    still reads the tensors -- honours mutations of the source.
+    """
+
+    def _build(self, node_a=None, all_paths_active=False):
+        num_blocks, num_depths, spatial_dims = 6, 3, 3
+        cell = Cell(1, 1, 0, spatial_dims=spatial_dims)
+        rng = np.random.RandomState(0)
+        if all_paths_active:
+            # a random code can leave a block with no active path, handing the next block a
+            # scalar; tests that actually run `forward` need every path live.
+            arch_code_a = np.ones((num_blocks, 3 * num_depths - 2), dtype=int)
+        else:
+            arch_code_a = rng.randint(0, 2, size=(num_blocks, 3 * num_depths - 2))
+            arch_code_a[0, 0] = 1  # keep at least one active path
+        arch_code_c = rng.randint(len(cell.OPS), size=(num_blocks, 3 * num_depths - 2))
+        grid = TopologyInstance(
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            device="cpu",
+            arch_code=[arch_code_a, arch_code_c],
+        )
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, spatial_dims=spatial_dims, node_a=node_a)
+        return net, grid
+
+    def test_cache_matches_source_at_construction(self):
+        net, grid = self._build()
+        self.assertEqual(net._node_a_py, (net.node_a != 0).tolist())
+        self.assertEqual(grid._arch_code_a_py, (grid.arch_code_a != 0).tolist())
+
+    def test_cache_preserves_truthiness_not_int_value(self):
+        """Any non-zero entry is active; truncating to int would make 0.5 and -0.5 falsy."""
+        node_a = torch.ones((7, 3))
+        node_a[0, 0], node_a[1, 1], node_a[2, 2] = 0.5, -0.5, 0.0
+        net, _ = self._build(node_a=node_a)
+        self.assertEqual(net._node_a_py[0][0], True)
+        self.assertEqual(net._node_a_py[1][1], True)
+        self.assertEqual(net._node_a_py[2][2], False)
+        self.assertEqual(net._node_a_py, (node_a != 0).tolist())
+
+    def test_cache_resyncs_when_node_a_is_replaced(self):
+        """Deployment code assigns `node_a` after construction; the snapshot must follow."""
+        net, _ = self._build()
+        replacement = torch.zeros_like(torch.as_tensor(net.node_a))
+        replacement[0, 0] = 1
+        net.node_a = replacement
+        self.assertEqual(net._node_a_py, (replacement != 0).tolist())
+
+    def test_eager_honours_in_place_node_a_edit(self):
+        """Eager reads the live tensor, so an in-place edit changes the output as before."""
+        net, _ = self._build(node_a=torch.ones((7, 3)), all_paths_active=True)
+        net.eval()
+        x = torch.randn(1, 1, 32, 32, 32)
+        with torch.no_grad():
+            before = net(x).clone()
+        net.node_a[0][0] = 0
+        with torch.no_grad():
+            after = net(x)
+        self.assertFalse(torch.allclose(before, after))
+
+    def test_eager_honours_caller_owned_arch_code_array(self):
+        """`torch.from_numpy` aliases the caller's array; eager must see edits to it."""
+        num_blocks, num_depths, spatial_dims = 6, 3, 3
+        cell = Cell(1, 1, 0, spatial_dims=spatial_dims)
+        arch_code_a = np.ones((num_blocks, 3 * num_depths - 2))
+        arch_code_c = np.random.RandomState(0).randint(len(cell.OPS), size=(num_blocks, 3 * num_depths - 2))
+        grid = TopologyInstance(
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            device="cpu",
+            arch_code=[arch_code_a, arch_code_c],
+        )
+        self.assertTrue(bool(grid.arch_code_a[0, 0]))
+        arch_code_a[0, 0] = 0  # caller edits the array it passed in
+        self.assertFalse(bool(grid.arch_code_a[0, 0]))
+
+
 class TestDintsTS(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
