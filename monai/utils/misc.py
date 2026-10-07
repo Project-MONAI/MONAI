@@ -569,7 +569,8 @@ class MONAIEnvVars:
 
     @staticmethod
     def allow_pickle() -> bool:
-        """If true, Auto3DSeg algo (de)serialization may use pickle. Default False.
+        """If true, Auto3DSeg algo (de)serialization and nnU-Net postprocessing loading may use
+        pickle. Default False.
 
         Pickle can execute arbitrary code on load and should only be enabled for files
         from trusted sources. Prefer ``algo_to_json`` / ``algo_from_json``.

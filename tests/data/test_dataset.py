@@ -26,13 +26,13 @@ from monai.data import Dataset
 from monai.transforms import Compose, Lambda, LoadImage, LoadImaged, SimulateDelay, SimulateDelayd
 from tests.transforms.compose.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
 
-TEST_CASE_1 = [(128, 128, 128)]
+TEST_CASE_1 = [(32, 32, 32)]
 
 
 class TestDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[32, 32, 32]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
@@ -101,7 +101,7 @@ class TestDataset(unittest.TestCase):
 class TestTupleDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[32, 32, 32]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
