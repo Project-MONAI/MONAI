@@ -1048,6 +1048,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         shear_range: Sequence[tuple[float, float] | float] | float | None = None,
         translate_range: Sequence[tuple[float, float] | float] | float | None = None,
         scale_range: Sequence[tuple[float, float] | float] | float | None = None,
+        translate_relative: bool = False,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
@@ -1088,6 +1089,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
+            translate_relative: if True, `translate_range` values are interpreted as fractions of the
+                corresponding spatial dimension size (e.g. 0.5 allows translating up to half the image
+                size), instead of absolute voxels. Defaults to False.
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -1131,6 +1135,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
+            translate_relative=translate_relative,
             spatial_size=spatial_size,
             cache_grid=cache_grid,
             device=device,
