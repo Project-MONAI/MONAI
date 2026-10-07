@@ -1167,8 +1167,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         # all the keys share the same random Affine factor
@@ -1328,8 +1327,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         device = self.rand_2d_elastic.device
@@ -1479,8 +1477,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
@@ -2168,8 +2165,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 
@@ -2346,13 +2342,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
             warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         if not self.randomize_per_key:
@@ -2677,8 +2673,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
-            return out
+            return d
 
         self.randomize(None)
 

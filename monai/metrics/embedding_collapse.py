@@ -295,7 +295,10 @@ def _effective_rank_score(emb: torch.Tensor) -> torch.Tensor:
     probs = sv / sv_sum
     safe_probs = probs.clamp_min(torch.finfo(probs.dtype).tiny)
     eff_rank: torch.Tensor = torch.exp(-(probs * safe_probs.log()).sum())
-    max_rank: torch.Tensor = emb.new_tensor(float(min(emb.shape[0], emb.shape[1])))
+    # Mean-centering above forces the rows to sum to zero, a linear dependency, so
+    # rank(centered) <= min(N - 1, D). Normalizing by min(N, D) would impose a 1/N
+    # floor on the score whenever N <= D. No-op when N > D: both expressions equal D.
+    max_rank: torch.Tensor = emb.new_tensor(float(min(emb.shape[0] - 1, emb.shape[1])))
     return (emb.new_tensor(1.0) - eff_rank / max_rank).clamp(0.0, 1.0)
 
 
