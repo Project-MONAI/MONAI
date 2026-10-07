@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import glob
 import os
-import shutil
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 from ignite.engine import Engine, Events
@@ -26,10 +25,8 @@ from parameterized import parameterized
 from monai.apps import download_and_extract
 from monai.bundle import ConfigWorkflow, download
 from monai.handlers import MLFlowHandler
-from monai.utils import optional_import, path_to_uri
+from monai.utils import path_to_sqlite_uri, path_to_uri
 from tests.test_utils import skip_if_downloading_fails, skip_if_quick
-
-_, has_dataset_tracking = optional_import("mlflow", "2.4.0")
 
 
 def get_event_filter(e):
@@ -41,9 +38,7 @@ def get_event_filter(e):
     return event_filter
 
 
-def dummy_train(tracking_folder):
-    tempdir = tempfile.mkdtemp()
-
+def dummy_train(tracking_folder, tempdir):
     # set up engine
     def _train_func(engine, batch):
         return [batch + 1.0]
@@ -55,7 +50,7 @@ def dummy_train(tracking_folder):
     handler = MLFlowHandler(
         iteration_log=False,
         epoch_log=True,
-        tracking_uri=path_to_uri(test_path),
+        tracking_uri=path_to_sqlite_uri(test_path),
         state_attributes=["test"],
         close_on_complete=True,
     )
@@ -65,14 +60,6 @@ def dummy_train(tracking_folder):
 
 
 class TestHandlerMLFlow(unittest.TestCase):
-    def setUp(self):
-        self.tmpdir_list = []
-
-    def tearDown(self):
-        for tmpdir in self.tmpdir_list:
-            if tmpdir and os.path.exists(tmpdir):
-                shutil.rmtree(tmpdir)
-
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # set up the train function for engine
@@ -95,7 +82,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler = MLFlowHandler(
                     iteration_log=False,
                     epoch_log=True,
-                    tracking_uri=path_to_uri(test_path),
+                    tracking_uri=path_to_sqlite_uri(test_path),
                     state_attributes=["test"],
                     close_on_complete=True,
                 )
@@ -105,6 +92,124 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler.close()
             # the run count should equal to the times of creating engine
             self.assertEqual(create_engine_times, run_cnt)
+
+    def test_default_tracking_uri_is_sqlite(self):
+        """Verify the handler defaults to a local SQLite backend, not the file store, without a tracking URI."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            handler = None
+            try:
+                handler = MLFlowHandler(iteration_log=False, epoch_log=False)
+                self.assertTrue(handler.client.tracking_uri.startswith("sqlite:///"))
+                self.assertTrue(handler.client.tracking_uri.endswith("mlruns.db"))
+                # artifacts should still default to a `./mlruns`-style directory
+                self.assertIsNotNone(handler.artifact_location)
+                self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
+                os.chdir(cwd)
+
+    def test_remote_tracking_uri_leaves_artifact_location_unset(self):
+        """Verify a remote tracking URI gets no local artifact location injected."""
+        handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri="http://localhost:5000")
+        self.assertEqual(handler.client.tracking_uri, "http://localhost:5000")
+        self.assertIsNone(handler.artifact_location)
+
+    def test_file_store_tracking_uri_is_rejected(self):
+        """Verify local paths and file:// URIs are rejected with an actionable error."""
+        for uri in ("/tmp/mlruns", path_to_uri(os.path.join("some", "dir"))):
+            with self.assertRaises(ValueError):
+                MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
+
+    def test_explicit_sqlite_tracking_uri_colocates_artifacts(self):
+        """Verify an explicit SQLite tracking URI co-locates artifacts next to the database."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
+            handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=uri)
+            try:
+                self.assertEqual(handler.client.tracking_uri, uri)
+                self.assertIsNotNone(handler.artifact_location)
+                self.assertTrue(handler.artifact_location.endswith("mlruns"))
+            finally:
+                handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_env_var_sqlite_tracking_uri_colocates_artifacts(self):
+        """Verify a SQLite ``MLFLOW_TRACKING_URI`` env var co-locates artifacts next to the db."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            uri = path_to_sqlite_uri(os.path.join(tempdir, "sub", "mlruns.db"))
+            handler = None
+            with patch.dict(os.environ, {"MLFLOW_TRACKING_URI": uri}):
+                try:
+                    handler = MLFlowHandler(iteration_log=False, epoch_log=False)
+                    self.assertTrue(handler.client.tracking_uri.endswith("mlruns.db"))
+                    self.assertIsNotNone(handler.artifact_location)
+                    self.assertTrue(handler.artifact_location.endswith("mlruns"))
+                    # co-located with the db file (the `sub` dir), not a cwd-relative `./mlruns`
+                    self.assertIn("sub", handler.artifact_location)
+                finally:
+                    if handler is not None:
+                        handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_env_var_tracking_uri_takes_priority_over_argument(self):
+        """Verify ``MLFLOW_TRACKING_URI`` overrides an explicit ``tracking_uri`` argument."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            env_uri = path_to_sqlite_uri(os.path.join(tempdir, "env.db"))
+            arg_uri = path_to_sqlite_uri(os.path.join(tempdir, "arg.db"))
+            handler = None
+            with patch.dict(os.environ, {"MLFLOW_TRACKING_URI": env_uri}):
+                try:
+                    handler = MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=arg_uri)
+                    self.assertTrue(handler.client.tracking_uri.endswith("env.db"))
+                finally:
+                    if handler is not None:
+                        handler.close()  # release the SQLite handle so Windows can delete the db
+
+    def test_explicit_artifact_location_is_used(self):
+        """Verify an explicit artifact location is preserved with the default SQLite backend."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            handler = None
+            try:
+                art = path_to_uri(os.path.join(tempdir, "artifacts"))
+                handler = MLFlowHandler(iteration_log=False, epoch_log=False, artifact_location=art)
+                self.assertEqual(handler.artifact_location, art)
+            finally:
+                if handler is not None:
+                    handler.close()  # release the SQLite handle so Windows can delete the db
+                os.chdir(cwd)
+
+    def test_default_sqlite_run_flow(self):
+        """Verify a basic run flow works end-to-end with the default SQLite backend."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            cwd = os.getcwd()
+            os.chdir(tempdir)
+            try:
+
+                def _train_func(engine, batch):
+                    return [batch + 1.0]
+
+                engine = Engine(_train_func)
+
+                @engine.on(Events.EPOCH_COMPLETED)
+                def _update_metric(engine):
+                    current_metric = engine.state.metrics.get("acc", 0.1)
+                    engine.state.metrics["acc"] = current_metric + 0.1
+
+                # close_on_complete=False so cur_run stays available after the run for the metric
+                # check below; the run is closed explicitly afterwards.
+                handler = MLFlowHandler(iteration_log=False, epoch_log=True, close_on_complete=False)
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=2)
+                cur_run = handler.client.get_run(handler.cur_run.info.run_id)
+                self.assertTrue("acc" in cur_run.data.metrics.keys())
+                handler.close()
+                # the default backend should have created a SQLite database file in the cwd
+                self.assertTrue(os.path.exists(os.path.join(tempdir, "mlruns.db")))
+            finally:
+                os.chdir(cwd)
 
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
@@ -137,7 +242,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=True,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
@@ -173,7 +278,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=epoch_log,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -212,7 +317,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=iteration_log,
                 epoch_log=False,
-                tracking_uri=path_to_uri(test_path),
+                tracking_uri=path_to_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -230,20 +335,222 @@ class TestHandlerMLFlow(unittest.TestCase):
             else:
                 self.assertEqual(handler._default_iteration_log.call_count, 2)  # 2 = len([1, 3]) from event_filter
 
+    @staticmethod
+    def _train_func(engine, batch):
+        """
+        Produce the output of one training step, for an engine that does no real work.
+
+        Args:
+            engine: the ignite engine running the step, unused.
+            batch: the batch of the current step.
+
+        Returns:
+            The batch shifted by one, as the single output of the step.
+        """
+        return [batch + 1.0]
+
+    def test_system_metrics_disabled_by_default(self):
+        """
+        Test that a handler left at its default settings does not sample the system metrics,
+        even where mlflow is able to.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_off")
+            handler = MLFlowHandler(
+                iteration_log=False, tracking_uri=path_to_sqlite_uri(test_path), close_on_complete=True
+            )
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor") as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=1)
+
+            monitor_class.assert_not_called()
+
+    def test_system_metrics_monitor_life_cycle(self):
+        """
+        Test that the monitor samples the run of the handler with the requested settings,
+        and stops when the workflow completes.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_sqlite_uri(test_path),
+                log_system_metrics=True,
+                system_metrics_sampling_interval=1,
+                system_metrics_samples_before_logging=1,
+                close_on_complete=False,
+            )
+            monitor = MagicMock()
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=1)
+
+            # the monitor samples the run of the handler, with the requested sampling settings
+            monitor_class.assert_called_once()
+            self.assertEqual(monitor_class.call_args.args[0], handler.cur_run.info.run_id)
+            self.assertEqual(monitor_class.call_args.kwargs["sampling_interval"], 1)
+            self.assertEqual(monitor_class.call_args.kwargs["samples_before_logging"], 1)
+            monitor.start.assert_called_once()
+            # the sampling is stopped when the workflow completes
+            monitor.finish.assert_called_once()
+            self.assertIsNone(handler.system_metrics_monitor)
+            handler.close()
+
+    def test_system_metrics_monitor_shared_by_handlers(self):
+        """
+        Test that handlers sharing a run sample it once, and that the run keeps being sampled
+        until the handler that started the sampling completes.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_shared")
+            # a workflow attaches one handler per engine, all of them sharing a run
+            handlers = [
+                MLFlowHandler(
+                    iteration_log=False,
+                    tracking_uri=path_to_sqlite_uri(test_path),
+                    run_name="shared",
+                    log_system_metrics=True,
+                )
+                for _ in range(3)
+            ]
+            monitor = MagicMock()
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor) as monitor_class,
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                for handler in handlers:
+                    handler.start(engine)
+
+                run_ids = {handler.cur_run.info.run_id for handler in handlers}
+                self.assertEqual(len(run_ids), 1)
+
+                # the run is sampled by the first handler only
+                monitor_class.assert_called_once()
+                self.assertEqual(monitor_class.call_args.args[0], run_ids.pop())
+                monitor.start.assert_called_once()
+
+                # the handlers that do not sample the run leave it running when they complete
+                for handler in handlers[1:]:
+                    handler.complete()
+                monitor.finish.assert_not_called()
+
+                # the sampling stops when the handler that started it completes
+                handlers[0].complete()
+                monitor.finish.assert_called_once()
+
+            for handler in handlers:
+                handler.close()
+
+    def test_system_metrics_warns_when_unavailable(self):
+        """
+        Test that a workflow still runs, with a warning, when the installed mlflow does not
+        support recording the system metrics.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_unavailable")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_sqlite_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            with patch("monai.handlers.mlflow_handler.has_system_metrics", False):
+                with self.assertWarnsRegex(Warning, "Please install mlflow>=2.8.0 to record the system metrics."):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertIsNone(handler.system_metrics_monitor)
+
+    def test_system_metrics_start_failure_does_not_stop_the_workflow(self):
+        """
+        Test that a workflow still runs, with a warning, when the monitor cannot be started.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_start_failure")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_sqlite_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            with (
+                patch(
+                    "monai.handlers.mlflow_handler.SystemMetricsMonitor", side_effect=RuntimeError("no monitor for you")
+                ),
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                with self.assertWarnsRegex(Warning, "Failed to record the system metrics"):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertEqual(engine.state.epoch, 1)
+            self.assertIsNone(handler.system_metrics_monitor)
+            self.assertEqual(len(MLFlowHandler._monitored_run_ids), 0)
+
+    def test_system_metrics_stop_failure_is_reported(self):
+        """
+        Test that a monitor which fails to stop is reported and released, so that the run can
+        be sampled again.
+        """
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(self._train_func)
+            test_path = os.path.join(tempdir, "mlflow_system_metrics_stop_failure")
+            handler = MLFlowHandler(
+                iteration_log=False,
+                tracking_uri=path_to_sqlite_uri(test_path),
+                log_system_metrics=True,
+                close_on_complete=True,
+            )
+            monitor = MagicMock()
+            monitor.finish.side_effect = RuntimeError("monitor will not stop")
+            with (
+                patch("monai.handlers.mlflow_handler.SystemMetricsMonitor", return_value=monitor),
+                patch("monai.handlers.mlflow_handler.has_system_metrics", True),
+            ):
+                with self.assertWarnsRegex(Warning, "Failed to stop recording the system metrics"):
+                    handler.attach(engine)
+                    engine.run(range(3), max_epochs=1)
+
+            self.assertIsNone(handler.system_metrics_monitor)
+            self.assertEqual(len(MLFlowHandler._monitored_run_ids), 0)
+
+    def test_system_metrics_settings_are_validated(self):
+        """
+        Test that a sampling setting that mlflow does not define a behaviour for is rejected.
+        """
+        for kwargs in (
+            {"system_metrics_sampling_interval": 0},
+            {"system_metrics_sampling_interval": -1},
+            {"system_metrics_samples_before_logging": 0},
+            {"system_metrics_samples_before_logging": -5},
+        ):
+            with self.assertRaises(ValueError):
+                MLFlowHandler(log_system_metrics=True, **kwargs)
+
     def test_multi_thread(self):
         test_uri_list = ["monai_mlflow_test1", "monai_mlflow_test2"]
-        with ThreadPoolExecutor(2, "Training") as executor:
-            futures = {}
-            for t in test_uri_list:
-                futures[t] = executor.submit(dummy_train, t)
+        with tempfile.TemporaryDirectory() as tempdir:
+            with ThreadPoolExecutor(2, "Training") as executor:
+                futures = {}
+                for t in test_uri_list:
+                    futures[t] = executor.submit(dummy_train, t, tempdir)
 
-            for _, future in futures.items():
-                res = future.result()
-                self.tmpdir_list.append(res)
-                self.assertTrue(len(glob.glob(res)) > 0)
+                for _, future in futures.items():
+                    res = future.result()
+                    self.assertTrue(len(glob.glob(res)) > 0)
 
     @skip_if_quick
-    @unittest.skipUnless(has_dataset_tracking, reason="Requires mlflow version >= 2.4.0.")
     def test_dataset_tracking(self):
         test_bundle_name = "endoscopic_tool_segmentation"
         with tempfile.TemporaryDirectory() as tempdir:
@@ -271,7 +578,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                     final_id="finalize",
                 )
 
-                tracking_path = os.path.join(bundle_root, "eval")
+                tracking_path = os.path.join(tempdir, "mlflow_dataset.db")
                 workflow.bundle_root = bundle_root
                 workflow.dataset_dir = data_dir
                 workflow.initialize()
@@ -280,7 +587,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                     iteration_log=False,
                     epoch_log=False,
                     dataset_dict={"test": infer_dataset},
-                    tracking_uri=path_to_uri(tracking_path),
+                    tracking_uri=path_to_sqlite_uri(tracking_path),
                 )
                 mlflow_handler.attach(workflow.evaluator)
                 workflow.run()

@@ -61,6 +61,8 @@ class TestDiceCELoss(unittest.TestCase):
             img, seg = create_test_image_3d(32, 32, 32, rad_max=10, rad_min=11)
         with self.assertRaisesRegex(ValueError, ""):
             img, seg = create_test_image_2d(32, 32, rad_max=10, rad_min=0)
+        with self.assertRaisesRegex(ValueError, "`rad_min` 0 should be no less than 1"):
+            img, seg = create_test_image_3d(32, 32, 32, rad_max=10, rad_min=0)
 
 
 if __name__ == "__main__":
