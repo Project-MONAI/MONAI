@@ -141,6 +141,24 @@ class TestResBlock(unittest.TestCase):
                 out_ref = block_ref(test_data, attn_mask=attn_mask)
             assert_allclose(out_flash, out_ref, atol=1e-4)
 
+    @skipUnless(has_einops, "Requires einops")
+    def test_attn_mask_with_flash_attention(self):
+        # A (B, L) padding mask must be broadcast over heads and queries, not passed to
+        # SDPA as an (L, S) mask; batch_size == seq_len would silently mask the wrong entries.
+        for batch_size, seq_len in [(2, 16), (4, 4)]:
+            input_param = {"hidden_size": 128, "num_heads": 4, "dropout_rate": 0.0}
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            block_flash = SABlock(**input_param, use_flash_attention=True).to(device)
+            block_ref = SABlock(**input_param, use_flash_attention=False).to(device)
+            block_ref.load_state_dict(block_flash.state_dict())
+            test_data = torch.randn(batch_size, seq_len, 128).to(device)
+            attn_mask = torch.ones(batch_size, seq_len, dtype=torch.bool, device=device)
+            attn_mask[:, seq_len // 2 :] = False  # mask out the second half
+            with eval_mode(block_flash), eval_mode(block_ref):
+                out_flash = block_flash(test_data, attn_mask=attn_mask)
+                out_ref = block_ref(test_data, attn_mask=attn_mask)
+            assert_allclose(out_flash, out_ref, atol=1e-4)
+
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
