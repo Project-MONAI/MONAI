@@ -233,6 +233,12 @@ class TestPanopticQualityMetric(unittest.TestCase):
         self.assertEqual(_get_pairwise_iou(pred, empty, device=_device)[0].shape, torch.Size([0, 2]))
         self.assertEqual(_get_pairwise_iou(empty, gt, device=_device)[0].shape, torch.Size([2, 0]))
 
+        # non-contiguous ids (`remap=False`) index rows/columns by position in the id list
+        sparse_gt = torch.as_tensor([[3, 3, 0], [0, 7, 7], [0, 0, 0]], device=_device)
+        sparse_pred = torch.as_tensor([[5, 0, 0], [0, 9, 9], [0, 0, 0]], device=_device)
+        pairwise, _, _ = _get_pairwise_iou(sparse_pred, sparse_gt, device=_device)
+        np.testing.assert_allclose(pairwise.cpu().numpy(), [[0.5, 0.0], [0.0, 1.0]], atol=1e-6)
+
     def test_compute_mean_iou_invalid_shape(self):
         """Test that compute_mean_iou raises ValueError for invalid shapes."""
         from monai.metrics.panoptic_quality import compute_mean_iou

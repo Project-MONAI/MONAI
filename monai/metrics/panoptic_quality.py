@@ -244,6 +244,10 @@ def _get_id_list(gt: torch.Tensor) -> list[torch.Tensor]:
     return id_list
 
 
+def _id_tensor(id_list: list[torch.Tensor], device: torch.device) -> torch.Tensor:
+    return torch.stack([torch.as_tensor(i, device=device) for i in id_list]).long()
+
+
 def _get_pairwise_iou(
     pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"
 ) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
@@ -256,18 +260,26 @@ def _get_pairwise_iou(
     if num_true == 0 or num_pred == 0:
         return pairwise_iou, true_id_list, pred_id_list
 
-    # ids are contiguous after `remap_instance_id`, so count all pairwise intersections in one bincount
     gt_flat = gt.reshape(-1).long()
-    pred_flat = pred.reshape(-1).long()
+    pred_flat = pred.reshape(-1).long().to(gt_flat.device)
+    # ids are contiguous after `remap_instance_id`; otherwise (`remap=False`) map each id to its
+    # position in the id list so it indexes the matching row/column
+    if int(true_id_list[-1]) != num_true:
+        gt_flat = torch.searchsorted(_id_tensor(true_id_list, gt_flat.device), gt_flat)
+    if int(pred_id_list[-1]) != num_pred:
+        pred_flat = torch.searchsorted(_id_tensor(pred_id_list, pred_flat.device), pred_flat)
+
+    # count all pairwise intersections in one bincount
     stride = num_pred + 1
     joint = gt_flat * stride + pred_flat
-    intersection = torch.bincount(joint, minlength=(num_true + 1) * stride).reshape(num_true + 1, stride).float()
-    true_area = torch.bincount(gt_flat, minlength=num_true + 1).float()
-    pred_area = torch.bincount(pred_flat, minlength=num_pred + 1).float()
+    intersection = torch.bincount(joint, minlength=(num_true + 1) * stride).reshape(num_true + 1, stride)
+    true_area = torch.bincount(gt_flat, minlength=num_true + 1)
+    pred_area = torch.bincount(pred_flat, minlength=num_pred + 1)
 
+    # keep counts integral through the union, as the per-pair loop did
     inter = intersection[1:, 1:]  # drop background row/column
     union = true_area[1:, None] + pred_area[None, 1:] - inter
-    pairwise_iou = torch.where(inter > 0, inter / union, pairwise_iou)
+    pairwise_iou = torch.where(inter > 0, inter / union.clamp_min(1), pairwise_iou.to(inter.device))
 
     return pairwise_iou.to(device), true_id_list, pred_id_list
 
