@@ -50,9 +50,10 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
-            Defaults to ``None``. If one of the two masks is empty the distance is ``inf`` for
-            every percentile, matching the maximum-distance result; ``nan`` is returned only
-            when both masks are empty, and is excluded from the reduction.
+            A value of 0 returns the minimum distance. Defaults to ``None``. If one of the two
+            masks is empty the distance is ``inf`` for every percentile, matching the
+            maximum-distance result; ``nan`` is returned only when both masks are empty, and is
+            excluded from the reduction.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -174,9 +175,10 @@ def compute_hausdorff_distance(
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
-            Defaults to ``None``. If one of the two masks is empty the distance is ``inf`` for
-            every percentile, matching the maximum-distance result; ``nan`` is returned only
-            when both masks are empty, and is excluded from the reduction.
+            A value of 0 returns the minimum distance. Defaults to ``None``. If one of the two
+            masks is empty the distance is ``inf`` for every percentile, matching the
+            maximum-distance result; ``nan`` is returned only when both masks are empty, and is
+            excluded from the reduction.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
             If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
@@ -256,7 +258,7 @@ def _compute_percentile_hausdorff_distance(
             entirely infinite when exactly one of them does.
         percentile: an optional float between 0 and 100. If given, the corresponding
             percentile of ``surface_distance`` is returned rather than its maximum.
-            Defaults to ``None``.
+            A value of 0 returns the minimum distance. Defaults to ``None``.
 
     Returns:
         A scalar ``float`` tensor. ``nan`` when ``surface_distance`` is empty, meaning
@@ -275,7 +277,10 @@ def _compute_percentile_hausdorff_distance(
     if percentile is None:
         return surface_distance.max()
 
-    if 0 <= percentile <= 100:
+    if percentile == 0:
+        return surface_distance.min()
+
+    if 0 < percentile <= 100:
         # `get_surface_distance` reports an infinite distance for every voxel when one of
         # the two masks is empty, so a prediction that missed the structure entirely
         # arrives here as an all-infinite tensor. `torch.quantile` interpolates linearly
