@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime
 import warnings
+from typing import Any
 
 import numpy as np
 import torch
@@ -36,20 +37,23 @@ dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
 
 
-@torch.jit.interface
-class CellInterface(torch.nn.Module):
-    """interface for torchscriptable Cell"""
+# TODO: added temporarily for PyTorch 2.14 warnings, remove when factoring out deprecated Torchscript components
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
-        pass
+    @torch.jit.interface
+    class CellInterface(torch.nn.Module):
+        """interface for torchscriptable Cell"""
 
+        def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
+            pass
 
-@torch.jit.interface
-class StemInterface(torch.nn.Module):
-    """interface for torchscriptable Stem"""
+    @torch.jit.interface
+    class StemInterface(torch.nn.Module):
+        """interface for torchscriptable Stem"""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        pass
+        def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+            pass
 
 
 class StemTS(StemInterface):
@@ -478,6 +482,19 @@ class DiNTS(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
                 )
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Mirror ``node_a`` into ``_node_a_py`` on assignment. ``forward()`` branches on its
+        entries, which dynamo cannot constant-fold off a tensor, so a compiled model breaks into
+        one graph per branch (https://github.com/Project-MONAI/MONAI/issues/9144); the compiled
+        path reads the mirror instead. Mirroring here rather than in ``__init__()`` keeps code
+        that replaces ``node_a`` after construction correct.
+        """
+        super().__setattr__(name, value)
+        if name == "node_a" and value is not None:
+            # `!= 0`, not an int cast: casting would make a fractional flag such as 0.5 falsy.
+            object.__setattr__(self, "_node_a_py", (torch.as_tensor(value) != 0).tolist())
+
     def weight_parameters(self):
         return [param for name, param in self.named_parameters()]
 
@@ -488,12 +505,20 @@ class DiNTS(nn.Module):
         Args:
             x: input tensor.
         """
+        # Branching on `node_a` elements is a data-dependent tensor read that dynamo cannot
+        # constant-fold, costing 13 graph breaks; hand it the folded snapshot instead. Eager
+        # keeps the live tensor, so in-place edits still apply. TorchScript cannot type
+        # `tolist()` and folds `is_scripting()` away, so it indexes the tensor as before.
+        node_a = self.node_a != 0
+        if not torch.jit.is_scripting():
+            node_a = self._node_a_py if torch.compiler.is_compiling() else node_a.tolist()
+
         inputs = []
         for d in range(self.num_depths):
             # allow multi-resolution input
             _mod_w: StemInterface = self.stem_down[str(d)]  # type: ignore[assignment]
             x_out = _mod_w.forward(x)
-            if self.node_a[0][d]:
+            if node_a[0][d]:
                 inputs.append(x_out)
             else:
                 inputs.append(torch.zeros_like(x_out))
@@ -507,7 +532,7 @@ class DiNTS(nn.Module):
             _mod_up: StemInterface = self.stem_up[str(res_idx)]  # type: ignore[assignment]
             if start:
                 _temp = _mod_up.forward(outputs[res_idx] + _temp)
-            elif self.node_a[blk_idx + 1][res_idx]:
+            elif node_a[blk_idx + 1][res_idx]:
                 start = True
                 _temp = _mod_up.forward(outputs[res_idx])
         prediction = self.stem_finals(_temp)
@@ -519,7 +544,8 @@ class TopologyConstruction(nn.Module):
     The base class for `TopologyInstance` and `TopologySearch`.
 
     Args:
-        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
+        arch_code: `[arch_code_a, arch_code_c]`, numpy arrays or torch tensors. The architecture codes defining
+            the model.
             For example, for a ``num_depths=4, num_blocks=12`` search space:
 
             - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
@@ -605,8 +631,8 @@ class TopologyConstruction(nn.Module):
             arch_code_a = torch.ones((self.num_blocks, len(self.arch_code2out))).to(self.device)
             arch_code_c = torch.ones((self.num_blocks, len(self.arch_code2out), self.num_cell_ops)).to(self.device)
         else:
-            arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
+            arch_code_a = torch.as_tensor(arch_code[0]).to(self.device)
+            arch_code_c = F.one_hot(torch.as_tensor(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
 
         self.arch_code_a = arch_code_a
         self.arch_code_c = arch_code_c
@@ -624,6 +650,16 @@ class TopologyConstruction(nn.Module):
                         self._act_name,
                         self._norm_name,
                     )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Mirror ``arch_code_a`` into ``_arch_code_a_py`` on assignment. See
+        ``DiNTS.__setattr__`` for why.
+        """
+        super().__setattr__(name, value)
+        if name == "arch_code_a" and value is not None:
+            # See `DiNTS._node_a_py`.
+            object.__setattr__(self, "_arch_code_a_py", (torch.as_tensor(value) != 0).tolist())
 
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
@@ -671,11 +707,16 @@ class TopologyInstance(TopologyConstruction):
         Args:
             x: input tensor.
         """
+        # See `DiNTS.forward`.
+        arch_code_a = self.arch_code_a != 0
+        if not torch.jit.is_scripting():
+            arch_code_a = self._arch_code_a_py if torch.compiler.is_compiling() else arch_code_a.tolist()
+
         # generate path activation probability
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
-            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
+            for res_idx, activation in enumerate(arch_code_a[blk_idx]):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]  # type: ignore[assignment]
                     _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
