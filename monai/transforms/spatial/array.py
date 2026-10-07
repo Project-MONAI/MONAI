@@ -1964,7 +1964,9 @@ class RandAffineGrid(Randomizable, LazyTransform):
         translate_params = self.translate_params
         if self.translate_relative and translate_params is not None:
             # interpret the sampled parameters as fractions of the spatial dims
-            sp_size = spatial_size if spatial_size is not None else (tuple(grid.shape[1:]) if grid is not None else None)
+            sp_size = (
+                spatial_size if spatial_size is not None else (tuple(grid.shape[1:]) if grid is not None else None)
+            )
             if sp_size is not None:
                 translate_params = [p * d for p, d in zip(translate_params, sp_size)]
         affine_grid = AffineGrid(
