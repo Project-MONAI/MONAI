@@ -1048,6 +1048,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         shear_range: Sequence[tuple[float, float] | float] | float | None = None,
         translate_range: Sequence[tuple[float, float] | float] | float | None = None,
         scale_range: Sequence[tuple[float, float] | float] | float | None = None,
+        translate_relative: bool = False,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
@@ -1085,6 +1086,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
+            translate_relative: if True, `translate_range` values are interpreted as fractions of the
+                corresponding spatial dimension size (e.g. 0.5 allows translating up to half the image
+                size), instead of absolute voxels. Defaults to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1131,6 +1135,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
+            translate_relative=translate_relative,
             spatial_size=spatial_size,
             cache_grid=cache_grid,
             device=device,
@@ -1167,7 +1172,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            return d
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
         # all the keys share the same random Affine factor
@@ -1327,7 +1333,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            return d
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
         device = self.rand_2d_elastic.device
@@ -1362,8 +1369,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
 class Rand3DElasticd(RandomizableTransform, MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
-    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.    """
 
     backend = Rand3DElastic.backend
 
@@ -1477,7 +1483,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            return d
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
@@ -2141,7 +2148,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            return d
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
 
@@ -2311,13 +2319,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
-            for key in self.key_iterator(d):
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            return d
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            return d
+            out = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
             warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])
@@ -2639,7 +2647,8 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            return d
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
 
