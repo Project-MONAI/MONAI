@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import math
+import warnings
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -91,6 +93,12 @@ class VanillaGrad:
     ) -> torch.Tensor:
         if x.shape[0] != 1:
             raise ValueError("expect batch size of 1")
+        return self._get_grad(x, index, retain_graph=retain_graph, **kwargs)
+
+    def _get_grad(
+        self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph: bool = True, **kwargs: Any
+    ) -> torch.Tensor:
+        # unguarded gradient computation; ``x`` may carry a batch of noisy copies of a single input
         x.requires_grad = True
 
         self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
@@ -118,29 +126,86 @@ class SmoothGrad(VanillaGrad):
         n_samples: int = 25,
         magnitude: bool = True,
         verbose: bool = True,
+        sample_batch_size: int = 1,
     ) -> None:
         super().__init__(model)
         self.stdev_spread = stdev_spread
         self.n_samples = n_samples
         self.magnitude = magnitude
+        if isinstance(sample_batch_size, bool) or not isinstance(sample_batch_size, int):
+            raise ValueError(f"sample_batch_size must be an int, got {type(sample_batch_size).__name__}.")
+        if sample_batch_size < 1:
+            raise ValueError(f"sample_batch_size must be >= 1, got {sample_batch_size}.")
+        self.sample_batch_size = sample_batch_size
         self.range: Callable
         if verbose and has_trange:
             self.range = partial(trange, desc=f"Computing {self.__class__.__name__}")
         else:
             self.range = range
 
+    def _resolve_index(
+        self, x: torch.Tensor, index: torch.Tensor | int | None, **kwargs: Any
+    ) -> torch.Tensor | int | None:
+        if index is not None:
+            if isinstance(index, torch.Tensor):
+                # the batched path feeds a forward of size k, so a per-sample index tensor
+                # sized for the clean input would select the wrong class per copy
+                if index.numel() != 1:
+                    raise ValueError(
+                        f"sample_batch_size > 1 expects a single class index, got {index.numel()} elements."
+                    )
+                return int(index.item())
+            return index
+        # resolve argmax once on clean input, restoring every submodule's mode afterwards
+        modules = tuple(self._model.model.modules())
+        training_states = [m.training for m in modules]
+        try:
+            self._model.model.eval()
+            with torch.no_grad():
+                logits = self._model.model(x, **kwargs)
+                if isinstance(logits, (list, tuple)):
+                    logits = logits[0]
+        finally:
+            for m, training in zip(modules, training_states):
+                m.train(training)
+        # logits shape (B, C) with B==1 for SmoothGrad input
+        resolved: int = int(logits.argmax(dim=1).item())
+        return resolved
+
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
+        if self.sample_batch_size > 1 and x.shape[0] != 1:
+            raise ValueError(f"sample_batch_size > 1 expects an input batch size of 1, got {x.shape[0]}.")
+        if self.sample_batch_size > 1 and self._model.model.training:
+            warnings.warn(
+                "SmoothGrad with sample_batch_size > 1 and model in train mode: "
+                "BatchNorm statistics will mix noisy copies.",
+                stacklevel=2,
+            )
         stdev = (self.stdev_spread * (x.max() - x.min())).item()
         total_gradients = torch.zeros_like(x)
-        for _ in self.range(self.n_samples):
-            # create noisy image
-            noise = torch.normal(0, stdev, size=x.shape, dtype=torch.float32, device=x.device)
-            x_plus_noise = x + noise
-            x_plus_noise = x_plus_noise.detach()
-
-            # get gradient and accumulate
-            grad = self.get_grad(x_plus_noise, index, **kwargs)
-            total_gradients += (grad * grad) if self.magnitude else grad
+        # resolve index once so all noisy copies use the same class
+        resolved_index = self._resolve_index(x, index, **kwargs) if self.sample_batch_size > 1 else index
+        n_chunks = math.ceil(self.n_samples / self.sample_batch_size)
+        remaining = self.n_samples
+        for _ in self.range(n_chunks):
+            k = min(self.sample_batch_size, remaining)
+            remaining -= k
+            if k == 1 and self.sample_batch_size == 1:
+                noise = torch.normal(0, stdev, size=x.shape, dtype=torch.float32, device=x.device)
+                x_plus_noise = (x + noise).detach()
+                grad = self.get_grad(x_plus_noise, index, **kwargs)
+                total_gradients += (grad * grad) if self.magnitude else grad
+            else:
+                # batched path
+                noise_shape = (k, *x.shape[1:])
+                noise = torch.normal(0, stdev, size=noise_shape, dtype=torch.float32, device=x.device)
+                # x is (1, ...) -> broadcast to (k, ...)
+                x_plus_noise = (x + noise).detach()
+                grads = self._get_grad(x_plus_noise, resolved_index, **kwargs)
+                # grads shape (k, ...)
+                if self.magnitude:
+                    grads = grads * grads
+                total_gradients += grads.sum(dim=0, keepdim=True)
 
         # average
         if self.magnitude:
