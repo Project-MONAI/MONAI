@@ -78,6 +78,7 @@ from .milmodel import MILModel
 from .navit import NaViT
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
+from .primus import Primus, create_primus
 from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
