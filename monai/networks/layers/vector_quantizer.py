@@ -26,9 +26,8 @@ class EMAQuantizer(nn.Module):
     that can be found at https://github.com/deepmind/sonnet/blob/v2/sonnet/src/nets/vqvae.py#L148 and commit
     58d9a2746493717a7c9252938da7efa6006f3739.
 
-    This module is not compatible with TorchScript while working in a Distributed Data Parallelism Module. This is due
-    to lack of TorchScript support for torch.distributed module as per https://github.com/pytorch/pytorch/issues/41353
-    on 22/10/2022. If you want to TorchScript your model, please turn set `ddp_sync` to False.
+    When using Distributed Data Parallelism, ``torch.distributed`` synchronization is required.
+    Set ``ddp_sync`` to ``False`` to disable it if not running in a distributed setting.
 
     Args:
         spatial_dims: number of spatial dimensions of the input.
@@ -146,8 +145,7 @@ class EMAQuantizer(nn.Module):
 
     def distributed_synchronization(self, encodings_sum: torch.Tensor, dw: torch.Tensor) -> None:
         """
-        TorchScript does not support torch.distributed.all_reduce. This function is a bypassing trick based on the
-        example: https://pytorch.org/docs/stable/generated/torch.jit.unused.html#torch.jit.unused
+        Synchronize codebook statistics across distributed processes using ``all_reduce``.
 
         Args:
             encodings_sum: The summation of one hot representation of what encoding was used for each

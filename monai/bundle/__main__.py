@@ -15,6 +15,7 @@ from monai.bundle.scripts import (
     ckpt_export,
     download,
     download_large_files,
+    export_checkpoint,
     init_bundle,
     onnx_export,
     run,

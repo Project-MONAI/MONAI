@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import MultiScalePatchDiscriminator, PatchDiscriminator
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 TEST_PATCHGAN = [
     [
@@ -124,7 +124,7 @@ class TestPatchGAN(unittest.TestCase):
             self.assertEqual(tuple(result[0].shape), expected_shape_feature)
             self.assertEqual(tuple(result[-1].shape), expected_shape_output)
 
-    def test_script(self):
+    def test_export(self):
         net = PatchDiscriminator(
             num_layers_d=3,
             spatial_dims=2,
@@ -138,7 +138,7 @@ class TestPatchGAN(unittest.TestCase):
             dropout=0.1,
         )
         i = torch.rand([1, 3, 256, 512])
-        test_script_save(net, i)
+        test_export_save(net, i)
 
 
 class TestMultiscalePatchGAN(unittest.TestCase):
@@ -156,7 +156,7 @@ class TestMultiscalePatchGAN(unittest.TestCase):
         with self.assertRaises(AssertionError):
             MultiScalePatchDiscriminator(**TEST_TOO_SMALL_SIZE[0])
 
-    def test_script(self):
+    def test_export(self):
         net = MultiScalePatchDiscriminator(
             num_d=2,
             num_layers_d=3,
@@ -172,7 +172,7 @@ class TestMultiscalePatchGAN(unittest.TestCase):
             minimum_size_im=256,
         )
         i = torch.rand([1, 3, 256, 512])
-        test_script_save(net, i)
+        test_export_save(net, i)
 
 
 if __name__ == "__main__":

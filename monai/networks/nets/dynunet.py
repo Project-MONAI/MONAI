@@ -26,10 +26,8 @@ class DynUNetSkipLayer(nn.Module):
     """
     Defines a layer in the UNet topology which combines the downsample and upsample pathways with the skip connection.
     The member `next_layer` may refer to instances of this class or the final bottleneck layer at the bottom the UNet
-    structure. The purpose of using a recursive class like this is to get around the Torchscript restrictions on
-    looping over lists of layers and accumulating lists of output tensors which must be indexed. The `heads` list is
-    shared amongst all the instances of this class and is used to store the output from the supervision heads during
-    forward passes of the network.
+    structure. The `heads` list is shared amongst all the instances of this class and is used to store the output
+    from the supervision heads during forward passes of the network.
     """
 
     heads: list[torch.Tensor] | None
@@ -111,7 +109,7 @@ class DynUNet(nn.Module):
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the final feature map
             (from `output_block`), but also the feature maps that come from the intermediate up sample layers.
-            In order to unify the return type (the restriction of TorchScript), all intermediate
+            In order to unify the return type, all intermediate
             feature maps are interpolated into the same size as the final feature map and stacked together
             (with a new dimension in the first axis)into one single tensor.
             For instance, if there are two intermediate feature maps with shapes: (1, 2, 16, 12) and
@@ -168,7 +166,7 @@ class DynUNet(nn.Module):
         self.output_block = self.get_output_block(0)
         self.deep_supervision = deep_supervision
         self.deep_supr_num = deep_supr_num
-        # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
+        # initialize the typed list of supervision head outputs
         self.heads: list[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
         if self.deep_supervision:
             self.deep_supervision_heads = self.get_deep_supervision_heads()
@@ -180,8 +178,8 @@ class DynUNet(nn.Module):
         def create_skips(index, downsamples, upsamples, bottleneck, superheads=None):
             """
             Construct the UNet topology as a sequence of skip layers terminating with the bottleneck layer. This is
-            done recursively from the top down since a recursive nn.Module subclass is being used to be compatible
-            with Torchscript. Initially the length of `downsamples` will be one more than that of `superheads`
+            done recursively from the top down since a recursive nn.Module subclass is being used. Initially the
+            length of `downsamples` will be one more than that of `superheads`
             since the `input_block` is passed to this function as the first item in `downsamples`, however this
             shouldn't be associated with a supervision head.
             """

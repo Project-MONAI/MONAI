@@ -37,27 +37,22 @@ dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
 
 
-# TODO: added temporarily for PyTorch 2.14 warnings, remove when factoring out deprecated Torchscript components
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
+class CellInterface(torch.nn.Module):
+    """Abstract interface for Cell modules used in DiNTS."""
 
-    @torch.jit.interface
-    class CellInterface(torch.nn.Module):
-        """interface for torchscriptable Cell"""
+    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
+        raise NotImplementedError
 
-        def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
-            pass
 
-    @torch.jit.interface
-    class StemInterface(torch.nn.Module):
-        """interface for torchscriptable Stem"""
+class StemInterface(torch.nn.Module):
+    """Abstract interface for Stem modules used in DiNTS."""
 
-        def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-            pass
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+        raise NotImplementedError
 
 
 class StemTS(StemInterface):
-    """wrapper for torchscriptable Stem"""
+    """Wrapper Stem that applies a sequential module."""
 
     def __init__(self, *mod):
         super().__init__()
@@ -507,11 +502,8 @@ class DiNTS(nn.Module):
         """
         # Branching on `node_a` elements is a data-dependent tensor read that dynamo cannot
         # constant-fold, costing 13 graph breaks; hand it the folded snapshot instead. Eager
-        # keeps the live tensor, so in-place edits still apply. TorchScript cannot type
-        # `tolist()` and folds `is_scripting()` away, so it indexes the tensor as before.
-        node_a = self.node_a != 0
-        if not torch.jit.is_scripting():
-            node_a = self._node_a_py if torch.compiler.is_compiling() else node_a.tolist()
+        # keeps the live tensor, so in-place edits still apply.
+        node_a = self._node_a_py if torch.compiler.is_compiling() else (self.node_a != 0).tolist()
 
         inputs = []
         for d in range(self.num_depths):
@@ -663,6 +655,7 @@ class TopologyConstruction(nn.Module):
 
     def forward(self, x):
         """This function to be implemented by the architecture instances or search spaces."""
+        raise NotImplementedError
 
 
 class TopologyInstance(TopologyConstruction):
@@ -708,9 +701,7 @@ class TopologyInstance(TopologyConstruction):
             x: input tensor.
         """
         # See `DiNTS.forward`.
-        arch_code_a = self.arch_code_a != 0
-        if not torch.jit.is_scripting():
-            arch_code_a = self._arch_code_a_py if torch.compiler.is_compiling() else arch_code_a.tolist()
+        arch_code_a = self._arch_code_a_py if torch.compiler.is_compiling() else (self.arch_code_a != 0).tolist()
 
         # generate path activation probability
         inputs = x

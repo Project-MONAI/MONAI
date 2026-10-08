@@ -206,6 +206,7 @@ def run_testsuit():
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
+        "test_bundle_export_checkpoint",
         "test_bundle_utils",
         "test_bundle_init_bundle",
         "test_fastmri_reader",

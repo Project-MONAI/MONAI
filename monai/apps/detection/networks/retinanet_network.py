@@ -332,7 +332,7 @@ class RetinaNet(nn.Module):
         features = self.feature_extractor(images)
         if isinstance(features, Tensor):
             feature_maps = [features]
-        elif torch.jit.isinstance(features, dict[str, Tensor]):
+        elif isinstance(features, dict):
             feature_maps = list(features.values())
         else:
             feature_maps = list(features)

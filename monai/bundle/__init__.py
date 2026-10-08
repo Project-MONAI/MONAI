@@ -20,6 +20,7 @@ from .scripts import (
     create_workflow,
     download,
     download_large_files,
+    export_checkpoint,
     get_all_bundles_list,
     get_bundle_info,
     get_bundle_versions,

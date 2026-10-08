@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.losses import FocalLoss, GeneralizedDiceFocalLoss, GeneralizedDiceLoss
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 
 class TestGeneralizedDiceFocalLoss(unittest.TestCase):
@@ -75,10 +75,10 @@ class TestGeneralizedDiceFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             GeneralizedDiceFocalLoss(lambda_gdl=-1.0)
 
-    def test_script(self):
+    def test_export(self):
         loss = GeneralizedDiceFocalLoss()
         test_input = torch.ones(2, 1, 8, 8)
-        test_script_save(loss, test_input, test_input)
+        test_export_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

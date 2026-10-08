@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
-from tests.test_utils import dict_product, test_script_save
+from tests.test_utils import dict_product, test_export_save
 
 TEST_CASE_RES_BASIC_BLOCK = []
 for params in dict_product(
@@ -83,13 +83,13 @@ class TestResBasicBlock(unittest.TestCase):
         with self.assertRaises(AssertionError):
             UnetResBlock(3, 4, 2, kernel_size=1, stride=4, norm_name="batch")
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, _ = TEST_CASE_RES_BASIC_BLOCK[0]
 
         for net_type in (UnetResBlock, UnetBasicBlock):
             net = net_type(**input_param)
             test_data = torch.randn(input_shape)
-            test_script_save(net, test_data)
+            test_export_save(net, test_data)
 
 
 class TestUpBlock(unittest.TestCase):
@@ -100,13 +100,13 @@ class TestUpBlock(unittest.TestCase):
             result = net(torch.randn(input_shape), torch.randn(skip_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, _, skip_shape = TEST_UP_BLOCK[0]
 
         net = UnetUpBlock(**input_param)
         test_data = torch.randn(input_shape)
         skip_data = torch.randn(skip_shape)
-        test_script_save(net, test_data, skip_data)
+        test_export_save(net, test_data, skip_data)
 
 
 if __name__ == "__main__":

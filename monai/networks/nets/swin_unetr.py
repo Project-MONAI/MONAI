@@ -378,20 +378,17 @@ class SwinUNETR(nn.Module):
                     d.norm.weight.copy_(wstate[f"module.{layer_name}.0.downsample.norm.weight"])  # type: ignore
                     d.norm.bias.copy_(wstate[f"module.{layer_name}.0.downsample.norm.bias"])  # type: ignore
 
-    @torch.jit.unused
     def _check_input_size(self, spatial_shape):
-        img_size = np.array(spatial_shape)
-        remainder = (img_size % np.power(self.patch_size, 5)) > 0
-        if remainder.any():
-            wrong_dims = (np.where(remainder)[0] + 2).tolist()
+        divisor = int(self.patch_size**5)
+        wrong_dims = [i + 2 for i, s in enumerate(spatial_shape) if int(s) % divisor != 0]
+        if wrong_dims:
             raise ValueError(
                 f"spatial dimensions {wrong_dims} of input image (spatial shape: {spatial_shape})"
                 f" must be divisible by {self.patch_size}**5."
             )
 
     def forward(self, x_in):
-        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-            self._check_input_size(x_in.shape[2:])
+        self._check_input_size(x_in.shape[2:])
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
         enc1 = self.encoder2(hidden_states_out[0])

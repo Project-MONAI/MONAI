@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceFocalLoss, DiceLoss, FocalLoss
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 
 class TestDiceFocalLoss(unittest.TestCase):
@@ -85,10 +85,10 @@ class TestDiceFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             DiceFocalLoss(lambda_dice=-1.0)
 
-    def test_script(self):
+    def test_export(self):
         loss = DiceFocalLoss()
         test_input = torch.ones(2, 1, 8, 8)
-        test_script_save(loss, test_input, test_input)
+        test_export_save(loss, test_input, test_input)
 
     @parameterized.expand(
         [

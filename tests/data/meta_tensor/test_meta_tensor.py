@@ -225,21 +225,22 @@ class TestMetaTensor(unittest.TestCase):
         self.assertTrue(get_track_meta())
 
     @parameterized.expand(TEST_DEVICES)
-    def test_torchscript(self, device):
+    def test_export(self, device):
         shape = (1, 3, 10, 8)
         im, _ = self.get_im(shape, device=device)
         conv = torch.nn.Conv2d(im.shape[1], 5, 3)
         conv.to(device)
         im_conv = conv(im)
-        traced_fn = torch.jit.trace(conv, im.as_tensor())
+        exported = torch.export.export(conv, args=(im.as_tensor(),))
         # save it, load it, use it
         with tempfile.TemporaryDirectory() as tmp_dir:
-            fname = os.path.join(tmp_dir, "im.pt")
-            torch.jit.save(traced_fn, f=fname)
-            traced_fn = torch.jit.load(fname)
-            out = traced_fn(im)
+            fname = os.path.join(tmp_dir, "im.pt2")
+            torch.export.save(exported, fname)
+            loaded = torch.export.load(fname)
+            out = loaded.module()(im.as_tensor())
             self.assertIsInstance(out, torch.Tensor)
-        self.check(out, im_conv, ids=False)
+        # exported module returns plain Tensor, compare values only
+        assert_allclose(out, im_conv)
 
     def test_pickling(self):
         m, _ = self.get_im()

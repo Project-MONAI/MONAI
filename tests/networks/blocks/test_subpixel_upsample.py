@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks import SubpixelUpsample
 from monai.networks.layers.factories import Conv
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 TEST_CASE_SUBPIXEL = []
 for inch in range(1, 5):
@@ -75,11 +75,11 @@ class TestSUBPIXEL(unittest.TestCase):
             result = net.forward(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, _ = TEST_CASE_SUBPIXEL[0]
         net = SubpixelUpsample(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

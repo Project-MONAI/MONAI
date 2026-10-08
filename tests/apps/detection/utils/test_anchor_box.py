@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator, AnchorGeneratorWithAnchorShape
 from monai.utils import optional_import
-from tests.test_utils import assert_allclose, test_script_save
+from tests.test_utils import assert_allclose, test_export_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -70,20 +70,20 @@ class TestAnchorGenerator(unittest.TestCase):
             assert_allclose(a, a_f + offset, type_test=True, device_test=False, atol=1e-3)
 
     @parameterized.expand(TEST_CASES_2D)
-    def test_script_2d(self, input_param, image_shape, feature_maps_shapes):
-        # test whether support torchscript
+    def test_export_2d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torch.export
         anchor = AnchorGenerator(**input_param, indexing="xy")
         images = torch.rand(image_shape)
         feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
-        test_script_save(anchor, images, feature_maps)
+        test_export_save(anchor, images, feature_maps)
 
     @parameterized.expand(TEST_CASES_SHAPE_3D)
-    def test_script_3d(self, input_param, image_shape, feature_maps_shapes):
-        # test whether support torchscript
+    def test_export_3d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torch.export
         anchor = AnchorGeneratorWithAnchorShape(**input_param, indexing="ij")
         images = torch.rand(image_shape)
         feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
-        test_script_save(anchor, images, feature_maps)
+        test_export_save(anchor, images, feature_maps)
 
 
 if __name__ == "__main__":

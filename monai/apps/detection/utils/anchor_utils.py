@@ -254,7 +254,6 @@ class AnchorGenerator(nn.Module):
                 for axis in range(self.spatial_dims)
             ]
 
-            # to support torchscript, cannot directly use torch.meshgrid(shifts_centers).
             shifts_centers = list(torch.meshgrid(shifts_centers[: self.spatial_dims], indexing="ij"))
 
             for axis in range(self.spatial_dims):

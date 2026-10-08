@@ -237,7 +237,7 @@ and [MLflow](https://github.com/Project-MONAI/tutorials/blob/main/experiment_man
 
 The objective of a MONAI bundle is to define a packaged model which includes the critical information necessary to allow
 users and programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a
-single network as a pickled state dictionary plus optionally a Torchscript object and/or an ONNX object. Additional JSON
+single network as a pickled state dictionary plus optionally an exported program (`.pt2`, via `torch.export`) and/or an ONNX object. Additional JSON
 files are included to store metadata about the model, information for constructing training, inference, and
 post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes
 to include. More details are available at [bundle specification](https://monai.readthedocs.io/en/latest/mb_specification.html).

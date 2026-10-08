@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
-from tests.test_utils import skip_if_quick, test_pretrained_networks, test_script_save
+from tests.test_utils import skip_if_quick, test_export_save, test_pretrained_networks
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -180,15 +180,15 @@ class TestAHNET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     @skip_if_quick
-    def test_script(self):
+    def test_export(self):
         # test 2D network
         net = AHNet(spatial_dims=2, out_channels=2)
         test_data = torch.randn(1, 1, 128, 64)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
         # test 3D network
         net = AHNet(spatial_dims=3, out_channels=2, psp_block_num=0, upsample_mode="nearest")
         test_data = torch.randn(1, 1, 32, 32, 64)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 class TestAHNETWithPretrain(unittest.TestCase):

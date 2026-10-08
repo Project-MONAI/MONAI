@@ -190,7 +190,7 @@ class HausdorffDTLoss(_Loss):
             distance = pred_dt**self.alpha + target_dt**self.alpha
 
             running_f = pred_error * distance.to(device)
-            reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
+            reduce_axis: list[int] = list(range(2, len(input.shape)))
             if self.batch:
                 # reducing spatial dimensions and batch
                 reduce_axis = [0] + reduce_axis

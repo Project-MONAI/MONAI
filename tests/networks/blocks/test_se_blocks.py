@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks import ChannelSELayer, ResidualSELayer
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 TEST_CASES = [  # single channel 3D, batch 16
     [{"spatial_dims": 2, "in_channels": 4, "r": 3}, (7, 4, 64, 48), (7, 4, 64, 48)],  # 4-channel 2D, batch 7
@@ -48,11 +48,11 @@ class TestChannelSELayer(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, _ = TEST_CASES[0]
         net = ChannelSELayer(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
@@ -67,11 +67,11 @@ class TestResidualSELayer(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
+    def test_export(self):
         input_param, input_shape, _ = TEST_CASES[0]
         net = ResidualSELayer(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

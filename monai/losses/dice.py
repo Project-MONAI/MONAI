@@ -130,6 +130,11 @@ class DiceLoss(_Loss):
         self.batch = batch
         self.ignore_index = ignore_index
         weight = torch.as_tensor(weight) if weight is not None else None
+        if weight is not None:
+            if weight.numel() == 0:
+                raise ValueError("`weight` must not be empty.")
+            if weight.min() < 0:
+                raise ValueError("the value/values of the `weight` should be no less than 0.")
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
         self.soft_label = soft_label
@@ -197,7 +202,7 @@ class DiceLoss(_Loss):
         input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
+        reduce_axis: list[int] = list(range(2, len(input.shape)))
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
@@ -223,9 +228,7 @@ class DiceLoss(_Loss):
                         "The length of the `weight` sequence should be the same as the number of classes. "
                         "If `include_background=False`, the weight should not include the background category class 0."
                     )
-            if self.class_weight.min() < 0:
-                raise ValueError("the value/values of the `weight` should be no less than 0.")
-            # apply class_weight to loss
+            # apply class_weight to loss (weight values validated in __init__)
             f = f * self.class_weight.to(f)
 
         if self.reduction == LossReduction.MEAN.value:
@@ -446,7 +449,7 @@ class GeneralizedDiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
+        reduce_axis: list[int] = list(range(2, len(input.shape)))
         if self.batch:
             reduce_axis = [0] + reduce_axis
 

@@ -81,8 +81,6 @@ TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
 TEST_CASES = []
 TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_A]
 
-TEST_CASES_TS = [TEST_CASE_1]
-
 
 class NaiveNetwork(torch.nn.Module):
 

@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceCELoss
+from tests.test_utils import test_export_save
 
 TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
@@ -113,10 +114,10 @@ class TestDiceCELoss(unittest.TestCase):
     #         loss = DiceCELoss(reduction="none")
     #         loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
-    # def test_script(self):
-    #     loss = DiceCELoss()
-    #     test_input = torch.ones(2, 2, 8, 8)
-    #     test_script_save(loss, test_input, test_input)
+    def test_export(self):
+        loss = DiceCELoss()
+        test_input = torch.ones(2, 2, 8, 8)
+        test_export_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

@@ -163,7 +163,7 @@ class Reshape(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shape = list(self.shape)
-        shape[0] = x.shape[0]  # done this way for Torchscript
+        shape[0] = x.shape[0]
         return x.reshape(shape)
 
 
