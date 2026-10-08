@@ -254,6 +254,7 @@ class ReferenceResolver:
         """
         for k, v in config.items() if isinstance(config, dict) else enumerate(config):
             sub_id = f"{id}{cls.sep}{k}" if id != "" else f"{k}"
+            # pyrefly: ignore [invalid-yield]
             yield k, sub_id, v
 
     @classmethod

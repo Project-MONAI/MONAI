@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import sys
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -31,7 +30,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.data.meta_obj import MetaObj
+from monai.data.meta_obj import _DEFAULT_SPATIAL_NDIM, MetaObj
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -432,6 +431,9 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     collated.meta = default_collate(meta_dicts)
     collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
     collated.is_batch = True
+    collated.spatial_ndim = min(
+        min(getattr(t, "spatial_ndim", _DEFAULT_SPATIAL_NDIM) for t in batch), max(collated.ndim - 1, 1)
+    )
     return collated
 
 
@@ -684,28 +686,40 @@ def worker_init_fn(worker_id: int) -> None:
     set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
-def set_rnd(obj, seed: int) -> int:
+def set_rnd(obj, seed: int, _seen: set[int] | None = None) -> int:
     """
     Set seed or random state for all randomizable properties of obj.
 
     Args:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
+        _seen: internal set of already-visited object ids, used to guard against
+            infinite recursion on cyclic object graphs (e.g. OmegaConf/Hydra
+            configs whose child nodes back-reference their parent, see issue #8087).
     """
+    if _seen is None:
+        _seen = set()
     if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
-        _seed = seed
+        if id(obj) in _seen:
+            return seed
+        _seen.add(id(obj))
+        has_randomizable = False
         for item in obj:
-            _seed = set_rnd(item, seed=seed)
-        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
+            item_seed = set_rnd(item, seed=seed, _seen=_seen)
+            has_randomizable = has_randomizable or item_seed != seed
+        return seed + 1 if has_randomizable else seed
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
+    if id(obj) in _seen:
+        return seed  # already visited: avoid infinite recursion on cyclic references
+    _seen.add(id(obj))
     if hasattr(obj, "set_random_state"):
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
         if key.startswith("__"):  # skip the private methods
             continue
-        seed = set_rnd(obj.__dict__[key], seed=seed)
+        seed = set_rnd(obj.__dict__[key], seed=seed, _seen=_seen)
     return seed
 
 
@@ -881,7 +895,7 @@ def compute_shape_offset(
             Default is False, using option 1 to compute the shape and offset.
 
     """
-    shape = np.array(spatial_shape, copy=True, dtype=float)
+    shape = np.array(tuple(spatial_shape), copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
@@ -1367,13 +1381,8 @@ def json_hashing(item) -> bytes:
 
     """
     # TODO: Find way to hash transforms content as part of the cache
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = json.dumps(item, sort_keys=True).encode("utf-8")
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 
@@ -1388,13 +1397,8 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     Returns: the corresponding hash key
 
     """
-    cache_key = ""
-    if sys.version_info.minor < 9:
-        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    else:
-        cache_key = hashlib.md5(
-            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
-        ).hexdigest()
+    dump = pickle.dumps(sorted_dict(item), protocol=protocol)
+    cache_key = hashlib.sha256(dump, usedforsecurity=False).hexdigest()  # type: ignore
     return f"{cache_key}".encode()
 
 

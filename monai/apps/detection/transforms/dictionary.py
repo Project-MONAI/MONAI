@@ -37,7 +37,6 @@ from monai.apps.detection.transforms.array import (
     StandardizeEmptyBox,
     ZoomBox,
 )
-from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
@@ -124,11 +123,9 @@ class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
         """
         super().__init__(box_keys, allow_missing_keys)
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
-        if len(box_ref_image_keys_tuple) > 1:
-            raise ValueError(
-                "Please provide a single key for box_ref_image_keys.\
-                All boxes of box_keys are attached to box_ref_image_keys."
-            )
+        if len(box_ref_image_keys_tuple) != 1:
+            msg = "Provide a single key for `box_ref_image_keys`. All boxes of `box_keys` are attached to this key."
+            raise ValueError(msg)
         self.box_ref_image_keys = box_ref_image_keys
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -290,8 +287,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
         if len(box_ref_image_keys_tuple) > 1:
             raise ValueError(
-                "Please provide a single key for box_ref_image_keys.\
-                All boxes of box_keys are attached to box_ref_image_keys."
+                "Please provide a single key for `box_ref_image_keys`. "
+                "All boxes of box_keys are attached to `box_ref_image_keys`."
             )
         self.box_ref_image_keys = box_ref_image_keys
         self.image_meta_key = image_meta_key or f"{box_ref_image_keys}_{image_meta_key_postfix}"
@@ -310,10 +307,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         else:
             raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
         if "affine" not in meta_dict:
-            raise ValueError(
-                f"'affine' is not found in {meta_key}. \
-                Please check whether it is the correct the image meta key."
-            )
+            raise ValueError(f"Key 'affine' not found in {meta_key}, check this is the correct image meta key.")
         affine: NdarrayOrTensor = meta_dict["affine"]
 
         if self.affine_lps_to_ras:  # RAS affine
@@ -815,16 +809,14 @@ class ClipBoxToImaged(MapTransform):
     ) -> None:
         box_keys_tuple = ensure_tuple(box_keys)
         if len(box_keys_tuple) != 1:
-            raise ValueError(
-                "Please provide a single key for box_keys.\
-                All label_keys are attached to this box_keys."
-            )
+            raise ValueError("Provide a single key for `box_keys`. All `label_keys` are attached to this `box_keys`.")
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
         if len(box_ref_image_keys_tuple) != 1:
             raise ValueError(
-                "Please provide a single key for box_ref_image_keys.\
-                All box_keys and label_keys are attached to this box_ref_image_keys."
+                "Provide a single key for `box_ref_image_keys`. "
+                "All `box_keys` and `label_keys` are attached to this `box_ref_image_keys`."
             )
+
         self.label_keys = ensure_tuple(label_keys)
         super().__init__(box_keys_tuple, allow_missing_keys)
 
@@ -1067,7 +1059,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
     def __init__(
         self,
         image_keys: KeysCollection,
-        box_keys: str,
+        box_keys: KeysCollection,
         label_keys: KeysCollection,
         spatial_size: Sequence[int] | int,
         pos: float = 1.0,
@@ -1091,10 +1083,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
         box_keys_tuple = ensure_tuple(box_keys)
         if len(box_keys_tuple) != 1:
-            raise ValueError(
-                "Please provide a single key for box_keys.\
-                All label_keys are attached to this box_keys."
-            )
+            raise ValueError("Provide a single key for box_keys. All label_keys are attached to this key.")
         self.box_keys = box_keys_tuple[0]
         self.label_keys = ensure_tuple(label_keys)
 
@@ -1164,10 +1153,13 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             # As along as the cropped patch contains a box, it is considered as a foreground patch.
             # Positions within extended_boxes are crop centers for foreground patches
             extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
-            mask_img = convert_box_to_mask(
-                extended_boxes_np, np.ones(extended_boxes_np.shape[0]), image_size, bg_label=0, ellipse_mask=False
-            )
-            mask_img = np.amax(mask_img, axis=0, keepdims=True)[0:1, ...]
+            spatial_dims = len(image_size)
+            mask_img = np.zeros((1,) + tuple(image_size), dtype=np.int16)
+            for b in range(extended_boxes_np.shape[0]):
+                slicing = (0,) + tuple(
+                    slice(extended_boxes_np[b, d], extended_boxes_np[b, d + spatial_dims]) for d in range(spatial_dims)
+                )
+                mask_img[slicing] = 1
             fg_indices_, bg_indices_ = map_binary_to_indices(mask_img, thresh_image, self.image_threshold)
         else:
             fg_indices_ = fg_indices

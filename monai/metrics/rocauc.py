@@ -12,13 +12,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import numpy as np
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-
+import numpy.typing as npt
 import torch
 
 from monai.utils import Average, look_up_option
@@ -80,10 +77,14 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     y_unique = y.unique()
     if len(y_unique) == 1:
-        warnings.warn(f"y values can not be all {y_unique.item()}, skip AUC computation and return `Nan`.")
+        warnings.warn(
+            f"y values can not be all {y_unique.item()}, skip AUC computation and return `Nan`.", stacklevel=2
+        )
         return float("nan")
     if not y_unique.equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
-        warnings.warn(f"y values must be 0 or 1, but in {y_unique.tolist()}, skip AUC computation and return `Nan`.")
+        warnings.warn(
+            f"y values must be 0 or 1, but in {y_unique.tolist()}, skip AUC computation and return `Nan`.", stacklevel=2
+        )
         return float("nan")
 
     n = len(y)

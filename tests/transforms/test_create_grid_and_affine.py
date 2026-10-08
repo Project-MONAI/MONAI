@@ -224,12 +224,30 @@ class TestCreateAffine(unittest.TestCase):
 
     def test_create_shear(self):
         test_assert(create_shear, (2, 1.0), np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
-        test_assert(create_shear, (2, (2.0, 3.0)), np.array([[1.0, 2.0, 0.0], [3.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(create_shear, (2, (2.0, 3.0)), np.array([[1.0, 2.0, 0.0], [3.0, 7.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(
             create_shear,
             (3, 1.0),
             np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
+
+    def test_create_shear_determinant(self):
+        """Composed shear must be area/volume-preserving (determinant == 1)."""
+        for coefs in [(0.3, 0.5), (1.0, 2.0), (-0.5, 0.7)]:
+            m = create_shear(2, coefs, backend="numpy")
+            assert_allclose(np.linalg.det(m), 1.0, atol=1e-10)
+        for coefs in [(0.1, 0.2, 0.3, 0.4, 0.5, 0.6)]:
+            m = create_shear(3, coefs, backend="numpy")
+            assert_allclose(np.linalg.det(m), 1.0, atol=1e-10)
+
+    def test_create_shear_sequential_equivalence(self):
+        """Composing single-axis shears must equal a single multi-axis shear."""
+        sx, sy = 0.3, 0.5
+        shear_x = create_shear(2, (sx, 0.0), backend="numpy")
+        shear_y = create_shear(2, (0.0, sy), backend="numpy")
+        combined = create_shear(2, (sx, sy), backend="numpy")
+        # shear_y applied after shear_x
+        assert_allclose(shear_y @ shear_x, combined, atol=1e-10)
 
     def test_create_scale(self):
         test_assert(create_scale, (2, 2), np.array([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))

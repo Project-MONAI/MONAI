@@ -17,9 +17,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-from collections.abc import Hashable, Mapping
+from collections.abc import Callable, Hashable, Mapping
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 
@@ -53,7 +52,9 @@ class LoadImaged(MapTransform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
+          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader first among DICOM readers).
+        - Optionally set ``MONAI_DICOM_READER`` to ``itk``, ``pydicom``, or ``nvimgcodec``
+          (GPU-accelerated decoding; requires ``pip install 'monai[nvimgcodec]'``) to try that DICOM reader first.
 
     Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
     loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition

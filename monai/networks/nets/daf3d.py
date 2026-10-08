@@ -570,6 +570,7 @@ class DAF3D(nn.Module):
 
         supervised_final = self.predict2(aspp)
 
+        output: list | torch.Tensor
         if self.training:
             output = supervised1 + supervised2 + [supervised_final]
             output = [F.interpolate(o, size=x.size()[2:], mode="trilinear") for o in output]

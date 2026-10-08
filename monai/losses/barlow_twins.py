@@ -36,7 +36,7 @@ class BarlowTwinsLoss(_Loss):
     def __init__(self, lambd: float = 5e-3) -> None:
         """
         Args:
-            lamb: Can be any float to handle the informativeness and invariance trade-off. Ideally set to 5e-3.
+            lambd: Can be any float to handle the informativeness and invariance trade-off. Ideally set to 5e-3.
 
         Raises:
             ValueError: When an input of dimension length > 2 is passed
@@ -78,7 +78,7 @@ class BarlowTwinsLoss(_Loss):
         c = torch.mm(input_norm.t(), target_norm) / batch_size  # input_norm.t() is FxB, target_norm is BxF so c is FxF
 
         # loss
-        c_diff = (c - torch.eye(c.size(0), device=c.device)).pow_(2)  # FxF
+        c_diff = (c - torch.eye(c.size(0), dtype=c.dtype, device=c.device)).pow_(2)  # FxF
         c_diff[~torch.eye(c.size(0), device=c.device).bool()] *= lambd_tensor
 
         return c_diff.sum()
