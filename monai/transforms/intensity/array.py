@@ -2614,7 +2614,7 @@ class IntensityRemap(RandomizableTransform):
         grid = torch.arange(len(noise)) / len(noise)
         noise += self.slope * grid
         # rescale
-        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img_.max() + img_.min()
+        noise = (noise - noise.min()) / (noise.max() - noise.min()) * (img_.max() - img_.min()) + img_.min()
 
         # intensity remapping function
         index_img = torch.bucketize(img_, torch.tensor(vals_to_sample))
@@ -2661,16 +2661,17 @@ class RandIntensityRemap(RandomizableTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self._do_transform:
             if self.channel_wise:
-                img = torch.stack(
-                    [
-                        IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
-                        for i in range(len(img))
-                    ]
-                )
+                img = torch.stack([self._remap(img[i]) for i in range(len(img))])
             else:
-                img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
+                img = self._remap(img)
 
         return img
+
+    def _remap(self, img: torch.Tensor) -> torch.Tensor:
+        # share this transform's random state so that `set_random_state` also controls the remapping curve
+        remap = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))
+        remap.set_random_state(state=self.R)
+        return remap(img)
 
 
 class ForegroundMask(Transform):
