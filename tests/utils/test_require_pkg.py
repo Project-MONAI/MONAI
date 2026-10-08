@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from monai.utils import OptionalImportError, min_version, require_pkg
+from monai.utils import OptionalImportError, exact_version, min_version, require_pkg
 
 
 class TestRequirePkg(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestRequirePkg(unittest.TestCase):
         test_func(x=None)
 
     def test_class_exception(self):
-        with self.assertRaises(OptionalImportError):
+        with self.assertRaises(OptionalImportError) as cm:
 
             @require_pkg(pkg_name="test123")
             class TestClass:
@@ -51,14 +51,41 @@ class TestRequirePkg(unittest.TestCase):
 
             TestClass()
 
+        self.assertEqual(cm.exception.pkg_name, "test123")
+
     def test_class_version_exception(self):
-        with self.assertRaises(OptionalImportError):
+        # the installed package is incompatible, so the recorded name carries the version constraint
+        with self.assertRaises(OptionalImportError) as cm:
 
             @require_pkg(pkg_name="torch", version="10000", version_checker=min_version)
             class TestClass:
                 pass
 
             TestClass()
+
+        self.assertEqual(cm.exception.pkg_name, "torch>=10000")
+
+    def test_func_exact_version_exception(self):
+        with self.assertRaises(OptionalImportError) as cm:
+
+            @require_pkg(pkg_name="torch", version="10000", version_checker=exact_version)
+            def test_func(x):
+                return x
+
+            test_func(x=None)
+
+        self.assertEqual(cm.exception.pkg_name, "torch==10000")
+
+    def test_missing_exact_version_exception(self):
+        with self.assertRaises(OptionalImportError) as cm:
+
+            @require_pkg(pkg_name="test123", version="1.2", version_checker=exact_version)
+            def test_func(x):
+                return x
+
+            test_func(x=None)
+
+        self.assertEqual(cm.exception.pkg_name, "test123==1.2")
 
     def test_func_exception(self):
         with self.assertRaises(OptionalImportError):
