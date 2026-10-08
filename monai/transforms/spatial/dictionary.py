@@ -1660,16 +1660,26 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        randomize_per_key: if True, draw an independent random axis for each key instead of sharing one
+            across all keys (e.g. for independent views in self-supervised learning). Note this breaks the
+            spatial correspondence between keys, so keep it False for aligned data such as image/label
+            pairs. Defaults to False.
     """
 
     backend = RandAxisFlip.backend
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False, lazy: bool = False
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         LazyTransform.__init__(self, lazy=lazy)
+        self.randomize_per_key = randomize_per_key
         self.flipper = RandAxisFlip(prob=1.0, lazy=lazy)
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -1702,13 +1712,14 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
 
         self.randomize(None)
 
-        # all the keys share the same random selected axis
-        self.flipper.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random selected axis
+            self.flipper.randomize(d[first_key])
 
         lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False, lazy=lazy_)
+                d[key] = self.flipper(d[key], randomize=self.randomize_per_key, lazy=lazy_)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             self.push_transform(d[key], replace=True, lazy=lazy_)
@@ -1857,6 +1868,10 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Note this breaks
+            the spatial correspondence between keys, so keep it False for aligned data such as image/label
+            pairs. Defaults to False.
     """
 
     backend = RandRotate.backend
@@ -1875,10 +1890,12 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         LazyTransform.__init__(self, lazy=lazy)
+        self.randomize_per_key = randomize_per_key
         self.rand_rotate = RandRotate(
             range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size, lazy=lazy
         )
@@ -1913,8 +1930,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         self.randomize(None)
 
-        # all the keys share the same random rotate angle
-        self.rand_rotate.randomize()
+        if not self.randomize_per_key:
+            # all the keys share the same random rotate angle
+            self.rand_rotate.randomize()
         lazy_ = self.lazy if lazy is None else lazy
 
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -1927,7 +1945,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
-                    randomize=False,
+                    randomize=self.randomize_per_key,
                     lazy=lazy_,
                 )
             else:
@@ -2083,6 +2101,10 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         allow_missing_keys: don't raise exception if key is missing.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Note this breaks
+            the spatial correspondence between keys, so keep it False for aligned data such as image/label
+            pairs. Defaults to False.
         kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
             more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
@@ -2102,11 +2124,13 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        randomize_per_key: bool = False,
         **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         LazyTransform.__init__(self, lazy=lazy)
+        self.randomize_per_key = randomize_per_key
         self.rand_zoom = RandZoom(
             prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, lazy=lazy, **kwargs
         )
@@ -2145,8 +2169,9 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
 
         self.randomize(None)
 
-        # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random zoom factor
+            self.rand_zoom.randomize(d[first_key])
         lazy_ = self.lazy if lazy is None else lazy
 
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -2159,7 +2184,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
-                    randomize=False,
+                    randomize=self.randomize_per_key,
                     lazy=lazy_,
                 )
             else:
@@ -2256,6 +2281,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         device: torch.device | None = None,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -2281,10 +2307,15 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Note this
+                breaks the spatial correspondence between keys, so keep it False for aligned data such as
+                image/label pairs. Defaults to False.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.rand_grid_distortion = RandGridDistortion(
             num_cells=num_cells, prob=1.0, distort_limit=distort_limit, device=device
         )
@@ -2320,10 +2351,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
             return d
         if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
             warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
-        self.rand_grid_distortion.randomize(d[first_key].shape[1:])
+        if not self.randomize_per_key:
+            self.rand_grid_distortion.randomize(d[first_key].shape[1:])
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
+            d[key] = self.rand_grid_distortion(
+                d[key], mode=mode, padding_mode=padding_mode, randomize=self.randomize_per_key
+            )
         return d
 
 
