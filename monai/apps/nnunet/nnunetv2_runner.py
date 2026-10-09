@@ -298,8 +298,11 @@ class nnUNetV2Runner:  # noqa: N801
 
         num_input_channels, num_foreground_classes = self.input_info.get('num_input_channels'), self.input_info.get('num_foreground_classes')
 
+        if testing and num_input_channels is None and num_foreground_classes is None:
+            raise ValueError("num_input_channels and num_foreground_classes must be passed when converting a testing dataset to ensure they match the training dataset.")
+
         if num_input_channels is None or num_foreground_classes is None:
-            # can't get num_foreground classes from the data, so should be inserted by user
+            # can't get num_foreground classes from the user, so should be inferred from data
             num_input_channels, num_foreground_classes = analyze_data(datalist_json=datalist_json, data_dir=data_dir)
 
         modality = self.input_info.pop("modality")
@@ -1070,6 +1073,7 @@ class nnUNetV2Runner:  # noqa: N801
         num_foreground_classes: int | None = None,
         num_input_channels: int | None = None,
         work_dir: str = 'work_dir',
+        folds: tuple[int, ...] | None = None
     ):
         """Method to run inference on a datalist using a model trained by this runner.
         Handles all nnUNet boilerplate, instantiation of the runner, etc.
@@ -1124,7 +1128,7 @@ class nnUNetV2Runner:  # noqa: N801
         runner.convert_dataset(testing=True)
 
         # these things are hardcoded upstream
-        _, raw_data_foldername = runner.get_raw_data_foldername(runner.dataset_name_or_id, input_config['dataroot'], input_config['nnunet_raw'])
+        _, raw_data_foldername = runner._get_raw_data_foldername(runner.dataset_name_or_id, input_config['dataroot'], input_config['nnunet_raw'])
     
         with TemporaryDirectory() as pred_work_folder:
             test_images_dir = os.path.join(raw_data_foldername, "imagesTs")  # Also hardcoded upstream
@@ -1133,6 +1137,7 @@ class nnUNetV2Runner:  # noqa: N801
                 test_images_dir,
                 output_folder=pred_work_folder,
                 model_training_output_dir=model_dir,
+                use_folds=folds
             )
             move_predictions(raw_data_foldername, pred_work_folder, output_dir)
 
