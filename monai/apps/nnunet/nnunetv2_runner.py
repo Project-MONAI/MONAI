@@ -1171,8 +1171,9 @@ class nnUNetV2Runner:  # noqa: N801
             work_dir: path to the work_dir created by the runner during training. 
             modality: modality of the input data (default: "CT")
         """
-        with NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_json_file:
-            temp_json_path = temp_json_file.name
+        try:
+            with NamedTemporaryFile(mode='w', delete=False, suffix='.json') as temp_json_file:
+                temp_json_path = temp_json_file.name
             glob_to_datalist(input_files_glob, output_json=temp_json_path, key="testing", dataroot=input_files_root)
 
             cls.predict_datalist(
@@ -1183,6 +1184,9 @@ class nnUNetV2Runner:  # noqa: N801
                 output_dir=output_dir,
                 modality=modality
             )
+        finally:
+            if temp_json_path is not None and os.path.exists(temp_json_path):
+                os.remove(temp_json_path)
 
     def _determine_configs(self):
         from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
