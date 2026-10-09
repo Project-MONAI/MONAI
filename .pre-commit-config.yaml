@@ -1,6 +1,8 @@
 default_language_version:
   python: python3
 
+default_install_hook_types: [pre-commit, commit-msg]
+
 ci:
   autofix_prs: true
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit suggestions'
@@ -30,7 +32,7 @@ repos:
       - id: mixed-line-ending
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.5
+    rev: v0.16.10
     hooks:
     -   id: ruff-check
         args: ["--fix"]
@@ -41,7 +43,7 @@ repos:
           )
 
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.5.1  # Black version, keep synced with MONAI requirements
+    rev: 26.10.0  # Black version, keep synced with MONAI requirements
     hooks:
       - id: black
         language_version: python3
@@ -53,7 +55,7 @@ repos:
           )
 
   - repo: https://github.com/pycqa/isort
-    rev: 9.0.1  # isort version, keep synced with MONAI requirements
+    rev: 9.0.2  # isort version, keep synced with MONAI requirements
     hooks:
       - id: isort
         name: isort (python)
@@ -62,3 +64,10 @@ repos:
               ^versioneer.py|
               ^monai/_version.py
           )
+  - repo: local
+    hooks:
+      - id: dco
+        name: DCO sign-off
+        entry: .github/hooks/check-dco.sh
+        language: script
+        stages: [commit-msg]

@@ -131,7 +131,7 @@ class DDPMScheduler(Scheduler):
 
         Args:
             timestep: current timestep.
-            x0: the noise-free input.
+            x_0: the noise-free input.
             x_t: the input noised to timestep t.
 
         Returns:
