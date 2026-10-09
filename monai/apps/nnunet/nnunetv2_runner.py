@@ -831,7 +831,7 @@ class nnUNetV2Runner:  # noqa: N801
 
     def find_best_configuration(
         self,
-        plans: tuple | str = "nnUNetPlans",
+        plans: tuple | str | None = None,
         configs: tuple | str = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
         trainers: tuple | str | None = None,
         allow_ensembling: bool = True,
@@ -858,6 +858,9 @@ class nnUNetV2Runner:  # noqa: N801
             dumb_trainer_config_plans_to_trained_models_dict,
             find_best_configuration,
         )
+
+        if plans is None:
+            plans = self.plans_identifier
 
         configs = ensure_tuple(configs)
         plans = ensure_tuple(plans)
@@ -1098,17 +1101,17 @@ class nnUNetV2Runner:  # noqa: N801
         next_available_index = get_next_available_index(nnunet_raw_data_base)
         num_input_channels_det, num_foreground_classes_det = get_info_from_dataset_json(model_dir)
 
-        if num_input_channels_det is None and num_input_channels is None:
+        if not num_input_channels_det and not num_input_channels is None:
             raise ValueError("num_input_channels must be provided as it cannot be inferred from the dataset json.")
-        if num_foreground_classes_det is None and num_foreground_classes is None:
+        if not num_foreground_classes_det and num_foreground_classes is None:
             raise ValueError("num_foreground_classes must be provided as it cannot be inferred from the dataset json.")
 
-        if num_input_channels_det is not None and num_input_channels is not None and num_input_channels_det != num_input_channels:
+        if not num_input_channels_det and num_input_channels is not None and num_input_channels_det != num_input_channels:
             raise ValueError(f"num_input_channels ({num_input_channels}) does not match the value in the dataset json ({num_input_channels_det}).")
 
         num_foreground_classes, num_input_channels = (
-            num_foreground_classes_det if num_foreground_classes_det is not None else num_foreground_classes,
-            num_input_channels_det if num_input_channels_det is not None else num_input_channels,
+            num_foreground_classes_det if num_foreground_classes_det else num_foreground_classes,
+            num_input_channels_det if num_input_channels_det else num_input_channels,
         )
 
         input_config = {
@@ -1182,10 +1185,9 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
     def _determine_configs(self):
-        from nnunetv2.paths import nnUNet_preprocessed
         from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
-        preprocessed_dataset_folder_base = join(nnUNet_preprocessed, maybe_convert_to_dataset_name(self.dataset_name_or_id))
+        preprocessed_dataset_folder_base = join(self.nnunet_preprocessed, maybe_convert_to_dataset_name(self.dataset_name_or_id))
         plans_file = join(preprocessed_dataset_folder_base, self.plans_identifier + '.json')
 
         with open(plans_file, 'r') as f:
@@ -1222,7 +1224,8 @@ class nnUNetV2Runner:  # noqa: N801
         if run_plan_and_process:
             self.plan_and_process()
 
-        configs = self._determine_configs()
+        if run_train or run_find_best_configuration:
+            configs = self._determine_configs()
 
         if run_train:
             self.train(configs=configs)
