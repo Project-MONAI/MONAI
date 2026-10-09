@@ -94,6 +94,9 @@ excludes = "|".join(
         "(.*(__main__)$)",
         "(.*(video_dataset)$)",
         "(.*(nnunet).*$)",
+        # packaging-time only, and a vendor plugin must not be imported on another vendor's hardware
+        "(^(monai.config.vendor_))",
+        "(^(monai.config.print_dependencies)$)",
     ]
 )
 
