@@ -18,6 +18,7 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
@@ -98,6 +99,35 @@ class TestDatasetSummary(unittest.TestCase):
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))
+
+    def test_mixed_foreground_and_background(self):
+        data = [
+            {"image": torch.rand(1, 4, 4), "label": torch.ones(1, 4, 4)},
+            {"image": torch.rand(1, 4, 4), "label": torch.zeros(1, 4, 4)},
+        ]
+        image = torch.cat([d["image"] for d in data])
+        label = torch.cat([d["label"] for d in data])
+        expected = image[torch.where(label > 0)]
+
+        calculator = DatasetSummary(data, num_workers=0)
+        calculator.calculate_statistics()
+        np.testing.assert_allclose(calculator.data_mean, expected.mean().item(), rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(calculator.data_std, expected.std(correction=0).item(), rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(calculator.data_max, expected.max().item(), rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(calculator.data_min, expected.min().item(), rtol=1e-5, atol=1e-5)
+
+        calculator.calculate_percentiles(sampling_flag=False)
+        np.testing.assert_allclose(calculator.data_min_percentile, np.percentile(expected, 0.5), rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(calculator.data_max_percentile, np.percentile(expected, 99.5), rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(calculator.data_median, np.median(expected), rtol=1e-5, atol=1e-5)
+
+    def test_all_background(self):
+        data = [{"image": torch.rand(1, 4, 4), "label": torch.zeros(1, 4, 4)}]
+        calculator = DatasetSummary(data, num_workers=0)
+        with self.assertRaisesRegex(ValueError, "foreground_threshold"):
+            calculator.calculate_statistics()
+        with self.assertRaisesRegex(ValueError, "foreground_threshold"):
+            calculator.calculate_percentiles()
 
 
 if __name__ == "__main__":
