@@ -115,7 +115,8 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, ref
                             between the center of the image and the center of rotation.
         reference_image: The coordinate space that matrix and translation were defined
                          in respect to. If not supplied, the coordinate space of image
-                         is used.
+                         is used. If supplied, resample with ``spatial_size`` set to the
+                         size of reference_image to obtain an output in its grid.
 
     Returns:
         A 4x4 MONAI affine matrix.
@@ -291,15 +292,8 @@ def _compute_reference_space_affine_matrix(image, ref_image) -> torch.Tensor:
     # Matrix calculation
     matrix = ref_direction_matrix @ ref_spacing_matrix @ inv_spacing_matrix @ inv_direction_matrix
 
-    # Offset calculation
-    pixel_offset = -1
-    image_size = np.asarray(ref_image.GetLargestPossibleRegion().GetSize(), np.float32)
-    translation = (
-        (ref_direction_matrix @ ref_spacing_matrix - direction_matrix @ spacing_matrix)
-        @ (image_size + pixel_offset)
-        / 2
-    )
-    translation += np.asarray(ref_image.GetOrigin()) - np.asarray(image.GetOrigin())
+    # Offset calculation: the translation between the image centers, each computed from its own image size
+    translation = np.asarray(get_itk_image_center(ref_image)) - np.asarray(get_itk_image_center(image))
 
     # Convert matrix ITK matrix and translation to MONAI affine matrix
     ref_affine_matrix = itk_to_monai_affine(image, matrix=matrix, translation=translation)

@@ -151,11 +151,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         return np.asarray(output_image, dtype=np.float32)
 
-    def monai_affine_resample(self, metatensor, affine_matrix):
+    def monai_affine_resample(self, metatensor, affine_matrix, spatial_size=None):
         affine = Affine(
             affine=affine_matrix, padding_mode="zeros", mode="bilinear", dtype=torch.float64, image_only=True
         )
-        output_tensor = affine(metatensor)
+        output_tensor = affine(metatensor, spatial_size=spatial_size)
 
         return output_tensor.squeeze().permute(*torch.arange(output_tensor.ndim - 2, -1, -1)).array
 
@@ -442,9 +442,25 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         # Read the images
         image = self.reader.read(os.path.join(self.data_dir, filepath))
         image[:] = self.remove_border(image)
-        ndim = image.ndim
-
         ref_image = self.reader.read(os.path.join(self.data_dir, ref_filepath))
+
+        self.check_reference_space(image, ref_image)
+
+    @parameterized.expand(zip(TESTS[::2], TESTS[1::2]))
+    def test_use_reference_space_of_different_size(self, ref_filepath, filepath):
+        # Read the images, cropping the image so that its size differs from the reference image size
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
+        cropped_array = np.asarray(image)[tuple(slice(3, -5 - i) for i in range(image.ndim))]
+        image = itk.image_from_array(self.remove_border(cropped_array))
+        ref_image = self.reader.read(os.path.join(self.data_dir, ref_filepath))
+
+        self.check_reference_space(image, ref_image)
+
+    def check_reference_space(self, image, ref_image):
+        """
+        Checks that resampling image into the space of ref_image gives the same result with ITK and MONAI.
+        """
+        ndim = image.ndim
 
         # Set arbitary origin, spacing, direction for both of the images
         image.SetSpacing([1.2, 2.0, 1.7][:ndim])
@@ -490,7 +506,9 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         # MONAI
         metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation, ref_image)
-        output_array_monai = self.monai_affine_resample(metatensor, affine_matrix_for_monai)
+        output_array_monai = self.monai_affine_resample(
+            metatensor, affine_matrix_for_monai, spatial_size=list(ref_image.GetLargestPossibleRegion().GetSize())
+        )
 
         # Compare outputs
         np.testing.assert_allclose(output_array_monai, output_array_itk, rtol=1e-3, atol=1e-3)
