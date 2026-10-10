@@ -89,6 +89,81 @@ The `nvimgcodec` extra installs GPU-accelerated DICOM decoding for `NvImgCodecPy
 (`pip install 'monai[nvimgcodec]'`). It is Linux-only in the extra definition; CUDA 13 is the
 default. CUDA 12 users should install matching `cupy-cuda12x` and `nvidia-nvimgcodec-cu12` wheels.
 
+On AMD ROCm the extras above keep their names. When MONAI is built or installed against a ROCm
+build of PyTorch, the CUDA-only distributions they pull in are replaced by their AMD counterparts:
+`cucim-cu12`/`cucim-cu13` become [`amd-hipcim`](https://rocm.docs.amd.com/projects/hipCIM/en/latest/)
+(hipCIM), `cupy-cuda*` becomes `amd-cupy`, and `nvidia-ml-py`, `nni` and `nvidia-nvimgcodec-cu*` are
+dropped. `amd-hipcim` ships the `cucim` Python namespace and `amd-cupy` ships `cupy`, so all existing
+MONAI code importing from either (e.g. `WSIReader` with `backend="cucim"`, or `convert_to_cupy`)
+works on ROCm without any code changes. The required dependencies additionally gain the AMD GPU
+device extras (`torch[device-gfx942,device-gfx950]`) and a `rocm[libraries,devel,device-gfx*]`
+requirement, which is what steers pip towards the ROCm build of PyTorch. `devel` is included because
+`monai/_extensions` JIT-compiles its HIP sources on first use and the link step needs the ROCm
+development tree.
+
+This is driven by a general accelerator-vendor mechanism: `monai/config/vendor_deps.py` holds the
+generic rewriting and a registry of vendors, and each vendor contributes a `vendor_<name>.py` plugin
+listing its package substitutions. A plugin is imported only once its registry probe matches, so a
+build for one vendor never runs another vendor's code, and a build with no vendor detected is left
+exactly as declared in `pyproject.toml`. Set `MONAI_VENDOR` to a registered vendor name to force one,
+or to `none` to disable rewriting. For ROCm, the GPU architectures come from `GPU_TARGETS` or
+`AMDGPU_TARGETS` and the ROCm series from `MONAI_ROCM_SERIES`.
+
+Two AMD package indexes are involved, and neither is on PyPI. The ROCm SDK (`rocm`) and the ROCm
+build of PyTorch come from the ROCm wheel index. `amd-hipcim` and `amd-cupy` come from the AMD
+extensions index, which is published per ROCm series — at the time of writing, `rocm-10.0.0`. Those
+wheels are supported on the series they were built for and the one after it, which is the range the
+generated `rocm` requirement allows.
+
+Install the ROCm runtime and PyTorch first, selecting the architecture of your GPU (`gfx942` for
+MI300X/MI325X, `gfx950` for MI350X/MI355X), then expand the development tree:
+
+```bash
+pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ \
+    "rocm[libraries,devel,device-gfx942]" "torch[device-gfx942]"
+rocm-sdk init
+```
+
+`rocm-sdk init` is required: the `rocm-sdk-devel` wheel ships its contents as an archive that this
+command expands. Without it the ROCm development tree is absent, and `monai/_extensions` fails to
+JIT-compile on first use because the link step cannot find `libamdhip64.so`.
+
+Then install MONAI with both indexes available, so the `rocm` requirement and the AMD imaging
+packages can both resolve:
+
+```bash
+pip install \
+    --extra-index-url https://stable.repo.amd.com/rocm/whl-next/ \
+    --extra-index-url https://pypi.amd.com/rocm-10.0.0/simple/ \
+    'monai[cucim]'
+```
+
+AMD currently publishes the imaging wheels for CPython 3.12 on x86_64 Linux only; on other
+interpreters or architectures the install fails with `No matching distribution found for
+amd-hipcim`.
+
+Installing from source or from a git URL needs one extra step. `pip` builds in an isolated
+environment that resolves `torch` afresh, and a plain PyPI `torch` outranks a ROCm build of the same
+release, so the build can see a CUDA torch and emit CUDA dependencies on an AMD machine. MONAI warns
+when it finds an AMD GPU but no ROCm torch. Either build without isolation, in an environment that
+already has ROCm torch:
+
+```bash
+pip install --no-build-isolation \
+    --extra-index-url https://stable.repo.amd.com/rocm/whl-next/ \
+    --extra-index-url https://pypi.amd.com/rocm-10.0.0/simple/ \
+    'monai[cucim] @ git+https://github.com/Project-MONAI/MONAI'
+```
+
+or keep isolation and name the vendor and series explicitly:
+
+```bash
+MONAI_VENDOR=rocm MONAI_ROCM_SERIES=10.0 pip install ...
+```
+
+`Dockerfile.rocm` in the repo root is the authoritative reference for the complete environment setup
+(library paths, compiler flags, `rocm-sdk init`, and the full container recipe).
+
 The `hyena` extra pulls in [`nvsubquadratic`](https://github.com/NVIDIA-BioNeMo/nvSubquadratic),
 required by `HyenaNDUNETR` / `HyenaMixer` / `HyenaTransformerBlock` (subquadratic
 O(N log N) alternatives to windowed self-attention). Install with
@@ -333,7 +408,7 @@ MONAI itself:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-python monai/config/print_dependencies.py \* > requirements.txt
+python monai/config/print_dependencies.py all testing > requirements.txt
 pip install -r requirements.txt
 ```
 
