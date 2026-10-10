@@ -73,6 +73,17 @@ Inferers
     :members:
     :special-members: __call__
 
+`ConformalPredictor`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConformalPredictor
+    :members:
+    :special-members: __call__
+
+`ConformalCalibrator`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConformalCalibrator
+    :members:
+
 Splitters
 ---------
 .. currentmodule:: monai.inferers
