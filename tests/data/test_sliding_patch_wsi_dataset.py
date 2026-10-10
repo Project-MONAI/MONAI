@@ -21,7 +21,7 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import SlidingPatchWSIDataset
-from monai.utils import WSIPatchKeys, optional_import, set_determinism
+from monai.utils import ProbMapKeys, WSIPatchKeys, optional_import, set_determinism
 from tests.test_utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
@@ -250,6 +250,9 @@ class SlidingPatchWSIDatasetTests:
                 steps = [round(expected[i]["ratio"] * s) for s in expected[i]["patch_size"]]
                 expected_location = tuple(expected[i]["step_loc"][j] * steps[j] for j in range(len(steps)))
                 assert_array_equal(sample["image"].meta[WSIPatchKeys.LOCATION], expected_location)
+                # `ProbMapProducer` uses these as probability-map indices, which numpy 2.x
+                # only accepts as integers.
+                self.assertTrue(np.issubdtype(sample["image"].meta[ProbMapKeys.LOCATION].dtype, np.integer))
 
 
 @skipUnless(has_cucim, "Requires cucim")
