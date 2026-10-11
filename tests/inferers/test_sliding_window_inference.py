@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data.utils import list_data_collate
+from monai.data.utils import compute_importance_map, list_data_collate
 from monai.inferers import SlidingWindowInferer, SlidingWindowInfererAdapt, sliding_window_inference
 from monai.inferers.utils import _compute_coords
 from monai.utils import optional_import
@@ -70,6 +70,45 @@ for x in _windows:
 
 
 class TestSlidingWindowInference(unittest.TestCase):
+    def test_predictor_weighting_preserves_dtype_rounding(self):
+        for device, input_dtype, predictor_dtype in itertools.product(
+            _devices[0], (torch.float16, torch.float32, torch.float64), (torch.float16, torch.float32, torch.float64)
+        ):
+            with self.subTest(device=device, input_dtype=input_dtype, predictor_dtype=predictor_dtype):
+                image = torch.linspace(0.1, 0.9, 125, dtype=input_dtype, device=device).reshape(1, 1, 5, 5, 5)
+                weights = compute_importance_map((5, 5, 5), mode="gaussian", dtype=input_dtype, device=device)
+                expected = image.to(predictor_dtype).clone()
+                expected *= weights
+                expected = expected.to(input_dtype) / weights
+                result = sliding_window_inference(
+                    image, (5, 5, 5), 1, lambda patch: patch.to(predictor_dtype).clone(), mode="gaussian"
+                )
+                torch.testing.assert_close(result, expected, rtol=0, atol=0)
+
+    def test_predictor_output_alias_preserves_input(self):
+        for device, mode, batch_size, structure in itertools.product(
+            _devices[0], ("constant", "gaussian"), (1, 2), ("tensor", "tuple", "dict")
+        ):
+            with self.subTest(device=device, mode=mode, batch_size=batch_size, structure=structure):
+                image = torch.ones((1, 1, 9, 11, 13), device=device)
+                original = image.clone()
+
+                def predictor(patch):
+                    if structure == "tuple":
+                        return patch, patch
+                    if structure == "dict":
+                        return {"first": patch, "second": patch}
+                    return patch
+
+                with torch.inference_mode():
+                    result = sliding_window_inference(image, (5, 5, 5), batch_size, predictor, overlap=0.5, mode=mode)
+                torch.testing.assert_close(image, original, rtol=0, atol=0)
+                outputs = (
+                    result.values() if isinstance(result, dict) else result if isinstance(result, tuple) else (result,)
+                )
+                for output in outputs:
+                    torch.testing.assert_close(output, original)
+
     @parameterized.expand(BUFFER_CASES)
     def test_buffers(self, size_params, buffer_steps, buffer_dim, device_params):
         def mult_two(patch, *args, **kwargs):
