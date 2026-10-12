@@ -257,6 +257,8 @@ class GridPatchDataset(IterableDataset):
             self.first_random = self.patch_transform.get_index_of_first(
                 lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
             )
+            if self.first_random is None:
+                self.first_random = len(self.patch_transform.transforms)
 
         if self.cache:
             if isinstance(data, Iterator):
@@ -279,7 +281,11 @@ class GridPatchDataset(IterableDataset):
         self.cache_num = min(int(self.set_num), int(len(mapping) * self.set_rate), len(mapping))
         self._hash_keys = list(mapping)[: self.cache_num]
         indices = list(mapping.values())[: self.cache_num]
-        self._cache, self._cache_other = zip(*self._fill_cache(indices))  # type: ignore
+        cache_items = self._fill_cache(indices)
+        if cache_items:
+            self._cache, self._cache_other = zip(*cache_items)  # type: ignore
+        else:
+            self._cache, self._cache_other = [], []
 
     def _fill_cache(self, indices=None) -> list:
         """
@@ -339,12 +345,9 @@ class GridPatchDataset(IterableDataset):
 
     def __iter__(self):
         if self.cache:
-            cache_index = None
             for image in super().__iter__():
                 key = self.hash_func(image)
-                if key in self._hash_keys:
-                    # if existing in cache, try to get the index in cache
-                    cache_index = self._hash_keys.index(key)
+                cache_index = self._hash_keys.index(key) if key in self._hash_keys else None
                 if cache_index is None:
                     # no cache for this index, execute all the transforms directly
                     yield from self._generate_patches(self.patch_iter(image))
@@ -354,11 +357,11 @@ class GridPatchDataset(IterableDataset):
                             "Cache buffer is not initialized, please call `set_data()` before epoch begins."
                         )
                     data = self._cache[cache_index]
-                    other = self._cache_other[cache_index]
 
                     # load data from cache and execute from the first random transform
                     data = deepcopy(data) if self.copy_cache else data
-                    yield from self._generate_patches(zip(data, other), start=self.first_random)
+                    cached_patches = zip(data, self._cache_other[cache_index]) if self.with_coordinates else zip(data)
+                    yield from self._generate_patches(cached_patches, start=self.first_random)
         else:
             for image in super().__iter__():
                 yield from self._generate_patches(self.patch_iter(image))
