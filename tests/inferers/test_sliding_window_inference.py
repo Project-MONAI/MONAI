@@ -71,6 +71,7 @@ for x in _windows:
 
 class TestSlidingWindowInference(unittest.TestCase):
     def test_predictor_weighting_preserves_dtype_rounding(self):
+        """Verify that predictor weighting preserves expected dtype rounding."""
         for device, input_dtype, predictor_dtype in itertools.product(
             _devices[0], (torch.float16, torch.float32, torch.float64), (torch.float16, torch.float32, torch.float64)
         ):
@@ -86,6 +87,7 @@ class TestSlidingWindowInference(unittest.TestCase):
                 torch.testing.assert_close(result, expected, rtol=0, atol=0)
 
     def test_predictor_output_alias_preserves_input(self):
+        """Verify that predictor output aliasing does not mutate the input."""
         for device, mode, batch_size, structure in itertools.product(
             _devices[0], ("constant", "gaussian"), (1, 2), ("tensor", "tuple", "dict")
         ):
@@ -94,6 +96,15 @@ class TestSlidingWindowInference(unittest.TestCase):
                 original = image.clone()
 
                 def predictor(patch):
+                    """Return the patch in the requested output structure.
+
+                    Args:
+                        patch: Input patch tensor.
+
+                    Returns:
+                        The patch tensor, a tuple containing the patch twice, or a
+                        dictionary containing the patch under two keys.
+                    """
                     if structure == "tuple":
                         return patch, patch
                     if structure == "dict":
