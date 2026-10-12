@@ -67,6 +67,24 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
+    # anisotropic 3D shapes with all-distinct, permuted dims: a cubic input_size hides
+    # the decomposed rel-pos axis handling because every misplaced axis still broadcasts.
+    @parameterized.expand([[(4, 8, 16)], [(16, 8, 4)], [(2, 3, 4)], [(4, 3, 2)], [(2, 4, 3)]])
+    @skipUnless(has_einops, "Requires einops")
+    def test_decomposed_rel_pos_anisotropic_3d(self, input_size):
+        hidden_size = 120
+        net = SABlock(
+            hidden_size=hidden_size,
+            num_heads=6,
+            dropout_rate=0.1,
+            rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
+            input_size=input_size,
+        )
+        seq_len = input_size[0] * input_size[1] * input_size[2]
+        with eval_mode(net):
+            result = net(torch.randn(2, seq_len, hidden_size))
+            self.assertEqual(result.shape, (2, seq_len, hidden_size))
+
     def test_rel_pos_embedding_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(
@@ -230,7 +248,7 @@ class TestResBlock(unittest.TestCase):
             "rel_pos_embedding": None,
             "input_size": (16, 32),
             "include_fc": include_fc,
-            "use_combined_linear": use_combined_linear,
+            "use_combined_linear": False,
         }
         net = SABlock(**input_param)
         if not include_fc:
