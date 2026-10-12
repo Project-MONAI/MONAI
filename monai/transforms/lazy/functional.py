@@ -290,7 +290,8 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
             next_matrix = to_affine_nd(_rank, next_matrix)
 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
-        cur_kwargs.update(new_kwargs)
+        # don't let pending items without a mode (e.g. crop/pad) discard a mode set by an earlier transform
+        cur_kwargs.update({k: v for k, v in new_kwargs.items() if v is not None})
     cur_kwargs.update(override_kwargs)
     if len(pending) == 1 and isinstance(pending[0], dict):
         p0 = pending[0]
