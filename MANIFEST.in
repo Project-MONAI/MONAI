@@ -1,5 +1,6 @@
 include versioneer.py
 include monai/_version.py
+include monai/config/check_env.py
 
 include README.md
 include LICENSE

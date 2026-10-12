@@ -27,6 +27,7 @@ from collections.abc import Callable, Iterable, Sequence
 from math import log10
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
+from urllib.parse import quote
 
 import numpy as np
 import torch
@@ -69,6 +70,7 @@ __all__ = [
     "save_obj",
     "label_union",
     "path_to_uri",
+    "path_to_sqlite_uri",
     "pprint_edges",
     "check_key_duplicates",
     "CheckKeyDuplicatesYamlLoader",
@@ -567,12 +569,22 @@ class MONAIEnvVars:
 
     @staticmethod
     def allow_pickle() -> bool:
-        """If true, Auto3DSeg algo (de)serialization may use pickle. Default False.
+        """If true, Auto3DSeg algo (de)serialization and nnU-Net postprocessing loading may use
+        pickle. Default False.
 
         Pickle can execute arbitrary code on load and should only be enabled for files
         from trusted sources. Prefer ``algo_to_json`` / ``algo_from_json``.
         """
         return str2bool(os.environ.get("MONAI_ALLOW_PICKLE", "0"))
+
+    @staticmethod
+    def dicom_reader() -> str:
+        """Preferred DICOM reader for :py:class:`monai.transforms.LoadImage`.
+
+        Supported values: ``itk``, ``pydicom``, ``nvimgcodec``.
+        Returns an empty string when unset or unsupported.
+        """
+        return os.environ.get("MONAI_DICOM_READER", "").lower()
 
 
 class ImageMetaKey:
@@ -725,6 +737,23 @@ def path_to_uri(path: PathLike) -> str:
 
     """
     return Path(path).absolute().as_uri()
+
+
+def path_to_sqlite_uri(path: PathLike) -> str:
+    """
+    Convert a database file path to a SQLite connection URI, e.g. for use as an MLflow
+    ``tracking_uri``. If not an absolute path, it is converted to an absolute path first.
+
+    A forward-slash (POSIX) path is used so the URI is valid on Windows as well as POSIX:
+    on Windows this yields ``sqlite:///C:/path/db.sqlite`` and on POSIX ``sqlite:////path/db.sqlite``.
+    URI-special characters in the path (e.g. ``?``, ``#``) are percent-encoded so they are not
+    misparsed as query/fragment components by SQLAlchemy.
+
+    Args:
+        path: input database file path, can be a string or `Path` object.
+
+    """
+    return f"sqlite:///{quote(Path(path).absolute().as_posix(), safe='/:')}"
 
 
 def pprint_edges(val: Any, n_lines: int = 20) -> str:
