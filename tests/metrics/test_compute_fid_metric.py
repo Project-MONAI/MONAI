@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from monai.metrics import FIDMetric
+from monai.metrics.fid import _sqrtm
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
@@ -24,6 +25,12 @@ _, has_scipy = optional_import("scipy")
 
 @unittest.skipUnless(has_scipy, "Requires scipy")
 class TestFIDMetric(unittest.TestCase):
+
+    def test_sqrtm_returns_tensor(self):
+        """``scipy.linalg.sqrtm`` dropped its ``disp`` argument, and with it the 2-tuple return."""
+        result = _sqrtm(torch.tensor([[4.0, 0.0], [0.0, 9.0]], dtype=torch.float64))
+        self.assertIsInstance(result, torch.Tensor)
+        np.testing.assert_allclose(result.cpu().numpy(), np.array([[2.0, 0.0], [0.0, 3.0]]), atol=1e-6)
 
     def test_results(self):
         x = torch.Tensor([[1, 2], [1, 2], [1, 2]])
