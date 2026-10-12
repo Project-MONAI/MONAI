@@ -53,19 +53,24 @@ def matshow3d(
     Create a 3D volume figure as a grid of images.
 
     Args:
-        volume: 3D volume to display. data shape can be `BCHWD`, `CHWD` or `HWD`.
-            Higher dimensional arrays will be reshaped into (-1, H, W, [C]), `C` depends on `channel_dim` arg.
-            A list of channel-first (C, H[, W, D]) arrays can also be passed in,
+        volume: 3D volume to display. data shape can be `BCWHD`, `CWHD` or `WHD`
+            (axis 0 is columns/Width, axis 1 is rows/Height, axis 2 is Depth, matching
+            arrays returned by MONAI's NIfTI/ITK readers).
+            Higher dimensional arrays will be reshaped into (-1, spatial0, spatial1, [C]),
+            `C` depends on `channel_dim` arg.
+            A list of channel-first (C, W[, H, D]) arrays can also be passed in,
             in which case they will be displayed as a padded and stacked volume.
         fig: matplotlib figure or Axes to use. If None, a new figure will be created.
         title: title of the figure.
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
         frame_dim: for higher dimensional arrays, which dimension from (`-1`, `-2`, `-3`) is moved to
-            the `-3` dimension. dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
+            the `-3` dimension, then reshaped to (-1, spatial0, spatial1) to construct frames,
+            default to `-3`.
         channel_dim: if not None, explicitly specify the channel dimension to be transposed to the
-            last dimensionas shape (-1, H, W, C). this can be used to plot RGB color image.
-            if None, the channel dimension will be flattened with `frame_dim` and `batch_dim` as shape (-1, H, W).
+            last dimension as shape (-1, spatial0, spatial1, C). this can be used to plot RGB color image.
+            if None, the channel dimension will be flattened with `frame_dim` and `batch_dim` as
+            shape (-1, spatial0, spatial1).
             note that it can only support 3D input image. default is None.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
