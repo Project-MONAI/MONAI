@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -46,7 +46,7 @@ from monai.transforms.post.array import (
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
-from monai.transforms.utility.array import ToTensor
+from monai.transforms.utility.array import ApplyTransformToPoints, ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
 from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type
@@ -534,6 +534,12 @@ class GenerateHeatmapd(MapTransform):
         normalize: if True, normalize each heatmap's peak value to 1.0.
         dtype: output data type for heatmaps. Defaults to np.float32.
         allow_missing_keys: if True, don't raise error if some keys are missing in data.
+        coordinate_space: coordinate system of the input points. ``"voxel"`` keeps the existing behavior and treats
+            points as voxel coordinates in the output heatmap space. ``"world"`` transforms points to reference-image
+            voxel coordinates with ``ref_image_keys`` before generating heatmaps. If the points are a ``MetaTensor``
+            with their own affine, that affine is used as the point-to-world transform.
+        visibility_keys: optional keys to store a boolean visibility mask for each point after coordinate conversion.
+            The value is ``True`` when the transformed point is finite and inside the heatmap spatial shape.
 
     Returns:
         Dictionary with original data plus generated heatmaps at specified keys.
@@ -542,17 +548,21 @@ class GenerateHeatmapd(MapTransform):
         ValueError: If heatmap_keys/ref_image_keys length doesn't match keys length.
         ValueError: If no spatial shape can be determined (need spatial_shape or ref_image_keys).
         ValueError: If input points have invalid shape (must be 2D array with shape (N, D)).
+        ValueError: If ``coordinate_space="world"`` is used without a reference affine.
 
     Example:
         .. code-block:: python
 
             import numpy as np
+            import torch
+            from monai.data import MetaTensor
             from monai.transforms import GenerateHeatmapd
 
             # Create sample data with landmark points and a reference image
             data = {
                 "landmarks": np.array([[10.0, 15.0], [20.0, 25.0]]),  # 2 points in 2D
-                "image": np.zeros((32, 32))  # reference image
+                "landmarks_world": np.array([[10.0, 15.0], [20.0, 25.0]], dtype=np.float32),
+                "image": MetaTensor(torch.zeros((1, 32, 32)), affine=torch.eye(3)),  # reference image with affine
             }
 
             # Transform with reference image
@@ -573,12 +583,24 @@ class GenerateHeatmapd(MapTransform):
             result = transform(data)
             # result["landmarks_heatmap"] has shape (2, 64, 64)
 
+            # World-space landmarks can be converted against the reference affine.
+            transform = GenerateHeatmapd(
+                keys="landmarks_world",
+                heatmap_keys="landmark_heatmap",
+                ref_image_keys="image",
+                coordinate_space="world",
+                visibility_keys="landmark_visible",
+                sigma=2.0,
+            )
+
     Notes:
         - Default heatmap_keys are generated as "{key}_heatmap" for each input key
         - Shape inference precedence: static spatial_shape > ref_image
         - Input points shape: (N, D) where N is number of landmarks, D is spatial dimensions
         - Output heatmap shape: (N, H, W) for 2D or (N, H, W, D) for 3D
         - When using ref_image_keys, heatmaps inherit affine and spatial metadata from reference
+        - ``coordinate_space="world"`` assumes that the points and reference affine use the same world-coordinate
+          convention. Convert LPS/RAS conventions before calling this transform if needed.
     """
 
     backend = GenerateHeatmap.backend
@@ -590,6 +612,11 @@ class GenerateHeatmapd(MapTransform):
     _ERR_NO_SHAPE = "Unable to determine spatial shape for GenerateHeatmapd. Provide spatial_shape or ref_image_keys."
     _ERR_INVALID_POINTS = "Landmark arrays must be 2D with shape (N, D)."
     _ERR_REF_NO_SHAPE = "Reference data must define a shape attribute."
+    _ERR_VISIBILITY_KEYS_LEN = "Argument `visibility_keys` length must match keys length when provided."
+    _ERR_COORDINATE_SPACE_LEN = (
+        "Argument `coordinate_space` length must match keys length when providing per-key values."
+    )
+    _SUPPORTED_COORDINATE_SPACES = frozenset({"voxel", "world"})
 
     def __init__(
         self,
@@ -602,26 +629,32 @@ class GenerateHeatmapd(MapTransform):
         normalize: bool = True,
         dtype: np.dtype | torch.dtype | type = np.float32,
         allow_missing_keys: bool = False,
+        coordinate_space: str | Sequence[str] = "voxel",
+        visibility_keys: KeysCollection | None = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.heatmap_keys = self._prepare_heatmap_keys(heatmap_keys)
         self.ref_image_keys = self._prepare_optional_keys(ref_image_keys)
+        self.coordinate_spaces = self._prepare_coordinate_spaces(coordinate_space)
+        self.visibility_keys = self._prepare_visibility_keys(visibility_keys)
         self.static_shapes = self._prepare_shapes(spatial_shape)
         self.generator = GenerateHeatmap(
             sigma=sigma, spatial_shape=None, truncated=truncated, normalize=normalize, dtype=dtype
         )
+        self.world_to_voxel = ApplyTransformToPoints(dtype=torch.float32, invert_affine=True)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
         d = dict(data)
-        for key, out_key, ref_key, static_shape in self.key_iterator(
-            d, self.heatmap_keys, self.ref_image_keys, self.static_shapes
+        for key, out_key, ref_key, coordinate_space, visibility_key, static_shape in self.key_iterator(
+            d, self.heatmap_keys, self.ref_image_keys, self.coordinate_spaces, self.visibility_keys, self.static_shapes
         ):
             points = d[key]
             shape = self._determine_shape(points, static_shape, d, ref_key)
+            reference = d.get(ref_key) if ref_key is not None and ref_key in d else None
+            points = self._convert_points(points, reference, coordinate_space)
             # The GenerateHeatmap transform will handle type conversion based on input points
             heatmap = self.generator(points, spatial_shape=shape)
             # If there's a reference image and we need to match its type/device
-            reference = d.get(ref_key) if ref_key is not None and ref_key in d else None
             if reference is not None and isinstance(reference, (torch.Tensor, np.ndarray)):
                 # Convert to match reference type and device while preserving heatmap's dtype
                 heatmap, _, _ = convert_to_dst_type(
@@ -632,6 +665,9 @@ class GenerateHeatmapd(MapTransform):
                     heatmap.affine = reference.affine
                     self._update_spatial_metadata(heatmap, shape)
             d[out_key] = heatmap
+            if visibility_key is not None:
+                visibility = self._compute_visibility(points, shape)
+                d[visibility_key] = self._convert_visibility(visibility, d[key])
         return d
 
     def _prepare_heatmap_keys(self, heatmap_keys: KeysCollection | None) -> tuple[Hashable, ...]:
@@ -653,6 +689,34 @@ class GenerateHeatmapd(MapTransform):
         if len(keys_tuple) != len(self.keys):
             raise ValueError(self._ERR_REF_KEYS_LEN)
         return tuple(keys_tuple)
+
+    def _prepare_visibility_keys(self, maybe_keys: KeysCollection | None) -> tuple[Hashable | None, ...]:
+        if maybe_keys is None:
+            return (None,) * len(self.keys)
+        keys_tuple = ensure_tuple(maybe_keys)
+        if len(keys_tuple) == 1 and len(self.keys) > 1:
+            keys_tuple = keys_tuple * len(self.keys)
+        if len(keys_tuple) != len(self.keys):
+            raise ValueError(self._ERR_VISIBILITY_KEYS_LEN)
+        return tuple(keys_tuple)
+
+    def _prepare_coordinate_spaces(self, coordinate_space: str | Sequence[str]) -> tuple[str, ...]:
+        if isinstance(coordinate_space, str):
+            spaces = (coordinate_space,) * len(self.keys)
+        else:
+            spaces = ensure_tuple(coordinate_space)
+            if len(spaces) == 1 and len(self.keys) > 1:
+                spaces = spaces * len(self.keys)
+            if len(spaces) != len(self.keys):
+                raise ValueError(self._ERR_COORDINATE_SPACE_LEN)
+        spaces = tuple(str(space).lower() for space in spaces)
+        invalid = set(spaces) - self._SUPPORTED_COORDINATE_SPACES
+        if invalid:
+            raise ValueError(
+                f"Unsupported coordinate_space value: {sorted(invalid)}. "
+                f"Supported values are {sorted(self._SUPPORTED_COORDINATE_SPACES)}."
+            )
+        return spaces
 
     def _prepare_shapes(
         self, spatial_shape: Sequence[int] | Sequence[Sequence[int]] | None
@@ -679,7 +743,7 @@ class GenerateHeatmapd(MapTransform):
     def _determine_shape(
         self, points: Any, static_shape: tuple[int, ...] | None, data: Mapping[Hashable, Any], ref_key: Hashable | None
     ) -> tuple[int, ...]:
-        points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
+        points_t = cast(torch.Tensor, convert_to_tensor(points, dtype=torch.float32, track_meta=False))
         if points_t.ndim != 2:
             raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
         spatial_dims = int(points_t.shape[-1])
@@ -710,6 +774,45 @@ class GenerateHeatmapd(MapTransform):
     def _update_spatial_metadata(self, heatmap: MetaTensor, spatial_shape: tuple[int, ...]) -> None:
         """Set spatial_shape explicitly from resolved shape."""
         heatmap.meta["spatial_shape"] = tuple(int(v) for v in spatial_shape)
+
+    def _convert_points(self, points: Any, reference: Any, coordinate_space: str) -> Any:
+        if coordinate_space == "voxel":
+            return points
+
+        affine = self._get_reference_affine(reference)
+        points_t = convert_to_tensor(points, dtype=torch.float32, track_meta=False)
+        if points_t.ndim != 2:
+            raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
+
+        if isinstance(points, MetaTensor):
+            points_to_transform = points.unsqueeze(0)
+        else:
+            points_to_transform = points_t.unsqueeze(0)
+        converted = self.world_to_voxel(points_to_transform, affine).squeeze(0)
+        return converted
+
+    def _get_reference_affine(self, reference: Any) -> torch.Tensor:
+        if reference is None:
+            raise ValueError("coordinate_space='world' requires ref_image_keys or a reference affine.")
+        affine = getattr(reference, "affine", None)
+        if affine is not None:
+            return cast(torch.Tensor, convert_to_tensor(affine, dtype=torch.float32, track_meta=False))
+        raise ValueError("coordinate_space='world' requires reference data with an affine matrix.")
+
+    def _compute_visibility(self, points: Any, spatial_shape: tuple[int, ...]) -> torch.Tensor:
+        points_t = cast(torch.Tensor, convert_to_tensor(points, dtype=torch.float32, track_meta=False))
+        if points_t.ndim != 2:
+            raise ValueError(f"{self._ERR_INVALID_POINTS} Got {points_t.ndim}D tensor.")
+        bounds = torch.as_tensor(spatial_shape, dtype=points_t.dtype, device=points_t.device)
+        inside = torch.isfinite(points_t) & (points_t >= 0) & (points_t < bounds)
+        return inside.all(dim=1)
+
+    def _convert_visibility(self, visibility: torch.Tensor, points: Any) -> NdarrayOrTensor:
+        if isinstance(points, (MetaTensor, torch.Tensor)):
+            return visibility.to(device=points.device, dtype=torch.bool)
+        if isinstance(points, np.ndarray):
+            return visibility.cpu().numpy().astype(bool)
+        return visibility.to(dtype=torch.bool)
 
 
 GenerateHeatmapD = GenerateHeatmapDict = GenerateHeatmapd

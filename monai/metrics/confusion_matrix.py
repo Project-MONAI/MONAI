@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import create_ignore_mask, do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -59,6 +59,10 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
             Its shape depends on the shape of the metric, and it has one more dimension with size 4. For example, if the shape
             of the metric is [3, 3], `not_nans` has the shape [3, 3, 4].
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     """
 
@@ -69,6 +73,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         compute_sample: bool = False,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -76,6 +81,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         self.compute_sample = compute_sample
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -96,7 +102,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
                 warnings.warn("As for classification task, compute_sample should be False.", stacklevel=2)
                 self.compute_sample = False
 
-        return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
+        return get_confusion_matrix(
+            y_pred=y_pred, y=y, include_background=self.include_background, ignore_index=self.ignore_index
+        )
 
     def aggregate(
         self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
@@ -131,7 +139,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
+def get_confusion_matrix(
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_index: int | None = None
+) -> torch.Tensor:
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -145,11 +155,15 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
             The values should be binarized.
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            If ignore_index refers to a valid class channel, that channel is excluded. If it is outside the
+            class range, ignored regions are inferred from spatial locations where all label channels are zero.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
     """
 
+    original_y = y
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
@@ -158,17 +172,44 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
 
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
+
+    # Create spatial mask if ignore_index is provided
+    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
+        ignore_channel = ignore_index if include_background else ignore_index - 1
+        if 0 <= ignore_channel < y_pred.shape[1]:
+            y_pred = y_pred.clone()
+            y = y.clone()
+            y_pred[:, ignore_channel] = 0
+            y[:, ignore_channel] = 0
+        mask = None
+    else:
+        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+
     # convert to [BNS], where S is the number of pixels for one sample.
-    # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
+
+    if mask is not None:
+        mask = mask.reshape(batch_size, 1, -1)
+        y_pred = y_pred * mask
+        y = y * mask
+
     tp = (y_pred + y) == 2
     tn = (y_pred + y) == 0
+
+    if mask is not None:
+        # When masking, TN must only count locations where the mask is 1
+        tn = tn * mask.bool()
 
     tp = tp.sum(dim=[2]).float()
     tn = tn.sum(dim=[2]).float()
     p = y.sum(dim=[2]).float()
-    n = y.shape[-1] - p
+
+    if mask is not None:
+        # n is total valid pixels (per sample) minus the positives for that class
+        n = mask.reshape(batch_size, -1).sum(dim=1, keepdim=True) - p
+    else:
+        n = y.shape[-1] - p
 
     fn = p - tp
     fp = n - tn
