@@ -21,11 +21,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+import monai.data.image_writer as image_writer
 from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
-from monai.utils import MetaKeys, OptionalImportError, optional_import
+from monai.utils import MetaKeys, OptionalImportError, optional_import, require_pkg
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -149,6 +150,31 @@ class TestRegRes(unittest.TestCase):
         register_writer("new", lambda x: x + 1)
         register_writer("new2", lambda x: x + 1)
         self.assertEqual(resolve_writer("new")[0](0), 1)
+
+    def test_missing_dependency_hint(self):
+        ext = ".needshint"
+        fmt_key = ext.lstrip(".").lower()
+        previous = image_writer.SUPPORTED_WRITERS.get(fmt_key)
+
+        @require_pkg(pkg_name="__monai_missing_test_pkg__")
+        class MissingHintWriter(image_writer.ImageWriter):
+            pass
+
+        image_writer.WRITER_DEPENDENCY_HINTS[MissingHintWriter] = ("FakePkg", "pip install fakepkg")
+
+        try:
+            register_writer(ext, MissingHintWriter)
+            with self.assertRaises(OptionalImportError) as ctx:
+                resolve_writer(ext)
+            err_msg = str(ctx.exception)
+            self.assertIn("FakePkg", err_msg)
+            self.assertIn("pip install fakepkg", err_msg)
+        finally:
+            image_writer.WRITER_DEPENDENCY_HINTS.pop(MissingHintWriter, None)
+            if previous is None:
+                image_writer.SUPPORTED_WRITERS.pop(fmt_key, None)
+            else:
+                image_writer.SUPPORTED_WRITERS[fmt_key] = previous
 
 
 @unittest.skipUnless(has_itk, "itk not installed")
