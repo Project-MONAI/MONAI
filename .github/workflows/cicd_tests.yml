@@ -7,19 +7,11 @@ on:
       - dev
       - main
       - releasing/*
-    paths-ignore:  # skip if only docs are modified
-      - '**.md'
-      - '**.rst'
-      - 'docs/**'
   pull_request:
     branches:
       - dev
       - main
       - releasing/*
-    paths-ignore:  # skip if only docs are modified
-      - '**.md'
-      - '**.rst'
-      - 'docs/**'
 
 permissions:
   contents: read
@@ -55,6 +47,53 @@ env:
 # When support is dropped for a version it is important to update these as appropriate.
 
 jobs:
+  # This job will set its output value `skip` to 2 if only documentation was changed, either documentation files or
+  # the docstrings of source files. If any source lines are changed, or non-documentation files are changed, the
+  # result is 0 which then triggers tests to run. This job works by using the compare_sources.py script to compare
+  # changed files to see if they differ in ways other than comments or docstrings.
+  test_skip:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check-changes.outputs.skip }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 2
+    - name: Set up Python ${{ env.PYTHON_VER1 }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VER1 }}
+        cache: 'pip'
+    - name: Check File Changes
+      id: check-changes
+      shell: bash
+      run: |
+        echo "skip=1" >> $GITHUB_OUTPUT
+
+        mkdir -p /tmp/check_changes
+        if ! git diff --name-only HEAD^..HEAD ':!docs' > /tmp/check_changes/changed_files
+        then
+          echo "skip=0" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        while read i
+        do
+          echo "Checking for changes: $i"
+          if ! git show HEAD^:$i > /tmp/check_changes/$(basename $i)
+          then
+            echo "New file found, or 'git show' failed, running tests."
+          elif ! python monai/utils/compare_sources.py $i /tmp/check_changes/$(basename $i)
+          then
+            echo "Change found, running tests."
+          else
+            continue
+          fi
+
+          echo "skip=0" >> $GITHUB_OUTPUT
+          break
+        done < /tmp/check_changes/changed_files
+
   static-checks:  # Perform static type and other checks using runtests.sh
     runs-on: ubuntu-latest
     strategy:
@@ -87,6 +126,7 @@ jobs:
 
   min-dep:  # Test with minumum dependencies installed for different OS, Python, and PyTorch combinations
     runs-on: ${{ matrix.os }}
+    needs: test_skip
     strategy:
       fail-fast: false
       matrix:
@@ -123,8 +163,8 @@ jobs:
 
     timeout-minutes: 40
     steps:
-    - if: runner.os == 'Linux'
-      name: Clean unused tools
+    - name: Clean unused tools
+      if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         sudo rm -rf /usr/share/dotnet
@@ -132,16 +172,20 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
     - uses: actions/checkout@v7
+      if: needs.test_skip.outputs.skip == 0
     - name: Set up Python ${{ matrix.python-version }}
+      if: needs.test_skip.outputs.skip == 0
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
     - name: Prepare pip wheel
+      if: needs.test_skip.outputs.skip == 0
       run: |
         which python
         python -m pip install --upgrade pip wheel tomli
     - name: Install the minimum dependencies
+      if: needs.test_skip.outputs.skip == 0
       run: |
         # min. requirements
         python -m pip install torch==${{ matrix.pytorch-version }}
@@ -150,6 +194,7 @@ jobs:
         python -m pip list
       shell: bash
     - name: Run quick tests
+      if: needs.test_skip.outputs.skip == 0
       run: |
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
@@ -168,51 +213,56 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macOS-latest]  # macOS-latest is very slow (#8864), testing install only
     timeout-minutes: 120
+    needs: test_skip
     env:
       QUICKTEST: True
     steps:
-    - if: runner.os == 'Linux'
-      name: Clean unused tools
+    - name: Clean unused tools
+      if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
-    - if: runner.os == 'windows'
-      name: Config pagefile (Windows only)
+    - name: Config pagefile (Windows only)
+      if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
       uses: al-cheb/configure-pagefile-action@v1.5
       with:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v7
+      if: needs.test_skip.outputs.skip == 0
     - name: Set up Python ${{ env.PYTHON_VER1 }}
+      if: needs.test_skip.outputs.skip == 0
       uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PYTHON_VER1 }}
         cache: 'pip'
     - name: Prepare pip wheel
+      if: needs.test_skip.outputs.skip == 0
       run: |
         which python
         python -m pip install --upgrade pip wheel
-    - if: runner.os == 'windows'
+    - if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
       shell: bash
-    - if: runner.os != 'windows'
+    - if: runner.os != 'windows' && needs.test_skip.outputs.skip == 0
       name: Install torch gpu
       run: |
         # install the lowest version of PyTorch supported
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
       shell: bash
-    - if: runner.os == 'Linux'
+    - if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       name: Install itk pre-release (Linux only)
       run: |
         python -m pip install --pre -U itk
       shell: bash
     - name: Install the complete dependencies
+      if: needs.test_skip.outputs.skip == 0
       run: |
         python -m pip install --user --upgrade pip wheel tomli
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
@@ -220,6 +270,7 @@ jobs:
         python -m pip list
       shell: bash
     - name: Run compiled (${{ runner.os }})
+      if: needs.test_skip.outputs.skip == 0
       run: |
         python -m pip uninstall -y monai
         BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
@@ -227,12 +278,12 @@ jobs:
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
       shell: bash
-    - if: runner.os != 'macOS'
+    - if: runner.os != 'macOS' && needs.test_skip.outputs.skip == 0
       name: Run full tests
       run: |
         python -m unittest -v
       shell: bash
-    - if: runner.os == 'macOS'
+    - if: runner.os == 'macOS' && needs.test_skip.outputs.skip == 0
       name: Run min tests
       run: |
         # TODO: enable large range of macOS tests which don't take a very long time
@@ -252,6 +303,8 @@ jobs:
     # ``.github/workflows/pythonapp-hyena-gpu.yml``.
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: test_skip
+    if: needs.test_skip.outputs.skip == 0
     steps:
     - name: Clean unused tools
       run: |
