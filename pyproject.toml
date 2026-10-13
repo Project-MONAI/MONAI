@@ -310,6 +310,7 @@ select = [
   "C90",     # mccabe (complexity) - https://docs.astral.sh/ruff/rules/#mccabe-c90
   "E",       # pycodestyle errors - https://docs.astral.sh/ruff/rules/#error-e
   "F",       # pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
+  "I",       # isort like import sorting - https://docs.astral.sh/ruff/rules/unsorted-imports/
   "N",       # pep8-naming - https://docs.astral.sh/ruff/rules/#pep8-naming-n
   "PIE",     # flake8-pie - https://docs.astral.sh/ruff/rules/#flake8-pie-pie
   "TID",     # flake8-tidy-imports - https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
@@ -346,6 +347,18 @@ extend-ignore = [
 
 [tool.ruff.lint.mccabe]
 max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff's RUF100
+
+[tool.ruff.lint.isort]
+known-first-party = ["monai"]
+# extra-standard-library = []
+# forced-separate = []
+combine-as-imports = false
+# order-by-type = true
+case-sensitive = true
+# force-sort-within-sections = false
+# split-on-trailing-comma = true
+# section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+# default-section = "third-party"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
