@@ -331,9 +331,7 @@ class DiceHelper:
         self.per_component = per_component
         self.ignore_index = ignore_index
 
-    def compute_cc_dice(
-        self, y_pred: torch.Tensor, y: torch.Tensor, mask: torch.Tensor | None = None
-    ) -> torch.Tensor:
+    def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Compute per-component Dice for a single batch item.
 
@@ -457,9 +455,7 @@ class DiceHelper:
             if self.per_component:
                 b_mask = mask[b, 0] if mask is not None else None
                 data.append(
-                    self.compute_cc_dice(
-                        y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0), mask=b_mask
-                    ).reshape(-1)
+                    self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0), mask=b_mask).reshape(-1)
                 )
                 continue
             c_list = []

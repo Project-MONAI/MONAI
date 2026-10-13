@@ -301,11 +301,7 @@ y[0, 0] = 1 - y[0, 1]
 y[0, 0, :, 4:] = 0  # sentinel: both channels 0 -> ignored by ignore_index=2
 y_hat[0, 0] = 1 - y_hat[0, 1]
 
-TEST_CASE_18 = [
-    {"per_component": True, "ignore_empty": False, "ignore_index": 2},
-    {"y": y, "y_pred": y_hat},
-    [[1.0]],
-]
+TEST_CASE_18 = [{"per_component": True, "ignore_empty": False, "ignore_index": 2}, {"y": y, "y_pred": y_hat}, [[1.0]]]
 
 
 class TestComputeMeanDice(unittest.TestCase):
