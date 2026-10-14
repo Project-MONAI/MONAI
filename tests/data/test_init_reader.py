@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -64,6 +66,17 @@ class TestInitLoadImage(unittest.TestCase):
         if has_pydicom:
             inst = LoadImaged("image", reader="NvImgCodecPydicomReader")
             self.assertIsInstance(inst, LoadImaged)
+
+    def test_nvimgcodec_not_imported_on_monai_import(self):
+        _, has_nvimgcodec = optional_import("nvidia.nvimgcodec")
+        if not has_nvimgcodec:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        code = "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
