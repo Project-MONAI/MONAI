@@ -21,8 +21,8 @@ from monai.networks.blocks.encoder import BaseEncoder
 from monai.networks.nets import (
     FLEXUNET_BACKBONE,
     EfficientNetBNFeatures,
-    FlexibleUNet,
     FlexUNetEncoderRegister,
+    FlexibleUNet,
     ResNetEncoder,
     ResNetFeatures,
 )

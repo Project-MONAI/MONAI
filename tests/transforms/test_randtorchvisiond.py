@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms import RandomizableTrait, RandTorchVisiond
+from monai.transforms import RandTorchVisiond, RandomizableTrait
 from monai.utils import set_determinism
 from tests.test_utils import assert_allclose
 

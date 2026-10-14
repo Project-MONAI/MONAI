@@ -17,8 +17,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from parameterized import parameterized
 from PIL import Image
+from parameterized import parameterized
 
 from monai.transforms import UltrasoundConfidenceMapTransform
 from monai.utils import optional_import

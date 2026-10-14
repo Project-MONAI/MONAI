@@ -21,7 +21,7 @@ from .crf import CRF
 from .crossattention import CrossAttentionBlock
 from .denseblock import ConvDenseBlock, DenseBlock
 from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedReduceBlock, P3DActiConvNormBlock
-from .downsample import DownSample, Downsample, MaxAvgPool, SubpixelDownsample, SubpixelDownSample, Subpixeldownsample
+from .downsample import DownSample, Downsample, MaxAvgPool, SubpixelDownSample, SubpixelDownsample, Subpixeldownsample
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .encoder import BaseEncoder
 from .fcn import FCN, GCN, MCFCN, Refine
@@ -47,10 +47,10 @@ from .squeeze_and_excitation import (
     ResidualSELayer,
     SEBlock,
     SEBottleneck,
-    SEResNetBottleneck,
     SEResNeXtBottleneck,
+    SEResNetBottleneck,
 )
 from .transformerblock import TransformerBlock
 from .unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
-from .upsample import SubpixelUpsample, Subpixelupsample, SubpixelUpSample, Upsample, UpSample
+from .upsample import SubpixelUpSample, SubpixelUpsample, Subpixelupsample, UpSample, Upsample
 from .warp import DVF2DDF, Warp

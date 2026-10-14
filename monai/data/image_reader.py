@@ -42,8 +42,8 @@ if TYPE_CHECKING:
     import nibabel as nib
     import nrrd
     import pydicom
-    from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
+    from nibabel.nifti1 import Nifti1Image
 
     has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
 else:

@@ -25,8 +25,8 @@ from monai.transforms import (
     EnsureChannelFirstd,
     LoadImaged,
     SaveImaged,
-    ScaleIntensityd,
     ScaleIntensityRanged,
+    ScaleIntensityd,
 )
 from monai.utils import BundleProperty, CommonKeys, set_determinism
 

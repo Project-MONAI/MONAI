@@ -23,9 +23,8 @@ from torch import nn
 import monai
 from monai.networks.blocks import MLPBlock, UnetrBasicBlock
 from monai.networks.nets import SegResNetDS2
-from monai.transforms.utils import convert_points_to_disc
+from monai.transforms.utils import convert_points_to_disc, sample_points_from_label
 from monai.transforms.utils import keep_merge_components_with_points as lcc
-from monai.transforms.utils import sample_points_from_label
 from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
 
 rearrange, _ = optional_import("einops", name="rearrange")

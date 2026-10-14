@@ -16,7 +16,7 @@ from .aucm_loss import AUCMLoss
 from .barlow_twins import BarlowTwinsLoss
 from .boundary_loss import BoundaryLoss
 from .calibration import HardL1ACELoss, SoftL1ACELoss
-from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
+from .cldice import SoftDiceclDiceLoss, SoftclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss, DiffusionLoss
 from .dice import (

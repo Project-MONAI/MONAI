@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from .array import ExtractHEStains, NormalizeHEStains
 from .dictionary import (
-    ExtractHEStainsd,
     ExtractHEStainsD,
     ExtractHEStainsDict,
-    NormalizeHEStainsd,
+    ExtractHEStainsd,
     NormalizeHEStainsD,
     NormalizeHEStainsDict,
+    NormalizeHEStainsd,
 )
