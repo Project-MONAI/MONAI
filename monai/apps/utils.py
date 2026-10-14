@@ -244,6 +244,7 @@ def download_url(
             raise HashCheckError(f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type=}.")
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
+    download_complete = False
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_name = Path(tmp_dir, _basename(filepath))
@@ -281,8 +282,11 @@ def download_url(
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
             shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
+            download_complete = True
     except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
-        pass
+        # Retain only the historical post-publication cleanup exemption.
+        if not download_complete:
+            raise
     logger.info(f"Downloaded: {filepath}")
 
 
