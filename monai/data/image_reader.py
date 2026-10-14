@@ -359,8 +359,8 @@ class ITKReader(ImageReader):
                 pass
 
         affine = np.eye(len(spacing) + 1)
-        affine[:len(spacing), :len(spacing)] = direction * spacing
-        affine[:len(spacing), len(spacing)] = origin
+        affine[: len(spacing), : len(spacing)] = direction * spacing
+        affine[: len(spacing), len(spacing)] = origin
         return affine
 
     def _get_spatial_shape(self, img):
