@@ -359,12 +359,12 @@ class ITKReader(ImageReader):
                 pass
 
         affine = np.eye(len(spacing) + 1)
-        affine[:len(spacing), :len(spacing)] = direction * spacing
-        affine[:len(spacing), len(spacing)] = origin
-        
+        affine[: len(spacing), : len(spacing)] = direction * spacing
+        affine[: len(spacing), len(spacing)] = origin
+
         if user_affine_lps_to_ras and len(spacing) >= 3:
             affine = self._lps_to_ras(affine)
-            
+
         return affine
 
     def _get_spatial_shape(self, img):
