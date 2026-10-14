@@ -96,6 +96,7 @@ class PerceptualLoss(nn.Module):
         pretrained_path: str | None = None,
         pretrained_state_dict_key: str | None = None,
         channel_wise: bool = False,
+        use_compile: bool = False,
     ):
         super().__init__()
 
@@ -153,6 +154,9 @@ class PerceptualLoss(nn.Module):
         else:
             # VGG, AlexNet and SqueezeNet are independently handled by LPIPS.
             self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type, verbose=False)
+
+        if use_compile:
+            self.perceptual_function = torch.compile(self.perceptual_function)
 
         self.is_fake_3d = is_fake_3d
         self.fake_3d_ratio = fake_3d_ratio
