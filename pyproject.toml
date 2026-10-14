@@ -320,7 +320,7 @@ select = [
   "RUF100",  # aka yesqa - https://docs.astral.sh/ruff/rules/unused-noqa/
   "F401",    # unused imports - https://docs.astral.sh/ruff/rules/unused-import/
 ]
-extend-ignore = [
+ignore = [
   "E741",   # ambiguous variable name
   "NPY002", # numpy-legacy-random
   "E203",   # whitespace before ':' (pycodestyle)
@@ -350,15 +350,8 @@ max-complexity = 50  # todo lower this treshold when yesqa id replaced with Ruff
 
 [tool.ruff.lint.isort]
 known-first-party = ["monai"]
-# extra-standard-library = []
-# forced-separate = []
 combine-as-imports = false
-# order-by-type = true
 case-sensitive = true
-# force-sort-within-sections = false
-# split-on-trailing-comma = true
-# section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
-# default-section = "third-party"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

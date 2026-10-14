@@ -34,15 +34,27 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.10
     hooks:
-    -   id: ruff-format
-        args: ["format"]
+      - id: ruff-check
+        args: ["--fix"]
         exclude: |
           (?x)(
               ^versioneer.py|
               ^monai/_version.py
           )
-    -   id: ruff-check
-        args: ["--fix"]
+      # - id: ruff-format
+      #   args: ["format"]
+      #   exclude: |
+      #     (?x)(
+      #         ^versioneer.py|
+      #         ^monai/_version.py
+      #     )
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.10.0  # Black version, keep synced with MONAI requirements
+    hooks:
+      - id: black
+        language_version: python3
+        # black will be given individual file names and so will ignore the excludes in pyproject.toml
         exclude: |
           (?x)(
               ^versioneer.py|
