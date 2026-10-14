@@ -305,10 +305,10 @@ jobs:
         sudo rm -rf /opt/ghc /usr/local/.ghcup
         sudo docker system prune -f
     - uses: actions/checkout@v7
-    - name: Set up Python ${{ env.PYTHON_VER3 }}
+    - name: Set up Python 3.12
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ env.PYTHON_VER3 }}
+        python-version: '3.12'
         cache: 'pip'
     - name: Install complete dependencies
       shell: bash
@@ -316,6 +316,7 @@ jobs:
         python -m pip install --upgrade pip wheel tomli
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         python -m pip install --no-build-isolation '.[all,testing]'
+        python -m pip uninstall itk -y
         python -m pip check
     - name: Record resolved dependencies
       if: always()
