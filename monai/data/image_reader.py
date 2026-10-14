@@ -343,12 +343,12 @@ class ITKReader(ImageReader):
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
 
-    def _get_affine(self, sitk_img: Any) -> np.ndarray:
+    def _get_affine(self, sitk_img: Any, user_affine_lps_to_ras: bool = True) -> np.ndarray:
         spacing = np.array(sitk_img.GetSpacing())
         direction = np.array(sitk_img.GetDirection()).reshape(len(spacing), len(spacing))
         origin = np.array(sitk_img.GetOrigin())
 
-        # Fix for negative SpacingBetweenSlices (Issue #9168)
+        # ---> INSERT THE 2ND PART HERE <---
         if sitk_img.HasKey("ITK_SpacingBetweenSlices"):
             try:
                 s_slice = float(sitk_img.GetMetaData("ITK_SpacingBetweenSlices"))
@@ -359,8 +359,12 @@ class ITKReader(ImageReader):
                 pass
 
         affine = np.eye(len(spacing) + 1)
-        affine[: len(spacing), : len(spacing)] = direction * spacing
-        affine[: len(spacing), len(spacing)] = origin
+        affine[:len(spacing), :len(spacing)] = direction * spacing
+        affine[:len(spacing), len(spacing)] = origin
+        
+        if user_affine_lps_to_ras and len(spacing) >= 3:
+            affine = self._lps_to_ras(affine)
+            
         return affine
 
     def _get_spatial_shape(self, img):
