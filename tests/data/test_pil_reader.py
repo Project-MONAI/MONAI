@@ -16,8 +16,8 @@ import tempfile
 import unittest
 
 import numpy as np
-from parameterized import parameterized
 from PIL import Image
+from parameterized import parameterized
 
 from monai.data import PILReader
 

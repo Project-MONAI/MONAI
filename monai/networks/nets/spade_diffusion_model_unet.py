@@ -39,8 +39,8 @@ from torch import nn
 from monai.networks.blocks import Convolution, SpatialAttentionBlock
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.nets.diffusion_model_unet import (
-    DiffusionUnetDownsample,
     DiffusionUNetResnetBlock,
+    DiffusionUnetDownsample,
     SpatialTransformer,
     WrappedUpsample,
     get_down_block,

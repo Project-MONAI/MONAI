@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from .ahnet import AHnet, Ahnet, AHNet
+from .ahnet import AHNet, AHnet, Ahnet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
 from .autoencoderkl import AutoencoderKL
@@ -22,14 +22,14 @@ from .controlnet import ControlNet
 from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
-    Densenet,
     DenseNet121,
-    Densenet121,
     DenseNet169,
-    Densenet169,
     DenseNet201,
-    Densenet201,
     DenseNet264,
+    Densenet,
+    Densenet121,
+    Densenet169,
+    Densenet201,
     Densenet264,
     densenet121,
     densenet169,
@@ -48,30 +48,30 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
-from .flexible_unet import FLEXUNET_BACKBONE, FlexibleUNet, FlexUNet, FlexUNetEncoderRegister
+from .flexible_unet import FLEXUNET_BACKBONE, FlexUNet, FlexUNetEncoderRegister, FlexibleUNet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
-from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
+from .hovernet import HoVerNet, HoVernet, HoverNet, Hovernet
 from .hyena_nd_unetr import HyenaNDUNETR
 from .masked_autoencoder_vit import MaskedAutoEncoderViT
 from .mednext import (
     MedNeXt,
-    MedNext,
-    MedNextB,
     MedNeXtB,
-    MedNextBase,
-    MedNextL,
     MedNeXtL,
     MedNeXtLarge,
-    MedNextLarge,
-    MedNextM,
     MedNeXtM,
     MedNeXtMedium,
-    MedNextMedium,
-    MedNextS,
     MedNeXtS,
     MedNeXtSmall,
+    MedNext,
+    MedNextB,
+    MedNextBase,
+    MedNextL,
+    MedNextLarge,
+    MedNextM,
+    MedNextMedium,
+    MedNextS,
     MedNextSmall,
 )
 from .milmodel import MILModel
@@ -101,27 +101,27 @@ from .segresnet import SegResNet, SegResNetVAE
 from .segresnet_ds import SegResNetDS, SegResNetDS2
 from .senet import (
     SENet,
-    SEnet,
-    Senet,
     SENet154,
-    SEnet154,
-    Senet154,
-    SEResNet50,
-    SEresnet50,
-    Seresnet50,
-    SEResNet101,
-    SEresnet101,
-    Seresnet101,
-    SEResNet152,
-    SEresnet152,
-    Seresnet152,
-    SEResNext50,
     SEResNeXt50,
-    SEresnext50,
-    Seresnext50,
-    SEResNext101,
     SEResNeXt101,
+    SEResNet50,
+    SEResNet101,
+    SEResNet152,
+    SEResNext50,
+    SEResNext101,
+    SEnet,
+    SEnet154,
+    SEresnet50,
+    SEresnet101,
+    SEresnet152,
+    SEresnext50,
     SEresnext101,
+    Senet,
+    Senet154,
+    Seresnet50,
+    Seresnet101,
+    Seresnet152,
+    Seresnext50,
     Seresnext101,
     senet154,
     seresnet50,

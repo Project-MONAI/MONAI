@@ -34,13 +34,20 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.10
     hooks:
-    -   id: ruff-check
+      - id: ruff-check
         args: ["--fix"]
         exclude: |
           (?x)(
               ^versioneer.py|
               ^monai/_version.py
           )
+      # - id: ruff-format
+      #   args: ["format"]
+      #   exclude: |
+      #     (?x)(
+      #         ^versioneer.py|
+      #         ^monai/_version.py
+      #     )
 
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 26.10.0  # Black version, keep synced with MONAI requirements
@@ -54,16 +61,6 @@ repos:
               ^monai/_version.py
           )
 
-  - repo: https://github.com/pycqa/isort
-    rev: 9.0.2  # isort version, keep synced with MONAI requirements
-    hooks:
-      - id: isort
-        name: isort (python)
-        exclude: |
-          (?x)(
-              ^versioneer.py|
-              ^monai/_version.py
-          )
   - repo: local
     hooks:
       - id: dco

@@ -31,8 +31,8 @@ from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout, FolderLayoutBase, default_name_formatter
 from monai.data.image_reader import (
-    ImageReader,
     ITKReader,
+    ImageReader,
     NibabelReader,
     NrrdReader,
     NumpyReader,

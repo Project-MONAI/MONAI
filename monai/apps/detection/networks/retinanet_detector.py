@@ -47,8 +47,8 @@ import torch
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
-from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.ATSS_matcher import ATSSMatcher
+from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.apps.detection.utils.box_selector import BoxSelector
 from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images

@@ -623,6 +623,7 @@ then
 
     if [ $doRuffFix = true ]
     then
+        "${PY_EXE}" -m ruff format "$homedir"
         "${PY_EXE}" -m ruff check --fix --unsafe-fixes "$homedir"
     else
         "${PY_EXE}" -m ruff check "$homedir"

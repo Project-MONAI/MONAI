@@ -18,8 +18,8 @@ import unittest
 import nibabel as nib
 import numpy as np
 import torch
-from parameterized import parameterized
 from PIL import Image
+from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst, LoadImage

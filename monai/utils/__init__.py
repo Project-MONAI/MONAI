@@ -64,8 +64,8 @@ from .enums import (
     TraceStatusKeys,
     TransformBackends,
     UpsampleMode,
-    Weight,
     WSIPatchKeys,
+    Weight,
 )
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (

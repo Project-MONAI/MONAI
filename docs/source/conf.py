@@ -10,11 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import importlib
+import inspect
 import os
 import subprocess
 import sys
-import importlib
-import inspect
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -59,7 +59,8 @@ def generate_apidocs(*args):
     """Generate API docs automatically by trawling the available modules"""
 
     import pandas as pd
-    from monai.bundle.properties import TrainProperties, InferProperties, MetaProperties
+
+    from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 
     csv_file = os.path.join(os.path.dirname(__file__), "train_properties.csv")  # used in mb_properties.rst
     pd.DataFrame.from_dict(TrainProperties, orient="index").iloc[:, :3].to_csv(csv_file)

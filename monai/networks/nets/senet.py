@@ -22,7 +22,7 @@ from torch.hub import load_state_dict_from_url
 
 from monai.apps.utils import download_url
 from monai.networks.blocks.convolutions import Convolution
-from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
+from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNeXtBottleneck, SEResNetBottleneck
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
 from monai.utils.module import look_up_option
 

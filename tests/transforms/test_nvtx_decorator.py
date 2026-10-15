@@ -30,9 +30,9 @@ from monai.transforms import (
     Rotate90,
     ToCupy,
     ToNumpy,
-    TorchVision,
     ToTensor,
     ToTensord,
+    TorchVision,
 )
 from monai.utils import Range, optional_import
 from tests.test_utils import HAS_CUPY

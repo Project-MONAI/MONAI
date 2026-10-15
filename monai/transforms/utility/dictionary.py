@@ -61,9 +61,9 @@ from monai.transforms.utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    ToTensor,
     TorchIO,
     TorchVision,
-    ToTensor,
     Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points

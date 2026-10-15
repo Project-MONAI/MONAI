@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.losses import SoftclDiceLoss, SoftDiceclDiceLoss
+from monai.losses import SoftDiceclDiceLoss, SoftclDiceLoss
 from tests.test_utils import skip_if_no_cuda
 
 # Reusable test tensors
