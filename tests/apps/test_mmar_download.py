@@ -97,20 +97,24 @@ class TestMMARDownload(unittest.TestCase):
             progress=False,
         )
 
-    @parameterized.expand([("get_model_spec",), ("download_mmar",), ("load_from_mmar",)])
-    def test_deprecation_warning(self, name):
-        # Development checkouts may still report a version earlier than 1.7.
-        # Import an isolated copy to exercise the decorators at their release version.
+    @parameterized.expand(
+        [
+            (name, version, expected_warnings)
+            for name in ("get_model_spec", "download_mmar", "load_from_mmar")
+            for version, expected_warnings in (("1.6.0", 0), ("1.7.0rc1", 0), ("1.7.0", 1), ("1.7.1", 1))
+        ]
+    )
+    def test_deprecation_warning(self, name, version, expected_warnings):
+        # Import an isolated copy to test the actual decorators across the release
+        # boundary without changing the functions imported by other tests.
         spec = spec_from_file_location("monai.apps.mmars._mmars_deprecation_test", mmars.__file__)
         assert spec is not None and spec.loader is not None
         module = module_from_spec(spec)
-        with patch("monai.utils.deprecate_utils.deprecated", partial(deprecated, version_val="1.7")):
+        with patch("monai.utils.deprecate_utils.deprecated", partial(deprecated, version_val=version)):
             spec.loader.exec_module(module)
 
-        with (
-            patch.object(module, "download_and_extract"),
-            self.assertWarnsRegex(FutureWarning, f"{name}.*deprecated.*MONAI Bundles"),
-        ):
+        with patch.object(module, "download_and_extract"), warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", FutureWarning)
             if name == "load_from_mmar":
                 with self.assertRaisesRegex(DeprecatedError, "disabled.*security.*MONAI Bundles"):
                     module.load_from_mmar("test_model")
@@ -118,6 +122,13 @@ class TestMMARDownload(unittest.TestCase):
                 module.download_mmar(MODEL_DESC[0], mmar_dir="mmars", api=False)
             else:
                 module.get_model_spec(0)
+
+        future_warnings = [warning for warning in captured if issubclass(warning.category, FutureWarning)]
+        self.assertEqual(len(future_warnings), expected_warnings)
+        if expected_warnings:
+            self.assertRegex(
+                str(future_warnings[0].message), rf"{name}.*deprecated since version 1\.7\.0.*MONAI Bundles"
+            )
 
         if name == "load_from_mmar":
             with self.assertRaisesRegex(DeprecatedError, "disabled.*security.*MONAI Bundles"):
@@ -142,12 +153,15 @@ class TestMMARDownload(unittest.TestCase):
                     "monai.apps.mmars.mmars.download_mmar",
                     "monai.apps.mmars.mmars.download_and_extract",
                     "monai.apps.mmars.mmars._get_all_ngc_models",
-                    "monai.apps.mmars.mmars.Path",
-                    "builtins.open",
                     "torch.load",
                     "torch.jit.load",
                 )
             ]
+            guards.append(
+                stack.enter_context(
+                    patch.object(mmars, "open", create=True, side_effect=AssertionError("Unexpected file access"))
+                )
+            )
             stack.enter_context(warnings.catch_warnings())
             warnings.simplefilter("ignore", FutureWarning)
             for loader in (load_from_mmar, inspect.unwrap(load_from_mmar)):

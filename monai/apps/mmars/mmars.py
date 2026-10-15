@@ -33,12 +33,12 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-@deprecated(since="1.7", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
+@deprecated(since="1.7.0", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
 def get_model_spec(idx: int | str) -> dict | Any:
     """
     Get a model specification by index or model ID.
 
-    .. deprecated:: 1.7
+    .. deprecated:: 1.7.0
         NVIDIA Clara MMAR support is deprecated. Use MONAI Bundles instead.
     """
     if isinstance(idx, int):
@@ -100,14 +100,14 @@ def _get_ngc_url(model_name: str, version: str, model_prefix: str = "") -> str:
     return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
-@deprecated(since="1.7", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
+@deprecated(since="1.7.0", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
 def download_mmar(
     item: str | Mapping, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1
 ) -> Path:
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
-    .. deprecated:: 1.7
+    .. deprecated:: 1.7.0
         NVIDIA Clara MMAR support is deprecated. Use MONAI Bundles instead.
 
     See Also:
@@ -186,7 +186,7 @@ def download_mmar(
     return model_dir
 
 
-@deprecated(since="1.7", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
+@deprecated(since="1.7.0", msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.")
 def load_from_mmar(
     item: Mapping | str | int,
     mmar_dir: PathLike | None = None,
@@ -200,14 +200,14 @@ def load_from_mmar(
     model_file: PathLike | None = None,
 ) -> Any:
     """
-    Disabled loader for Medical Model Archive (MMAR) models from Nvidia Clara Train.
+    Disabled loader for NVIDIA Clara Medical Model Archive (MMAR) models.
 
-    .. deprecated:: 1.7
-        MMAR loading is disabled for security reasons. Use MONAI Bundles instead.
+    .. deprecated:: 1.7.0
+        Loading MMAR models is disabled for security reasons. Use MONAI Bundles instead.
 
-    This function retains its signature for compatibility but always raises
-    :class:`monai.utils.DeprecatedError` without downloading or loading a model.
-    All arguments are ignored; their former meanings are listed below.
+    Every call raises :class:`monai.utils.DeprecatedError` before downloading or
+    loading a model. The arguments are kept for compatibility and are ignored.
+    Their former meanings are listed below.
 
     Args:
         item: the corresponding model item from `MODEL_DESC`.
