@@ -24,6 +24,13 @@ Applications
 
 `Clara MMARs`
 -------------
+.. deprecated:: 1.7
+    NVIDIA Clara MMAR support is deprecated. Use :doc:`MONAI Bundles <bundle>` instead.
+    ``load_from_mmar`` is disabled for security reasons and raises
+    :class:`monai.utils.DeprecatedError` without downloading or loading a model.
+
+.. autofunction:: get_model_spec
+
 .. autofunction:: download_mmar
 
 .. autofunction:: load_from_mmar

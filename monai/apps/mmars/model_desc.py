@@ -32,7 +32,7 @@ class RemoteMMARKeys:
     ID = "id"  # unique MMAR
     NAME = "name"  # MMAR name for readability
     URL = "url"  # remote location of the MMAR, see also: `monai.apps.mmars.mmars._get_ngc_url`
-    DOC = "doc"  # documentation page of the remote model, see also: `monai.apps.mmars.mmars._get_ngc_doc_url`
+    DOC = "doc"  # documentation page of the remote model
     FILE_TYPE = "file_type"  # type of the compressed MMAR
     HASH_TYPE = "hash_type"  # hashing method for the compressed MMAR
     HASH_VAL = "hash_val"  # hashing value for the compressed MMAR
