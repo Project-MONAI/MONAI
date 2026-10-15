@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from importlib.machinery import PathFinder
 
 import numpy as np
 
@@ -69,8 +70,12 @@ class TestInitLoadImage(unittest.TestCase):
 
     def test_nvimgcodec_not_imported_on_monai_import(self):
         """Verify importing MONAI does not eagerly load the optional NVIDIA package."""
-        _, has_nvimgcodec = optional_import("nvidia.nvimgcodec")
-        if not has_nvimgcodec:
+        nvidia_spec = PathFinder.find_spec("nvidia")
+        if nvidia_spec is None or nvidia_spec.submodule_search_locations is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        nvimgcodec_spec = PathFinder.find_spec("nvimgcodec", nvidia_spec.submodule_search_locations)
+        if nvimgcodec_spec is None:
             self.skipTest("nvidia.nvimgcodec is not installed")
 
         code = "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
