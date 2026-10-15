@@ -68,6 +68,7 @@ class TestInitLoadImage(unittest.TestCase):
             self.assertIsInstance(inst, LoadImaged)
 
     def test_nvimgcodec_not_imported_on_monai_import(self):
+        """Verify importing MONAI does not eagerly load the optional NVIDIA package."""
         _, has_nvimgcodec = optional_import("nvidia.nvimgcodec")
         if not has_nvimgcodec:
             self.skipTest("nvidia.nvimgcodec is not installed")
