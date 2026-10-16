@@ -137,6 +137,48 @@ TEST_CASES = [
 
 class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
 
+    @parameterized.expand([1e-5, 1e-6])
+    def test_low_variance_range(self, smooth_dr):
+        # gh-9178: cancellation in float32 moments can produce squared NCC > 1.
+        generator = torch.Generator().manual_seed(9178)
+        pred = (1.0 + 1e-4 * torch.randn(1, 1, 32, 32, generator=generator)).requires_grad_()
+        target = 1.0 + 1e-4 * torch.randn(1, 1, 32, 32, generator=generator)
+        loss = LocalNormalizedCrossCorrelationLoss(spatial_dims=2, kernel_size=9, smooth_dr=smooth_dr, reduction="none")
+        result = loss(pred, target)
+        self.assertTrue(torch.isfinite(result).all())
+        self.assertGreaterEqual(result.min().item(), -1.0)
+        self.assertLessEqual(result.max().item(), 0.0)
+        result.mean().backward()
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    @parameterized.expand([(False,), (True,)])
+    def test_uninformative_windows(self, swap):
+        # Only one input needs to have insufficient variance to mask the window.
+        pred = torch.tensor([[[0.0, 1e-4, 2e-4]]], dtype=torch.float64)
+        target = torch.tensor([[[0.0, 1.0, 2.0]]], dtype=torch.float64)
+        if swap:
+            pred, target = target, pred
+        pred.requires_grad_()
+        loss = LocalNormalizedCrossCorrelationLoss(spatial_dims=1, reduction="none", smooth_nr=1e-8)
+        result = loss(pred, target)
+        torch.testing.assert_close(result, torch.zeros_like(result))
+        result.sum().backward()
+        torch.testing.assert_close(pred.grad, torch.zeros_like(pred))
+
+    @parameterized.expand([0.0, -1e-5, float("nan")])
+    def test_nonpositive_smooth_dr(self, smooth_dr):
+        with self.assertRaisesRegex(ValueError, "smooth_dr must be strictly positive"):
+            LocalNormalizedCrossCorrelationLoss(smooth_dr=smooth_dr)
+
+    def test_variance_at_threshold(self):
+        pred = torch.tensor([[[0.0, 1.0, 2.0]]], requires_grad=True)
+        loss = LocalNormalizedCrossCorrelationLoss(spatial_dims=1, smooth_dr=2.0, reduction="none")
+        # The center window has variance exactly equal to the threshold.
+        result = loss(pred, pred)
+        self.assertEqual(result[0, 0, 1].item(), 0.0)
+        result[0, 0, 1].backward()
+        torch.testing.assert_close(pred.grad, torch.zeros_like(pred))
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = LocalNormalizedCrossCorrelationLoss(**input_param).forward(**input_data)
