@@ -163,6 +163,13 @@ def get_confusion_matrix(
         ValueError: when `y_pred` and `y` have different shapes.
     """
 
+    # The true positive/negative counts below test `y_pred + y`; for bool tensors that sum is a logical OR,
+    # which never equals 2, so every true positive would be lost. Count on float values instead.
+    if y_pred.dtype == torch.bool:
+        y_pred = y_pred.float()
+    if y.dtype == torch.bool:
+        y = y.float()
+
     original_y = y
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)

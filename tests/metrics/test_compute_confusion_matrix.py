@@ -289,6 +289,18 @@ class TestConfusionMatrix(unittest.TestCase):
         assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
+    def test_bool_inputs_match_float_inputs(self):
+        """Bool masks (e.g. ``pred > 0.5``) must give the same confusion matrix as their float equivalents."""
+        generator = torch.Generator().manual_seed(0)
+        y_pred = torch.rand(2, 3, 8, 8, generator=generator) > 0.5
+        y = torch.rand(2, 3, 8, 8, generator=generator) > 0.5
+
+        for include_background in (True, False):
+            expected = get_confusion_matrix(y_pred.float(), y.float(), include_background=include_background)
+            result = get_confusion_matrix(y_pred, y, include_background=include_background)
+            assert_allclose(result, expected, type_test=False)
+            self.assertTrue(bool((result[..., 0] > 0).all()))  # true positives are counted
+
 
 if __name__ == "__main__":
     unittest.main()
