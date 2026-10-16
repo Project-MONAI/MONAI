@@ -234,6 +234,12 @@ def download_url(
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
         HashCheckError: When the hash validation of the ``url`` downloaded file fails.
+        PermissionError: When access is denied before the downloaded file has been
+            moved to ``filepath``, including during destination setup or the move.
+        NotADirectoryError: When a path component is not a directory before the
+            downloaded file has been moved to ``filepath``. These filesystem
+            exceptions remain suppressed during temporary-directory cleanup after
+            a successful move.
     """
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
