@@ -18,6 +18,16 @@ from monai.utils import OptionalImportError, exact_version, min_version, require
 
 class TestRequirePkg(unittest.TestCase):
 
+    def test_optional_import_error_kwargs(self):
+        # the keywords inherited from ImportError must keep working alongside pkg_name
+        err = OptionalImportError("missing dependency", name="PIL", path="/some/path")
+        self.assertIsNone(err.pkg_name)
+        self.assertEqual(err.name, "PIL")
+        self.assertEqual(err.path, "/some/path")
+        self.assertIn("missing dependency", str(err))
+        # positional arguments keep their original meaning: (msg, pkg_name)
+        self.assertEqual(OptionalImportError("msg", "pkg").pkg_name, "pkg")
+
     def test_class(self):
 
         @require_pkg(pkg_name="torch", version="1.4", version_checker=min_version)
@@ -86,6 +96,21 @@ class TestRequirePkg(unittest.TestCase):
             test_func(x=None)
 
         self.assertEqual(cm.exception.pkg_name, "test123==1.2")
+
+    def test_custom_checker_exception(self):
+        # a custom version checker has no known constraint format, so no version hint is recorded
+        def custom_checker(the_module, version_str):
+            return False
+
+        with self.assertRaises(OptionalImportError) as cm:
+
+            @require_pkg(pkg_name="torch", version="10000", version_checker=custom_checker)
+            def test_func(x):
+                return x
+
+            test_func(x=None)
+
+        self.assertEqual(cm.exception.pkg_name, "torch")
 
     def test_func_exception(self):
         with self.assertRaises(OptionalImportError):

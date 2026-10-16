@@ -316,11 +316,13 @@ class OptionalImportError(ImportError):
         msg: the error message.
         pkg_name: name of the missing package that caused the import error, if known.
             It is used to provide installation hints to the users. Defaults to ``None``.
+        name: name of the module whose import failed, see ``ImportError``. Defaults to ``None``.
+        path: path of the file whose import failed, see ``ImportError``. Defaults to ``None``.
 
     """
 
-    def __init__(self, msg: str = "", pkg_name: str | None = None):
-        super().__init__(msg)
+    def __init__(self, msg: str = "", pkg_name: str | None = None, name: str | None = None, path: str | None = None):
+        super().__init__(msg, name=name, path=path)
         self.pkg_name = pkg_name
 
 
@@ -478,7 +480,8 @@ def require_pkg(
         OptionalImportError: When ``raise_error`` is True and the required package is not installed or its
             version doesn't match the requirement. The error records the name of the package to install
             in ``pkg_name``, with the required version constraint appended when ``version`` is specified
-            (e.g. ``itk>=5.2``), so that installation hints install a compatible version.
+            and the ``version_checker`` is ``min_version`` or ``exact_version`` (e.g. ``itk>=5.2``),
+            so that installation hints install a compatible version.
 
     """
 
@@ -494,9 +497,12 @@ def require_pkg(
                 if raise_error:
                     name = pkg_name
                     if version:
-                        # record the version constraint so that installation hints install a compatible
-                        # version; `>=` is assumed for any `version_checker` other than `exact_version`
-                        name = f"{pkg_name}{'==' if version_checker is exact_version else '>='}{version}"
+                        if version_checker is min_version:
+                            name = f"{pkg_name}>={version}"
+                        elif version_checker is exact_version:
+                            name = f"{pkg_name}=={version}"
+                        # a custom version checker may enforce any constraint format (e.g. an upper
+                        # bound), so no version constraint is recorded for it in the install hint
                     raise OptionalImportError(err_msg, pkg_name=name)
                 else:
                     warnings.warn(err_msg)
