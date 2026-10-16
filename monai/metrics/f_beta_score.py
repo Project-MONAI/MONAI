@@ -61,6 +61,13 @@ class FBetaScore(CumulativeIterationMetric):
 
 
 def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
+    # The true positive/negative counts below test `y_pred + y`; for bool tensors that sum is a logical OR,
+    # which never equals 2, so every true positive would be lost. Count on float values instead.
+    if y_pred.dtype == torch.bool:
+        y_pred = y_pred.float()
+    if y.dtype == torch.bool:
+        y = y.float()
+
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
