@@ -331,13 +331,17 @@ class DiceHelper:
         self.per_component = per_component
         self.ignore_index = ignore_index
 
-    def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def compute_cc_dice(self, y_pred: torch.Tensor, y: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Compute per-component Dice for a single batch item.
 
         Args:
             y_pred (torch.Tensor): Predictions with shape (1, 2, D, H, W) or (1, 2, H, W).
             y (torch.Tensor): Ground truth with shape (1, 2, D, H, W) or (1, 2, H, W).
+            mask (torch.Tensor, optional): spatial mask (1, D, H, W) or (1, H, W) from
+                ``create_ignore_mask``, 1=valid, 0=ignore. Ignored voxels are forced to
+                agree as background in both `y` and `y_pred`, so they never contribute to
+                a component's TP/FP/FN, matching how `ignore_index` is handled elsewhere.
 
         Returns:
             torch.Tensor: Mean Dice over connected components.
@@ -348,6 +352,10 @@ class DiceHelper:
         else:
             y_pred_idx = y_pred
             y_idx = y
+        if mask is not None:
+            ignore = mask == 0
+            y_idx = y_idx.masked_fill(ignore, 0)
+            y_pred_idx = y_pred_idx.masked_fill(ignore, 0)
         if y_idx[0].sum() == 0:
             if self.ignore_empty:
                 data = torch.tensor(float("nan"), device=y_idx.device)
@@ -445,7 +453,10 @@ class DiceHelper:
         data = []
         for b in range(y_pred.shape[0]):
             if self.per_component:
-                data.append(self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0)).reshape(-1))
+                b_mask = mask[b, 0] if mask is not None else None
+                data.append(
+                    self.compute_cc_dice(y_pred=y_pred[b].unsqueeze(0), y=y[b].unsqueeze(0), mask=b_mask).reshape(-1)
+                )
                 continue
             c_list = []
             for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
