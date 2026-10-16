@@ -43,7 +43,7 @@ from tests.test_utils import (
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
-    test_script_save,
+    test_export_save,
 )
 
 if TYPE_CHECKING:
@@ -228,7 +228,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A
 for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9]:
     TEST_CASES.append([ResNet, *case])
 
-TEST_SCRIPT_CASES = [
+TEST_EXPORT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
 
@@ -310,11 +310,11 @@ class TestResNet(unittest.TestCase):
                     }
                     equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict)
 
-    @parameterized.expand(TEST_SCRIPT_CASES)
-    def test_script(self, model, input_param, input_shape, expected_shape):
+    @parameterized.expand(TEST_EXPORT_CASES)
+    def test_export(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 @SkipIfNoModule("hf_hub_download")

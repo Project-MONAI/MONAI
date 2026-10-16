@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.test_utils import TEST_DEVICES, test_script_save
+from tests.test_utils import TEST_DEVICES, test_export_save
 
 TEST_CASES = []
 for case in TEST_DEVICES:
@@ -376,11 +376,11 @@ class TestFocalLoss(unittest.TestCase):
             loss = FocalLoss(include_background=False, use_softmax=True, alpha=0.5)
             loss(chn_input, chn_target)
 
-    def test_script(self):
+    def test_export(self):
         for use_softmax in [True, False]:
             loss = FocalLoss(use_softmax=use_softmax)
             test_input = torch.ones(2, 2, 8, 8)
-            test_script_save(loss, test_input, test_input)
+            test_export_save(loss, test_input, test_input)
 
     @parameterized.expand(TEST_ALPHA_BROADCASTING)
     def test_alpha_sequence_broadcasting(self, device, include_background, use_softmax):

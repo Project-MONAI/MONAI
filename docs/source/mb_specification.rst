@@ -6,9 +6,9 @@ MONAI Bundle Specification
 Overview
 ========
 
-This is the specification for the MONAI Bundle (MB) format of portable described deep learning models. The objective of a MB is to define a packaged network or model which includes the critical information necessary to allow users and programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a single network as a pickled state dictionary plus optionally a Torchscript object and/or an ONNX object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
+This is the specification for the MONAI Bundle (MB) format of portable deep learning models. The objective of a MB is to define a packaged network or model which includes the critical information necessary to allow users and programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a single network as a pickled state dictionary plus optionally an exported program (``.pt2``, via ``torch.export``) and/or an ONNX object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
 
-This specification defines the directory structure a bundle must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file.
+This specification defines the directory structure a bundle must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in the exported archive.
 
 Directory Structure
 ===================
@@ -23,7 +23,8 @@ A MONAI Bundle is defined primarily as a directory with a set of specifically na
   ┃  ┗━ metadata.json
   ┣━ models
   ┃  ┣━ model.pt
-  ┃  ┣━ *model.ts
+  ┃  ┣━ *model.pt2
+  ┃  ┣━ *model.ts (deprecated)
   ┃  ┗━ *model.onnx
   ┗━ docs
      ┣━ *README.md
@@ -38,7 +39,8 @@ The following files are **required** to be present with the given filenames for 
 
 The following files are optional but must have these names in the directory given above:
 
-* **model.ts**: the Torchscript saved model if the model is compatible with being saved correctly in this format.
+* **model.pt2**: the ``torch.export`` exported program if the model is compatible with being exported in this format. This is the preferred format for model deployment.
+* **model.ts**: the TorchScript saved model (deprecated since v1.5, will be removed in v1.7; use ``model.pt2`` instead).
 * **model.onnx**: the ONNX model if the model is compatible with being saved correctly in this format.
 * **README.md**: plain-language information on the model, how to use it, author information, etc. in Markdown format.
 * **license.txt**: software license attached to the data, can be left blank if no license needed.
@@ -50,9 +52,13 @@ Archive Format
 
 The bundle directory and its contents can be compressed into a zip file to constitute a single file package. When unzipped into a directory this file will reproduce the above directory structure, and should itself also be named after the model it contains. For example, `ModelName.zip` would contain at least `ModelName/configs/metadata.json` and `ModelName/models/model.pt`, thus when unzipped would place files into the directory `ModelName` rather than into the current working directory.
 
-The Torchscript file format is also just a zip file with a specific structure. When creating such an archive with `save_net_with_metadata` a MB-compliant Torchscript file can be created by including the contents of `metadata.json` as the `meta_values` argument of the function, and other files included as `more_extra_files` entries. These will be stored in a `extras` directory in the zip file and can be retrieved with `load_net_with_metadata` or with any other library/tool that can read zip data. In this format the `model.*` files are obviously not needed but `README.md` and `license.txt` as well as any others provided can be added as more extra files.
+The ``.pt2`` file format (produced by ``torch.export``) is also a zip file with a specific structure. When creating such an archive with ``save_exported_program`` a MB-compliant exported program file can be created by including the contents of ``metadata.json`` as the ``meta_values`` argument of the function, and other files included as ``more_extra_files`` entries. These will be stored in the zip file and can be retrieved with ``load_exported_program`` or with any other library/tool that can read zip data. In this format the ``model.*`` files are obviously not needed but ``README.md`` and ``license.txt`` as well as any others provided can be added as more extra files.
 
-The `bundle` submodule of MONAI contains a number of command line programs. To produce a Torchscript bundle use `ckpt_export` with a set of specified components such as the saved weights file and metadata file. Config files can be provided as JSON or YAML dictionaries defining Python constructs used by the `ConfigParser`, however regardless of format the produced bundle Torchscript object will store the files as JSON.
+The ``bundle`` submodule of MONAI contains a number of command line programs. To produce an exported bundle use ``export_checkpoint`` with a set of specified components such as the saved weights file and metadata file. Config files can be provided as JSON or YAML dictionaries defining Python constructs used by the ``ConfigParser``, however regardless of format the produced bundle archive will store the files as JSON.
+
+.. note::
+
+   The legacy TorchScript (``ckpt_export``, ``save_net_with_metadata``, ``load_net_with_metadata``) workflow is deprecated since v1.5 and will be removed in v1.7. Use ``export_checkpoint``, ``save_exported_program``, and ``load_exported_program`` instead.
 
 metadata.json File
 ==================

@@ -35,8 +35,9 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import PathLike
-from monai.data import load_net_with_metadata, save_net_with_metadata
+from monai.data import load_exported_program, load_net_with_metadata, save_exported_program, save_net_with_metadata
 from monai.networks import (
+    convert_to_export,
     convert_to_onnx,
     convert_to_torchscript,
     convert_to_trt,
@@ -47,6 +48,8 @@ from monai.networks import (
 from monai.utils import (
     IgniteInfo,
     check_parent_dir,
+    deprecated,
+    deprecated_arg,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -628,6 +631,12 @@ def download(
     _check_monai_version(bundle_dir_, name_)
 
 
+@deprecated_arg(
+    name="load_ts_module",
+    since="1.5",
+    removed="1.7",
+    msg_suffix="Use `load_exported_module=True` with a torch.export `.pt2` model instead.",
+)
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -635,6 +644,7 @@ def load(
     workflow_type: str = "train",
     model_file: str | None = None,
     load_ts_module: bool = False,
+    load_exported_module: bool = False,
     bundle_dir: PathLike | None = None,
     source: str = DEFAULT_DOWNLOAD_SOURCE,
     repo: str | None = None,
@@ -649,7 +659,7 @@ def load(
     net_override: dict | None = None,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
-    Load model weights or TorchScript module of a bundle.
+    Load model weights, TorchScript module, or exported program of a bundle.
 
     Security note: if `model` is `None`, building `network_def` requires parsing the bundle's own
     "{workflow_type}.json" config, which can define `"_target_"` components resolved to any importable
@@ -675,10 +685,16 @@ def load(
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `train` for training workflow.
-        model_file: the relative path of the model weights or TorchScript module within bundle.
-            If `None`, "models/model.pt" or "models/model.ts" will be used.
+        model_file: the relative path of the model weights or exported module within bundle.
+            If `None`, "models/model.pt", "models/model.ts", or "models/model.pt2" will be used
+            depending on the loading mode.
         load_ts_module: a flag to specify if loading the TorchScript module.
-        bundle_dir: directory the weights/TorchScript module will be loaded from.
+
+            .. deprecated:: 1.5
+                Use ``load_exported_module=True`` instead.
+
+        load_exported_module: a flag to specify if loading a ``torch.export`` ``.pt2`` module.
+        bundle_dir: directory the weights/module will be loaded from.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
@@ -693,34 +709,47 @@ def load(
             Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
+            Not applied when ``load_exported_module`` is True, since ``torch.export.load`` has no ``map_location``;
+            move the result with ``exported_program.module().to(device)``.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
-            see `_extra_files` in `torch.jit.load` for more details.
+        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript
+            or exported module, see ``_extra_files`` in ``torch.jit.load`` / ``torch.export.load`` for details.
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
         net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
 
     Returns:
-        1. If `load_ts_module` is `False` and `model` is `None`,
+        1. If ``load_ts_module`` and ``load_exported_module`` are both ``False`` and ``model`` is ``None``,
             return model weights if can't find "network_def" in the bundle,
             else return an instantiated network that loaded the weights.
-        2. If `load_ts_module` is `False` and `model` is not `None`,
+        2. If ``load_ts_module`` and ``load_exported_module`` are both ``False`` and ``model`` is not ``None``,
             return an instantiated network that loaded the weights.
-        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
+        3. If ``load_ts_module`` is ``True``, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
-            please check `monai.data.load_net_with_metadata` for more details.
+            please check ``monai.data.load_net_with_metadata`` for more details.
+        4. If ``load_exported_module`` is ``True``, return a triple of
+            (ExportedProgram, metadata dict, extra files dict).
+            See :func:`monai.data.load_exported_program` for more details.
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
 
+    if load_ts_module and load_exported_module:
+        raise ValueError("load_ts_module and load_exported_module are mutually exclusive.")
+
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
-        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+        if load_exported_module:
+            model_file = os.path.join("models", "model.pt2")
+        elif load_ts_module:
+            model_file = os.path.join("models", "model.ts")
+        else:
+            model_file = os.path.join("models", "model.pt")
     if source == "ngc":
         name = _add_ngc_prefix(name)
         if remove_prefix:
@@ -738,6 +767,9 @@ def load(
             args_file=args_file,
         )
 
+    # loading with `torch.export.load`
+    if load_exported_module:
+        return load_exported_program(full_path, more_extra_files=config_files or ())
     # loading with `torch.jit.load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
@@ -745,7 +777,11 @@ def load(
     model_dict = torch.load(full_path, map_location=torch.device(device), weights_only=True)
 
     if not isinstance(model_dict, Mapping):
-        warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
+        warnings.warn(
+            f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.",
+            category=UserWarning,
+            stacklevel=2,
+        )
         model_dict = get_state_dict(model_dict)
 
     _workflow = None
@@ -761,11 +797,13 @@ def load(
                 **_net_override,
             )
         else:
-            warnings.warn(f"Cannot find the config file: {bundle_config_file}, return state dict instead.")
+            warnings.warn(
+                f"Cannot find the config file: {bundle_config_file}, return state dict instead.", stacklevel=2
+            )
             return model_dict
         if _workflow is not None:
             if not hasattr(_workflow, "network_def"):
-                warnings.warn("No available network definition in the bundle, return state dict instead.")
+                warnings.warn("No available network definition in the bundle, return state dict instead.", stacklevel=2)
                 return model_dict
             else:
                 model = _workflow.network_def
@@ -1295,7 +1333,7 @@ def _export(
             (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
         parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        filepath: filepath to export.
         ckpt_file: filepath of the model checkpoint to load.
         config_file: filepath of the config file to save in the converted model,the saved key in the converted
             model is the config filename without extension, and the saved config value is always serialized in
@@ -1453,6 +1491,50 @@ def onnx_export(
     )
 
 
+def _prepare_ckpt_export(
+    _args: dict,
+    config_file: str | Sequence[str],
+    meta_file: str | Sequence[str] | None,
+    filepath: PathLike | None,
+    ckpt_file: str | None,
+    net_id: str | None,
+    default_filename: str,
+) -> tuple[ConfigParser, PathLike, str, str]:
+    """
+    Shared setup for checkpoint export: parse the config and metadata, apply the remaining ``_args`` as config
+    overrides, resolve the default output/checkpoint paths and network id, and validate that the network
+    definition can be found. Returns ``(parser, filepath, ckpt_file, net_id)``.
+    """
+    bundle_root = _args.get("bundle_root", os.getcwd())
+
+    parser = ConfigParser()
+    parser.read_config(f=config_file)
+    meta_file = os.path.join(bundle_root, "configs", "metadata.json") if meta_file is None else meta_file
+    for mf in ensure_tuple(meta_file):
+        if os.path.exists(mf):
+            parser.read_meta(f=mf)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    filepath = os.path.join(bundle_root, "models", default_filename) if filepath is None else filepath
+    ckpt_file = os.path.join(bundle_root, "models", "model.pt") if ckpt_file is None else ckpt_file
+    if not os.path.exists(ckpt_file):
+        raise FileNotFoundError(f'Checkpoint file "{ckpt_file}" not found, please specify it in argument "ckpt_file".')
+
+    net_id = "network_def" if net_id is None else net_id
+    try:
+        parser.get_parsed_content(net_id)
+    except ValueError as e:
+        raise ValueError(
+            f'Network definition "{net_id}" cannot be found in "{config_file}", specify name with argument "net_id".'
+        ) from e
+
+    return parser, filepath, ckpt_file, net_id
+
+
+@deprecated(since="1.5", removed="1.7", msg_suffix="Use export_checkpoint() instead.")
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1538,30 +1620,9 @@ def ckpt_export(
         input_shape=None,
         converter_kwargs={},
     )
-    bundle_root = _args.get("bundle_root", os.getcwd())
-
-    parser = ConfigParser()
-    parser.read_config(f=config_file_)
-    meta_file_ = os.path.join(bundle_root, "configs", "metadata.json") if meta_file_ is None else meta_file_
-    if os.path.exists(meta_file_):
-        parser.read_meta(f=meta_file_)
-
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
-
-    filepath_ = os.path.join(bundle_root, "models", "model.ts") if filepath_ is None else filepath_
-    ckpt_file_ = os.path.join(bundle_root, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
-    if not os.path.exists(ckpt_file_):
-        raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
-
-    net_id_ = "network_def" if net_id_ is None else net_id_
-    try:
-        parser.get_parsed_content(net_id_)
-    except ValueError as e:
-        raise ValueError(
-            f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".'
-        ) from e
+    parser, filepath_, ckpt_file_, net_id_ = _prepare_ckpt_export(
+        _args, config_file_, meta_file_, filepath_, ckpt_file_, net_id_, default_filename="model.ts"
+    )
 
     # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
     if (not input_shape_) and use_trace:
@@ -1577,6 +1638,119 @@ def ckpt_export(
     _export(
         convert_to_torchscript,
         save_ts,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
+    )
+
+
+def export_checkpoint(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    input_shape: Sequence[int] | None = None,
+    dynamic_shapes: dict | tuple | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to a ``.pt2`` file using :func:`torch.export.export`, with metadata and
+    config included.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle export_checkpoint network --filepath <path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be ``torch.nn.Module``.
+            Default to ``"network_def"``.
+        filepath: filepath to export. If filename has no extension it becomes ``.pt2``.
+            Default to ``"models/model.pt2"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        ckpt_file: filepath of the model checkpoint to load.
+            Default to ``"models/model.pt"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        meta_file: filepath of the metadata file. If it is a list of file paths, contents will be merged.
+            Default to ``"configs/metadata.json"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        config_file: filepath of the config file to save in the exported model. The saved key is the
+            config filename without extension; the value is always serialized in JSON format.
+            It can be a single file or a list of files. If ``None``, must be provided in ``args_file``.
+        key_in_ckpt: for nested checkpoints like ``{"model": XXX, "optimizer": XXX, ...}``, specify the
+            key of model weights. If not nested, no need to set.
+        input_shape: a shape used to generate random input for the network, e.g. ``[N, C, H, W]`` or
+            ``[N, C, H, W, D]``. If not given, will try to parse from ``metadata``.
+        dynamic_shapes: dynamic shape specifications passed to :func:`torch.export.export`.
+        args_file: a JSON or YAML file to provide default values for all the parameters.
+        converter_kwargs: extra arguments for :func:`~monai.networks.utils.convert_to_export`,
+            except ones that already exist in the input parameters.
+        override: id-value pairs to override or add the corresponding config content.
+    """
+    _args = update_kwargs(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        input_shape=input_shape,
+        dynamic_shapes=dynamic_shapes,
+        converter_kwargs=converter_kwargs,
+        **override,
+    )
+    _log_input_summary(tag="export_checkpoint", args=_args)
+    (
+        config_file_,
+        filepath_,
+        ckpt_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        input_shape_,
+        dynamic_shapes_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "config_file",
+        filepath=None,
+        ckpt_file=None,
+        net_id=None,
+        meta_file=None,
+        key_in_ckpt="",
+        input_shape=None,
+        dynamic_shapes=None,
+        converter_kwargs={},
+    )
+    parser, filepath_, ckpt_file_, net_id_ = _prepare_ckpt_export(
+        _args, config_file_, meta_file_, filepath_, ckpt_file_, net_id_, default_filename="model.pt2"
+    )
+
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    if not input_shape_:
+        raise ValueError(
+            "Cannot determine input shape automatically. "
+            "Please provide it explicitly via the 'input_shape' argument."
+        )
+
+    inputs_: Sequence[Any] = [torch.rand(input_shape_)]
+
+    converter_kwargs_.update({"inputs": inputs_, "dynamic_shapes": dynamic_shapes_})
+
+    save_ep = partial(save_exported_program, include_config_vals=False, append_timestamp=False)
+
+    _export(
+        convert_to_export,
+        save_ep,
         parser,
         net_id=net_id_,
         filepath=filepath_,
@@ -1607,20 +1781,19 @@ def trt_export(
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
+    Export the model checkpoint to the given filepath as a TensorRT engine.
     Currently, this API only supports converting models whose inputs are all tensors.
     Note: NVIDIA Volta support (GPUs with compute capability 7.0) has been removed starting with TensorRT 10.5.
     Review the TensorRT Support Matrix for which GPUs are supported.
 
     There are two ways to export a model:
-    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
-    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
-    TensorRT engine-based TorchScript.
+    1, Torch-TensorRT way: PyTorch module ---> TensorRT engine (via ``torch.export`` on PyTorch >= 2.9,
+    or via TorchScript on older versions).
+    2, ONNX-TensorRT way: PyTorch module ---> ONNX model ---> TensorRT engine.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
     may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
-    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
-    not supported by the ONNX if exported through `torch.jit.script`.
+    the second way, some Python data structures like ``dict`` are not supported.
 
     Typical usage examples:
 
@@ -1643,8 +1816,8 @@ def trt_export(
         precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
-        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
-            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True).
+        use_trace: whether using ``torch.jit.trace`` to convert the PyTorch model to a TorchScript model
+            (only used on PyTorch < 2.9 when ``use_onnx`` is ``False``; on 2.9+ ``torch.export`` is used instead).
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
             converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of
             model input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize
@@ -1748,11 +1921,15 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
-    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
+    def _save_trt_model(trt_obj, filepath, **kwargs):
+        if isinstance(trt_obj, torch.export.ExportedProgram):
+            save_exported_program(trt_obj, filepath, include_config_vals=False, append_timestamp=False, **kwargs)
+        else:
+            save_net_with_metadata(trt_obj, filepath, include_config_vals=False, append_timestamp=False, **kwargs)
 
     _export(
         convert_to_trt,
-        save_ts,
+        _save_trt_model,
         parser,
         net_id=net_id_,
         filepath=filepath_,

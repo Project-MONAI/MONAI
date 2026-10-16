@@ -20,7 +20,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.test_utils import dict_product, skip_if_quick, test_onnx_save, test_script_save
+from tests.test_utils import dict_product, skip_if_quick, test_export_save, test_onnx_save
 
 _, has_torchvision = optional_import("torchvision")
 _, has_onnxruntime = optional_import("onnxruntime")
@@ -92,7 +92,9 @@ CASE_LIST = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A
 MODEL_LIST = [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 
 TEST_CASES = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=CASE_LIST)]
-TEST_CASES_TS = [[params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=[TEST_CASE_1])]
+TEST_CASES_EXPORT = [
+    [params["model"], *params["case"]] for params in dict_product(model=MODEL_LIST, case=[TEST_CASE_1])
+]
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
@@ -136,18 +138,18 @@ class TestRetinaNet(unittest.TestCase):
             self.assertEqual(tuple(cc.shape for cc in result[net.cls_key]), expected_cls_shape)
             self.assertEqual(tuple(cc.shape for cc in result[net.box_reg_key]), expected_box_shape)
 
-    @parameterized.expand(TEST_CASES_TS)
-    def test_script(self, model, input_param, input_shape):
+    @parameterized.expand(TEST_CASES_EXPORT)
+    def test_export(self, model, input_param, input_shape):
         try:
-            idx = int(self.id().split("test_script_")[-1])
+            idx = int(self.id().split("test_export_")[-1])
         except Exception:
             idx = 0
         idx %= 3
-        # test whether support torchscript
+        # test whether support torch.export
         data = torch.randn(input_shape)
         backbone = model(**input_param)
         if idx == 0:
-            test_script_save(backbone, data)
+            test_export_save(backbone, data)
             return
         feature_extractor = resnet_fpn_feature_extractor(
             backbone=backbone,
@@ -157,7 +159,7 @@ class TestRetinaNet(unittest.TestCase):
             returned_layers=[1, 2],
         )
         if idx == 1:
-            test_script_save(feature_extractor, data)
+            test_export_save(feature_extractor, data)
             return
         net = RetinaNet(
             spatial_dims=input_param["spatial_dims"],
@@ -167,9 +169,9 @@ class TestRetinaNet(unittest.TestCase):
             size_divisible=32,
         )
         if idx == 2:
-            test_script_save(net, data)
+            test_export_save(net, data)
 
-    @parameterized.expand(TEST_CASES_TS)
+    @parameterized.expand(TEST_CASES_EXPORT)
     @unittest.skipUnless(has_onnxruntime, "onnxruntime not installed")
     def test_onnx(self, model, input_param, input_shape):
         try:
@@ -177,7 +179,7 @@ class TestRetinaNet(unittest.TestCase):
         except Exception:
             idx = 0
         idx %= 3
-        # test whether support torchscript
+        # test whether support ONNX export
         data = torch.randn(input_shape)
         backbone = model(**input_param)
         if idx == 0:

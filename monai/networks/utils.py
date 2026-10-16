@@ -30,8 +30,9 @@ import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
+from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option, optional_import
+from monai.utils.module import look_up_option, optional_import, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 polygraphy, polygraphy_imported = optional_import("polygraphy")
@@ -54,6 +55,7 @@ __all__ = [
     "save_state",
     "convert_to_onnx",
     "convert_to_torchscript",
+    "convert_to_export",
     "convert_to_trt",
     "meshgrid_ij",
     "meshgrid_xy",
@@ -795,6 +797,7 @@ def convert_to_onnx(
     return onnx_model
 
 
+@deprecated(since="1.5", removed="1.7", msg_suffix="Use convert_to_export() instead.")
 def convert_to_torchscript(
     model: nn.Module,
     filename_or_obj: Any | None = None,
@@ -863,6 +866,77 @@ def convert_to_torchscript(
                 torch.testing.assert_close(r1, r2, rtol=rtol, atol=atol)  # type: ignore
 
     return script_module
+
+
+def convert_to_export(
+    model: nn.Module,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
+    verify: bool = False,
+    inputs: Sequence[Any] | None = None,
+    dynamic_shapes: dict | tuple | None = None,
+    device: str | torch.device | None = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    **kwargs,
+) -> torch.export.ExportedProgram:
+    """
+    Utility to export a model using :func:`torch.export.export` and optionally save to a ``.pt2`` file,
+    with optional input/output data verification.
+
+    Args:
+        model: source PyTorch model to export.
+        filename_or_obj: if not None, a file path string to save the exported program.
+        extra_files: map from filename to contents to store in the saved archive.
+        verify: whether to verify that the exported program produces the same outputs as ``model``.
+        inputs: input test data for export and verification. Should be a sequence of
+            tensors that map to positional arguments of ``model()``.
+        dynamic_shapes: dynamic shape specifications passed to :func:`torch.export.export`.
+            See PyTorch docs for format details.
+        device: target device to verify the model. If None, uses CUDA if available.
+        rtol: the relative tolerance when comparing outputs.
+        atol: the absolute tolerance when comparing outputs.
+        kwargs: additional keyword arguments for :func:`torch.export.export`.
+
+    Returns:
+        A :class:`torch.export.ExportedProgram` representing the exported model.
+    """
+    if inputs is None:
+        raise ValueError("Input data is required for torch.export.export.")
+
+    model.eval()
+    with torch.no_grad():
+        export_args = tuple(inputs)
+        exported = torch.export.export(model, args=export_args, dynamic_shapes=dynamic_shapes, **kwargs)
+
+        if filename_or_obj is not None:
+            torch.export.save(exported, filename_or_obj, extra_files=extra_files)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        verify_args = tuple(i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs)
+
+        # verify the in-memory export; torch.export.load has no map_location so a reload could land on another device
+        loaded_module = exported.module()
+        loaded_module.to(device)
+        model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*verify_args))
+            set_determinism(seed=0)
+            export_out = ensure_tuple(loaded_module(*verify_args))
+            set_determinism(seed=None)
+
+        if len(torch_out) != len(export_out):
+            raise AssertionError(f"Exported model returned {len(export_out)} outputs, expected {len(torch_out)}.")
+        for r1, r2 in zip(torch_out, export_out):
+            if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
+                torch.testing.assert_close(r1, r2, rtol=rtol, atol=atol)  # type: ignore
+
+    return exported
 
 
 def _onnx_trt_compile(
@@ -1014,9 +1088,9 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
-    # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
     min_input_shape, opt_input_shape, max_input_shape = get_profile_shapes(input_shape, dynamic_batchsize)
+    _use_dynamo = pytorch_after(2, 9)
 
     if use_onnx:
         # set the batch dim as dynamic
@@ -1037,10 +1111,7 @@ def convert_to_trt(
             output_names=onnx_output_names,
         )
     else:
-        ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-        ir_model.eval()
-        # convert the model through the Torch-TensorRT way
-        ir_model.to(target_device)
+        # Torch-TensorRT compilation path
         with torch.no_grad():
             with torch.cuda.device(device=device):
                 input_placeholder = [
@@ -1048,21 +1119,37 @@ def convert_to_trt(
                         min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape
                     )
                 ]
-                trt_model = torch_tensorrt.compile(
-                    ir_model,
-                    inputs=input_placeholder,
-                    enabled_precisions=convert_precision,
-                    device=torch_tensorrt.Device(f"cuda:{device}"),
-                    ir="torchscript",
-                    **kwargs,
-                )
+                # Use dynamo IR (torch.export-based) which is the default in newer torch-tensorrt
+                if _use_dynamo:
+                    trt_model = torch_tensorrt.compile(
+                        model,
+                        inputs=input_placeholder,
+                        enabled_precisions=convert_precision,
+                        device=torch_tensorrt.Device(f"cuda:{device}"),
+                        ir="dynamo",
+                        **kwargs,
+                    )
+                else:
+                    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+                    trt_model = torch_tensorrt.compile(
+                        ir_model,
+                        inputs=input_placeholder,
+                        enabled_precisions=convert_precision,
+                        device=torch_tensorrt.Device(f"cuda:{device}"),
+                        ir="torchscript",
+                        **kwargs,
+                    )
 
     # verify the outputs between the TensorRT model and PyTorch model
     if verify:
         if inputs is None:
             raise ValueError("Missing input data for verification.")
 
-        trt_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else trt_model
+        if filename_or_obj is not None:
+            if isinstance(trt_model, torch.export.ExportedProgram):
+                trt_model = torch.export.load(filename_or_obj).module()
+            else:
+                trt_model = torch.jit.load(filename_or_obj)
 
         with torch.no_grad():
             set_determinism(seed=0)
@@ -1070,7 +1157,9 @@ def convert_to_trt(
             set_determinism(seed=0)
             trt_out = ensure_tuple(trt_model(*inputs))
             set_determinism(seed=None)
-        # compare TorchScript and PyTorch results
+        # compare TensorRT and PyTorch results
+        if len(torch_out) != len(trt_out):
+            raise AssertionError(f"TRT model returned {len(trt_out)} outputs, expected {len(torch_out)}.")
         for r1, r2 in zip(torch_out, trt_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
                 torch.testing.assert_close(r1, r2, rtol=rtol, atol=atol)  # type: ignore
