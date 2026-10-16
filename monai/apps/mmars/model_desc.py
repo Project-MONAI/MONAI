@@ -20,13 +20,23 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from monai.utils.deprecate_utils import deprecated
+
 __all__ = ["MODEL_DESC", "RemoteMMARKeys"]
 
 
+@deprecated(
+    since="1.7.0",
+    removed="1.9.0",
+    msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.",
+)
 class RemoteMMARKeys:
     """
     Data keys used for loading MMAR.
     ID must uniquely define an MMAR.
+
+    .. deprecated:: 1.7.0
+        NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
     """
 
     ID = "id"  # unique MMAR

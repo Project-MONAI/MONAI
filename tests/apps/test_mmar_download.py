@@ -24,29 +24,35 @@ from parameterized import parameterized
 
 import monai.apps
 from monai.apps import download_mmar, get_model_spec, load_from_mmar
-from monai.apps.mmars import MODEL_DESC, mmars
+from monai.apps.mmars import MODEL_DESC, mmars, model_desc
 from monai.utils import DeprecatedError, deprecated
 
 
 class TestMMARDownload(unittest.TestCase):
+    """Check MMAR compatibility, deprecation, and disabled model loading offline."""
+
     @parameterized.expand([(0,), (f" {MODEL_DESC[0]['id'].upper()} ",)])
     def test_get_model_spec(self, item):
+        """Resolve numeric indices and normalized model IDs to the original descriptor."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", FutureWarning)
             self.assertIs(get_model_spec(item), MODEL_DESC[0])
 
     def test_get_model_spec_unknown(self):
+        """Leave unrecognized model IDs unchanged."""
         item = "unknown_model"
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", FutureWarning)
             self.assertEqual(get_model_spec(item), item)
 
     def test_unique(self):
+        """Keep every model descriptor addressable by a unique ID."""
         keys = [model["id"] for model in MODEL_DESC]
         self.assertEqual(len(keys), len(set(keys)))
 
     @parameterized.expand([(-1, "3"), (2, "2")])
     def test_download_api(self, version, expected_version):
+        """Select the requested NGC version and pass its archive details to the downloader."""
         mmar_dir = Path("mmars")
         model = "test_model"
         model_dict = {f"nvidia/med/{model}": {"name": model, "latest": "3"}}
@@ -73,6 +79,7 @@ class TestMMARDownload(unittest.TestCase):
 
     @parameterized.expand([(-1, "1"), (2, "2")])
     def test_download_model_spec(self, version, expected_version):
+        """Download from a descriptor without querying NGC, honoring version overrides."""
         mmar_dir = Path("mmars")
         model = MODEL_DESC[0]
         model_fullname = f"{model['name']}_{expected_version}"
@@ -100,34 +107,60 @@ class TestMMARDownload(unittest.TestCase):
     @parameterized.expand(
         [
             (name, version, expected_warnings)
-            for name in ("get_model_spec", "download_mmar", "load_from_mmar")
-            for version, expected_warnings in (("1.6.0", 0), ("1.7.0rc1", 0), ("1.7.0", 1), ("1.7.1", 1))
+            for name in ("get_model_spec", "download_mmar", "load_from_mmar", "RemoteMMARKeys")
+            for version, expected_warnings in (
+                ("1.6.0", 0),
+                ("1.7.0rc1", 0),
+                ("1.7.0", 1),
+                ("1.7.1", 1),
+                ("1.9.0rc1", 1),
+                ("1.9.0", 0),
+            )
         ]
     )
     def test_deprecation_warning(self, name, version, expected_warnings):
+        """Warn from 1.7.0, remove callable APIs in 1.9.0, and preserve MMAR constants."""
         # Import an isolated copy to test the actual decorators across the release
         # boundary without changing the functions imported by other tests.
-        spec = spec_from_file_location("monai.apps.mmars._mmars_deprecation_test", mmars.__file__)
+        source = model_desc if name == "RemoteMMARKeys" else mmars
+        spec = spec_from_file_location("monai.apps.mmars._mmars_deprecation_test", source.__file__)
         assert spec is not None and spec.loader is not None
         module = module_from_spec(spec)
         with patch("monai.utils.deprecate_utils.deprecated", partial(deprecated, version_val=version)):
             spec.loader.exec_module(module)
 
-        with patch.object(module, "download_and_extract"), warnings.catch_warnings(record=True) as captured:
+        if name == "RemoteMMARKeys":
+            action = module.RemoteMMARKeys
+            self.assertEqual(module.MODEL_DESC, MODEL_DESC)
+            for key, value in vars(model_desc.RemoteMMARKeys).items():
+                if key.isupper():
+                    self.assertEqual(getattr(module.RemoteMMARKeys, key), value)
+        elif name == "download_mmar":
+            action = partial(module.download_mmar, MODEL_DESC[0], mmar_dir="mmars", api=False)
+        elif name == "load_from_mmar":
+            action = partial(module.load_from_mmar, "test_model")
+        else:
+            action = partial(module.get_model_spec, 0)
+
+        with ExitStack() as stack, warnings.catch_warnings(record=True) as captured:
+            if name != "RemoteMMARKeys":
+                stack.enter_context(patch.object(module, "download_and_extract"))
             warnings.simplefilter("always", FutureWarning)
-            if name == "load_from_mmar":
+            if version == "1.9.0":
+                with self.assertRaisesRegex(DeprecatedError, rf"{name}.*removed in version 1\.9\.0.*MONAI Bundles"):
+                    action()
+            elif name == "load_from_mmar":
                 with self.assertRaisesRegex(DeprecatedError, "disabled.*security.*MONAI Bundles"):
-                    module.load_from_mmar("test_model")
-            elif name == "download_mmar":
-                module.download_mmar(MODEL_DESC[0], mmar_dir="mmars", api=False)
+                    action()
             else:
-                module.get_model_spec(0)
+                action()
 
         future_warnings = [warning for warning in captured if issubclass(warning.category, FutureWarning)]
         self.assertEqual(len(future_warnings), expected_warnings)
         if expected_warnings:
             self.assertRegex(
-                str(future_warnings[0].message), rf"{name}.*deprecated since version 1\.7\.0.*MONAI Bundles"
+                str(future_warnings[0].message),
+                rf"{name}.*deprecated since version 1\.7\.0.*removed in version 1\.9\.0.*MONAI Bundles",
             )
 
         if name == "load_from_mmar":
@@ -146,6 +179,7 @@ class TestMMARDownload(unittest.TestCase):
         ]
     )
     def test_load_disabled_without_side_effects(self, _, item, kwargs):
+        """Reject every loading mode without downloads, file reads, or deserialization."""
         with ExitStack() as stack:
             guards = [
                 stack.enter_context(patch(target, side_effect=AssertionError(f"Unexpected call to {target}")))
@@ -171,9 +205,12 @@ class TestMMARDownload(unittest.TestCase):
                 guard.assert_not_called()
 
     def test_public_exports(self):
+        """Retain the public function and descriptor-class aliases for existing imports."""
         for name in ("get_model_spec", "download_mmar", "load_from_mmar"):
             self.assertIs(getattr(monai.apps, name), getattr(mmars, name))
             self.assertIs(getattr(monai.apps.mmars, name), getattr(mmars, name))
+        self.assertIs(monai.apps.RemoteMMARKeys, model_desc.RemoteMMARKeys)
+        self.assertIs(monai.apps.mmars.RemoteMMARKeys, model_desc.RemoteMMARKeys)
 
 
 if __name__ == "__main__":
