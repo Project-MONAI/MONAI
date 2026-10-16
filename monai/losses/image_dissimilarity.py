@@ -72,7 +72,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
             - ``"sum"``: the output will be summed.
         smooth_nr: a small constant added to the numerator to avoid nan.
-        smooth_dr: a small constant added to the denominator to avoid nan.
+        smooth_dr: strictly positive minimum informative local variance. Windows where either
+            input has variance less than or equal to this threshold contribute zero to the loss.
 
     Returns:
         torch.Tensor: The computed loss value. The output range is approximately [-1, 0], where:
@@ -84,6 +85,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         The implementation computes the squared normalized cross-correlation coefficient
         and then negates it, transforming the correlation maximization problem into a
         loss minimization problem suitable for standard PyTorch optimizers.
+        Squared correlation is capped at 1 to guard against numerical overshoots.
 
         Interpretation:
             - Loss ≈ -1: Perfect correlation between images
@@ -118,6 +120,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
+        if not self.smooth_dr > 0:
+            raise ValueError(f"smooth_dr must be strictly positive, got {self.smooth_dr}")
 
     def get_kernel_vol(self) -> torch.Tensor:
         assert self.kernel is not None
@@ -165,13 +169,14 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         #     = sum[t*p] - sum[t] * mean[p] = cross
         # the following is actually squared ncc
         cross = tp_sum - p_avg * t_sum
-        t_var = torch.max(
-            t2_sum - t_avg * t_sum, torch.as_tensor(self.smooth_dr, dtype=t2_sum.dtype, device=t2_sum.device)
-        )
-        p_var = torch.max(
-            p2_sum - p_avg * p_sum, torch.as_tensor(self.smooth_dr, dtype=p2_sum.dtype, device=p2_sum.device)
-        )
+        t_var = t2_sum - t_avg * t_sum
+        p_var = p2_sum - p_avg * p_sum
+        valid = (t_var > self.smooth_dr) & (p_var > self.smooth_dr)
+        # Use a safe denominator before masking to keep invalid windows' gradients finite.
+        t_var = torch.where(valid, t_var, torch.ones_like(t_var))
+        p_var = torch.where(valid, p_var, torch.ones_like(p_var))
         ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var)
+        ncc = torch.where(valid, ncc.clamp(max=1.0), torch.zeros_like(ncc))
 
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(ncc).neg()  # sum over the batch, channel and spatial ndims
