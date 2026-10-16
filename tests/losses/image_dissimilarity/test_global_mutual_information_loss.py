@@ -271,6 +271,23 @@ class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
 
+    def test_b_spline_batch_samples_are_independent(self):
+        """Verify each sample is binned from its own intensity range, not the batch's.
+
+        A per-sample loss must not change when other images with a different intensity range share the batch.
+        """
+        generator = torch.Generator().manual_seed(0)
+        pred_a = torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        target_a = 0.8 * pred_a + 0.2 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        pred_b = 10 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        target_b = 0.8 * pred_b + 2 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", reduction="none")
+
+        alone = torch.cat([loss(pred_a, target_a).flatten(), loss(pred_b, target_b).flatten()])
+        batched = loss(torch.cat([pred_a, pred_b]), torch.cat([target_a, target_b])).flatten()
+
+        np.testing.assert_allclose(batched.numpy(), alone.numpy(), rtol=1e-6)
+
 
 class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
     def test_gaussian_kernel_registers_buffers(self):
