@@ -98,6 +98,19 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         inv = normalizer.inverse(out)
         assert_allclose(inv[key], original, type_test=False, rtol=1e-4, atol=1e-4)
 
+    @parameterized.expand([[False], [True]])
+    def test_inverse_nonzero_noncontiguous(self, channel_wise):
+        """Restore transposed dictionary values without losing their zeroed voxels."""
+        self.addCleanup(set_track_meta, get_track_meta())
+        set_track_meta(True)
+        img = MetaTensor(torch.tensor([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 0.0], [0.0, 2.0]]])).transpose(1, 2)
+        normalizer = NormalizeIntensityd(keys="img", nonzero=True, channel_wise=channel_wise)
+        out = normalizer({"img": img.clone()})
+        self.assertFalse(out["img"].is_contiguous())
+        inv = normalizer.inverse(out)
+        assert_allclose(inv["img"], img, type_test=False, rtol=1e-6, atol=1e-6)
+        self.assertEqual(len(inv["img"].applied_operations), 0)
+
     def test_invertd_nonzero(self):
         self.addCleanup(set_track_meta, get_track_meta())
         set_track_meta(True)
