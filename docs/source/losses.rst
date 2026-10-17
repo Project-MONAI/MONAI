@@ -22,6 +22,16 @@ Segmentation Losses
 .. autoclass:: dice
     :members:
 
+`HardL1ACELoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: HardL1ACELoss
+    :members:
+
+`SoftL1ACELoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SoftL1ACELoss
+    :members:
+
 `MaskedDiceLoss`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: MaskedDiceLoss
