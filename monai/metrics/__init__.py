@@ -15,6 +15,7 @@ from .absolute_volume_difference import AbsoluteVolumeDifferenceMetric, compute_
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
 from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning
+from .centerline_dice import CenterlineDiceMetric, compute_centerline_dice
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
 from .embedding_collapse import EmbeddingCollapseMetric, compute_embedding_collapse
