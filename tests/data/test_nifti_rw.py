@@ -172,6 +172,20 @@ class TestNiftiLoadRead(unittest.TestCase):
                 np.testing.assert_allclose(out.get_fdata(), [[0, 2, 4]], atol=1e-4, rtol=1e-4)
                 np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 1, 1]), atol=1e-4, rtol=1e-4)
 
+    def test_write_2d_without_target_affine(self):
+        """2D channel-less data should be written unchanged when no target affine is provided."""
+        with tempfile.TemporaryDirectory() as out_dir:
+            image_name = os.path.join(out_dir, "test.nii.gz")
+            for p in TEST_NDARRAYS:
+                img = p(np.arange(6).reshape((2, 3)))
+                writer_obj = NibabelWriter()
+                writer_obj.set_data_array(img, channel_dim=None, spatial_ndim=None)
+                writer_obj.set_metadata({"affine": np.eye(4), "original_affine": None})
+                writer_obj.write(image_name)
+                out = nib.load(image_name)
+                np.testing.assert_allclose(out.get_fdata(), [[0, 1, 2], [3, 4, 5]], atol=1e-4, rtol=1e-4)
+                np.testing.assert_allclose(out.affine, np.eye(4), atol=1e-4, rtol=1e-4)
+
     def test_write_3d(self):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
