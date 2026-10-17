@@ -68,6 +68,19 @@ class TestEMA(unittest.TestCase):
         self.assertTrue(all(layer.embedding.weight[0] != original_weight_0))
         self.assertTrue(all(layer.embedding.weight[1] == original_weight_1))
 
+    @parameterized.expand([[torch.float16], [torch.bfloat16]])
+    def test_ema_half_precision_module(self, dtype):
+        """A quantizer cast to half precision (not just autocast) runs and picks the same codes as float32."""
+        layer = EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8).eval()
+        x = torch.randn(1, 8, 4, 4)
+        expected_indices = layer.quantize(x)[2]
+
+        layer = layer.to(dtype)
+        quantized, _, encoding_indices = layer(x.to(dtype))
+
+        self.assertEqual(quantized.dtype, dtype)
+        torch.testing.assert_close(encoding_indices, expected_indices)
+
 
 class TestVectorQuantizer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
