@@ -25,6 +25,16 @@ class UNETR(nn.Module):
     """
     UNETR based on: "Hatamizadeh et al.,
     UNETR: Transformers for 3D Medical Image Segmentation <https://arxiv.org/abs/2103.10504>"
+
+    Spatial Shape Constraints:
+        Each spatial dimension of ``img_size`` must be divisible by ``patch_size``.
+        UNETR uses a fixed patch size of 16, so each spatial dimension must be
+        divisible by **16**. This is required by the ViT patch embedding step.
+
+        Valid 3D input sizes: ``(16, 16, 16)``, ``(32, 32, 32)``, ``(64, 64, 64)``,
+        ``(96, 96, 96)``, ``(128, 128, 128)``, ``(96, 64, 128)``.
+
+        A ``ValueError`` is raised in ``__init__`` if ``img_size`` is not divisible by 16.
     """
 
     def __init__(
@@ -80,6 +90,15 @@ class UNETR(nn.Module):
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
+
+        img_size = ensure_tuple_rep(img_size, spatial_dims)
+        patch_size = ensure_tuple_rep(16, spatial_dims)
+        for i, (img_d, p_d) in enumerate(zip(img_size, patch_size)):
+            if img_d % p_d != 0:
+                raise ValueError(
+                    f"img_size[{i}]={img_d} is not divisible by patch_size={p_d}. "
+                    f"Each spatial dimension of img_size must be divisible by 16."
+                )
 
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
