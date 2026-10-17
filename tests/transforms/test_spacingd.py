@@ -173,6 +173,22 @@ class TestSpacingDCase(unittest.TestCase):
         out = Spacingd(("img_1", "img_2"), pixdim=1, ensure_same_shape=False)({"img_1": img_1, "img_2": img_2})
         self.assertNotEqual(out["img_1"].shape, out["img_2"].shape)  # ensure_same_shape False
 
+    def test_meta_dict_updated_for_nifti(self):
+        img = MetaTensor(torch.zeros(1, 8, 8, 8), affine=torch.eye(4), meta={"filename_or_obj": "img.nii.gz"})
+        out = Spacingd("image", pixdim=2.0)({"image": img, "image_meta_dict": {"affine": torch.eye(4)}})
+        # the metadata dict is refreshed from the resampled image (spacing 1 -> 2)
+        assert_allclose(affine_to_spacing(out["image_meta_dict"]["affine"]), (2.0, 2.0, 2.0), type_test=False)
+
+    def test_non_meta_dict_entries_untouched(self):
+        # entries that share the "<key>_" prefix but are not metadata dicts must not be modified (issue #9165)
+        img = MetaTensor(torch.zeros(1, 8, 8, 8), affine=torch.eye(4), meta={"filename_or_obj": "img.nii.gz"})
+        data = {"image": img, "image_path": "img.nii.gz", "image_index": 3, 0: "int key"}
+        out = Spacingd("image", pixdim=2.0)(data)
+        self.assertEqual(out["image_path"], "img.nii.gz")
+        self.assertEqual(out["image_index"], 3)
+        self.assertEqual(out[0], "int key")
+        self.assertEqual(out["image"].shape, (1, 4, 4, 4))
+
 
 if __name__ == "__main__":
     unittest.main()
