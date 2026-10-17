@@ -34,7 +34,20 @@ __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
 def _get_model_spec(idx: int | str) -> dict | Any:
-    """Look up a model specification without a deprecation warning, so internal callers warn only once."""
+    """
+    Look up a model specification without emitting a deprecation warning.
+
+    Args:
+        idx: An index into ``MODEL_DESC`` or a model ID. Negative indices count from the end.
+            Model IDs ignore case and leading or trailing whitespace.
+
+    Returns:
+        The matching model specification. Unknown IDs and inputs other than integers or strings
+        are returned unchanged.
+
+    Raises:
+        IndexError: If an integer index is outside the range of ``MODEL_DESC``.
+    """
     if isinstance(idx, int):
         return MODEL_DESC[idx]
     if isinstance(idx, str):
