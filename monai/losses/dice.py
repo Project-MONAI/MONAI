@@ -213,7 +213,7 @@ class DiceLoss(_Loss):
         f: torch.Tensor = 1 - numerator / denominator
 
         num_of_classes = target.shape[1]
-        if self.class_weight is not None and num_of_classes != 1:
+        if self.class_weight is not None and n_pred_ch != 1:
             # make sure the lengths of weights are equal to the number of classes
             if self.class_weight.ndim == 0:
                 self.class_weight = torch.as_tensor([self.class_weight] * num_of_classes)
