@@ -33,6 +33,18 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
+def _get_model_spec(idx: int | str) -> dict | Any:
+    """Look up a model specification without a deprecation warning, so internal callers warn only once."""
+    if isinstance(idx, int):
+        return MODEL_DESC[idx]
+    if isinstance(idx, str):
+        key = idx.strip().lower()
+        for cand in MODEL_DESC:
+            if str(cand.get(Keys.ID)).strip().lower() == key:
+                return cand
+    return idx
+
+
 @deprecated(
     since="1.7.0",
     removed="1.9.0",
@@ -45,14 +57,7 @@ def get_model_spec(idx: int | str) -> dict | Any:
     .. deprecated:: 1.7.0
         NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
     """
-    if isinstance(idx, int):
-        return MODEL_DESC[idx]
-    if isinstance(idx, str):
-        key = idx.strip().lower()
-        for cand in MODEL_DESC:
-            if str(cand.get(Keys.ID)).strip().lower() == key:
-                return cand
-    return idx
+    return _get_model_spec(idx)
 
 
 def _get_all_ngc_models(pattern, page_index=0, page_size=50):
@@ -174,7 +179,7 @@ def download_mmar(
         return model_dir_list[0]
 
     if not isinstance(item, Mapping):
-        item = get_model_spec(item)
+        item = _get_model_spec(item)
     ver = item.get(Keys.VERSION, 1)
     if version > 0:
         ver = str(version)

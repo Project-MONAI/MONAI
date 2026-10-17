@@ -37,6 +37,8 @@ class RemoteMMARKeys:
 
     .. deprecated:: 1.7.0
         NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
+        Reading these constants or ``MODEL_DESC`` does not emit a warning; both will be removed
+        with the MMAR module in version 1.9.0.
     """
 
     ID = "id"  # unique MMAR

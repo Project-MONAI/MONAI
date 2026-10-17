@@ -131,10 +131,13 @@ class TestMMARDownload(unittest.TestCase):
 
         if name == "RemoteMMARKeys":
             action = module.RemoteMMARKeys
-            self.assertEqual(module.MODEL_DESC, MODEL_DESC)
-            for key, value in vars(model_desc.RemoteMMARKeys).items():
-                if key.isupper():
-                    self.assertEqual(getattr(module.RemoteMMARKeys, key), value)
+            with warnings.catch_warnings(record=True) as constant_warnings:
+                warnings.simplefilter("always")
+                self.assertEqual(module.MODEL_DESC, MODEL_DESC)
+                for key, value in vars(model_desc.RemoteMMARKeys).items():
+                    if key.isupper():
+                        self.assertEqual(getattr(module.RemoteMMARKeys, key), value)
+            self.assertEqual(len(constant_warnings), 0)
         elif name == "download_mmar":
             action = partial(module.download_mmar, MODEL_DESC[0], mmar_dir="mmars", api=False)
         elif name == "load_from_mmar":
@@ -166,6 +169,22 @@ class TestMMARDownload(unittest.TestCase):
         if name == "load_from_mmar":
             with self.assertRaisesRegex(DeprecatedError, "disabled.*security.*MONAI Bundles"):
                 inspect.unwrap(module.load_from_mmar)("test_model")
+
+    def test_download_mmar_string_item_warns_once(self):
+        """Resolving a string model ID inside `download_mmar` must not add a second deprecation warning."""
+        spec = spec_from_file_location("monai.apps.mmars._mmars_deprecation_test", mmars.__file__)
+        assert spec is not None and spec.loader is not None
+        module = module_from_spec(spec)
+        with patch("monai.utils.deprecate_utils.deprecated", partial(deprecated, version_val="1.7.0")):
+            spec.loader.exec_module(module)
+
+        with patch.object(module, "download_and_extract"), warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", FutureWarning)
+            module.download_mmar(MODEL_DESC[0]["id"], mmar_dir="mmars", api=False)
+
+        future_warnings = [warning for warning in captured if issubclass(warning.category, FutureWarning)]
+        self.assertEqual(len(future_warnings), 1)
+        self.assertRegex(str(future_warnings[0].message), "download_mmar.*deprecated")
 
     @parameterized.expand(
         [
