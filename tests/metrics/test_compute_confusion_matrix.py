@@ -389,8 +389,8 @@ class TestConfusionMatrix(unittest.TestCase):
         """Check likelihood-ratio / DOR aliases and edge cases on a per-class confusion matrix.
 
         Args:
-            confusion_matrix: a stacked [5, 4] confusion-matrix tensor, each row in
-                ``[tp, fp, tn, fn]`` order as produced by ``compute_confusion_matrix``.
+            confusion_matrix: a stacked [5, 4] confusion-matrix tensor with manually specified
+                counts, each row in ``[tp, fp, tn, fn]`` order.
         """
         # every advertised spelling must resolve to the same result (case/space-insensitive)
         for alias in ("lr+", "plr", "Positive Likelihood Ratio", "POSITIVE_LIKELIHOOD_RATIO"):
@@ -419,7 +419,12 @@ class TestConfusionMatrix(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_LR])
     def test_dor_equals_lr_ratio(self, confusion_matrix):
-        """DOR must equal LR+ / LR- wherever all three are defined (algebraic consistency)."""
+        """DOR must equal LR+ / LR- wherever all three are defined (algebraic consistency).
+
+        Args:
+            confusion_matrix: a stacked [5, 4] confusion-matrix tensor with manually specified
+                counts, each row in ``[tp, fp, tn, fn]`` order.
+        """
         plr = compute_confusion_matrix_metric("plr", confusion_matrix)
         nlr = compute_confusion_matrix_metric("nlr", confusion_matrix)
         dor = compute_confusion_matrix_metric("dor", confusion_matrix)
