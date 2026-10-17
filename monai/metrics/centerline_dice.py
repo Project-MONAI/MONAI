@@ -156,12 +156,24 @@ class CenterlineDiceMetric(CumulativeIterationMetric):
 
 
 def _skeletonize(mask: np.ndarray) -> np.ndarray:
-    """Compute the binary skeleton of a 2D or 3D mask (Zhang-Suen for 2D, Lee et al. for 3D)."""
+    """
+    Compute the binary skeleton of a non-empty 2D or 3D mask (Zhang-Suen for 2D, Lee et al. for 3D).
+
+    ``skimage``'s Lee method can return an empty skeleton for a non-empty 3D mask (e.g. small solid
+    blobs); in that case the mask itself is returned as its own skeleton, so a non-empty mask always
+    keeps at least one skeleton voxel.
+
+    Args:
+        mask: binary 2D or 3D mask.
+
+    Returns:
+        np.ndarray: the skeleton of ``mask``, or ``mask`` itself when it is empty or its
+            skeletonization is empty.
+    """
     if not mask.any():
         return mask
-    if mask.ndim == 2:
-        return skeletonize(mask)
-    return skeletonize(mask, method="lee")
+    skel = skeletonize(mask) if mask.ndim == 2 else skeletonize(mask, method="lee")
+    return skel if skel.any() else mask
 
 
 def compute_centerline_dice(
@@ -174,7 +186,9 @@ def compute_centerline_dice(
     In the case of a class being present neither in the predicted segmentation nor in the reference
     segmentation, a nan value is returned for this class. In the case of a class being present in
     only one of predicted segmentation or reference segmentation, 0 is returned for this class
-    (a missing prediction cannot cover the reference skeleton and vice versa).
+    (a missing prediction cannot cover the reference skeleton and vice versa). When the skeleton of
+    a non-empty mask is empty (``skimage``'s Lee method can produce this for small solid 3D blobs),
+    the mask itself is used as its own skeleton, so that identical masks always score 1.
 
     Args:
         y_pred: binarized prediction tensor, one-hot encoded, shape BCHW[D].

@@ -90,6 +90,20 @@ class TestComputeCenterlineDice(unittest.TestCase):
         result = compute_centerline_dice(y_pred=_to_bc(sub), y=ref, metric_name="cldsc")
         np.testing.assert_allclose(result.cpu().numpy(), [[0.75]], rtol=1e-5)
 
+    def test_solid_blob_fallback(self):
+        # skimage's Lee method returns an empty skeleton for small solid 3D blobs such as a 2x2x2
+        # cube; the mask fallback must still give identical masks a score of 1 (all metrics) and
+        # disjoint solid blobs a clDSC of 0
+        cube = np.zeros((7, 7, 7), dtype=np.float32)
+        cube[2:4, 2:4, 2:4] = 1.0
+        for params in ({"metric_name": "cldsc"}, {"metric_name": "tprec"}, {"metric_name": "tsens"}):
+            result = compute_centerline_dice(y_pred=_to_bc(cube), y=_to_bc(cube), **params)
+            np.testing.assert_allclose(result.cpu().numpy(), [[1.0]], rtol=1e-5)
+        shifted = np.zeros((7, 7, 7), dtype=np.float32)
+        shifted[4:6, 4:6, 4:6] = 1.0
+        result = compute_centerline_dice(y_pred=_to_bc(cube), y=_to_bc(shifted))
+        np.testing.assert_allclose(result.cpu().numpy(), [[0.0]], rtol=1e-5)
+
     def test_thick_structure(self):
         # identical thick masks score 1 regardless of the skeleton shape
         thick = np.zeros((9, 9), dtype=np.float32)
