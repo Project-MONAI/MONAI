@@ -88,6 +88,30 @@ for p in TEST_NDARRAYS_ALL:
         ]
     )
 
+    # a large 3x3 blob plus a single disconnected pixel (e.g. a scanner marker/text annotation) --
+    # keep_largest_component=True drops the isolated pixel before computing the box, so only the
+    # blob is cropped out instead of a box that stretches to cover both.
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "keep_largest_component": True},
+            p(
+                [
+                    [
+                        [0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 0, 0, 0],
+                    ]
+                ]
+            ),
+            p([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]]),
+            True,
+        ]
+    )
+
     TEST_LAZY_ERROR.append(
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
