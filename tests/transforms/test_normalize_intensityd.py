@@ -100,7 +100,11 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
 
     @parameterized.expand([[False], [True]])
     def test_inverse_nonzero_noncontiguous(self, channel_wise):
-        """Restore transposed dictionary values without losing their zeroed voxels."""
+        """Restore transposed dictionary values without losing their zeroed voxels.
+
+        Args:
+            channel_wise: whether each channel is normalized independently.
+        """
         self.addCleanup(set_track_meta, get_track_meta())
         set_track_meta(True)
         img = MetaTensor(torch.tensor([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 0.0], [0.0, 2.0]]])).transpose(1, 2)
