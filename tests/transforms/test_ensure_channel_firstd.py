@@ -75,6 +75,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             EnsureChannelFirstd("img", strict_check=False, channel_dim=None)({"img": im_nodim})
 
     def test_default_channel_first(self):
+        """A channel-less tensor gets a leading channel dim."""
         im = torch.rand(4, 4)
         result = EnsureChannelFirstd("img", channel_dim="no_channel")({"img": im})
 
@@ -82,6 +83,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
 
     @parameterized.expand([((8, 8, 8), 3), ((8, 8), 2)])
     def test_no_channel_spatial_ndim(self, shape, expected):
+        """spatial_ndim follows the affine after a channel dim is added to channel-less input."""
         affine = np.eye(4)
         affine[:3, 3] = [10.0, 20.0, 30.0]
         im = MetaTensor(torch.zeros(shape), affine=affine)
@@ -90,6 +92,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
         self.assertEqual(result["img"].spatial_ndim, expected)
 
     def test_no_channel_crop_affine(self):
+        """A crop after adding a channel dim shifts the affine origin on all spatial axes."""
         affine = np.eye(4)
         affine[:3, 3] = [10.0, 20.0, 30.0]
         im = MetaTensor(torch.zeros((8, 8, 8)), affine=affine)

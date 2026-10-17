@@ -197,6 +197,16 @@ class EnsureChannelFirst(Transform):
     def __call__(self, img: torch.Tensor, meta_dict: Mapping | None = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
+
+        If the input has no channel dim, a channel dim is added and the ``spatial_ndim`` of the
+        output ``MetaTensor`` is derived again from its affine.
+
+        Args:
+            img: the input image.
+            meta_dict: metadata dictionary of `img`, used when `img` is not a ``MetaTensor``.
+
+        Returns:
+            the image with the channel dim first.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
             if self.input_channel_dim is None:
