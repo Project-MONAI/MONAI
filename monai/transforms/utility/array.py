@@ -231,7 +231,12 @@ class EnsureChannelFirst(Transform):
         else:
             result = moveaxis(img, int(channel_dim), 0)  # type: ignore
 
-        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
+        result = convert_to_tensor(result, track_meta=get_track_meta())
+        if is_no_channel(channel_dim) and isinstance(result, MetaTensor) and result.affine.ndim == 2:
+            # the cached spatial_ndim may have been clamped while the input had no channel dim,
+            # so derive it again from the affine now that the channel dim exists
+            result.spatial_ndim = _normalize_spatial_ndim(result.affine.shape[-1] - 1, result.ndim)
+        return result  # type: ignore
 
 
 class RepeatChannel(Transform):
