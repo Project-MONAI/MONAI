@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses.image_dissimilarity import LocalNormalizedCrossCorrelationLoss, make_gaussian_kernel
+from tests.test_utils import test_export_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -180,11 +181,11 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             LocalNormalizedCrossCorrelationLoss(reduction=None)(pred, target)
 
+    def test_export(self):
+        input_param, input_data, _ = TEST_CASES[0]
+        loss = LocalNormalizedCrossCorrelationLoss(**input_param)
+        test_export_save(loss, input_data["pred"], input_data["target"])
 
-#     def test_script(self):
-#         input_param, input_data, _ = TEST_CASES[0]
-#         loss = LocalNormalizedCrossCorrelationLoss(**input_param)
-#         test_script_save(loss, input_data["pred"], input_data["target"])
 
 if __name__ == "__main__":
     unittest.main()

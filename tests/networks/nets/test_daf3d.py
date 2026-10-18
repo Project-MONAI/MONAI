@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DAF3D
 from monai.utils import optional_import
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 _, has_tv = optional_import("torchvision")
 
@@ -51,11 +51,11 @@ class TestDAF3D(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
         self.assertEqual(result.shape, expected_shape)
 
-    @unittest.skip("daf3d: torchscript not currently supported")
-    def test_script(self):
+    @unittest.skip("daf3d: export not currently supported")
+    def test_export(self):
         net = DAF3D(in_channels=1, out_channels=1)
         test_data = torch.randn(16, 1, 32, 32)
-        test_script_save(net, test_data)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

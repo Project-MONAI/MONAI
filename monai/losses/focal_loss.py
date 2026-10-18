@@ -129,6 +129,11 @@ class FocalLoss(_Loss):
         else:
             self.alpha = torch.as_tensor(alpha)
         weight = torch.as_tensor(weight) if weight is not None else None
+        if weight is not None:
+            if weight.numel() == 0:
+                raise ValueError("`weight` must not be empty.")
+            if weight.min() < 0:
+                raise ValueError("the value/values of the `weight` should be no less than 0.")
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
         self.ignore_index = ignore_index
@@ -210,12 +215,8 @@ class FocalLoss(_Loss):
                         f"The number of class_weight ({cw.numel()}) must match the number of "
                         f"output channels ({num_classes})."
                     )
-                if (cw < 0).any():
-                    raise ValueError("class_weight values must be non-negative.")
-            else:
-                if cw < 0:
-                    raise ValueError("class_weight values must be non-negative.")
 
+            # class_weight values are validated in __init__, keeping forward free of data-dependent checks
             if cw.ndim == 0:
                 loss = loss * cw
             else:

@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import JukeboxLoss
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save
 
 TEST_CASES = [
     [
@@ -76,10 +76,10 @@ class TestJukeboxLoss(unittest.TestCase):
         results = JukeboxLoss(spatial_dims=3, reduction="none").forward(**TEST_CASES[2][1])
         self.assertEqual(results.shape, (1, 2, 2, 2, 3))
 
-    def test_script(self):
+    def test_export(self):
         loss = JukeboxLoss(spatial_dims=2)
         test_input = torch.ones(2, 1, 8, 8)
-        test_script_save(loss, test_input, test_input)
+        test_export_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":
