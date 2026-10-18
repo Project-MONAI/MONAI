@@ -222,6 +222,14 @@ class TestSpatialResample(unittest.TestCase):
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
 
+    @parameterized.expand([(False, None), (False, -1), (True, None), (True, -1)])
+    def test_1d_unchanged(self, lazy, spatial_size):
+        img = MetaTensor(torch.arange(8, dtype=torch.float32).reshape(1, 8))
+        result = SpatialResample(lazy=lazy)(img, spatial_size=spatial_size)
+        assert_allclose(result, img)
+        assert_allclose(result.peek_pending_affine(), img.affine)
+        self.assertEqual(tuple(result.peek_pending_shape()), (8,))
+
     def test_unchange(self):
         for i, p in enumerate(TEST_NDARRAYS_ALL):
             set_track_meta(i % 2)

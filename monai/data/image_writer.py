@@ -266,12 +266,14 @@ class ImageWriter:
                 The output data type of this method is always ``np.float32``.
         """
         orig_type = type(data_array)
-        data_array = convert_to_tensor(data_array, track_meta=True)
-        if affine is not None:
-            data_array.affine = convert_to_tensor(affine, track_meta=False)  # type: ignore
+        # Add the channel dimension before inferring the spatial rank from the affine.
+        data_array = convert_to_tensor(data_array[None], track_meta=True)
+        data_array.affine = (
+            convert_to_tensor(affine, track_meta=False) if affine is not None else data_array.affine
+        )  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array = resampler(
-            data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape  # type: ignore
+            data_array, dst_affine=target_affine, spatial_size=output_spatial_shape  # type: ignore
         )
         # convert back at the end
         if isinstance(output_array, MetaTensor):
