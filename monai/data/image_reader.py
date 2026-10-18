@@ -1159,6 +1159,14 @@ class NvImgCodecPydicomReader(PydicomReader):
             to_gpu=False,
             **kwargs,
         )
+
+        self._nvimgcodec_available = False
+        self._setup_done = False
+
+    def _ensure_setup(self) -> None:
+        """Import and register the nvImageCodec plugin on first use only."""
+        if self._setup_done:
+            return
         from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available, register_as_decoder_plugin
 
         self._nvimgcodec_available = is_nvimgcodec_available()
@@ -1167,14 +1175,21 @@ class NvImgCodecPydicomReader(PydicomReader):
                 "NvImgCodecPydicomReader: nvImageCodec decoder plugin did not register successfully. "
                 "Falling back to default pydicom decoders."
             )
+        self._setup_done = True
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files are DICOM and nvImageCodec is available.
         """
+        self._ensure_setup()
         if not has_pydicom or not self._nvimgcodec_available:
             return False
         return is_dicom_path(filename)
+
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
+        """Set up the nvImageCodec plugin on first use, then read as PydicomReader does."""
+        self._ensure_setup()
+        return super().read(data, **kwargs)
 
 
 @require_pkg(pkg_name="nibabel")
