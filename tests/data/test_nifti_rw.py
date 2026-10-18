@@ -251,6 +251,11 @@ class TestNiftiLoadRead(unittest.TestCase):
 
     @parameterized.expand([((64, 64),), ((8, 64, 64),)])
     def test_write_without_original_affine_and_spatial_shape(self, shape):
+        """Verify channel-less NIfTI writing preserves shape, voxel values, and affine without target metadata.
+
+        Args:
+            shape: Shape of the channel-less 2D or 3D input array.
+        """
         data = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii")
