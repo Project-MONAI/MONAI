@@ -30,7 +30,7 @@ import torch.nn as nn
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, _has_explicit_no_channel, get_spatial_ndim
+from monai.data.meta_tensor import MetaTensor, _has_explicit_no_channel, _normalize_spatial_ndim, get_spatial_ndim
 from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
