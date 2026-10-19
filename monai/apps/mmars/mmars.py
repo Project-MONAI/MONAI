@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Utilities for accessing Nvidia MMARs
+Deprecated utilities for accessing Nvidia MMARs. Use MONAI Bundles instead.
 
 See Also:
     - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
@@ -18,18 +18,13 @@ See Also:
 from __future__ import annotations
 
 import json
-import os
-import warnings
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import torch
-
-import monai.networks.nets as monai_nets
-from monai.apps.utils import download_and_extract, logger
+from monai.apps.utils import download_and_extract
 from monai.config.type_definitions import PathLike
-from monai.networks.utils import copy_model_state
+from monai.utils.deprecate_utils import DeprecatedError, deprecated
 from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
@@ -38,8 +33,21 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-def get_model_spec(idx: int | str) -> dict | Any:
-    """get model specification by `idx`. `idx` could be index of the constant tuple of dict or the actual model ID."""
+def _get_model_spec(idx: int | str) -> dict | Any:
+    """
+    Look up a model specification without emitting a deprecation warning.
+
+    Args:
+        idx: An index into ``MODEL_DESC`` or a model ID. Negative indices count from the end.
+            Model IDs ignore case and leading or trailing whitespace.
+
+    Returns:
+        The matching model specification. Unknown IDs and inputs other than integers or strings
+        are returned unchanged.
+
+    Raises:
+        IndexError: If an integer index is outside the range of ``MODEL_DESC``.
+    """
     if isinstance(idx, int):
         return MODEL_DESC[idx]
     if isinstance(idx, str):
@@ -48,6 +56,21 @@ def get_model_spec(idx: int | str) -> dict | Any:
             if str(cand.get(Keys.ID)).strip().lower() == key:
                 return cand
     return idx
+
+
+@deprecated(
+    since="1.7.0",
+    removed="1.9.0",
+    msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.",
+)
+def get_model_spec(idx: int | str) -> dict | Any:
+    """
+    Get a model specification by index or model ID.
+
+    .. deprecated:: 1.7.0
+        NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
+    """
+    return _get_model_spec(idx)
 
 
 def _get_all_ngc_models(pattern, page_index=0, page_size=50):
@@ -99,15 +122,19 @@ def _get_ngc_url(model_name: str, version: str, model_prefix: str = "") -> str:
     return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
-def _get_ngc_doc_url(model_name: str, model_prefix: str = "") -> str:
-    return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
-
-
+@deprecated(
+    since="1.7.0",
+    removed="1.9.0",
+    msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.",
+)
 def download_mmar(
     item: str | Mapping, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1
 ) -> Path:
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
+
+    .. deprecated:: 1.7.0
+        NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
 
     See Also:
         - https://docs.nvidia.com/clara/
@@ -165,7 +192,7 @@ def download_mmar(
         return model_dir_list[0]
 
     if not isinstance(item, Mapping):
-        item = get_model_spec(item)
+        item = _get_model_spec(item)
     ver = item.get(Keys.VERSION, 1)
     if version > 0:
         ver = str(version)
@@ -185,6 +212,11 @@ def download_mmar(
     return model_dir
 
 
+@deprecated(
+    since="1.7.0",
+    removed="1.9.0",
+    msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.",
+)
 def load_from_mmar(
     item: Mapping | str | int,
     mmar_dir: PathLike | None = None,
@@ -198,117 +230,31 @@ def load_from_mmar(
     model_file: PathLike | None = None,
 ) -> Any:
     """
-    Download and extract Medical Model Archive (MMAR) model weights from Nvidia Clara Train.
+    Disabled loader for NVIDIA Clara Medical Model Archive (MMAR) models.
+
+    .. deprecated:: 1.7.0
+        Loading MMAR models is disabled for security reasons. This function will be removed
+        in version 1.9.0. Use MONAI Bundles instead.
+
+    Every call raises :class:`monai.utils.DeprecatedError` before downloading or
+    loading a model. The arguments are kept for compatibility and are ignored.
+    Their former meanings are listed below.
 
     Args:
         item: the corresponding model item from `MODEL_DESC`.
-        mmar_dir: : target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
+        mmar_dir: target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar when downloading the content.
         version: version number of the MMAR. Set it to `-1` to use `item[Keys.VERSION]`.
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
         pretrained: whether to load the pretrained weights after initializing a network module.
         weights_only: whether to load only the weights instead of initializing the network module and assign weights.
         model_key: a key to search in the model file or config file for the model dictionary.
-            Currently this function assumes that the model dictionary has
+            The model dictionary was expected to have
             `{"[name|path]": "test.module", "args": {'kw': 'test'}}`.
-        api: whether to query NGC API to get model infomation.
+        api: whether to query NGC API to get model information.
         model_file: the relative path to the model file within an MMAR.
 
-    Examples::
-        >>> from monai.apps import load_from_mmar
-        >>> unet_model = load_from_mmar("clara_pt_prostate_mri_segmentation_1", mmar_dir=".", map_location="cpu")
-        >>> print(unet_model)
-
-    See Also:
-        https://docs.nvidia.com/clara/
+    Raises:
+        DeprecatedError: always, because MMAR loading is disabled for security reasons.
     """
-    if api:
-        item = {Keys.NAME: get_model_spec(item)[Keys.NAME] if isinstance(item, int) else f"{item}"}
-    if not isinstance(item, Mapping):
-        item = get_model_spec(item)
-    model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version, api=api)
-    if model_file is None:
-        model_file = os.path.join("models", "model.pt")
-    _model_file = model_dir / item.get(Keys.MODEL_FILE, model_file)
-    logger.info(f'\n*** "{item.get(Keys.NAME)}" available at {model_dir}.')
-
-    # loading with `torch.jit.load`
-    if _model_file.name.endswith(".ts"):
-        if not pretrained:
-            warnings.warn("Loading a ScriptModule, 'pretrained' option ignored.")
-        if weights_only:
-            warnings.warn("Loading a ScriptModule, 'weights_only' option ignored.")
-        return torch.jit.load(_model_file, map_location=map_location)
-
-    # loading with `torch.load`
-    model_dict = torch.load(_model_file, map_location=map_location, weights_only=True)
-    if weights_only:
-        return model_dict.get(model_key, model_dict)  # model_dict[model_key] or model_dict directly
-
-    # 1. search `model_dict['train_config]` for model config spec.
-    model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
-    if not model_config or not isinstance(model_config, Mapping):
-        # 2. search json CONFIG_FILE for model config spec.
-        json_path = model_dir / item.get(Keys.CONFIG_FILE, os.path.join("config", "config_train.json"))
-        with open(json_path) as f:
-            conf_dict = json.load(f)
-        conf_dict = dict(conf_dict)
-        model_config = _get_val(conf_dict, key=model_key, default={})
-    if not model_config:
-        # 3. search `model_dict` for model config spec.
-        model_config = _get_val(dict(model_dict), key=model_key, default={})
-
-    if not (model_config and isinstance(model_config, Mapping)):
-        raise ValueError(
-            f"Could not load model config dictionary from config: {item.get(Keys.CONFIG_FILE)}, "
-            f"or from model file: {item.get(Keys.MODEL_FILE)}."
-        )
-
-    # parse `model_config` for model class and model parameters
-    if model_config.get("name"):  # model config section is a "name"
-        model_name = model_config["name"]
-        model_cls = monai_nets.__dict__[model_name]
-    elif model_config.get("path"):  # model config section is a "path"
-        # https://docs.nvidia.com/clara/clara-train-sdk/pt/byom.html
-        model_module, model_name = model_config.get("path", ".").rsplit(".", 1)
-        model_cls, has_cls = optional_import(module=model_module, name=model_name)
-        if not has_cls:
-            raise ValueError(
-                f"Could not load MMAR model config {model_config.get('path', '')}, "
-                f"Please make sure MMAR's sub-folders in '{model_dir}' is on the PYTHONPATH."
-                "See also: https://docs.nvidia.com/clara/clara-train-sdk/pt/byom.html"
-            )
-    else:
-        raise ValueError(f"Could not load model config {model_config}.")
-
-    logger.info(f"*** Model: {model_cls}")
-    model_kwargs = model_config.get("args", None)
-    if model_kwargs:
-        model_inst = model_cls(**model_kwargs)
-        logger.info(f"*** Model params: {model_kwargs}")
-    else:
-        model_inst = model_cls()
-    if pretrained:
-        _, changed, unchanged = copy_model_state(model_inst, model_dict.get(model_key, model_dict), inplace=True)
-        if not (changed and not unchanged):  # not all model_inst variables are changed
-            logger.warning(f"*** Loading model state -- unchanged: {len(unchanged)}, changed: {len(changed)}.")
-    logger.info("\n---")
-    doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
-    logger.info(f"For more information, please visit {doc_url}\n")
-    return model_inst
-
-
-def _get_val(input_dict: Mapping, key: str = "model", default: Any | None = None) -> Any | None:
-    """
-    Search for the item with `key` in `config_dict`.
-    Returns: the first occurrence of `key` in a breadth first search.
-    """
-    if key in input_dict:
-        return input_dict[key]
-    for sub_dict in input_dict:
-        val = input_dict[sub_dict]
-        if isinstance(val, Mapping):
-            found_val = _get_val(val, key=key, default=None)
-            if found_val is not None:
-                return found_val
-    return default
+    raise DeprecatedError("load_from_mmar is disabled for security reasons. Please use MONAI Bundles instead.")
