@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
 from typing import Any
 
 import numpy as np
@@ -384,38 +385,59 @@ class TestConfusionMatrix(unittest.TestCase):
         assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
-    @parameterized.expand([TEST_CASE_LR])
-    def test_likelihood_ratios(self, confusion_matrix):
-        """Check likelihood-ratio / DOR aliases and edge cases on a per-class confusion matrix.
+    @parameterized.expand(
+        product(TEST_CASE_LR, ["lr+", "plr", "Positive Likelihood Ratio", "POSITIVE_LIKELIHOOD_RATIO"])
+    )
+    def test_likelihood_ratios_plr(self, confusion_matrix, alias):
+        """Check the positive likelihood ratio under every advertised alias.
 
         Args:
             confusion_matrix: a stacked [5, 4] confusion-matrix tensor with manually specified
                 counts, each row in ``[tp, fp, tn, fn]`` order.
+            alias: the metric-name spelling to resolve (case/space-insensitive).
         """
-        # every advertised spelling must resolve to the same result (case/space-insensitive)
-        for alias in ("lr+", "plr", "Positive Likelihood Ratio", "POSITIVE_LIKELIHOOD_RATIO"):
-            plr = compute_confusion_matrix_metric(alias, confusion_matrix)
-            assert_allclose(plr[0], torch.tensor(3.6), atol=1e-4, rtol=1e-4)
-            self.assertTrue(torch.isnan(plr[1]))
-            assert_allclose(plr[2], torch.tensor(1.0), atol=1e-4, rtol=1e-4)
-            assert_allclose(plr[3], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
-            self.assertTrue(torch.isnan(plr[4]))
-        for alias in ("lr-", "nlr", "Negative Likelihood Ratio", "NEGATIVE_LIKELIHOOD_RATIO"):
-            nlr = compute_confusion_matrix_metric(alias, confusion_matrix)
-            assert_allclose(nlr[0], torch.tensor(0.2 / (70.0 / 90.0)), atol=1e-4, rtol=1e-4)
-            assert_allclose(nlr[1], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
-            # sample 2 has tn == 0 (zero specificity), so LR- is undefined -> NaN
-            self.assertTrue(torch.isnan(nlr[2]))
-            assert_allclose(nlr[3], torch.tensor(2.0), atol=1e-4, rtol=1e-4)
-            self.assertTrue(torch.isnan(nlr[4]))
-        for alias in ("dor", "Diagnostic Odds Ratio", "DIAGNOSTIC_ODDS_RATIO"):
-            dor = compute_confusion_matrix_metric(alias, confusion_matrix)
-            assert_allclose(dor[0], torch.tensor(14.0), atol=1e-4, rtol=1e-4)
-            # samples 1 / 2 have fp * fn == 0, so the odds ratio is undefined -> NaN
-            self.assertTrue(torch.isnan(dor[1]))
-            self.assertTrue(torch.isnan(dor[2]))
-            assert_allclose(dor[3], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
-            self.assertTrue(torch.isnan(dor[4]))
+        plr = compute_confusion_matrix_metric(alias, confusion_matrix)
+        assert_allclose(plr[0], torch.tensor(3.6), atol=1e-4, rtol=1e-4)
+        self.assertTrue(torch.isnan(plr[1]))
+        assert_allclose(plr[2], torch.tensor(1.0), atol=1e-4, rtol=1e-4)
+        assert_allclose(plr[3], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
+        self.assertTrue(torch.isnan(plr[4]))
+
+    @parameterized.expand(
+        product(TEST_CASE_LR, ["lr-", "nlr", "Negative Likelihood Ratio", "NEGATIVE_LIKELIHOOD_RATIO"])
+    )
+    def test_likelihood_ratios_nlr(self, confusion_matrix, alias):
+        """Check the negative likelihood ratio under every advertised alias.
+
+        Args:
+            confusion_matrix: a stacked [5, 4] confusion-matrix tensor with manually specified
+                counts, each row in ``[tp, fp, tn, fn]`` order.
+            alias: the metric-name spelling to resolve (case/space-insensitive).
+        """
+        nlr = compute_confusion_matrix_metric(alias, confusion_matrix)
+        assert_allclose(nlr[0], torch.tensor(0.2 / (70.0 / 90.0)), atol=1e-4, rtol=1e-4)
+        assert_allclose(nlr[1], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
+        # sample 2 has tn == 0 (zero specificity), so LR- is undefined -> NaN
+        self.assertTrue(torch.isnan(nlr[2]))
+        assert_allclose(nlr[3], torch.tensor(2.0), atol=1e-4, rtol=1e-4)
+        self.assertTrue(torch.isnan(nlr[4]))
+
+    @parameterized.expand(product(TEST_CASE_LR, ["dor", "Diagnostic Odds Ratio", "DIAGNOSTIC_ODDS_RATIO"]))
+    def test_likelihood_ratios_dor(self, confusion_matrix, alias):
+        """Check the diagnostic odds ratio under every advertised alias.
+
+        Args:
+            confusion_matrix: a stacked [5, 4] confusion-matrix tensor with manually specified
+                counts, each row in ``[tp, fp, tn, fn]`` order.
+            alias: the metric-name spelling to resolve (case/space-insensitive).
+        """
+        dor = compute_confusion_matrix_metric(alias, confusion_matrix)
+        assert_allclose(dor[0], torch.tensor(14.0), atol=1e-4, rtol=1e-4)
+        # samples 1 / 2 have fp * fn == 0, so the odds ratio is undefined -> NaN
+        self.assertTrue(torch.isnan(dor[1]))
+        self.assertTrue(torch.isnan(dor[2]))
+        assert_allclose(dor[3], torch.tensor(0.0), atol=1e-4, rtol=1e-4)
+        self.assertTrue(torch.isnan(dor[4]))
 
     @parameterized.expand([TEST_CASE_LR])
     def test_dor_equals_lr_ratio(self, confusion_matrix):
