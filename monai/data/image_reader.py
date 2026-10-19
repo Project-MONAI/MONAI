@@ -1087,7 +1087,7 @@ class NvImgCodecPydicomReader(PydicomReader):
     Load DICOM images using Pydicom with GPU-accelerated decompression via nvImageCodec.
 
     This reader extends :py:class:`PydicomReader` and registers the nvImageCodec pydicom
-    decoder plugin on initialization. The plugin accelerates decoding of compressed pixel data
+    decoder plugin lazily on first use. The plugin accelerates decoding of compressed pixel data
     for JPEG, JPEG 2000, and HTJ2K transfer syntaxes when CUDA, CuPy and ``nvidia-nvimgcodec`` are available.
 
     If nvImageCodec is not available, a warning is issued and the reader falls back to the
@@ -1117,8 +1117,8 @@ class NvImgCodecPydicomReader(PydicomReader):
 
         This reader only declares ``@require_pkg(pkg_name="pydicom")`` so that :py:class:`monai.transforms.LoadImage`
         can register it without hard-failing when GPU dependencies are missing. ``pydicom`` is required to construct
-        the reader; nvimgcodec, CUDA, and CuPy availability is checked at runtime with a warning issued and fallback to
-        default pydicom decoders if missing.
+        the reader; nvImageCodec, CUDA, and CuPy availability is checked when a DICOM file is verified or read.
+        If the plugin is unavailable or registration fails, the reader falls back to the default pydicom decoders.
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
@@ -1181,13 +1181,20 @@ class NvImgCodecPydicomReader(PydicomReader):
         """
         Verify whether the specified file or files are DICOM and nvImageCodec is available.
         """
-        self._ensure_setup()
-        if not has_pydicom or not self._nvimgcodec_available:
+        if not has_pydicom or not is_dicom_path(filename):
             return False
-        return is_dicom_path(filename)
+        self._ensure_setup()
+        return self._nvimgcodec_available
 
     def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
-        """Set up the nvImageCodec plugin on first use, then read as PydicomReader does."""
+        """Read image data using the configured reader.
+
+        Args:
+            data: Input image data or file path.
+            **kwargs: Additional arguments passed to the underlying reader.
+
+        Returns:
+            The image data returned by the underlying reader."""
         self._ensure_setup()
         return super().read(data, **kwargs)
 
