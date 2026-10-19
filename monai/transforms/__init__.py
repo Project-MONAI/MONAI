@@ -91,6 +91,7 @@ from .croppad.dictionary import (
 )
 from .croppad.functional import crop_func, crop_or_pad_nd, pad_func, pad_nd
 from .intensity.array import (
+    CLAHE,
     AdjustContrast,
     ClipIntensityPercentiles,
     ComputeHoVerMaps,
@@ -133,9 +134,12 @@ from .intensity.array import (
     UltrasoundConfidenceMapTransform,
 )
 from .intensity.dictionary import (
+    CLAHED,
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    CLAHEd,
+    CLAHEDict,
     ClipIntensityPercentilesd,
     ClipIntensityPercentilesD,
     ClipIntensityPercentilesDict,
@@ -695,6 +699,7 @@ from .utils import (
     allow_missing_keys_mode,
     attach_hook,
     check_non_lazy_pending_ops,
+    clahe,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
