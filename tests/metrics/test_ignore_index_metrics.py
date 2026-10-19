@@ -24,6 +24,8 @@ from monai.metrics import (
     MeanIoU,
     SurfaceDiceMetric,
     SurfaceDistanceMetric,
+    compute_dice,
+    compute_iou,
 )
 from monai.utils import optional_import
 
@@ -141,6 +143,42 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
             res2 = res2[0]
 
         torch.testing.assert_close(res1, res2, msg=f"Failed for {metric_class.__name__}")
+
+    def test_ignored_voxels_excluded_from_other_classes(self):
+        """Ignored voxels must be dropped from every class score, not just their own."""
+        # 4 voxels, 3 one-hot classes; voxel 1 belongs to the ignored class 1
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        # a perfect prediction except the ignored voxel is called class 0
+        y_pred = torch.tensor([[[1.0, 1.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+
+        iou = compute_iou(y_pred, y, include_background=True, ignore_index=1)
+        dice = compute_dice(y_pred, y, include_background=True, ignore_index=1)
+
+        # the mislabelled voxel is ignored, so class 0 is scored as perfect
+        self.assertEqual(iou[0, 0].item(), 1.0)
+        torch.testing.assert_close(iou, dice, equal_nan=True)
+
+    def test_ignored_voxels_excluded_with_include_background_false(self):
+        """The ignore_index mask must line up with the ignore_background channel strip."""
+        # 4 one-hot classes: 0=background, 1, 2=ignored, 3
+        y = torch.zeros(1, 4, 4)
+        y[0, 0, 0] = 1  # voxel 0 -> background
+        y[0, 2, 1] = 1  # voxel 1 -> ignored class
+        y[0, 1, 2] = 1  # voxel 2 -> class 1
+        y[0, 3, 3] = 1  # voxel 3 -> class 3
+
+        y_pred = y.clone()
+        # mislabel the ignored voxel as class 1 instead of leaving it unpredicted
+        y_pred[0, 2, 1] = 0
+        y_pred[0, 1, 1] = 1
+
+        iou = compute_iou(y_pred, y, include_background=False, ignore_index=2)
+        dice = compute_dice(y_pred, y, include_background=False, ignore_index=2)
+
+        # class 1's false positive at the ignored voxel must be dropped, not just
+        # its own (now background-stripped) channel
+        self.assertEqual(iou[0, 0].item(), 1.0)
+        torch.testing.assert_close(iou, dice, equal_nan=True)
 
 
 @unittest.skipUnless(has_scipy, "Scipy required for surface metrics")
