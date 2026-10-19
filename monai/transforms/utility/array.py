@@ -30,7 +30,7 @@ import torch.nn as nn
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, get_spatial_ndim
+from monai.data.meta_tensor import MetaTensor, _normalize_spatial_ndim, _has_explicit_no_channel, get_spatial_ndim
 from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
@@ -230,6 +230,17 @@ class EnsureChannelFirst(Transform):
             result = img[None]
         else:
             result = moveaxis(img, int(channel_dim), 0)  # type: ignore
+
+        # When a channel dim is added (channel_dim="no_channel"), the affine stays
+        # the same but the tensor gains a channel axis, so the cached `spatial_ndim`
+        # (derived from the input tensor's shape) would be too low. Refresh it from
+        # the affine, which is the source of truth for spatial dimensions, so that
+        # downstream lazy transforms (e.g. spatial crop) build translations with the
+        # correct number of axes and preserve the affine offset in world space.
+        if is_no_channel(channel_dim) and isinstance(result, MetaTensor):
+            result.spatial_ndim = _normalize_spatial_ndim(
+                result.affine.shape[-1] - 1, result.ndim, no_channel=_has_explicit_no_channel(result.meta)
+            )
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 

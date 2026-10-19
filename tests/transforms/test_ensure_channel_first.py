@@ -22,7 +22,7 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import EnsureChannelFirst, LoadImage
+from monai.transforms import EnsureChannelFirst, LoadImage, SpatialCrop
 from monai.utils import optional_import
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -107,6 +107,23 @@ class TestEnsureChannelFirst(unittest.TestCase):
         result = EnsureChannelFirst(channel_dim="no_channel")(im)
 
         self.assertEqual(result.shape, (1, 4, 4))
+
+    def test_ensure_channel_first_no_channel_affine_regression(self):
+        # Regression test for https://github.com/Project-MONAI/MONAI/issues/9184.
+        # EnsureChannelFirst(channel_dim="no_channel") must refresh the cached
+        # `spatial_ndim` from the affine; otherwise a following spatial crop only
+        # shifts the first (N-1) axes and silently drops the last affine offset.
+        affine = np.eye(4)
+        affine[:3, 3] = [10, 20, 30]
+        img = MetaTensor(np.zeros((40, 40, 40), dtype=np.float32), affine=affine)
+
+        result = EnsureChannelFirst(channel_dim="no_channel")(img)
+        self.assertEqual(result.spatial_ndim, 3)
+        self.assertEqual(result.ndim, 4)
+
+        cropped = SpatialCrop(roi_start=[5, 5, 5], roi_end=[20, 20, 20])(result)
+        self.assertEqual(cropped.spatial_ndim, 3)
+        self.assertEqual(cropped.affine[:3, 3].tolist(), [15, 25, 35])
 
 
 if __name__ == "__main__":
