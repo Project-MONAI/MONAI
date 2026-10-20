@@ -58,6 +58,48 @@ TEST_CASES = [
 class TestContrastiveLoss(unittest.TestCase):
 
     @parameterized.expand(
+        [(temperature, dtype) for temperature in (0.5, 0.01, 0.001) for dtype in (torch.float16, torch.bfloat16)]
+    )
+    def test_reduced_precision_loss_and_gradients(self, temperature, dtype):
+        # All nonself similarities are 0.5, but the embedding gradients are nonzero.
+        vectors = torch.cat([torch.ones(4, 1), torch.eye(4)], dim=1).to(dtype)
+        inputs = vectors[:2].clone().requires_grad_()
+        targets = vectors[2:].clone().requires_grad_()
+        ref_inputs = inputs.detach().double().requires_grad_()
+        ref_targets = targets.detach().double().requires_grad_()
+        representations = torch.nn.functional.normalize(torch.cat([ref_inputs, ref_targets]), dim=1)
+        logits = (representations @ representations.T / temperature).masked_fill(
+            torch.eye(4, dtype=torch.bool), -torch.inf
+        )
+        expected = torch.nn.functional.cross_entropy(logits, torch.tensor([2, 3, 0, 1]))
+        result = ContrastiveLoss(temperature=temperature)(inputs, targets)
+        self.assertEqual(result.dtype, torch.float32)
+        torch.testing.assert_close(result.double(), expected, atol=1e-5, rtol=1e-5)
+        result.backward()
+        expected.backward()
+        torch.testing.assert_close(inputs.grad, ref_inputs.grad.to(dtype), atol=1e-4, rtol=1e-2)
+        torch.testing.assert_close(targets.grad, ref_targets.grad.to(dtype), atol=1e-4, rtol=1e-2)
+
+    @parameterized.expand([(1e-7, torch.float32), (1e-8, torch.float32), (1e-12, torch.float64)])
+    def test_small_temperature_cancellation(self, temperature, dtype):
+        inputs = torch.ones((2, 4), dtype=dtype, requires_grad=True)
+        targets = torch.ones_like(inputs, requires_grad=True)
+        result = ContrastiveLoss(temperature=temperature)(inputs, targets)
+        torch.testing.assert_close(result, result.new_tensor(math.log(3)), atol=1e-7, rtol=1e-7)
+        result.backward()
+        self.assertTrue(torch.isfinite(inputs.grad).all())
+        self.assertTrue(torch.isfinite(targets.grad).all())
+
+    def test_float16_batch_reduction(self):
+        # The mean is finite although a float16 sum of the per-anchor losses overflows.
+        batch_size, temperature = 1280, 0.1
+        inputs = torch.tensor([[1.0, 0.0]], dtype=torch.float16).repeat(batch_size, 1)
+        result = ContrastiveLoss(temperature=temperature)(inputs, -inputs)
+        expected = 2 / temperature + math.log(batch_size - 1 + batch_size * math.exp(-2 / temperature))
+        self.assertEqual(result.dtype, torch.float32)
+        torch.testing.assert_close(result, result.new_tensor(expected))
+
+    @parameterized.expand(
         [(temperature, dtype) for temperature in (0.01, 0.001) for dtype in (torch.float32, torch.float64)]
     )
     def test_identical_low_temperature(self, temperature, dtype):
