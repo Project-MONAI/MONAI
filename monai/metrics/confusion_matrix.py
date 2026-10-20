@@ -63,6 +63,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
             or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
             ignore_index to keep score values comparable.
+            For a single-channel binary target, ignoring channel 0 excludes locations where the target is 1.
 
     """
 
@@ -153,12 +154,14 @@ def get_confusion_matrix(
             The values should be binarized.
         y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
+            A single channel is a binary membership indicator, not a map of class IDs.
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
-            If ignore_index refers to a valid class channel, that channel is excluded and voxels with that
-            ground-truth label are excluded from all classes' counts. If it is outside the class range,
-            ignored regions are inferred from spatial locations where all label channels are zero.
+            For a valid class index, voxels belonging to that channel are excluded from all classes' counts.
+            The existing channel-exclusion behavior is retained. With a single-channel binary target,
+            ignore_index=0 excludes locations where the target is 1. Out-of-range values use all-zero
+            locations for multi-channel targets and direct value comparison for single-channel targets.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
@@ -182,7 +185,11 @@ def get_confusion_matrix(
             y = y.clone()
             y_pred[:, ignore_channel] = 0
             y[:, ignore_channel] = 0
-    mask = create_ignore_mask(original_y, ignore_index)
+    if original_y.shape[1] == 1 and ignore_index == 0:
+        # This API receives binary membership, while the shared helper assumes class IDs for one channel.
+        mask = (original_y == 0).float()
+    else:
+        mask = create_ignore_mask(original_y, ignore_index)
 
     # convert to [BNS], where S is the number of pixels for one sample.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
