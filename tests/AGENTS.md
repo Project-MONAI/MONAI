@@ -22,7 +22,7 @@ File names follow the convention in [CONTRIBUTING.md](../CONTRIBUTING.md#unit-te
 ```bash
 python -m tests.losses.test_dice_loss   # a single test module
 ./runtests.sh --quick --unittests       # fast local verification
-./runtests.sh -f -u --net --coverage    # what CI runs before a pull request
+./runtests.sh -f -u --net --coverage    # recommended before opening a pull request
 QUICKTEST=true python -m tests.min_tests  # the minimal suite, without optional dependencies
 ```
 

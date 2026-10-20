@@ -35,7 +35,7 @@ version numbers into prose.
 | `monai/config` | the `python -m monai.config` command line entry point |
 | `monai/_extensions` | optional compiled extensions loaded at runtime |
 | `tests` | unit tests, mirroring the `monai` tree |
-| `docs` | Sphinx sources, `docs/source/*.rst` |
+| `docs` | Sphinx sources: `docs/source/*.rst` and `docs/source/*.md` |
 
 ## Where the detail lives
 
@@ -51,7 +51,7 @@ version numbers into prose.
 ./runtests.sh --autofix               # format the working tree (isort + black)
 ./runtests.sh --codeformat            # style and static analysis checks
 ./runtests.sh --quick --unittests     # fast local verification
-./runtests.sh -f -u --net --coverage  # what CI runs before a pull request
+./runtests.sh -f -u --net --coverage  # recommended before opening a pull request
 python -m tests.losses.test_dice_loss  # run a single test module
 ```
 
