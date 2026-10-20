@@ -26,6 +26,7 @@ from monai.metrics import (
     SurfaceDistanceMetric,
     compute_dice,
     compute_iou,
+    get_confusion_matrix,
 )
 from monai.utils import optional_import
 
@@ -157,6 +158,49 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         # the mislabelled voxel is ignored, so class 0 is scored as perfect
         self.assertEqual(iou[0, 0].item(), 1.0)
         torch.testing.assert_close(iou, dice, equal_nan=True)
+
+    @parameterized.expand([(background, sample) for background in (True, False) for sample in (True, False)])
+    def test_confusion_matrix_excludes_ignored_voxels(self, include_background, compute_sample):
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        # The only error predicts class 2 at a voxel belonging to ignored class 1.
+        y_pred = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
+        metric = ConfusionMatrixMetric(
+            include_background=include_background,
+            metric_name="precision",
+            compute_sample=compute_sample,
+            reduction="none",
+            ignore_index=1,
+        )
+        metric(y_pred=y_pred, y=y)
+        class_index = 2 if include_background else 1
+        self.assertEqual(metric.aggregate()[0][0, class_index].item(), 1.0)
+        counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=1)
+        self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 2.0, 0.0])
+
+    @parameterized.expand([(True,), (False,)])
+    def test_confusion_matrix_excludes_ignored_background_from_negatives(self, include_background):
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        y_pred = y.clone()
+        y_pred[0, 0, 0] = 0.0
+        y_pred[0, 1, 0] = 1.0
+        counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=0)
+        class_index = 2 if include_background else 1
+        self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 1.0, 0.0])
+
+    def test_confusion_matrix_keeps_errors_on_valid_voxels(self):
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        y_pred = torch.tensor([[[0.0, 0.0, 0.0, 1.0], [1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
+        counts = get_confusion_matrix(y_pred, y, include_background=False, ignore_index=0)
+        self.assertEqual(counts[0, 0].tolist(), [0.0, 0.0, 1.0, 1.0])
+        self.assertEqual(counts[0, 1].tolist(), [1.0, 1.0, 0.0, 0.0])
+
+    @parameterized.expand([(True,), (False,)])
+    def test_confusion_matrix_sentinel_mask(self, include_background):
+        y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
+        y_pred = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
+        counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=255)
+        class_index = 2 if include_background else 1
+        self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 2.0, 0.0])
 
     def test_ignored_voxels_excluded_with_include_background_false(self):
         """The ignore_index mask must line up with the ignore_background channel strip."""
