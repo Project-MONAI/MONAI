@@ -219,8 +219,12 @@ class TestContrastiveComputeDtype(unittest.TestCase):
         torch.testing.assert_close(targets.grad, torch.zeros_like(targets), atol=1e-7, rtol=0)
 
     @parameterized.expand(
-        [(dtype, temperature) for dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float64)
-         for temperature in (0.5, 0.001)] + [(torch.float32, 1e-8), (torch.float64, 1e-8)]
+        [
+            (dtype, temperature)
+            for dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float64)
+            for temperature in (0.5, 0.001)
+        ]
+        + [(torch.float32, 1e-8), (torch.float64, 1e-8)]
     )
     def test_equivalent_to_casting_inputs(self, dtype, temperature):
         vectors = torch.cat([torch.ones(4, 1), torch.eye(4)], dim=1).to(dtype)
@@ -242,13 +246,33 @@ class TestContrastiveComputeDtype(unittest.TestCase):
         self.assertTrue(torch.isfinite(targets.grad).all())
 
     @parameterized.expand(
-        [(input_dtype, compute_dtype) for input_dtype in (torch.float32, torch.float64)
-         for compute_dtype in (None, torch.float32, torch.float64)]
+        [
+            (input_dtype, compute_dtype)
+            for input_dtype in (torch.float32, torch.float64)
+            for compute_dtype in (None, torch.float32, torch.float64)
+        ]
     )
     def test_output_dtype(self, input_dtype, compute_dtype):
         inputs = torch.ones((2, 3), dtype=input_dtype)
         result = ContrastiveLoss(compute_dtype=compute_dtype)(inputs, inputs)
         self.assertEqual(result.dtype, input_dtype if compute_dtype is None else compute_dtype)
+
+    @parameterized.expand([(None,), (torch.float32,), (torch.float64,)])
+    def test_mixed_input_dtype_backward(self, compute_dtype):
+        inputs = torch.tensor([[1.0, 0.2, -0.3], [-0.1, 0.7, 0.5]], requires_grad=True)
+        targets = torch.tensor([[0.8, -0.4, 0.1], [0.3, 0.6, -0.2]], dtype=torch.float64, requires_grad=True)
+        ref_inputs = inputs.detach().clone().requires_grad_()
+        ref_targets = targets.detach().clone().requires_grad_()
+        result = ContrastiveLoss(temperature=0.001, compute_dtype=compute_dtype)(inputs, targets)
+        expected_dtype = torch.float64 if compute_dtype is None else compute_dtype
+        expected = ContrastiveLoss(temperature=0.001)(ref_inputs.to(expected_dtype), ref_targets.to(expected_dtype))
+        torch.testing.assert_close(result, expected, atol=0, rtol=0)
+        result.backward()
+        expected.backward()
+        torch.testing.assert_close(inputs.grad, ref_inputs.grad, atol=0, rtol=0)
+        torch.testing.assert_close(targets.grad, ref_targets.grad, atol=0, rtol=0)
+        self.assertEqual(inputs.grad.dtype, torch.float32)
+        self.assertEqual(targets.grad.dtype, torch.float64)
 
     @parameterized.expand([(torch.float16,), (torch.bfloat16,), (torch.int64,), (torch.bool,), ("float64",)])
     def test_invalid_compute_dtype(self, compute_dtype):
