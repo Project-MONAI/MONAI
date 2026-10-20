@@ -163,6 +163,10 @@ def get_confusion_matrix(
             ignore_index=0 excludes locations where the target is 1. Out-of-range values use all-zero
             locations for multi-channel targets and direct value comparison for single-channel targets.
 
+    Returns:
+        Tensor of shape [B, C, 4], containing true positive, false positive, true negative, and false negative
+        counts, in that order, for each sample and evaluated channel.
+
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
     """
