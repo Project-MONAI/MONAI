@@ -805,6 +805,13 @@ Nets
 .. autoclass:: MedNeXt
    :members:
 
+`STU-Net`
+~~~~~~~~~
+.. autoclass:: STUNet
+   :members:
+
+.. autofunction:: create_stunet
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
