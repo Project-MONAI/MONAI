@@ -161,6 +161,7 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
 
     @parameterized.expand([(background, sample) for background in (True, False) for sample in (True, False)])
     def test_confusion_matrix_excludes_ignored_voxels(self, include_background, compute_sample):
+        """Exclude ignored-class voxels from counts and precision in both aggregation modes."""
         y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
         # The only error predicts class 2 at a voxel belonging to ignored class 1.
         y_pred = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
@@ -179,6 +180,7 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
 
     @parameterized.expand([(True,), (False,)])
     def test_confusion_matrix_excludes_ignored_background_from_negatives(self, include_background):
+        """Exclude ignored background voxels from every channel's negative counts."""
         y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
         y_pred = y.clone()
         y_pred[0, 0, 0] = 0.0
@@ -188,6 +190,7 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 1.0, 0.0])
 
     def test_confusion_matrix_keeps_errors_on_valid_voxels(self):
+        """Preserve false positives and false negatives at valid voxels."""
         y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
         y_pred = torch.tensor([[[0.0, 0.0, 0.0, 1.0], [1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
         counts = get_confusion_matrix(y_pred, y, include_background=False, ignore_index=0)
@@ -196,11 +199,60 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
 
     @parameterized.expand([(True,), (False,)])
     def test_confusion_matrix_sentinel_mask(self, include_background):
+        """Preserve sentinel masking with and without the background channel."""
         y = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]])
         y_pred = torch.tensor([[[1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]])
         counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=255)
         class_index = 2 if include_background else 1
         self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 2.0, 0.0])
+
+    @parameterized.expand(
+        [(background, dtype) for background in (True, False) for dtype in (torch.float32, torch.int64, torch.bool)]
+    )
+    def test_confusion_matrix_single_channel_ignore_class(self, include_background, dtype):
+        """Interpret a single channel as binary membership when ignoring class zero."""
+        y = torch.tensor([[[1, 1, 0]]], dtype=dtype)
+        y_pred = torch.ones_like(y)
+        counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=0)
+        expected = [0.0, 0.0, 1.0, 0.0] if include_background else [0.0, 1.0, 0.0, 0.0]
+        self.assertEqual(counts[0, 0].tolist(), expected)
+
+    def test_confusion_matrix_single_channel_specificity(self):
+        """Retain a false positive at the only valid single-channel voxel."""
+        y = torch.tensor([[[1.0, 1.0, 0.0]]])
+        metric = ConfusionMatrixMetric(
+            include_background=False, metric_name="specificity", reduction="none", ignore_index=0
+        )
+        metric(y_pred=torch.ones_like(y), y=y)
+        self.assertEqual(metric.aggregate()[0].item(), 0.0)
+
+    @parameterized.expand(
+        [
+            (True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]),
+            (False, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]),
+            (True, [0.0, 0.0, 0.0], [0.0, 0.0, 3.0, 0.0]),
+            (False, [0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0]),
+        ]
+    )
+    def test_confusion_matrix_single_channel_mask_extremes(self, include_background, labels, expected):
+        """Handle all-ignored and entirely valid single-channel spatial regions."""
+        y = torch.tensor([[labels]])
+        counts = get_confusion_matrix(torch.ones_like(y), y, include_background=include_background, ignore_index=0)
+        self.assertEqual(counts[0, 0].tolist(), expected)
+
+    @parameterized.expand([(True,), (False,)])
+    def test_confusion_matrix_single_channel_sentinel(self, include_background):
+        """Keep the existing out-of-range comparison for single-channel targets."""
+        y = torch.tensor([[[1.0, 1.0, 0.0]]])
+        counts = get_confusion_matrix(torch.ones_like(y), y, include_background=include_background, ignore_index=255)
+        self.assertEqual(counts[0, 0].tolist(), [2.0, 1.0, 0.0, 0.0])
+
+    @parameterized.expand([(True,), (False,)])
+    def test_confusion_matrix_single_channel_without_ignore(self, include_background):
+        """Leave the unmasked single-channel counts unchanged."""
+        y = torch.tensor([[[1.0, 1.0, 0.0]]])
+        counts = get_confusion_matrix(torch.ones_like(y), y, include_background=include_background)
+        self.assertEqual(counts[0, 0].tolist(), [2.0, 1.0, 0.0, 0.0])
 
     def test_ignored_voxels_excluded_with_include_background_false(self):
         """The ignore_index mask must line up with the ignore_background channel strip."""
