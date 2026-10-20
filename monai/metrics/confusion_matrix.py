@@ -156,8 +156,9 @@ def get_confusion_matrix(
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
-            If ignore_index refers to a valid class channel, that channel is excluded. If it is outside the
-            class range, ignored regions are inferred from spatial locations where all label channels are zero.
+            If ignore_index refers to a valid class channel, that channel is excluded and voxels with that
+            ground-truth label are excluded from all classes' counts. If it is outside the class range,
+            ignored regions are inferred from spatial locations where all label channels are zero.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
@@ -173,7 +174,7 @@ def get_confusion_matrix(
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
 
-    # Create spatial mask if ignore_index is provided
+    # Preserve exclusion of the ignored channel as well as its spatial locations.
     if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
         ignore_channel = ignore_index if include_background else ignore_index - 1
         if 0 <= ignore_channel < y_pred.shape[1]:
@@ -181,9 +182,7 @@ def get_confusion_matrix(
             y = y.clone()
             y_pred[:, ignore_channel] = 0
             y[:, ignore_channel] = 0
-        mask = None
-    else:
-        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+    mask = create_ignore_mask(original_y, ignore_index)
 
     # convert to [BNS], where S is the number of pixels for one sample.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
