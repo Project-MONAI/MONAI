@@ -220,6 +220,42 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         self.assertEqual(counts[0, class_index].tolist(), [1.0, 0.0, 2.0, 0.0])
 
     @parameterized.expand(
+        [
+            (background, ignore_index, dtype)
+            for background in (True, False)
+            for ignore_index in (0, 1, 2)
+            for dtype in (torch.float32, torch.int64, torch.bool)
+        ]
+    )
+    def test_confusion_matrix_multichannel_boolean(self, include_background, ignore_index, prediction_dtype):
+        """Exclude ignored voxels from boolean one-hot targets without mutating inputs.
+
+        Args:
+            include_background: whether to retain the background channel in the returned counts.
+            ignore_index: original class channel whose spatial locations must be excluded.
+            prediction_dtype: data type of the binarized prediction tensor.
+        """
+        y = torch.tensor([[[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]]], dtype=torch.bool)
+        y_pred = torch.tensor([[[1, 1, 0, 1], [0, 0, 0, 0], [0, 0, 1, 0]]], dtype=prediction_dtype)
+        original_y, original_pred = y.clone(), y_pred.clone()
+        expected = torch.tensor(
+            [
+                [[0, 0, 2, 0], [0, 0, 1, 1], [1, 0, 1, 0]],
+                [[2, 0, 1, 0], [0, 0, 3, 0], [1, 0, 2, 0]],
+                [[2, 1, 0, 0], [0, 0, 2, 1], [0, 0, 3, 0]],
+            ],
+            dtype=torch.float32,
+        )[ignore_index].unsqueeze(0)
+        if not include_background:
+            expected = expected[:, 1:]
+
+        counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=ignore_index)
+
+        torch.testing.assert_close(counts, expected)
+        torch.testing.assert_close(y, original_y)
+        torch.testing.assert_close(y_pred, original_pred)
+
+    @parameterized.expand(
         [(background, dtype) for background in (True, False) for dtype in (torch.float32, torch.int64, torch.bool)]
     )
     def test_confusion_matrix_single_channel_ignore_class(self, include_background, dtype):

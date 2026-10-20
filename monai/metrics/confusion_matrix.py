@@ -195,9 +195,9 @@ def get_confusion_matrix(
             y = y.clone()
             y_pred[:, ignore_channel] = 0
             y[:, ignore_channel] = 0
-    if original_y.shape[1] == 1 and ignore_index == 0:
-        # This API receives binary membership, while the shared helper assumes class IDs for one channel.
-        mask = (original_y == 0).float()
+    if ignore_index is not None and 0 <= ignore_index < original_y.shape[1]:
+        # Every channel represents binary membership; comparison also supports boolean targets.
+        mask = (original_y[:, ignore_index : ignore_index + 1] == 0).float()
     else:
         mask = create_ignore_mask(original_y, ignore_index)
 
