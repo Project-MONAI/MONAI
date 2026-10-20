@@ -31,6 +31,11 @@ class ContrastiveLoss(_Loss):
     The loss is evaluated using positive-shifted logits in log space. Float16 and
     bfloat16 inputs use float32 arithmetic to preserve precision and accumulation range.
 
+    Very small temperatures can amplify roundoff in cosine-similarity gradients.
+    For higher precision, pass both embeddings as float64 before evaluating the loss,
+    for example ``loss(input.double(), target.double())``. Casting the computed loss
+    to float64 does not improve the precision of its backward computation.
+
     """
 
     def __init__(self, temperature: float = 0.5, batch_size: int = -1) -> None:
