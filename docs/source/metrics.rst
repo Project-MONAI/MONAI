@@ -123,6 +123,13 @@ Metrics
 .. autoclass:: AbsoluteVolumeDifferenceMetric
     :members:
 
+`Centerline Dice`
+-----------------
+.. autofunction:: compute_centerline_dice
+
+.. autoclass:: CenterlineDiceMetric
+    :members:
+
 `PanopticQualityMetric`
 -----------------------
 .. autofunction:: compute_panoptic_quality
