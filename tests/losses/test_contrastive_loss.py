@@ -202,5 +202,85 @@ class TestContrastiveLoss(unittest.TestCase):
             ContrastiveLoss(temperature=0.5, batch_size=1)
 
 
+class TestContrastiveComputeDtype(unittest.TestCase):
+
+    @parameterized.expand([(features, seed) for features in (3, 5, 17) for seed in range(8)])
+    def test_identical_extreme_temperature_gradients(self, features, seed):
+        generator = torch.Generator().manual_seed(seed)
+        vector = torch.randn((1, features), generator=generator)
+        inputs = vector.repeat(2, 1).requires_grad_()
+        targets = vector.repeat(2, 1).requires_grad_()
+        result = ContrastiveLoss(temperature=1e-8, compute_dtype=torch.float64)(inputs, targets)
+        self.assertEqual(result.dtype, torch.float64)
+        torch.testing.assert_close(result, result.new_tensor(math.log(3)))
+        result.backward()
+        # Each cosine is stationary at identical nonzero vectors; its mathematical gradient is zero.
+        torch.testing.assert_close(inputs.grad, torch.zeros_like(inputs), atol=1e-7, rtol=0)
+        torch.testing.assert_close(targets.grad, torch.zeros_like(targets), atol=1e-7, rtol=0)
+
+    @parameterized.expand(
+        [(dtype, temperature) for dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float64)
+         for temperature in (0.5, 0.001)] + [(torch.float32, 1e-8), (torch.float64, 1e-8)]
+    )
+    def test_equivalent_to_casting_inputs(self, dtype, temperature):
+        vectors = torch.cat([torch.ones(4, 1), torch.eye(4)], dim=1).to(dtype)
+        inputs = vectors[:2].clone().requires_grad_()
+        targets = vectors[2:].clone().requires_grad_()
+        original_inputs, original_targets = inputs.detach().clone(), targets.detach().clone()
+        ref_inputs = inputs.detach().clone().requires_grad_()
+        ref_targets = targets.detach().clone().requires_grad_()
+        result = ContrastiveLoss(temperature=temperature, compute_dtype=torch.float64)(inputs, targets)
+        expected = ContrastiveLoss(temperature=temperature)(ref_inputs.double(), ref_targets.double())
+        torch.testing.assert_close(result, expected, atol=0, rtol=0)
+        result.backward()
+        expected.backward()
+        torch.testing.assert_close(inputs.grad, ref_inputs.grad, atol=0, rtol=0)
+        torch.testing.assert_close(targets.grad, ref_targets.grad, atol=0, rtol=0)
+        torch.testing.assert_close(inputs, original_inputs, atol=0, rtol=0)
+        torch.testing.assert_close(targets, original_targets, atol=0, rtol=0)
+        self.assertTrue(torch.isfinite(inputs.grad).all())
+        self.assertTrue(torch.isfinite(targets.grad).all())
+
+    @parameterized.expand(
+        [(input_dtype, compute_dtype) for input_dtype in (torch.float32, torch.float64)
+         for compute_dtype in (None, torch.float32, torch.float64)]
+    )
+    def test_output_dtype(self, input_dtype, compute_dtype):
+        inputs = torch.ones((2, 3), dtype=input_dtype)
+        result = ContrastiveLoss(compute_dtype=compute_dtype)(inputs, inputs)
+        self.assertEqual(result.dtype, input_dtype if compute_dtype is None else compute_dtype)
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,), (torch.int64,), (torch.bool,), ("float64",)])
+    def test_invalid_compute_dtype(self, compute_dtype):
+        with self.assertRaisesRegex(ValueError, "compute_dtype"):
+            ContrastiveLoss(compute_dtype=compute_dtype)
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_cpu_autocast_respects_compute_dtype(self, autocast_dtype):
+        inputs = torch.ones((2, 3), requires_grad=True)
+        targets = torch.ones_like(inputs, requires_grad=True)
+        with torch.autocast(device_type="cpu", dtype=autocast_dtype):
+            result = ContrastiveLoss(temperature=1e-8, compute_dtype=torch.float64)(inputs, targets)
+        self.assertEqual(result.dtype, torch.float64)
+        result.backward()
+        torch.testing.assert_close(inputs.grad, torch.zeros_like(inputs), atol=1e-7, rtol=0)
+        torch.testing.assert_close(targets.grad, torch.zeros_like(targets), atol=1e-7, rtol=0)
+
+    def test_singleton_high_precision(self):
+        inputs = torch.tensor([[0.3, -0.7, 0.2]], requires_grad=True)
+        targets = torch.tensor([[-0.4, 0.1, 0.8]], requires_grad=True)
+        result = ContrastiveLoss(temperature=1e-8, compute_dtype=torch.float64)(inputs, targets)
+        torch.testing.assert_close(result, torch.zeros_like(result))
+        result.backward()
+        torch.testing.assert_close(inputs.grad, torch.zeros_like(inputs))
+        torch.testing.assert_close(targets.grad, torch.zeros_like(targets))
+
+    def test_legacy_arguments_preserved(self):
+        with self.assertWarnsRegex(Warning, "batch_size"):
+            loss = ContrastiveLoss(0.5, 2, compute_dtype=torch.float64)
+        inputs = torch.ones((2, 3))
+        self.assertEqual(loss(inputs, inputs).dtype, torch.float64)
+
+
 if __name__ == "__main__":
     unittest.main()
