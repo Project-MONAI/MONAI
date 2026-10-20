@@ -578,7 +578,8 @@ def compute_ms_ssim(
         k2: stability constant used in the contrast denominator
         weights: parameters for image similarity and contrast sensitivity at different resolution scores.
     Raises:
-        ValueError: when `y_pred` is not a 2D or 3D image.
+        ValueError: when `y_pred` is not a 2D or 3D image, or its spatial dimensions are too small
+            for the kernel size and number of scales.
     """
     dims = y_pred.ndimension()
     if spatial_dims == 2 and dims != 4:
@@ -598,15 +599,15 @@ def compute_ms_ssim(
 
     if not isinstance(kernel_sigma, Sequence):
         kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
-    # check if image have enough size for the number of downsamplings and the size of the kernel
-    weights_div = max(1, (len(weights) - 1)) ** 2
+    # Check that the last scale can accommodate the kernel after stride-2 downsampling.
+    weights_div = 2 ** (len(weights) - 1)
     y_pred_spatial_dims = y_pred.shape[2:]
     for i in range(len(y_pred_spatial_dims)):
-        if y_pred_spatial_dims[i] // weights_div <= kernel_size[i] - 1:
+        if y_pred_spatial_dims[i] // weights_div < kernel_size[i]:
             raise ValueError(
                 f"For a given number of `weights` parameters {len(weights)} and kernel size "
-                f"{kernel_size[i]}, the image height must be larger than "
-                f"{(kernel_size[i] - 1) * weights_div}."
+                f"{kernel_size[i]}, spatial dimension {i} of the image must be at least "
+                f"{kernel_size[i] * weights_div}."
             )
 
     weights_tensor = torch.tensor(weights, device=y_pred.device, dtype=torch.float)
