@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import unittest
 import math
+import unittest
 
 import numpy as np
 import torch
@@ -57,7 +57,9 @@ TEST_CASES = [
 
 class TestContrastiveLoss(unittest.TestCase):
 
-    @parameterized.expand([(temperature, dtype) for temperature in (0.01, 0.001) for dtype in (torch.float32, torch.float64)])
+    @parameterized.expand(
+        [(temperature, dtype) for temperature in (0.01, 0.001) for dtype in (torch.float32, torch.float64)]
+    )
     def test_identical_low_temperature(self, temperature, dtype):
         inputs = torch.ones((2, 4), dtype=dtype, requires_grad=True)
         targets = torch.ones((2, 4), dtype=dtype, requires_grad=True)
@@ -68,7 +70,9 @@ class TestContrastiveLoss(unittest.TestCase):
         self.assertTrue(torch.isfinite(inputs.grad).all())
         self.assertTrue(torch.isfinite(targets.grad).all())
 
-    @parameterized.expand([(temperature, dtype) for temperature in (0.01, 0.001) for dtype in (torch.float32, torch.float64)])
+    @parameterized.expand(
+        [(temperature, dtype) for temperature in (0.01, 0.001) for dtype in (torch.float32, torch.float64)]
+    )
     def test_antipodal_low_temperature(self, temperature, dtype):
         inputs = torch.eye(2, dtype=dtype, requires_grad=True)
         targets = (-torch.eye(2, dtype=dtype)).requires_grad_()
@@ -80,7 +84,9 @@ class TestContrastiveLoss(unittest.TestCase):
         self.assertTrue(torch.isfinite(inputs.grad).all())
         self.assertTrue(torch.isfinite(targets.grad).all())
 
-    @parameterized.expand([(temperature, dtype) for temperature in (0.5, 0.05, 0.01) for dtype in (torch.float32, torch.float64)])
+    @parameterized.expand(
+        [(temperature, dtype) for temperature in (0.5, 0.05, 0.01) for dtype in (torch.float32, torch.float64)]
+    )
     def test_reference_loss_and_gradients(self, temperature, dtype):
         inputs = torch.tensor([[1.0, 0.2, -0.3], [-0.1, 0.7, 0.5]], dtype=dtype, requires_grad=True)
         targets = torch.tensor([[0.8, -0.4, 0.1], [0.3, 0.6, -0.2]], dtype=dtype, requires_grad=True)
