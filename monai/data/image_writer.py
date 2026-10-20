@@ -99,6 +99,8 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
             As an indexing key it will be converted to a lower case string.
         error_if_not_found: whether to raise an error if no suitable image writer is found.
             if True , raise an ``OptionalImportError``, otherwise return an empty tuple. Default is ``True``.
+            When no writer is available because some backends are not installed, the error message
+            includes the ``pip install`` command of the missing packages.
     """
     if not SUPPORTED_WRITERS:
         init()
@@ -106,17 +108,26 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
     if fmt.startswith("."):
         fmt = fmt[1:]
     avail_writers = []
+    missing_packages: list[str] = []
     default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
     for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
         except OptionalImportError:
+            # keep the package name of the unavailable backend so that it can be reported below
+            _pkg = getattr(_writer, "required_package", None)
+            if _pkg and _pkg not in missing_packages:
+                missing_packages.append(_pkg)
             continue
         except Exception:  # other writer init errors indicating it exists
             avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
-        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+        err_msg = f"No ImageWriter backend found for {fmt}."
+        if missing_packages:
+            install_hints = ", ".join(f"`pip install {_pkg}`" for _pkg in missing_packages)
+            err_msg += f" Please install one of the following packages: {install_hints}."
+        raise OptionalImportError(err_msg)
     writer_tuple = ensure_tuple(avail_writers)
     SUPPORTED_WRITERS[fmt] = writer_tuple
     return writer_tuple
@@ -174,6 +185,9 @@ class ImageWriter:
     `"affine"` to the space defined by `"original_affine"`, for more details, please refer to the
     ``resample_if_needed`` method.
     """
+
+    # name of the optional pip package providing this backend, reported when the backend is not installed
+    required_package: str | None = None
 
     def __init__(self, **kwargs):
         """
@@ -371,6 +385,8 @@ class ITKWriter(ImageWriter):
 
     """
 
+    required_package = "itk"
+
     output_dtype: DtypeLike = None
     channel_dim: int | None
 
@@ -549,6 +565,8 @@ class NibabelWriter(ImageWriter):
 
     """
 
+    required_package = "nibabel"
+
     output_dtype: DtypeLike
     affine: Any
 
@@ -690,6 +708,8 @@ class PILWriter(ImageWriter):
         writer.set_data_array(np_data, channel_dim=0)
         writer.write("test1.png", verbose=True)
     """
+
+    required_package = "pillow"
 
     output_dtype: DtypeLike
     channel_dim: int | None
