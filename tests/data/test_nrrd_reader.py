@@ -44,6 +44,21 @@ TEST_CASE_8 = [
         "space origin": [1.0, 5.0, 20.0],
     },
 ]
+# 4-D NRRD with an explicit 'list' channel axis (kinds: list domain domain domain).
+# pynrrd stores the 'none' space direction for the channel axis as a row of NaN values.
+TEST_CASE_4D_CHANNEL = [
+    (3, 4, 5, 6),  # (channel, H, W, D)
+    "test_4d_channel.nrrd",
+    np.float32,
+    {
+        "dimension": 4,
+        "space": "left-posterior-superior",
+        "kinds": ["list", "domain", "domain", "domain"],
+        "sizes": [3, 4, 5, 6],
+        "space directions": np.array([[np.nan, np.nan, np.nan], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]),
+        "space origin": np.array([10.0, 20.0, 30.0]),
+    },
+]
 
 
 @skipUnless(has_nrrd, "nrrd required")
@@ -127,6 +142,30 @@ class TestNrrdReader(unittest.TestCase):
         self.assertEqual(image_array.dtype, dtype)
         self.assertTupleEqual(image_array.shape, expected_shape[::-1])
         self.assertTupleEqual(image_array.shape, tuple(image_header["spatial_shape"]))
+
+    @parameterized.expand([TEST_CASE_4D_CHANNEL])
+    def test_read_4d_channel(self, data_shape, filename, dtype, reference_header):
+        """4-D NRRD with a 'list' channel axis must not crash in _get_affine and must
+        set ORIGINAL_CHANNEL_DIM / spatial_shape correctly."""
+        test_image = np.random.rand(*data_shape).astype(dtype)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, filename)
+            nrrd.write(filepath, test_image, header=reference_header)
+            reader = NrrdReader()
+            image_array, image_header = reader.get_data(reader.read(filepath))
+        self.assertIsInstance(image_array, np.ndarray)
+        self.assertEqual(image_array.dtype, dtype)
+        self.assertTupleEqual(image_array.shape, data_shape)
+        # spatial_shape must exclude the channel axis
+        self.assertTupleEqual(tuple(image_header["spatial_shape"]), data_shape[1:])
+        # channel dim 0 must be identified
+        self.assertEqual(image_header["original_channel_dim"], 0)
+        # affine must be a valid 4×4 matrix (3 spatial dims → 4×4)
+        self.assertTupleEqual(image_header["affine"].shape, (4, 4))
+        np.testing.assert_allclose(
+            image_header["affine"],
+            np.array([[-1.0, 0.0, 0.0, -10.0], [0.0, -2.0, 0.0, -20.0], [0.0, 0.0, 3.0, 30.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
 
 if __name__ == "__main__":
