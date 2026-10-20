@@ -165,8 +165,9 @@ def get_confusion_matrix(
             the predicted output. Defaults to True.
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
             For a valid class index, voxels belonging to that channel are excluded from all classes' counts.
-            The existing channel-exclusion behavior is retained. With a single-channel binary target,
-            ignore_index=0 excludes locations where the target is 1. Out-of-range values use all-zero
+            The existing channel-exclusion behavior is retained for multi-channel targets. With a single-channel
+            binary target, ignore_index=0 excludes locations where the target is 1 without zeroing the channel.
+            Counts at valid single-channel locations do not depend on include_background. Out-of-range values use all-zero
             locations for multi-channel targets and direct value comparison for single-channel targets.
 
     Returns:
@@ -187,8 +188,12 @@ def get_confusion_matrix(
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
 
-    # Preserve exclusion of the ignored channel as well as its spatial locations.
-    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
+    # Single-channel targets need spatial exclusion only, preserving errors at valid locations.
+    if (
+        ignore_index is not None
+        and original_y.shape[1] > 1
+        and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1))
+    ):
         ignore_channel = ignore_index if include_background else ignore_index - 1
         if 0 <= ignore_channel < y_pred.shape[1]:
             y_pred = y_pred.clone()

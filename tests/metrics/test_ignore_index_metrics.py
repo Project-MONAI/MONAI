@@ -268,14 +268,18 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         y = torch.tensor([[[1, 1, 0]]], dtype=dtype)
         y_pred = torch.ones_like(y)
         counts = get_confusion_matrix(y_pred, y, include_background=include_background, ignore_index=0)
-        expected = [0.0, 0.0, 1.0, 0.0] if include_background else [0.0, 1.0, 0.0, 0.0]
-        self.assertEqual(counts[0, 0].tolist(), expected)
+        self.assertEqual(counts[0, 0].tolist(), [0.0, 1.0, 0.0, 0.0])
 
-    def test_confusion_matrix_single_channel_specificity(self):
-        """Retain a false positive at the only valid single-channel voxel."""
+    @parameterized.expand([(True,), (False,)])
+    def test_confusion_matrix_single_channel_specificity(self, include_background):
+        """Retain a false positive at the only valid single-channel voxel.
+
+        Args:
+            include_background: whether to request inclusion of the background channel.
+        """
         y = torch.tensor([[[1.0, 1.0, 0.0]]])
         metric = ConfusionMatrixMetric(
-            include_background=False, metric_name="specificity", reduction="none", ignore_index=0
+            include_background=include_background, metric_name="specificity", reduction="none", ignore_index=0
         )
         metric(y_pred=torch.ones_like(y), y=y)
         self.assertEqual(metric.aggregate()[0].item(), 0.0)
@@ -284,7 +288,7 @@ class TestIgnoreIndexMetrics(unittest.TestCase):
         [
             (True, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]),
             (False, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]),
-            (True, [0.0, 0.0, 0.0], [0.0, 0.0, 3.0, 0.0]),
+            (True, [0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0]),
             (False, [0.0, 0.0, 0.0], [0.0, 3.0, 0.0, 0.0]),
         ]
     )
