@@ -19,7 +19,13 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForegroundd
 from monai.transforms.lazy.functional import apply_pending
+from monai.utils import optional_import
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
+
+_, has_skimage = optional_import("skimage")
+_, has_cucim = optional_import("cucim.skimage")
+# get_largest_connected_component_mask needs skimage or cucim, absent in the min-dep tests
+HAS_CC_BACKEND = has_skimage or has_cucim
 
 TEST_POSITION, TESTS = [], []
 for p in TEST_NDARRAYS_ALL:
@@ -159,37 +165,38 @@ for p in TEST_NDARRAYS_ALL:
     # keep_largest_component=True drops the isolated pixel before computing the box, so only the
     # blob is cropped out instead of a box that stretches to cover both. Mirrors the equivalent
     # case in test_crop_foreground.py, exercised here through the dict transform's forwarding.
-    TESTS.append(
-        [
-            {
-                "keys": ["img"],
-                "source_key": "img",
-                "select_fn": lambda x: x > 0,
-                "channel_indices": None,
-                "margin": 0,
-                "keep_largest_component": True,
-            },
-            {
-                "img": p(
-                    np.array(
-                        [
+    if HAS_CC_BACKEND:
+        TESTS.append(
+            [
+                {
+                    "keys": ["img"],
+                    "source_key": "img",
+                    "select_fn": lambda x: x > 0,
+                    "channel_indices": None,
+                    "margin": 0,
+                    "keep_largest_component": True,
+                },
+                {
+                    "img": p(
+                        np.array(
                             [
-                                [0, 0, 0, 0, 0, 0, 0],
-                                [0, 1, 1, 1, 0, 0, 0],
-                                [0, 1, 1, 1, 0, 0, 0],
-                                [0, 1, 1, 1, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 0, 0],
+                                [
+                                    [0, 0, 0, 0, 0, 0, 0],
+                                    [0, 1, 1, 1, 0, 0, 0],
+                                    [0, 1, 1, 1, 0, 0, 0],
+                                    [0, 1, 1, 1, 0, 0, 0],
+                                    [0, 0, 0, 0, 0, 0, 0],
+                                    [0, 0, 0, 0, 0, 1, 0],
+                                    [0, 0, 0, 0, 0, 0, 0],
+                                ]
                             ]
-                        ]
+                        )
                     )
-                )
-            },
-            p(np.array([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])),
-            True,
-        ]
-    )
+                },
+                p(np.array([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])),
+                True,
+            ]
+        )
 
 
 class TestCropForegroundd(unittest.TestCase):

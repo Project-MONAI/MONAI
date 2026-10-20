@@ -17,7 +17,13 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import generate_spatial_bounding_box
+from monai.utils import optional_import
 from tests.test_utils import TEST_NDARRAYS
+
+_, has_skimage = optional_import("skimage")
+_, has_cucim = optional_import("cucim.skimage")
+# get_largest_connected_component_mask needs skimage or cucim, absent in the min-dep tests
+HAS_CC_BACKEND = has_skimage or has_cucim
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -131,18 +137,19 @@ for p in TEST_NDARRAYS:
             ([1, 1], [6, 6]),
         ]
     )
-    TESTS.append(
-        [
-            {
-                "img": _two_component_img,
-                "select_fn": lambda x: x > 0,
-                "channel_indices": None,
-                "margin": 0,
-                "keep_largest_component": True,
-            },
-            ([1, 1], [4, 4]),
-        ]
-    )
+    if HAS_CC_BACKEND:
+        TESTS.append(
+            [
+                {
+                    "img": _two_component_img,
+                    "select_fn": lambda x: x > 0,
+                    "channel_indices": None,
+                    "margin": 0,
+                    "keep_largest_component": True,
+                },
+                ([1, 1], [4, 4]),
+            ]
+        )
 
 
 class TestGenerateSpatialBoundingBox(unittest.TestCase):

@@ -20,7 +20,13 @@ from monai.config import USE_COMPILED
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground
 from monai.transforms.lazy.functional import apply_pending
+from monai.utils import optional_import
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
+
+_, has_skimage = optional_import("skimage")
+_, has_cucim = optional_import("cucim.skimage")
+# get_largest_connected_component_mask needs skimage or cucim, absent in the min-dep tests
+HAS_CC_BACKEND = has_skimage or has_cucim
 
 TEST_COORDS, TESTS, TEST_LAZY_ERROR = [], [], []
 
@@ -91,26 +97,27 @@ for p in TEST_NDARRAYS_ALL:
     # a large 3x3 blob plus a single disconnected pixel (e.g. a scanner marker/text annotation) --
     # keep_largest_component=True drops the isolated pixel before computing the box, so only the
     # blob is cropped out instead of a box that stretches to cover both.
-    TESTS.append(
-        [
-            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "keep_largest_component": True},
-            p(
-                [
+    if HAS_CC_BACKEND:
+        TESTS.append(
+            [
+                {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "keep_largest_component": True},
+                p(
                     [
-                        [0, 0, 0, 0, 0, 0, 0],
-                        [0, 1, 1, 1, 0, 0, 0],
-                        [0, 1, 1, 1, 0, 0, 0],
-                        [0, 1, 1, 1, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0],
+                        [
+                            [0, 0, 0, 0, 0, 0, 0],
+                            [0, 1, 1, 1, 0, 0, 0],
+                            [0, 1, 1, 1, 0, 0, 0],
+                            [0, 1, 1, 1, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 1, 0],
+                            [0, 0, 0, 0, 0, 0, 0],
+                        ]
                     ]
-                ]
-            ),
-            p([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]]),
-            True,
-        ]
-    )
+                ),
+                p([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]]),
+                True,
+            ]
+        )
 
     TEST_LAZY_ERROR.append(
         [
