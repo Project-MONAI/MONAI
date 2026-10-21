@@ -125,6 +125,7 @@ class TestSTUNet(unittest.TestCase):
             self.assertIn("divisible", str(cm.exception))
 
     def test_bottleneck_error(self):
+        """A (16, 16, 32) input leaves a 1x1x1 bottleneck and raises ValueError in both modes."""
         # (16, 16, 32) is divisible by the default pooling product (16, 16, 32) but leaves a
         # single spatial element at the bottleneck, where InstanceNorm3d (which uses input
         # statistics in both training and evaluation) raises from deep inside the encoder
