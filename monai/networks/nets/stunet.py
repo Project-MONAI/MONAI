@@ -129,6 +129,13 @@ class STUNet(nn.Module):
         deep_supervision: whether to return the per-stage segmentation outputs in training mode.
             Defaults to True.
 
+    Raises:
+        ValueError: when the lengths of ``dims``, ``depth``, ``pool_op_kernel_sizes`` or
+            ``conv_kernel_sizes`` are inconsistent (``len(dims)`` must equal
+            ``len(pool_op_kernel_sizes) + 1``, the others must match ``len(dims)``), when
+            ``pool_op_kernel_sizes`` is empty, when ``depth`` has an entry below 1, or when a
+            kernel size entry does not have 3 elements.
+
     Example::
 
         from monai.networks.nets import create_stunet
@@ -166,6 +173,10 @@ class STUNet(nn.Module):
             )
         if len(depth) != len(dims):
             raise ValueError(f"`depth` must have the same length as `dims`, got {len(depth)} and {len(dims)}.")
+        if len(pool_op_kernel_sizes) < 1:
+            raise ValueError("`pool_op_kernel_sizes` must contain at least one pooling step.")
+        if any(d < 1 for d in depth):
+            raise ValueError(f"`depth` entries must be >= 1, got {tuple(depth)}.")
         if not all(len(k) == 3 for k in pool_op_kernel_sizes) or not all(len(k) == 3 for k in conv_kernel_sizes):
             raise ValueError(
                 "`pool_op_kernel_sizes` and `conv_kernel_sizes` entries must have 3 elements (3D kernels)."
@@ -249,6 +260,19 @@ class STUNet(nn.Module):
                 nn.init.constant_(module.bias, 0.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        """
+        Args:
+            x: input tensor with shape ``(batch, channel, depth, height, width)``.
+
+        Returns:
+            The highest-resolution segmentation output, or — when deep supervision is enabled
+            in training mode — a tuple of per-stage outputs ordered from the highest to the
+            lowest resolution.
+
+        Raises:
+            ValueError: when ``x`` is not 5D, or when a spatial dimension is not divisible by
+                the product of all pooling kernel sizes.
+        """
         if x.ndim != 5:
             raise ValueError(f"Expected a 5D input (batch, channel, depth, height, width), got {x.ndim}D.")
         for axis, (size, divisor) in enumerate(zip(x.shape[2:], self.input_shape_must_be_divisible_by)):

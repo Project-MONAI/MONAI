@@ -55,6 +55,8 @@ TEST_CASE_INVALID = [
     [{"conv_kernel_sizes": ((3, 3, 3),) * 5}, "conv_kernel_sizes"],
     [{"depth": (1, 1)}, "depth"],
     [{"pool_op_kernel_sizes": ((2, 2),) * 5}, "3 elements"],
+    [{"dims": (8,), "depth": (1,), "pool_op_kernel_sizes": (), "conv_kernel_sizes": ((3, 3, 3),)}, "at least one"],
+    [{"depth": (1, 1, 1, 1, 1, 0)}, ">= 1"],
 ]
 
 
@@ -85,7 +87,8 @@ class TestSTUNet(unittest.TestCase):
 
     @parameterized.expand([["S"], ["B"], ["L"], ["H"]])
     def test_create_stunet(self, variant):
-        net = create_stunet(variant=variant, in_channels=1, out_channels=3)
+        with torch.device("meta"):  # build large presets without allocating memory
+            net = create_stunet(variant=variant, in_channels=1, out_channels=3)
         self.assertEqual(net.pool_op_kernel_sizes, [list(k) for k in POOL_OP_KERNEL_SIZES])
         dims, depth = STUNET_CONFIGS[variant.upper()]["dims"], STUNET_CONFIGS[variant.upper()]["depth"]
         self.assertEqual(len(net.conv_blocks_context), len(dims))
@@ -102,7 +105,8 @@ class TestSTUNet(unittest.TestCase):
         expected = {"S": 14_596_941, "B": 58_262_669, "L": 440_302_605, "H": 1_457_326_221}
         for variant, count in expected.items():
             with self.subTest(variant=variant):
-                net = create_stunet(variant=variant, in_channels=1, out_channels=105).to(torch.device("meta"))
+                with torch.device("meta"):  # build large presets without allocating memory
+                    net = create_stunet(variant=variant, in_channels=1, out_channels=105)
                 self.assertEqual(sum(p.numel() for p in net.parameters()), count)
 
     @parameterized.expand(TEST_CASE_INVALID)
