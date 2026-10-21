@@ -2,13 +2,14 @@
 
 Guidance for AI coding assistants (Claude Code, Codex, Copilot agent mode, Cursor, Gemini CLI, Jules, Aider, ...)
 working in this repository. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full human contributor guide and
-[the AI/tool-assisted contribution policy](CONTRIBUTING.md) for what is and isn't acceptable when using these
-tools — this file is about *how the codebase works*, not *whether AI assistance is allowed*.
+[the tool-assisted contribution policy](CONTRIBUTING.md#tool-assisted-contribution-policy) for what is and isn't
+acceptable when using these tools — this file is about *how the codebase works*, not *whether AI assistance is
+allowed*.
 
 ## Project overview
 
 MONAI is a PyTorch-based, open-source framework for deep learning in healthcare imaging. See
-[setup.cfg](setup.cfg) / [pyproject.toml](pyproject.toml) for the supported Python and PyTorch versions.
+[pyproject.toml](pyproject.toml) and [setup.py](setup.py) for the supported Python and PyTorch versions.
 
 ## Repository map
 
@@ -33,7 +34,8 @@ MONAI is a PyTorch-based, open-source framework for deep learning in healthcare 
   `import`, so the package stays usable without every extra installed.
 - A new public API needs a corresponding entry in `docs/source/*.rst` (or the matching `.md` file for guides),
   not just a docstring.
-- A slow test belongs in `tests/min_tests.py`'s exclusion list, not in the default fast suite.
+- A slow test is decorated with `skip_if_quick` (`tests/test_utils.py`); a test module that needs an optional
+  dependency is added to `exclude_cases` in `tests/min_tests.py`.
 
 ## What stays out of this file
 
