@@ -357,7 +357,9 @@ class TestDintsGraphBreaks(unittest.TestCase):
         )
         net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, spatial_dims=3, use_downsample=True).eval()
 
-        explanation = torch._dynamo.explain(net)(torch.randn(1, 1, 32, 32, 32))
+        input_tensor = torch.randn(1, 1, 32, 32, 32)
+        torch.compile(net, backend="eager", fullgraph=True)(input_tensor)
+        explanation = torch._dynamo.explain(net)(input_tensor)
 
         self.assertEqual(
             (explanation.graph_count, explanation.graph_break_count),
