@@ -57,6 +57,8 @@ TEST_CASE_INVALID = [
     [{"pool_op_kernel_sizes": ((2, 2),) * 5}, "3 elements"],
     [{"dims": (8,), "depth": (1,), "pool_op_kernel_sizes": (), "conv_kernel_sizes": ((3, 3, 3),)}, "at least one"],
     [{"depth": (1, 1, 1, 1, 1, 0)}, ">= 1"],
+    [{"conv_kernel_sizes": ((2, 3, 3),) * 6}, "positive odd"],
+    [{"conv_kernel_sizes": ((3, 3, 3),) * 5 + ((3, 3, 0),)}, "positive odd"],
 ]
 
 

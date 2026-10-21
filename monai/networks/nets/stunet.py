@@ -133,8 +133,9 @@ class STUNet(nn.Module):
         ValueError: when the lengths of ``dims``, ``depth``, ``pool_op_kernel_sizes`` or
             ``conv_kernel_sizes`` are inconsistent (``len(dims)`` must equal
             ``len(pool_op_kernel_sizes) + 1``, the others must match ``len(dims)``), when
-            ``pool_op_kernel_sizes`` is empty, when ``depth`` has an entry below 1, or when a
-            kernel size entry does not have 3 elements.
+            ``pool_op_kernel_sizes`` is empty, when ``depth`` has an entry below 1, when a
+            kernel size entry does not have 3 elements, or when a ``conv_kernel_sizes`` value
+            is not a positive odd integer.
 
     Example::
 
@@ -180,6 +181,12 @@ class STUNet(nn.Module):
         if not all(len(k) == 3 for k in pool_op_kernel_sizes) or not all(len(k) == 3 for k in conv_kernel_sizes):
             raise ValueError(
                 "`pool_op_kernel_sizes` and `conv_kernel_sizes` entries must have 3 elements (3D kernels)."
+            )
+        if not all(k >= 1 and k % 2 == 1 for entry in conv_kernel_sizes for k in entry):
+            raise ValueError(
+                "`conv_kernel_sizes` entries must be positive odd integers, as the convolution padding is "
+                "computed as `size // 2`, which only preserves the feature-map size for positive odd kernels, "
+                f"got {tuple(map(tuple, conv_kernel_sizes))}."
             )
 
         self.in_channels = in_channels
