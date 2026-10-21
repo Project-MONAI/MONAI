@@ -212,6 +212,12 @@ class TestHausdorffDTLoss(unittest.TestCase):
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
             HausdorffDTLoss(sigmoid=True, softmax=True)
+        with self.assertRaisesRegex(ValueError, ""):
+            HausdorffDTLoss(sigmoid=True, other_act=torch.tanh)
+        with self.assertRaisesRegex(ValueError, ""):
+            HausdorffDTLoss(softmax=True, other_act=torch.tanh)
+        with self.assertRaisesRegex(ValueError, ""):
+            HausdorffDTLoss(sigmoid=True, softmax=True, other_act=torch.tanh)
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertRaisesRegex(ValueError, ""):
@@ -244,6 +250,12 @@ class TesLogtHausdorffDTLoss(unittest.TestCase):
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
             LogHausdorffDTLoss(sigmoid=True, softmax=True)
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(sigmoid=True, other_act=torch.tanh)
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(softmax=True, other_act=torch.tanh)
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(sigmoid=True, softmax=True, other_act=torch.tanh)
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertRaisesRegex(ValueError, ""):

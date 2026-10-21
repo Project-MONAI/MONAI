@@ -19,6 +19,12 @@ class Algo:
     """
     An algorithm in this context is loosely defined as a data processing pipeline consisting of multiple components
     such as image preprocessing, followed by deep learning model training and evaluation.
+
+    Note:
+        When serialized via ``algo_to_json`` / ``algo_from_json``, subclasses are re-instantiated
+        from their fully-qualified class name through ``monai.bundle.ConfigParser``. This requires
+        the subclass to have a default constructor (no required positional arguments); state is
+        restored afterwards via ``load_state_dict``.
     """
 
     template_path: PathLike | None = None
@@ -37,6 +43,30 @@ class Algo:
 
     def get_output_path(self, *args, **kwargs):
         """Returns the algo output paths for scripts location"""
+
+    def state_dict(self) -> dict:
+        """
+        Return state for serialization.
+
+        Subclasses should override this method to return a dictionary of
+        attributes that need to be serialized. This follows the PyTorch
+        convention for state management.
+
+        Returns:
+            A dictionary containing the state to serialize.
+        """
+        return {}
+
+    def load_state_dict(self, state: dict) -> None:
+        """
+        Restore state from a dictionary.
+
+        Subclasses should override this method to restore their state
+        from the dictionary returned by state_dict().
+
+        Args:
+            state: A dictionary containing the state to restore.
+        """
 
 
 class AlgoGen(Randomizable):

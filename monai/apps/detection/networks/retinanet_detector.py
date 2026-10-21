@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import Tensor, nn
@@ -59,10 +59,13 @@ from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep, optional_import
 
-BalancedPositiveNegativeSampler, _ = optional_import(
-    "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
-)
-Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
+if TYPE_CHECKING:
+    from torchvision.models.detection._utils import BalancedPositiveNegativeSampler, Matcher
+else:
+    BalancedPositiveNegativeSampler, _ = optional_import(
+        "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
+    )
+    Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
 
 
 class RetinaNetDetector(nn.Module):
@@ -342,8 +345,7 @@ class RetinaNetDetector(nn.Module):
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
-                "Require fg_iou_thresh >= bg_iou_thresh. "
-                f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
+                f"Required condition fg_iou_thresh >= bg_iou_thresh not met ({fg_iou_thresh=}, {bg_iou_thresh=})."
             )
         self.proposal_matcher = Matcher(
             fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
@@ -519,13 +521,14 @@ class RetinaNetDetector(nn.Module):
         else:
             if self.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
+                    "`self.inferer` is not defined. Please refer to function self.set_sliding_window_inferer(*)."
                 )
             head_outputs = predict_with_inferer(
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
             )
 
         # 4. Generate anchors and store it in self.anchors: List[Tensor]
+        # pyrefly: ignore [bad-argument-type]
         self.generate_anchors(images, head_outputs)
         # num_anchor_locs_per_level: List[int], list of HW or HWD for each level
         num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
@@ -536,6 +539,7 @@ class RetinaNetDetector(nn.Module):
             # reshape to Tensor sized(B, sum(HWA), self.num_classes) for self.cls_key
             # or (B, sum(HWA), 2* self.spatial_dims) for self.box_reg_key
             # A = self.num_anchors_per_loc
+            # pyrefly: ignore [bad-argument-type]
             head_outputs[key] = self._reshape_maps(head_outputs[key])
 
         # 6(1). If during training, return losses
@@ -768,10 +772,11 @@ class RetinaNetDetector(nn.Module):
             # BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
             if isinstance(self.proposal_matcher, Matcher):
                 # if torchvision matcher
+                matcher: Matcher = self.proposal_matcher
                 match_quality_matrix = self.box_overlap_metric(
                     targets_per_image[self.target_box_key].to(anchors_per_image.device), anchors_per_image
                 )
-                matched_idxs_per_image = self.proposal_matcher(match_quality_matrix)
+                matched_idxs_per_image = matcher(match_quality_matrix)
             elif isinstance(self.proposal_matcher, ATSSMatcher):
                 # if monai ATSS matcher
                 match_quality_matrix, matched_idxs_per_image = self.proposal_matcher(

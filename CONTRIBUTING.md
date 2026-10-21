@@ -27,6 +27,16 @@ We are happy to talk with you about your needs for MONAI and your ideas for cont
 
 MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly based on the PyTorch and Numpy libraries. These libraries implement what we consider to be best practice for general scientific computing and deep learning functionality. MONAI builds on these with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
 
+## Tool-Assisted Contribution Policy
+
+Contributions generated wholly or in part by generative tools, whether AI-based or not, are acceptable in MONAI so long as the submitting author can take responsibility for the content as if they wrote it themselves. This implies that contributors must review all submitted content, understand the content, ensure the content is appropriate and fit for purpose, and write the documentation and other information materials themselves.
+
+Contributors must therefore take responsibility such that they can honestly sign the Developer Certificate of Origin (discussed below). All submitted code and data must be available through open-source/open-data licensing conditions which the contributor is required to verify, and which permit integration into MONAI. No other legal constraints can be present for the proposed content. Additionally, care must be taken with AI and agentic systems to ensure code standards are adhered to, hallucinations are not being introduced into the code, and that existing open work from other contributors is not being duplicated.
+
+Attribution of AI-generated content should be included, for example with trailers in commit messages such as `Assisted-by: Some-Tool <noreply@some-tool.com>`. AI-generated comments or other content in issues or PRs should be clearly labelled as such, but there is the expectation that discussion in the review process is with the submitter themselves.
+
+Code review and analysis can be assisted through the use of tools, for example linting or formatting tools. Diagnostic output from such tools does not form part of the submission but should be clearly labelled. The key emphasis is that these tools assist and do not replace human review, so contributors and reviewers must consider what might be missed by these tools, or what might be hallucinated. It might be helpful to review code with a different tool from one used for generation.
+
 ## The contribution process
 
 *Pull request early*
@@ -38,7 +48,7 @@ Please note that, as per PyTorch, MONAI uses American English spelling. This mea
 ### Preparing pull requests
 
 To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
-static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
+static type analysis tools ([pyrefly](https://github.com/facebook/pyrefly)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary preparation steps required before sending a pull request.
 To collaborate efficiently, please read through this section and follow them.
@@ -52,15 +62,23 @@ To collaborate efficiently, please read through this section and follow them.
 #### Checking the coding style
 
 Coding style is checked and enforced by black, isort, and ruff.
+To catch formatting failures before they reach CI, install the git pre-commit hooks once per checkout:
+
+```bash
+# install the git hooks: black, isort, ruff
+pre-commit install
+
+# or, via the test runner:
+./runtests.sh --setup
+```
+
+These hooks run automatically on every `git commit`: `black`, `isort`, and `ruff` reformat the staged files. The same install also wires up the `commit-msg` hook that enforces the DCO sign-off described in [Signing your work](#signing-your-work).
+
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
 # optionally update the dependencies and dev tools
 python -m pip install -U pip
-python -m pip install -U -r requirements-dev.txt
-
-# run the linting and type checking tools
-./runtests.sh --codeformat
 
 # try to fix the coding style errors automatically
 ./runtests.sh --autofix
@@ -132,7 +150,7 @@ It is recommended that the new test `test_[module_name].py` is constructed by us
 python 3.9+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 
-- the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
+- the packages are listed in [`pyproject.toml`](pyproject.toml)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
 
@@ -165,7 +183,7 @@ cd docs/
 make html
 ```
 
-The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
+The above commands build html documentation, they are used to automatically generate [monai.readthedocs.io](https://monai.readthedocs.io).
 
 The Python code docstring are written in
 [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) and
@@ -182,18 +200,9 @@ Please type `make help` in `docs/` folder for all supported format options.
 
 #### Automatic code formatting
 
-MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
-This makes the project's Python coding style consistent and reduces maintenance burdens.
-Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+Code formatting is now handled locally via the [pre-commit](https://pre-commit.com/) hooks described in [Checking the coding style](#checking-the-coding-style): once installed, `black`, `isort`, and `ruff` reformat staged files automatically on every `git commit`, so formatting issues are caught before a pull request is even opened.
 
-Steps for the formatting process:
-
-- After submitting a pull request or push to an existing pull request,
-make a comment to the pull request to trigger the formatting action.
-The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
-- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
-- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
-- Repeat the above steps if necessary.
+MONAI previously offered a `/black` slash command that triggered [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter) to auto-format a pull request's branch based on [`psf/Black`](https://github.com/psf/black). This action hasn't been used in a long while and is no longer the recommended workflow. If a pull request still fails formatting checks in CI, install the pre-commit hooks locally and run `./runtests.sh --autofix` to fix the branch instead.
 
 #### Adding new optional dependencies
 
@@ -219,10 +228,8 @@ Integration tests with minimal requirements are deployed to ensure this strategy
 To add new optional dependencies, please communicate with the core team during pull request reviews,
 and add the necessary information (at least) to the following files:
 
-- [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
-- [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
+- [pyproject.toml](https://github.com/Project-MONAI/MONAI/blob/dev/pyproject.toml)  (for package's `[project.optional-dependencies]` config)
 - [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
-- [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
 - [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
 
 When writing unit tests that use 3rd-party packages, it is a good practice to always consider
@@ -252,6 +259,19 @@ Git has a `-s` (or `--signoff`) command-line option to append this automatically
 ```bash
 git commit -s -m 'a new commit'
 ```
+
+For `-s` to add the correct identity, set your name and email in your git configuration (`git config --global --edit`, or the commands below):
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+If you'd rather not use a personal address, GitHub provides a no-reply email tied to your account under [Settings > Emails](https://github.com/settings/emails), for example `12345678+yourusername@users.noreply.github.com`. Using it still associates the sign-off with your GitHub username without exposing a personal email.
+
+VS Code can also be configured to sign off every commit automatically: enable the `git.alwaysSignOff` setting (**Settings > Git: Always Sign Off**).
+
+If the git pre-commit hooks are installed (`pre-commit install` or `./runtests.sh --setup`), the local `commit-msg` hook blocks any commit that is missing this line, so the DCO check fails locally rather than in CI.
 
 The commit message will be:
 
@@ -302,6 +322,13 @@ By making a contribution to this project, I certify that:
     maintained indefinitely and may be redistributed consistent with
     this project or the open source license(s) involved.
 ```
+
+> **Tip:** If you need to add a DCO remediation commit (e.g., after a force-push
+> or rebase), include `[skip ci]` in the commit message so the remediation
+> does not trigger unnecessary CI pipelines:
+> ```bash
+> git commit -s --allow-empty -m 'DCO Remediation Commit for... [skip ci]'
+> ```
 
 #### Utility functions
 
@@ -358,6 +385,90 @@ Ideally, the new branch should be based on the latest `dev` branch.
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
 1. Wait for the pull request to be merged.
 
+## Skipping CI
+
+MONAI's CI pipelines run automatically on every push and pull request.
+These pipelines can be resource-intensive, especially the full premerge matrix
+which spans multiple OSes, Python versions, and PyTorch versions.
+
+To reduce unnecessary resource consumption and speed up iteration, you can
+skip CI on commits that don't need automated validation — for example,
+documentation-only changes, README updates, workflow YAML changes, or WIP
+commits during development.
+
+### Mechanism
+
+GitHub Actions natively supports skipping `push` and `pull_request` workflows
+when the commit message contains any of the following strings:
+
+- `[skip ci]`
+- `[ci skip]`
+- `[no ci]`
+- `[skip actions]`
+- `[actions skip]`
+
+These are case-insensitive. `[skip ci]` is the recommended convention for
+this repository.
+
+Alternatively, you can add a `skip-checks: true` trailer at the end of the
+commit message, preceded by two blank lines:
+
+```
+commit message
+
+skip-checks: true
+```
+
+### Usage
+
+Add the keyword anywhere in the commit message when committing:
+
+```bash
+git commit -s -m 'update docs [skip ci]'
+```
+
+If the HEAD commit of a pull request contains the skip instruction,
+the entire PR's pull_request-triggered workflows are skipped.
+
+### Which workflows are affected
+
+The skip instruction applies only to workflows triggered by `on: push` or
+`on: pull_request` events. All other workflows — those using `issue_comment`,
+`repository_dispatch`, `schedule`, or `workflow_dispatch` — use different
+event types and are **not** affected by `[skip ci]`.
+
+### Important caveat
+
+If a workflow is skipped via `[skip ci]`, its associated checks remain in
+"Pending" state. If your pull request requires those checks to pass before
+merging, you will need to push a new commit **without** the skip instruction
+to trigger the CI pipelines.
+
+### When to use
+
+Use `[skip ci]` for commits that are safe to skip CI:
+
+- Documentation-only changes (`docs/`, `README.md`, docstrings)
+- Workflow configuration changes (`.github/`)
+- Repository metadata (`.gitignore`, `CONTRIBUTING.md`, `LICENSE`)
+- WIP or draft commits during local development
+
+Do **not** use `[skip ci]` for commits that change:
+
+- Source code in `monai/`
+- Test files in `tests/`
+- Dependencies (`pyproject.toml`, `setup.py`, `docs/requirements.txt`)
+- Anything that could affect correctness or compatibility
+
+### Quick example
+
+```bash
+git commit -s -m 'fix typo in README [skip ci]'
+```
+
+This commit will be recorded in the repository history but will not
+consume CI minutes.
+
 ## The code reviewing process
 
 ### Reviewing pull requests
@@ -368,7 +479,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
-1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
+1. If formatting checks fail, ask the contributor to run `./runtests.sh --autofix`, commit the resulting changes, and re-push; suggest installing the pre-commit hooks (see [Checking the coding style](#checking-the-coding-style)) to catch this locally next time. Comment `/integration-test` to trigger optional [integration tests](.github/workflows/integration.yml) if needed.
 1. [Maintainers] Review the changes and comment `/build` to trigger internal full tests.
 1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].

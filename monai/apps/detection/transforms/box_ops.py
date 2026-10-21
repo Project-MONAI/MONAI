@@ -186,7 +186,9 @@ def flip_boxes(
     _flip_boxes: NdarrayTensor = boxes.clone() if isinstance(boxes, torch.Tensor) else deepcopy(boxes)  # type: ignore[assignment]
 
     for axis in flip_axes:
+        # pyrefly: ignore [bad-index, unsupported-operation]
         _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
+        # pyrefly: ignore [bad-index, unsupported-operation]
         _flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
 
     return _flip_boxes

@@ -68,6 +68,12 @@ class PatchEmbeddingBlock(nn.Module):
             spatial_dims: number of spatial dimensions.
             pos_embed_kwargs: additional arguments for position embedding. For `sincos`, it can contain
                               `temperature` and for fourier it can contain `scales`.
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if any dimension of ``patch_size`` is larger than the corresponding ``img_size`` dimension.
+            ValueError: if ``proj_type`` is ``"perceptron"`` and ``patch_size`` does not evenly divide ``img_size``.
         """
 
         super().__init__()

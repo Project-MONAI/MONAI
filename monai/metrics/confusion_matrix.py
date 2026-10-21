@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import create_ignore_mask, do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -43,12 +43,18 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
             ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
+            ``"informedness"``, ``"markedness"``, ``"positive likelihood ratio"``,
+            ``"negative likelihood ratio"``, ``"diagnostic odds ratio"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
             Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
             ("sensitivity", "precision", "recall"), if ``compute_sample`` is ``True``, multiple ``f`` and ``not_nans`` will be
             returned with the same order as input names when calling the class.
+            Note that for the likelihood-ratio family — ``"positive likelihood ratio"`` (``LR+ = tpr / fpr``),
+            ``"negative likelihood ratio"`` (``LR- = fnr / tnr``) and ``"diagnostic odds ratio"``
+            (``DOR = (tp * tn) / (fp * fn)``) — a zero denominator yields ``NaN`` (e.g. ``LR+`` is undefined
+            when the false positive rate is ``0``, and ``DOR`` when either ``fp`` or ``fn`` is ``0``),
+            following the same convention as the other ratio-based metrics.
         compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -59,6 +65,10 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
             Its shape depends on the shape of the metric, and it has one more dimension with size 4. For example, if the shape
             of the metric is [3, 3], `not_nans` has the shape [3, 3, 4].
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
+            or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+            ignore_index to keep score values comparable.
 
     """
 
@@ -69,6 +79,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         compute_sample: bool = False,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -76,6 +87,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         self.compute_sample = compute_sample
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.ignore_index = ignore_index
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -93,10 +105,12 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             raise ValueError("y_pred should have at least two dimensions.")
         if dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
             if self.compute_sample:
-                warnings.warn("As for classification task, compute_sample should be False.")
+                warnings.warn("As for classification task, compute_sample should be False.", stacklevel=2)
                 self.compute_sample = False
 
-        return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
+        return get_confusion_matrix(
+            y_pred=y_pred, y=y, include_background=self.include_background, ignore_index=self.ignore_index
+        )
 
     def aggregate(
         self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
@@ -131,7 +145,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
+def get_confusion_matrix(
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_index: int | None = None
+) -> torch.Tensor:
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -145,11 +161,15 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
             The values should be binarized.
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            If ignore_index refers to a valid class channel, that channel is excluded. If it is outside the
+            class range, ignored regions are inferred from spatial locations where all label channels are zero.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
     """
 
+    original_y = y
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
@@ -158,17 +178,44 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
 
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
+
+    # Create spatial mask if ignore_index is provided
+    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
+        ignore_channel = ignore_index if include_background else ignore_index - 1
+        if 0 <= ignore_channel < y_pred.shape[1]:
+            y_pred = y_pred.clone()
+            y = y.clone()
+            y_pred[:, ignore_channel] = 0
+            y[:, ignore_channel] = 0
+        mask = None
+    else:
+        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+
     # convert to [BNS], where S is the number of pixels for one sample.
-    # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
+
+    if mask is not None:
+        mask = mask.reshape(batch_size, 1, -1)
+        y_pred = y_pred * mask
+        y = y * mask
+
     tp = (y_pred + y) == 2
     tn = (y_pred + y) == 0
+
+    if mask is not None:
+        # When masking, TN must only count locations where the mask is 1
+        tn = tn * mask.bool()
 
     tp = tp.sum(dim=[2]).float()
     tn = tn.sum(dim=[2]).float()
     p = y.sum(dim=[2]).float()
-    n = y.shape[-1] - p
+
+    if mask is not None:
+        # n is total valid pixels (per sample) minus the positives for that class
+        n = mask.reshape(batch_size, -1).sum(dim=1, keepdim=True) - p
+    else:
+        n = y.shape[-1] - p
 
     fn = p - tp
     fp = n - tn
@@ -185,7 +232,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
             ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
+            ``"informedness"``, ``"markedness"``, ``"positive likelihood ratio"``,
+            ``"negative likelihood ratio"``, ``"diagnostic odds ratio"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
         confusion_matrix: Please see the doc string of the function ``get_confusion_matrix`` for more details.
@@ -263,6 +311,19 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         npv = torch.where((tn + fn) > 0, tn / (tn + fn), nan_tensor)
         numerator = ppv + npv - 1.0
         denominator = 1.0
+    elif metric == "plr":
+        # LR+ = sensitivity / (1 - specificity) = tpr / fpr; fpr == 0 yields NaN
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        fpr = torch.where(n > 0, fp / n, nan_tensor)
+        numerator, denominator = tpr, fpr
+    elif metric == "nlr":
+        # LR- = (1 - sensitivity) / specificity = fnr / tnr; tnr == 0 yields NaN
+        fnr = torch.where(p > 0, fn / p, nan_tensor)
+        tnr = torch.where(n > 0, tn / n, nan_tensor)
+        numerator, denominator = fnr, tnr
+    elif metric == "dor":
+        # DOR = (LR+) / (LR-) = (tp * tn) / (fp * fn); fp * fn == 0 yields NaN
+        numerator, denominator = tp * tn, fp * fn
     else:
         raise NotImplementedError("the metric is not implemented.")
 
@@ -319,4 +380,10 @@ def check_confusion_matrix_metric_name(metric_name: str) -> str:
         return "bm"
     if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"
+    if metric_name in ["positive_likelihood_ratio", "plr", "lr+"]:
+        return "plr"
+    if metric_name in ["negative_likelihood_ratio", "nlr", "lr-"]:
+        return "nlr"
+    if metric_name in ["diagnostic_odds_ratio", "dor"]:
+        return "dor"
     raise NotImplementedError("the metric is not implemented.")

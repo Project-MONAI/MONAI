@@ -1,3 +1,0 @@
-torch>=2.4.1; platform_system != "Windows"
-torch>=2.4.1, !=2.7.0; platform_system == "Windows"
-numpy>=1.24,<3.0

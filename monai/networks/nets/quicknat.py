@@ -43,7 +43,28 @@ class SkipConnectionWithIdx(SkipConnection):
     """
 
     def forward(self, input, indices):  # type: ignore[override]
-        return super().forward(input), indices
+        """Combine the input with the indexed submodule output.
+
+        Args:
+            input: input tensor for the skip connection and submodule.
+            indices: pooling indices to preserve for the following decoder.
+
+        Returns:
+            A tuple containing the combined tensor and the original indices.
+
+        Raises:
+            NotImplementedError: if the configured skip mode is unsupported.
+        """
+        submodule_output, _ = self.submodule(input, indices)
+        if self.mode == "cat":
+            output = torch.cat([input, submodule_output], dim=self.dim)
+        elif self.mode == "add":
+            output = torch.add(input, submodule_output)
+        elif self.mode == "mul":
+            output = torch.mul(input, submodule_output)
+        else:
+            raise NotImplementedError(f"Unsupported mode {self.mode}.")
+        return output, indices
 
 
 class SequentialWithIdx(nn.Sequential):
@@ -325,7 +346,7 @@ class Quicknat(nn.Module):
         stride_convolution: convolution stride. Defaults to 1.
         pool: kernel size of the pooling layer,
         stride_pool: stride for the pooling layer.
-        se_block: Squeeze and Excite block type to be included, defaults to None. Valid options : NONE, CSE, SSE, CSSE,
+        se_block: Squeeze and Excite block type to include. Use ``None`` or ``"None"`` to disable it; valid enabled values are ``"CSE"``, ``"SSE"``, and ``"CSSE"``.
         droup_out: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
@@ -358,7 +379,7 @@ class Quicknat(nn.Module):
         pool: int = 2,
         stride_pool: int = 2,
         # Valid options : NONE, CSE, SSE, CSSE
-        se_block: str = "None",
+        se_block: str | None = "None",
         drop_out: float = 0,
         act: tuple | str = Act.PRELU,
         norm: tuple | str = Norm.INSTANCE,

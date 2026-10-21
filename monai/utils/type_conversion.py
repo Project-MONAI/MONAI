@@ -333,10 +333,12 @@ def convert_data_type(
 
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
+    # pyrefly: ignore [bad-assignment]
     output_type = output_type or orig_type
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
     data_: NdarrayTensor
+    # pyrefly: ignore [bad-argument-type]
     if issubclass(output_type, torch.Tensor):
         track_meta = issubclass(output_type, monai.data.MetaTensor)
         data_ = convert_to_tensor(

@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -774,4 +774,5 @@ class AdversarialTrainer(Trainer):
             engine.state.output[AdversarialKeys.DISCRIMINATOR_LOSS].backward()
             engine.state.d_optimizer.step()
 
+        # pyrefly: ignore [bad-return]
         return engine.state.output

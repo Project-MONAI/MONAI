@@ -94,7 +94,6 @@ class BasicUNetPlusPlus(nn.Module):
         self.deep_supervision = deep_supervision
 
         fea = ensure_tuple_rep(features, 6)
-        print(f"BasicUNetPlusPlus features: {fea}.")
 
         self.conv_0_0 = TwoConv(spatial_dims, in_channels, fea[0], act, norm, bias, dropout)
         self.conv_1_0 = Down(spatial_dims, fea[0], fea[1], act, norm, bias, dropout)

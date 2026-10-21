@@ -21,7 +21,6 @@ from tests.padders import PadTest
 TESTS = [
     [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"}, (3, 8, 8, 5), (3, 15, 8, 8)],
     [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 5), (3, 15, 8, 8)],
-    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 5), (3, 15, 8, 8)],
     [{"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"}, (3, 8, 5, 4), (3, 15, 8, 4)],
 ]
 

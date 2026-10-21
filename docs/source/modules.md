@@ -205,7 +205,7 @@ The workflow and some of MONAI event handlers are shown as below [[Workflow exam
 
 ### EnsembleEvaluator
 
-A typical ensemble procoess is implemented as a ready-to-use workflow [[Cross validation and model ensemble tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/modules/cross_validation_models_ensemble.ipynb):
+A typical ensemble process is implemented as a ready-to-use workflow [[Cross validation and model ensemble tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/modules/cross_validation_models_ensemble.ipynb):
 1. Split all the training dataset into K folds.
 2. Train K models with every K-1 folds data.
 3. Execute inference on the test data with all the K models.

@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.losses.image_dissimilarity import LocalNormalizedCrossCorrelationLoss
+from monai.losses.image_dissimilarity import LocalNormalizedCrossCorrelationLoss, make_gaussian_kernel
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -113,6 +113,25 @@ TEST_CASES = [
         },
         -0.95406944,
     ],
+    # Regression tests for gh-8780: gaussian kernel_size > 3 was broken due to
+    # truncated parameter being passed as pixel radius instead of sigma multiplier.
+    # Identical images must yield loss == -1.0 for any kernel size.
+    [
+        {"spatial_dims": 1, "kernel_type": "gaussian", "kernel_size": 5},
+        {
+            "pred": torch.arange(0, 5).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 5).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+        },
+        -1.0,
+    ],
+    [
+        {"spatial_dims": 1, "kernel_type": "gaussian", "kernel_size": 9},
+        {
+            "pred": torch.arange(0, 9).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 9).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+        },
+        -1.0,
+    ],
 ]
 
 
@@ -137,6 +156,15 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
                 torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device),
                 torch.ones((1, 3, 4, 4, 4), dtype=torch.float, device=device),
             )
+
+    def test_gaussian_kernel_shape_and_symmetry(self):
+        # gh-8780: kernel must have correct length, be symmetric, and peak at center
+        for kernel_size in [3, 5, 7, 9, 11, 15]:
+            k = make_gaussian_kernel(kernel_size)
+            self.assertEqual(len(k), kernel_size)
+            self.assertTrue(torch.allclose(k, k.flip(0)), f"kernel_size={kernel_size} not symmetric")
+            self.assertEqual(k.argmax().item(), kernel_size // 2)
+            np.testing.assert_allclose(k.max().item(), 1.0, rtol=1e-6)
 
     def test_ill_opts(self):
         pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)

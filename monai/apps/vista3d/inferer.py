@@ -77,7 +77,7 @@ def point_based_window_inferer(
     image, pad = _pad_previous_mask(copy.deepcopy(inputs), roi_size)
     point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(point_coords.device)
     prev_mask = _pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
-    stitched_output = None
+    stitched_output: torch.Tensor | None = None
     for p in point_coords[0][point_start:]:
         lx_, rx_ = _get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=margin)
         ly_, ry_ = _get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=margin)
@@ -113,6 +113,10 @@ def point_based_window_inferer(
                         )
                     stitched_output[unravel_slice] += output.to("cpu")
                     stitched_mask[unravel_slice] = 1
+
+    if stitched_output is None:
+        raise ValueError("Input configuration resulted in no prediction windows being selected.")
+
     # if stitched_mask is 0, then NaN value
     stitched_output = stitched_output / stitched_mask
     # revert padding

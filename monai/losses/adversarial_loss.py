@@ -129,7 +129,8 @@ class PatchAdversarialLoss(_Loss):
             target_is_real = True  # With generator, we always want this to be true!
             warnings.warn(
                 "Variable target_is_real has been set to False, but for_discriminator is set"
-                "to False. To optimise a generator, target_is_real must be set to True."
+                "to False. To optimise a generator, target_is_real must be set to True.",
+                stacklevel=2,
             )
 
         if not isinstance(input, list):

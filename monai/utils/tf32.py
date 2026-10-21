@@ -41,7 +41,7 @@ def has_ampere_or_later() -> bool:
             major, _ = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
             if major >= 8:
                 return True
-    except BaseException:
+    except Exception:
         pass
     finally:
         pynvml.nvmlShutdown()
@@ -71,7 +71,7 @@ def detect_default_tf32() -> bool:
                 may_enable_tf32 = True
 
         return may_enable_tf32
-    except BaseException:
+    except Exception:
         from monai.utils.misc import MONAIEnvVars
 
         if MONAIEnvVars.debug():

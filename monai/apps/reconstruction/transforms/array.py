@@ -62,8 +62,8 @@ class KspaceMask(RandomizableTransform):
         """
         if len(center_fractions) != len(accelerations):
             raise ValueError(
-                "Number of center fractions \
-                should match number of accelerations"
+                f"Number of center fractions {len(center_fractions)=} "
+                f"should match number of accelerations {len(accelerations)=}."
             )
 
         self.center_fractions = center_fractions

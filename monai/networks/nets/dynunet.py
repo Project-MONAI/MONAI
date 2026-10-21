@@ -12,7 +12,6 @@
 # isort: dont-add-import: from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -33,7 +32,7 @@ class DynUNetSkipLayer(nn.Module):
     forward passes of the network.
     """
 
-    heads: Optional[list[torch.Tensor]]
+    heads: list[torch.Tensor] | None
 
     def __init__(self, index, downsample, upsample, next_layer, heads=None, super_head=None):
         super().__init__()
@@ -133,13 +132,13 @@ class DynUNet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Sequence[Union[Sequence[int], int]],
-        strides: Sequence[Union[Sequence[int], int]],
-        upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        filters: Optional[Sequence[int]] = None,
-        dropout: Optional[Union[tuple, str, float]] = None,
-        norm_name: Union[tuple, str] = ("INSTANCE", {"affine": True}),
-        act_name: Union[tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        kernel_size: Sequence[Sequence[int] | int],
+        strides: Sequence[Sequence[int] | int],
+        upsample_kernel_size: Sequence[Sequence[int] | int],
+        filters: Sequence[int] | None = None,
+        dropout: tuple | str | float | None = None,
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
@@ -326,10 +325,10 @@ class DynUNet(nn.Module):
         self,
         in_channels: list[int],
         out_channels: list[int],
-        kernel_size: Sequence[Union[Sequence[int], int]],
-        strides: Sequence[Union[Sequence[int], int]],
+        kernel_size: Sequence[Sequence[int] | int],
+        strides: Sequence[Sequence[int] | int],
         conv_block: nn.Module,
-        upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
+        upsample_kernel_size: Sequence[Sequence[int] | int] | None = None,
         trans_bias: bool = False,
     ):
         layers = []

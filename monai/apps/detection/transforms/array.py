@@ -257,10 +257,14 @@ class ZoomBox(Transform):
                 diff = od - zd
                 half = abs(diff) // 2
                 if diff > 0:  # need padding (half, diff - half)
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     zoomed_boxes[:, axis] = zoomed_boxes[:, axis] + half
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     zoomed_boxes[:, axis + spatial_dims] = zoomed_boxes[:, axis + spatial_dims] + half
                 elif diff < 0:  # need slicing (half, half + od)
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     zoomed_boxes[:, axis] = zoomed_boxes[:, axis] - half
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     zoomed_boxes[:, axis + spatial_dims] = zoomed_boxes[:, axis + spatial_dims] - half
         return zoomed_boxes
 

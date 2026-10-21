@@ -23,6 +23,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASES = [
     [{}, {"pred": torch.ones((1, 3, 5, 5, 5), device=device)}, 0.0],
+    [{}, {"pred": torch.ones((1, 3, 3, 3, 3), device=device)}, 0.0],
     [{}, {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5)}, 0.0],
     [
         {"normalize": False},
@@ -64,11 +65,11 @@ class TestBendingEnergy(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Expecting 3-d, 4-d or 5-d"):
             loss.forward(torch.ones((1, 4, 5, 5, 5, 5), device=device))
         with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
-            loss.forward(torch.ones((1, 3, 4, 5, 5), device=device))
+            loss.forward(torch.ones((1, 3, 2, 5, 5), device=device))
         with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
-            loss.forward(torch.ones((1, 3, 5, 4, 5)))
+            loss.forward(torch.ones((1, 3, 5, 2, 5)))
         with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
-            loss.forward(torch.ones((1, 3, 5, 5, 4)))
+            loss.forward(torch.ones((1, 3, 5, 5, 2)))
 
         # number of vector components unequal to number of spatial dims
         with self.assertRaisesRegex(ValueError, "Number of vector components"):

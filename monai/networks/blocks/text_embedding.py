@@ -67,7 +67,7 @@ class TextEncoder(nn.Module):
 
             if pretrained:
                 model_url = url_map[self.encoding]
-                pretrain_state_dict = model_zoo.load_url(model_url, map_location="cpu")
+                pretrain_state_dict = model_zoo.load_url(model_url, map_location="cpu", weights_only=True)
                 self.text_embedding.data = pretrain_state_dict.float()  # type: ignore
             else:
                 print(f"{self.encoding} is not implemented, and can not be downloaded, please load your own")
@@ -79,7 +79,6 @@ class TextEncoder(nn.Module):
             # text embedding as random initialized 'rand_embedding'
             text_embedding = self.text_embedding.weight
         else:
-            print(self.text_embedding)
             text_embedding = nn.functional.relu(self.text_to_vision(self.text_embedding))
 
         if self.spatial_dims == 3:

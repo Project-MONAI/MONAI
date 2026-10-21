@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
@@ -137,6 +138,78 @@ class TestWarp(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, ""):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
+
+    def test_jitter(self):
+        ddf = torch.zeros(1, 2, 4, 5)
+        grid = Warp(jitter=True).get_reference_grid(ddf, jitter=True, seed=0)
+        self.assertTrue(grid.is_floating_point())
+        self.assertFalse(torch.equal(grid, grid.round()))
+
+        grid = Warp().get_reference_grid(ddf, jitter=False)
+        self.assertTrue(torch.equal(grid, grid.round()))
+
+        same = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        repeat = Warp().get_reference_grid(ddf, jitter=True, seed=7)
+        other = Warp().get_reference_grid(ddf, jitter=True, seed=8)
+        self.assertTrue(torch.equal(same, repeat))
+        self.assertFalse(torch.equal(same, other))
+
+    def test_reference_grid_cache(self):
+        """Verify reference-grid cache hits and invalidation across every key dimension."""
+        warp_layer = Warp()
+        ddf = torch.zeros(1, 2, 4, 5)
+
+        regular = warp_layer.get_reference_grid(ddf, jitter=False, seed=0)
+        self.assertIs(regular, warp_layer.get_reference_grid(ddf, jitter=False, seed=7))
+
+        float64 = warp_layer.get_reference_grid(ddf.to(torch.float64))
+        self.assertIsNot(float64, regular)
+        self.assertEqual(float64.dtype, torch.float64)
+
+        jitter_7 = warp_layer.get_reference_grid(ddf.to(torch.float64), jitter=True, seed=7)
+        self.assertIsNot(jitter_7, float64)
+        self.assertIs(jitter_7, warp_layer.get_reference_grid(ddf.to(torch.float64), jitter=True, seed=7))
+
+        jitter_8 = warp_layer.get_reference_grid(ddf.to(torch.float64), jitter=True, seed=8)
+        self.assertIsNot(jitter_8, jitter_7)
+        self.assertTrue(torch.equal(jitter_8, Warp().get_reference_grid(ddf.to(torch.float64), jitter=True, seed=8)))
+
+        regular = warp_layer.get_reference_grid(ddf.to(torch.float64))
+        self.assertIsNot(regular, jitter_8)
+
+        different_batch = warp_layer.get_reference_grid(torch.zeros(2, 2, 4, 5, dtype=torch.float64))
+        self.assertIsNot(different_batch, regular)
+
+        different_shape = warp_layer.get_reference_grid(torch.zeros(2, 2, 5, 4, dtype=torch.float64))
+        self.assertIsNot(different_shape, different_batch)
+
+        meta_ddf = torch.zeros(2, 2, 5, 4, dtype=torch.float64, device="meta")
+        meta = warp_layer.get_reference_grid(meta_ddf)
+        self.assertIsNot(meta, different_shape)
+        self.assertIs(meta, warp_layer.get_reference_grid(meta_ddf))
+        self.assertEqual(meta.device.type, "meta")
+
+    @mock.patch("monai.networks.blocks.warp.USE_COMPILED", False)
+    def test_singleton_spatial_dim(self):
+        """
+        Regression test for a singleton spatial dimension (a single-slice volume or a
+        single-row/column image), where the grid normalization ``* 2 / (dim - 1)`` previously
+        divided by zero.
+
+        The native ``grid_sample`` path is forced via ``USE_COMPILED=False`` because only that
+        branch normalizes the grid; the csrc ``grid_pull`` path is unaffected. ``padding_mode``
+        is ``"zeros"`` so an out-of-range (pre-fix ``nan``) coordinate maps to 0 and exposes the
+        bug, whereas ``"border"``/``"reflection"`` would clamp onto the lone voxel and mask it.
+        For a zero displacement field the warped output must contain no ``nan`` and must equal
+        the input image.
+        """
+        for shape, ndim in [((1, 1, 1, 4, 4), 3), ((1, 1, 1, 5), 2), ((1, 1, 5, 1), 2)]:
+            image = torch.rand(*shape)
+            ddf = torch.zeros(shape[0], ndim, *shape[2:])
+            warp_layer = Warp(mode="bilinear", padding_mode="zeros")
+            result = warp_layer(image, ddf)
+            self.assertFalse(torch.isnan(result).any(), f"NaN in warp output for shape {shape}")
+            np.testing.assert_allclose(result.cpu().numpy(), image.cpu().numpy(), rtol=1e-4, atol=1e-4)
 
     def test_grad(self):
         for b in GridSampleMode:

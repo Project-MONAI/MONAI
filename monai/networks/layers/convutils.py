@@ -118,14 +118,10 @@ def gaussian_1d(
             out = out / (2.5066282 * sigma)
     elif approx.lower() == "scalespace":
         sigma2 = sigma * sigma
-        out_pos: list[torch.Tensor | None] = [None] * (tail + 1)
-        out_pos[0] = _modified_bessel_0(sigma2)
-        out_pos[1] = _modified_bessel_1(sigma2)
-        for k in range(2, len(out_pos)):
-            out_pos[k] = _modified_bessel_i(k, sigma2)
-        out = out_pos[:0:-1]
-        out.extend(out_pos)
-        out = torch.stack(out) * torch.exp(-sigma2)
+        out_pos: list[torch.Tensor] = [_modified_bessel_0(sigma2), _modified_bessel_1(sigma2)]
+        out_pos += [_modified_bessel_i(k, sigma2) for k in range(2, tail + 1)]
+        out_pos_mirror = out_pos[:0:-1] + out_pos
+        out = torch.stack(out_pos_mirror) * torch.exp(-sigma2)
     else:
         raise NotImplementedError(f"Unsupported option: approx='{approx}'.")
     return out / out.sum() if normalize else out  # type: ignore

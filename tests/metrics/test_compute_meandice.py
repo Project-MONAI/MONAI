@@ -18,6 +18,10 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import DiceHelper, DiceMetric, compute_dice
+from monai.utils.module import optional_import
+
+_, has_ndimage = optional_import("scipy.ndimage")
+_, has_cupy_ndimage = optional_import("cupyx.scipy.ndimage")
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -250,6 +254,42 @@ TEST_CASE_15 = [
     {"label_1": 0.4000, "label_2": 0.6667},
 ]
 
+# Testcase for per_component DiceMetric - 3D input
+y = torch.zeros((5, 2, 64, 64, 64), device=_device)
+y_hat = torch.zeros((5, 2, 64, 64, 64), device=_device)
+
+y[0, 1, 20:25, 20:25, 20:25] = 1
+y[0, 1, 40:45, 40:45, 40:45] = 1
+y[0, 0] = 1 - y[0, 1]
+
+y_hat[0, 1, 21:26, 21:26, 21:26] = 1
+y_hat[0, 1, 41:46, 39:44, 41:46] = 1
+y_hat[0, 0] = 1 - y_hat[0, 1]
+
+TEST_CASE_16 = [
+    {"per_component": True, "ignore_empty": False},
+    {"y": y, "y_pred": y_hat},
+    [[0.5120], [1.0], [1.0], [1.0], [1.0]],
+]
+
+# Testcase for per_component DiceMetric - 2D input
+y = torch.zeros((5, 2, 64, 64), device=_device)
+y_hat = torch.zeros((5, 2, 64, 64), device=_device)
+
+y[0, 1, 20:25, 20:25] = 1
+y[0, 1, 40:45, 40:45] = 1
+y[0, 0] = 1 - y[0, 1]
+
+y_hat[0, 1, 21:26, 21:26] = 1
+y_hat[0, 1, 41:46, 39:44] = 1
+y_hat[0, 0] = 1 - y_hat[0, 1]
+
+TEST_CASE_17 = [
+    {"per_component": True, "ignore_empty": False},
+    {"y": y, "y_pred": y_hat},
+    [[0.6400], [1.0], [1.0], [1.0], [1.0]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
 
@@ -300,6 +340,24 @@ class TestComputeMeanDice(unittest.TestCase):
             self.assertEqual(result, expected_value)
         else:
             np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    # CC DiceMetric  tests
+    @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
+    @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
+    def test_cc_dice_value_nogpu(self, params, input_data, expected_value):
+        dice_metric = DiceMetric(**params)
+        if not has_cupy_ndimage:
+            cpu_inputs = {"y": input_data["y"].cpu(), "y_pred": input_data["y_pred"].cpu()}
+            dice_metric(**cpu_inputs)
+        else:
+            dice_metric(**input_data)
+        result = dice_metric.aggregate(reduction="none")
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+
+    @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
+    def test_channel_dimensions(self):
+        with self.assertRaises(ValueError):
+            DiceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
 
 
 if __name__ == "__main__":

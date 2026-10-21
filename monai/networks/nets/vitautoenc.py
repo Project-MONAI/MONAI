@@ -133,3 +133,41 @@ class ViTAutoEnc(nn.Module):
         x = self.conv3d_transpose(x)
         x = self.conv3d_transpose_1(x)
         return x, hidden_states_out
+
+    def load_old_state_dict(self, old_state_dict: dict, verbose: bool = False) -> None:
+        """
+        Load a state dict from a ViTAutoEnc model trained with an older version of MONAI where
+        ``CrossAttentionBlock`` was unconditionally instantiated in ``TransformerBlock``
+        even when ``with_cross_attention=False``. Old checkpoints contain stale
+        ``blocks.{i}.cross_attn.*`` keys that are not present in the current model and
+        are automatically dropped.
+
+        Args:
+            old_state_dict: state dict from the older ViTAutoEnc model.
+            verbose: if True, print keys that are missing or unmatched. Defaults to False.
+        """
+        new_state_dict = self.state_dict()
+        if all(k in new_state_dict for k in old_state_dict):
+            if verbose:
+                print("All keys match, loading state dict.")
+            self.load_state_dict(old_state_dict)
+            return
+
+        if verbose:
+            for k in new_state_dict:
+                if k not in old_state_dict:
+                    print(f"key {k} not found in old state dict")
+            print("----------------------------------------------")
+            for k in old_state_dict:
+                if k not in new_state_dict:
+                    print(f"key {k} not found in new state dict")
+
+        # copy over all matching keys; stale cross_attn.* keys are left as unmatched
+        # leftovers and are not inserted into new_state_dict
+        for k in new_state_dict:
+            if k in old_state_dict:
+                new_state_dict[k] = old_state_dict.pop(k)
+
+        if verbose:
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
+        self.load_state_dict(new_state_dict)

@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import warnings
+from typing import Any, cast
 
 from packaging import version
 from setuptools import find_packages, setup
@@ -29,6 +30,7 @@ FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI 
 
 BUILD_CPP = BUILD_CUDA = False
 TORCH_VERSION = 0
+
 try:
     import torch
 
@@ -38,7 +40,11 @@ try:
     BUILD_CPP = True
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
-    BUILD_CUDA = FORCE_CUDA or (torch.cuda.is_available() and (CUDA_HOME is not None))
+    # On a ROCm build of torch, `CUDA_HOME` is None and the toolkit is located by `ROCM_HOME`
+    # instead; `CUDAExtension` hipifies the .cu sources transparently in that case. Accept
+    # either so the extensions are not silently skipped on ROCm.
+    _toolkit_home = CUDA_HOME or getattr(torch.utils.cpp_extension, "ROCM_HOME", None)
+    BUILD_CUDA = FORCE_CUDA or (torch.cuda.is_available() and (_toolkit_home is not None))
 
     _pt_version = version.parse(torch.__version__).release
     if _pt_version is None or len(_pt_version) < 3:
@@ -103,6 +109,19 @@ def get_extensions():
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
+        # Embed the maximum compute capability from TORCH_CUDA_ARCH_LIST
+        _torch_cuda_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST", "")
+        _max_cc = 0
+        if _torch_cuda_arch_list:
+            for _maj, _min in re.findall(r"([0-9]+)\.([0-9]+)", _torch_cuda_arch_list):
+                try:
+                    _cc = int(_maj) * 100 + int(_min)
+                    if _cc > _max_cc:
+                        _max_cc = _cc
+                except ValueError:
+                    pass
+        if _max_cc > 0:
+            define_macros += [("MONAI_MAX_COMPUTE_CAPABILITY", _max_cc)]
         extra_compile_args = {"cxx": [], "nvcc": []}
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()
@@ -112,7 +131,7 @@ def get_extensions():
     ext_modules = [
         extension(
             name="monai._C",
-            sources=sources,
+            sources=list(map(os.path.relpath, sources)),
             include_dirs=include_dirs,
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
@@ -144,8 +163,8 @@ jit_extension_source = [os.path.join("..", path) for path in jit_extension_sourc
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
-    packages=find_packages(exclude=("docs", "examples", "tests")),
+    packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
-    package_data={"monai": ["py.typed", *jit_extension_source]},  # type: ignore[arg-type]
+    package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
     ext_modules=get_extensions(),
 )

@@ -86,6 +86,11 @@ class UpSample(nn.Sequential):
                 size of `scale_factor` with a stride of 1. See also: :py:class:`monai.networks.blocks.SubpixelUpsample`.
                 Only used in the "pixelshuffle" mode.
 
+        Raises:
+            ValueError: if ``mode`` is ``"deconv"`` or ``"deconvgroup"`` and ``in_channels`` is not specified.
+            ValueError: if ``mode`` is ``"nontrainable"``, ``pre_conv`` is not set, and
+                ``out_channels != in_channels``.
+
         """
         super().__init__()
         scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)

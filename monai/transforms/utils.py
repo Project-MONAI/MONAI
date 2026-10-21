@@ -85,6 +85,9 @@ ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
+# NOTE: cucim is deliberately NOT imported at module level.
+# Module-level cucim imports caused very slow import times and other buggy behaviour.
+# Keep cucim imports inside the functions that need them.
 
 __all__ = [
     "allow_missing_keys_mode",
@@ -107,6 +110,7 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "get_marching_cubes_surface",
     "keep_merge_components_with_points",
     "keep_components_with_positive_points",
     "convert_points_to_disc",
@@ -861,6 +865,7 @@ def create_rotate(
     radians: Sequence[float] | float,
     device: torch.device | None = None,
     backend: str = TransformBackends.NUMPY,
+    rotate_order: str = "XYZ",
 ) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
@@ -869,19 +874,33 @@ def create_rotate(
         spatial_dims: {``2``, ``3``} spatial rank
         radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
-            rotation in the 1st, 2nd, and 3rd dim respectively.
+            rotation about the axes named by ``rotate_order``, in the order they are listed.
         device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
+        rotate_order: the order in which the axes are rotated about when ``spatial_dims == 3``,
+            following the convention of :py:func:`scipy.spatial.transform.Rotation.from_euler`.
+            A string of up to three characters from ``{'x', 'y', 'z'}`` (or ``{'X', 'Y', 'Z'}``),
+            where ``radians[i]`` is the angle applied about ``rotate_order[i]``. Lower case letters
+            select extrinsic rotations (about the original fixed axes); upper case letters select
+            intrinsic rotations (about the moving, body-fixed axes). The default ``"XYZ"``
+            reproduces the legacy behaviour (intrinsic x, then y, then z). Ignored when
+            ``spatial_dims == 2``.
 
     Raises:
         ValueError: When ``radians`` is empty.
         ValueError: When ``spatial_dims`` is not one of [2, 3].
+        ValueError: When ``rotate_order`` is not a valid Euler axis sequence.
 
     """
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
         return _create_rotate(
-            spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, eye_func=np.eye
+            spatial_dims=spatial_dims,
+            radians=radians,
+            sin_func=np.sin,
+            cos_func=np.cos,
+            eye_func=np.eye,
+            order=rotate_order,
         )
     if _backend == TransformBackends.TORCH:
         return _create_rotate(
@@ -890,8 +909,37 @@ def create_rotate(
             sin_func=lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32, device=device)),
             cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=device)),
             eye_func=lambda rank: torch.eye(rank, device=device),
+            order=rotate_order,
         )
     raise ValueError(f"backend {backend} is not supported")
+
+
+def _validate_euler_order(order: str, num_radians: int) -> None:
+    """
+    Validate a scipy-style Euler axis sequence.
+
+    Args:
+        order: the user-facing ``rotate_order`` value, a 1-3 character axis sequence.
+        num_radians: number of rotation angles the sequence must accommodate.
+
+    Raises:
+        ValueError: when ``order`` is not a valid Euler axis sequence for ``num_radians`` angles.
+    """
+    if not isinstance(order, str):
+        raise ValueError(f"`rotate_order` must be a string, got {type(order).__name__}.")
+    if not 1 <= len(order) <= 3:
+        raise ValueError(f"`rotate_order` must contain between 1 and 3 axes, got '{order}'.")
+    if not (order.islower() or order.isupper()):
+        raise ValueError(
+            f"`rotate_order` must be all lower case (extrinsic) or all upper case (intrinsic), got '{order}'."
+        )
+    lowered = order.lower()
+    if any(axis not in "xyz" for axis in lowered):
+        raise ValueError(f"`rotate_order` axes must be from 'x', 'y', 'z' (any case), got '{order}'.")
+    if any(lowered[i] == lowered[i + 1] for i in range(len(lowered) - 1)):
+        raise ValueError(f"`rotate_order` must not repeat the same axis consecutively, got '{order}'.")
+    if len(order) < num_radians:
+        raise ValueError(f"`rotate_order` '{order}' is too short for {num_radians} rotation angle(s).")
 
 
 def _create_rotate(
@@ -900,6 +948,7 @@ def _create_rotate(
     sin_func: Callable = np.sin,
     cos_func: Callable = np.cos,
     eye_func: Callable = np.eye,
+    order: str = "XYZ",
 ) -> NdarrayOrTensor:
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
@@ -912,30 +961,25 @@ def _create_rotate(
         raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
-        affine = None
-        if len(radians) >= 1:
-            sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
-            affine = eye_func(4)
-            affine[1, 1], affine[1, 2] = cos_, -sin_
-            affine[2, 1], affine[2, 2] = sin_, cos_
-        if len(radians) >= 2:
-            sin_, cos_ = sin_func(radians[1]), cos_func(radians[1])
-            if affine is None:
-                raise ValueError("Affine should be a matrix.")
-            _affine = eye_func(4)
-            _affine[0, 0], _affine[0, 2] = cos_, sin_
-            _affine[2, 0], _affine[2, 2] = -sin_, cos_
-            affine = affine @ _affine
-        if len(radians) >= 3:
-            sin_, cos_ = sin_func(radians[2]), cos_func(radians[2])
-            if affine is None:
-                raise ValueError("Affine should be a matrix.")
-            _affine = eye_func(4)
-            _affine[0, 0], _affine[0, 1] = cos_, -sin_
-            _affine[1, 0], _affine[1, 1] = sin_, cos_
-            affine = affine @ _affine
-        if affine is None:
+        if len(radians) < 1:
             raise ValueError("radians must be non empty.")
+        _validate_euler_order(order, len(radians))
+        intrinsic = order.isupper()
+        affine = eye_func(4)
+        for axis, radian in zip(order.lower(), radians):
+            sin_, cos_ = sin_func(radian), cos_func(radian)
+            _affine = eye_func(4)
+            if axis == "x":
+                _affine[1, 1], _affine[1, 2] = cos_, -sin_
+                _affine[2, 1], _affine[2, 2] = sin_, cos_
+            elif axis == "y":
+                _affine[0, 0], _affine[0, 2] = cos_, sin_
+                _affine[2, 0], _affine[2, 2] = -sin_, cos_
+            else:  # axis == "z"
+                _affine[0, 0], _affine[0, 1] = cos_, -sin_
+                _affine[1, 0], _affine[1, 1] = sin_, cos_
+            # intrinsic rotations post-multiply (body-fixed axes); extrinsic pre-multiply (world axes)
+            affine = affine @ _affine if intrinsic else _affine @ affine
         return affine  # type: ignore
 
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
@@ -952,14 +996,15 @@ def create_shear(
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
-            take a 3D affine as example::
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D).
+            Individual single-axis shear matrices are composed (multiplied) in
+            coefficient order so that the result is a proper shear with determinant 1.
+            For 2D with coefs ``(Sx, Sy)`` the composed matrix is::
 
                 [
-                    [1.0, coefs[0], coefs[1], 0.0],
-                    [coefs[2], 1.0, coefs[3], 0.0],
-                    [coefs[4], coefs[5], 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
+                    [1.0,  Sx,          0.0],
+                    [Sy,   1.0 + Sx*Sy, 0.0],
+                    [0.0,  0.0,         1.0],
                 ]
 
         device: device to compute and store the output (when the backend is "torch").
@@ -982,17 +1027,30 @@ def create_shear(
 def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np.eye) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        out = eye_func(3)
-        out[0, 1], out[1, 0] = coefs[0], coefs[1]
-        return out  # type: ignore
-    if spatial_dims == 3:
+        rank = 3
+        shear_indices = [(0, 1, coefs[0]), (1, 0, coefs[1])]
+    elif spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
-        out = eye_func(4)
-        out[0, 1], out[0, 2] = coefs[0], coefs[1]
-        out[1, 0], out[1, 2] = coefs[2], coefs[3]
-        out[2, 0], out[2, 1] = coefs[4], coefs[5]
-        return out  # type: ignore
-    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+        rank = 4
+        shear_indices = [
+            (0, 1, coefs[0]),
+            (0, 2, coefs[1]),
+            (1, 0, coefs[2]),
+            (1, 2, coefs[3]),
+            (2, 0, coefs[4]),
+            (2, 1, coefs[5]),
+        ]
+    else:
+        raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
+    # Compose individual single-axis shear matrices so that the result is a
+    # proper (area/volume-preserving) shear with determinant 1.  Each elementary
+    # shear is pre-multiplied, so the first coefficient is applied first.
+    out = eye_func(rank)
+    for i, j, c in shear_indices:
+        s = eye_func(rank)
+        s[i, j] = c
+        out = s @ out
+    return out  # type: ignore
 
 
 def create_scale(
@@ -1167,17 +1225,100 @@ def get_largest_connected_component_mask(
     if num_features <= num_components:
         out = img_.astype(bool)
     else:
-        # ignore background
-        nonzeros = features[lib.nonzero(features)]
-        # get number voxels per feature (bincount). argsort[::-1] to get indices
-        # of largest components.
-        features_to_keep = lib.argsort(lib.bincount(nonzeros))[::-1]
-        # only keep the first n non-background indices
-        features_to_keep = features_to_keep[:num_components]
-        # generate labelfield. True if in list of features to keep
-        out = lib.isin(features, features_to_keep)
+        # bincount counts every label; index 0 is background, so drop it before ranking
+        counts = lib.bincount(features.reshape(-1))
+        counts[0] = 0
+        # argsort[::-1] gives labels of the largest components; keep the first n
+        features_to_keep = lib.argsort(counts)[::-1][:num_components]
+        # boolean lookup-table gather over the label field, cheaper than isin
+        keep = lib.zeros(counts.shape[0], dtype=bool)
+        keep[features_to_keep] = True
+        out = keep[features]
 
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
+
+
+def get_marching_cubes_surface(
+    volume: NdarrayTensor,
+    level: float | None = 0.5,
+    spacing: Sequence[float] | float | None = None,
+    step_size: int = 1,
+    allow_degenerate: bool = True,
+    method: str = "lewiner",
+    mask: NdarrayTensor | None = None,
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Extract a surface mesh from a 3D volume using `skimage.measure.marching_cubes`.
+
+    NOTE: computation always runs on CPU via scikit-image (there is no cucim GPU
+    kernel for marching cubes). GPU tensors are moved to CPU first and the mesh is
+    moved back to the input device; the mesh is tiny compared to the volume so the
+    transfer cost is negligible.
+
+    Args:
+        volume: 3D array with shape (M, N, P). For a channel-first image, pass one
+            channel at a time.
+        level: isosurface value. Defaults to 0.5 for binary masks.
+        spacing: voxel spacing along each dimension. If a single number, it is used
+            for all axes. If ``None`` and ``volume`` is a MetaTensor, the pixdim is
+            used, otherwise unity spacing is assumed.
+        step_size: step size in voxels. Larger steps yield coarser, faster meshes.
+        allow_degenerate: allow degenerate triangles in the mesh.
+        method: one of ("lewiner", "lorensen"), see scikit-image docs.
+        mask: optional boolean array of the same shape as ``volume``. Marching cubes
+            is computed only on ``True`` elements.
+
+    Returns:
+        Tuple of (verts, faces, normals, values) matching `skimage.measure.marching_cubes`
+        output. These are numpy arrays for array input, and plain (non-meta) ``torch.Tensor``
+        on the same device as ``volume`` for tensor input; ``faces`` keeps an integer dtype.
+        Coordinate order matches the
+        input ``volume`` (M, N, P), scaled by ``spacing``.
+
+    Raises:
+        RuntimeError: when scikit-image is not installed.
+        ValueError: when ``volume`` is not 3D, ``method`` is unsupported, or
+            ``mask`` shape does not match ``volume`` shape.
+    """
+    if not has_measure:
+        raise RuntimeError("Skimage.measure required.")
+    look_up_option(method, ["lewiner", "lorensen"])
+    volume_np, *_ = convert_data_type(volume, np.ndarray)
+    if volume_np.ndim != 3:
+        raise ValueError(f"Marching cubes requires a 3D volume, got shape {volume_np.shape}.")
+    if spacing is not None:
+        spacing_t = ensure_tuple_rep(spacing, 3)
+    elif isinstance(volume, monai.data.MetaTensor):
+        try:
+            spacing_t = tuple(float(s) for s in volume.pixdim[-3:])
+            if len(spacing_t) != 3:
+                raise ValueError(f"Expected 3 spatial spacings from MetaTensor pixdim, got {len(spacing_t)}.")
+        except Exception:
+            warnings.warn("Could not determine spacing from MetaTensor, assuming unity spacing.")
+            spacing_t = (1.0, 1.0, 1.0)
+    else:
+        spacing_t = (1.0, 1.0, 1.0)
+    mask_np: np.ndarray | None = None
+    if mask is not None:
+        mask_np, *_ = convert_data_type(mask, np.ndarray)
+        mask_np = np.asarray(mask_np, dtype=bool)
+        if mask_np.shape != volume_np.shape:
+            raise ValueError(f"Mask shape {mask_np.shape} must match volume shape {volume_np.shape}.")
+
+    verts, faces, normals, values = measure.marching_cubes(
+        volume_np,
+        level=level,
+        spacing=spacing_t,
+        step_size=step_size,
+        allow_degenerate=allow_degenerate,
+        method=method,
+        mask=mask_np,
+    )
+    if isinstance(volume, torch.Tensor):
+        verts, faces, normals, values = (
+            torch.as_tensor(np.ascontiguousarray(a), device=volume.device) for a in (verts, faces, normals, values)
+        )
+    return verts, faces, normals, values
 
 
 def keep_merge_components_with_points(
@@ -1227,10 +1368,14 @@ def keep_merge_components_with_points(
     features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
 
     outs = np.zeros_like(img_pos_)
+    # pyrefly: ignore [missing-attribute]
     for bs in range(point_coords.shape[0]):
+        # pyrefly: ignore [bad-index]
         for i, p in enumerate(point_coords[bs]):
+            # pyrefly: ignore [bad-index]
             if point_labels[bs, i] in pos_val:
                 features = features_pos
+            # pyrefly: ignore [bad-index]
             elif point_labels[bs, i] in neg_val:
                 features = features_neg
             else:
@@ -1438,8 +1583,10 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     if by_measure:
+        # pyrefly: ignore [missing-attribute]
         sr = len(img.shape[1:])
         if isinstance(img, monai.data.MetaTensor):
+            # pyrefly: ignore [missing-attribute]
             _pixdim = img.pixdim
         elif pixdim is not None:
             _pixdim = ensure_tuple_rep(pixdim, sr)
@@ -1642,7 +1789,6 @@ def extreme_points_to_image(
         rescale_max: maximum value of output data.
     """
     # points to image
-    # points_image = torch.zeros(label.shape[1:], dtype=torch.float)
     points_image = torch.zeros_like(torch.as_tensor(label[0]), dtype=torch.float)
     for p in points:
         points_image[p] = 1.0
@@ -2080,7 +2226,7 @@ def convert_to_contiguous(
         return data
 
 
-def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_size, new_spatial_size, centered: bool = True, align_corners: bool = False):
     """
     Compute the scaling matrix according to the new spatial size
 
@@ -2088,6 +2234,8 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
         centered: whether the scaling is with respect to the image center (True, default) or corner (False).
+            Ignored when ``align_corners=True``, since corner-aligned scaling is inherently centered.
+        align_corners: if True, use (size-1) based scaling to match torch.nn.functional.interpolate behavior.
 
     Returns:
         the scaling matrix.
@@ -2096,9 +2244,19 @@ def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
         return np.eye(r + 1)
-    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
+    if align_corners:
+        # Match interpolate behavior: (src-1)/(dst-1); when dst == 1 the scale collapses to 0
+        s = np.array(
+            [0.0 if float(n) == 1 else (float(o) - 1) / (float(n) - 1) for o, n in zip(spatial_size, new_spatial_size)],
+            dtype=float,
+        )
+    else:
+        # Standard scaling: src/dst
+        s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
     scale = create_scale(r, s.tolist())
-    if centered:
+    if centered and not align_corners:
+        # For align_corners=False, add offset to center the scaling
+        # For align_corners=True, the scaling is inherently centered (corners map to corners)
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
     return scale
 
@@ -2207,7 +2365,8 @@ def squarepulse(sig, duty: float = 0.5):
     w = convert_to_tensor(w)
     t = convert_to_tensor(t)
 
-    y = torch.zeros(t.shape)
+    out_dtype = t.dtype if t.is_floating_point() else torch.get_default_dtype()
+    y = torch.zeros_like(t, dtype=out_dtype)
 
     mask1 = (w > 1) | (w < 0)
 

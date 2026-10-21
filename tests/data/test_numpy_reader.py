@@ -81,7 +81,13 @@ class TestNumpyReader(unittest.TestCase):
             np.save(filepath, test_data, allow_pickle=True)
 
             reader = NumpyReader()
+
+            with self.assertRaises(ValueError):
+                reader.get_data(reader.read(filepath))
+
+            reader = NumpyReader(allow_pickle=True)
             result = reader.get_data(reader.read(filepath))[0].item()
+
         np.testing.assert_allclose(result["test"].shape, test_data["test"].shape)
         np.testing.assert_allclose(result["test"], test_data["test"])
 
@@ -92,6 +98,11 @@ class TestNumpyReader(unittest.TestCase):
             np.save(filepath, test_data, allow_pickle=True)
 
             reader = NumpyReader(mmap_mode="r")
+
+            with self.assertRaises(ValueError):
+                reader.get_data(reader.read(filepath, mmap_mode=None))
+
+            reader = NumpyReader(mmap_mode="r", allow_pickle=True)
             result = reader.get_data(reader.read(filepath, mmap_mode=None))[0].item()
         np.testing.assert_allclose(result["test"].shape, test_data["test"].shape)
 

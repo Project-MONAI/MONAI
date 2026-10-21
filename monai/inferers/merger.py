@@ -241,6 +241,7 @@ class ZarrAvgMerger(Merger):
             If True, chunk shape will be guessed from `shape` and `dtype`.
             If False, it will be set to `shape`, i.e., single chunk for the whole array.
             If an int, the chunk size in each dimension will be given by the value of `chunks`.
+        thread_locking: whether to use thread locking during aggregation. Default is True.
     """
 
     @deprecated_arg(
@@ -311,7 +312,13 @@ class ZarrAvgMerger(Merger):
             self.value_store = zarr.storage.TempStore() if value_store is None else value_store  # type: ignore
             self.count_store = zarr.storage.TempStore() if count_store is None else count_store  # type: ignore
 
-        self.chunks = chunks
+        # zarr 3.3 rejects boolean chunk arguments; `None` there means auto-chunking,
+        # which is what `chunks=True` meant before. On zarr < 3.3 `None` instead means
+        # a single whole-shape chunk, so the substitution must not be applied there.
+        if chunks is True and version_geq(get_package_version("zarr"), "3.3.0"):
+            self.chunks: Sequence[int] | bool | None = None
+        else:
+            self.chunks = chunks
 
         # Initialize codecs/compressor attributes with proper types
         self.codecs: list | None = None
