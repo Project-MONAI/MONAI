@@ -280,17 +280,17 @@ class STUNet(nn.Module):
         return seg_outputs[-1]
 
 
+# Scaling presets from the paper (2x width / 2x depth, and 3x / 3x for the largest model).
+# The default `pool_op_kernel_sizes` and `conv_kernel_sizes` complete the released
+# checkpoints' configuration; the resulting parameter counts with `in_channels=1` and
+# `out_channels=105` (the released TotalSegmentator models: 104 structures + background)
+# are 14.6M (S), 58.26M (B), 440.30M (L) and 1457.33M (H).
 STUNET_CONFIGS: dict[str, dict] = {
     "S": {"dims": (16, 32, 64, 128, 256, 256), "depth": (1, 1, 1, 1, 1, 1)},
     "B": {"dims": (32, 64, 128, 256, 512, 512), "depth": (1, 1, 1, 1, 1, 1)},
     "L": {"dims": (64, 128, 256, 512, 1024, 1024), "depth": (2, 2, 2, 2, 2, 2)},
     "H": {"dims": (96, 192, 384, 768, 1536, 1536), "depth": (3, 3, 3, 3, 3, 3)},
 }
-"""Scaling presets from the paper (2x width / 2x depth, and 3x / 3x for the largest model).
-The default ``pool_op_kernel_sizes`` and ``conv_kernel_sizes`` complete the released
-checkpoints' configuration; the resulting parameter counts with ``in_channels=1`` and
-``out_channels=105`` (the released TotalSegmentator models: 104 structures + background)
-are 14.6M (S), 58.26M (B), 440.30M (L) and 1457.33M (H)."""
 
 
 def create_stunet(
