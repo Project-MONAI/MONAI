@@ -361,6 +361,37 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertWarns(FutureWarning, lambda: foo("a"))
 
+    def test_deprecated_arg_default_replaced_message(self):
+        """
+        Test the message for a changed default, with and without a known version.
+        """
+
+        @deprecated_arg_default("b", old_default="a", new_default="b", version_val=self.test_version)
+        def foo(a, b="b"):
+            return a, b
+
+        with self.assertWarns(FutureWarning) as aw:
+            foo("a")
+        msg = str(aw.warning)
+        self.assertIn("Default value of argument `b` was changed from `b=a` to `b=b`.", msg)
+        self.assertNotIn("version None", msg)
+        self.assertNotIn("Current default value", msg)
+
+        @deprecated_arg_default(
+            "b",
+            old_default="a",
+            new_default="b",
+            since=self.prev_version,
+            replaced=self.prev_version,
+            version_val=self.test_version,
+        )
+        def bar(a, b="b"):
+            return a, b
+
+        with self.assertWarns(FutureWarning) as aw:
+            bar("a")
+        self.assertIn(f"was changed in version {self.prev_version} from `b=a` to `b=b`.", str(aw.warning))
+
     def test_deprecated_arg_default_warning_with_none_as_placeholder(self):
         """
         Test deprecated arg default, where the default is used.
