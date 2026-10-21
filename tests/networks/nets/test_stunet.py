@@ -124,6 +124,17 @@ class TestSTUNet(unittest.TestCase):
                 net(torch.randn(1, 1, 60, 60, 60).to(device))
             self.assertIn("divisible", str(cm.exception))
 
+    def test_bottleneck_error(self):
+        # (16, 16, 32) is divisible by the default pooling product (16, 16, 32) but leaves a
+        # single spatial element at the bottleneck, where InstanceNorm3d (which uses input
+        # statistics in both training and evaluation) raises from deep inside the encoder
+        net = STUNet(in_channels=1, out_channels=2, dims=(8, 16, 32, 64, 128, 128)).to(device)
+        for mode in (eval_mode, train_mode):
+            with mode(net):
+                with self.assertRaises(ValueError) as cm:
+                    net(torch.randn(1, 1, 16, 16, 32).to(device))
+                self.assertIn("bottleneck", str(cm.exception))
+
     def test_dimension_error(self):
         net = STUNet(in_channels=1, out_channels=2, dims=(8, 16, 32, 64, 128, 128)).to(device)
         with eval_mode(net):

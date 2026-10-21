@@ -277,17 +277,27 @@ class STUNet(nn.Module):
             lowest resolution.
 
         Raises:
-            ValueError: when ``x`` is not 5D, or when a spatial dimension is not divisible by
-                the product of all pooling kernel sizes.
+            ValueError: when ``x`` is not 5D, when a spatial dimension is not divisible by
+                the product of all pooling kernel sizes, or when the post-pooling bottleneck
+                is left with a single spatial element.
         """
         if x.ndim != 5:
             raise ValueError(f"Expected a 5D input (batch, channel, depth, height, width), got {x.ndim}D.")
+        bottleneck_shape = tuple(
+            size // divisor for size, divisor in zip(x.shape[2:], self.input_shape_must_be_divisible_by)
+        )
         for axis, (size, divisor) in enumerate(zip(x.shape[2:], self.input_shape_must_be_divisible_by)):
             if size % divisor != 0:
                 raise ValueError(
                     f"Input spatial size must be divisible by {self.input_shape_must_be_divisible_by} "
                     f"(the product of all pooling kernel sizes); axis {axis} has size {size}."
                 )
+        if math.prod(bottleneck_shape) <= 1:
+            raise ValueError(
+                "Input spatial size must leave more than one spatial element at the bottleneck "
+                f"(InstanceNorm3d needs input statistics); got bottleneck shape {bottleneck_shape} "
+                f"for input {tuple(x.shape)}."
+            )
 
         skips = []
         seg_outputs = []
