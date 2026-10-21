@@ -214,7 +214,12 @@ def get_gpu_info() -> OrderedDict:
     _dict_append(output, "Has CUDA", lambda: bool(torch.cuda.is_available()))
 
     if output["Has CUDA"]:
-        _dict_append(output, "CUDA version", lambda: torch.version.cuda)
+        # On a ROCm build `torch.version.cuda` is None and `torch.version.hip` carries the toolkit
+        # version. Reporting "CUDA version: None" is misleading, so the key name switches with the build.
+        if torch.version.hip:
+            _dict_append(output, "HIP version", lambda: torch.version.hip)
+        else:
+            _dict_append(output, "CUDA version", lambda: torch.version.cuda)
     cudnn_ver = torch.backends.cudnn.version()
     _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
     _dict_append(output, "NVIDIA_TF32_OVERRIDE", os.environ.get("NVIDIA_TF32_OVERRIDE"))
