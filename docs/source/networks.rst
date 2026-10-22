@@ -603,6 +603,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`TransUNet`
+~~~~~~~~~~~
+.. autoclass:: TransUNet
+    :members:
+
 `VISTA3D`
 ~~~~~~~~~
 .. autoclass:: VISTA3D
