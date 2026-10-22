@@ -25,8 +25,9 @@ MONAI is a PyTorch-based, open-source framework for deep learning in healthcare 
 - Pull requests target the `dev` branch, not `main`.
 - Every commit needs a DCO sign-off (`git commit -s`, i.e. a `Signed-off-by:` trailer). The DCO app fails PRs
   with commits missing it; see [Signing your work](CONTRIBUTING.md#signing-your-work).
-- Format and lint with `./runtests.sh --autofix` (runs `isort` and `black`) before committing. If pre-commit
-  hooks are installed (`./runtests.sh --setup`), the same checks also run on every `git commit`.
+- Format and lint with `./runtests.sh --autofix` (runs `isort`, `black` and `ruff check --fix`) before
+  committing. If pre-commit hooks are installed (`./runtests.sh --setup`), the same checks also run on every
+  `git commit`.
 
 ## Code conventions
 
