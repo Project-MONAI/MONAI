@@ -1181,7 +1181,8 @@ def partition_dataset(
 
     Args:
         data: input dataset to split, expect a list of data.
-        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1]. If rounding the partition sizes
+            leaves some items over, they are added to the partitions that were rounded down the most.
         num_partitions: expected number of the partitions to evenly split, only works when `ratios` not specified.
         shuffle: whether to shuffle the original dataset before splitting.
         seed: random seed to shuffle the dataset, only works when `shuffle` is True.
@@ -1217,9 +1218,16 @@ def partition_dataset(
     if ratios:
         next_idx = 0
         rsum = sum(ratios)
-        for r in ratios:
+        exact = [r / rsum * data_len for r in ratios]
+        sizes = [int(e + 0.5) for e in exact]
+        # rounding each size on its own can leave items without a partition,
+        # give them to the partitions whose sizes were rounded down the most
+        missing = max(data_len - sum(sizes), 0)
+        for j in sorted(range(len(sizes)), key=lambda k: sizes[k] - exact[k])[:missing]:
+            sizes[j] += 1
+        for size in sizes:
             start_idx = next_idx
-            next_idx = min(start_idx + int(r / rsum * data_len + 0.5), data_len)
+            next_idx = min(start_idx + size, data_len)
             datasets.append([data[i] for i in indices[start_idx:next_idx]])
         return datasets
 
