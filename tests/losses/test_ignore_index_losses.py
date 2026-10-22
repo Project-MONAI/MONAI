@@ -141,6 +141,17 @@ class TestIgnoreIndexLosses(unittest.TestCase):
         loss2 = loss_ign(input_alt, target)
         torch.testing.assert_close(loss1, loss2, atol=1e-5, rtol=1e-5)
 
+    @parameterized.expand([(True, True), (False, True), (True, False)])
+    def test_focal_loss_masked_mean_scale(self, use_softmax, include_background):
+        """Ignoring voxels with FocalLoss gives the same mean as cropping them away."""
+        kwargs = {"to_onehot_y": True, "use_softmax": use_softmax, "include_background": include_background}
+        input_data = torch.randn(2, 3, 4, 4)
+        target = torch.randint(0, 3, (2, 1, 4, 4))
+        target[:, :, :2] = 255
+        loss_ign = FocalLoss(ignore_index=255, **kwargs)
+        loss_ref = FocalLoss(**kwargs)
+        torch.testing.assert_close(loss_ign(input_data, target), loss_ref(input_data[:, :, 2:], target[:, :, 2:]))
+
 
 if __name__ == "__main__":
     unittest.main()
