@@ -25,7 +25,7 @@ TEST_CASE_TRANsunet = [
         {
             **{k: v for k, v in params.items() if k not in ["img_size", "nd"]},
             "img_size": (params["img_size"],) * params["nd"],
-            **({"spatial_dims": 2} if params["nd"] == 2 else {}),
+            "spatial_dims": params["nd"],
         },
         (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
         (2, params["out_channels"], *([params["img_size"]] * params["nd"])),
@@ -61,7 +61,7 @@ class TestTransUNet(unittest.TestCase):
             TransUNet(in_channels=1, out_channels=3, img_size=(64, 64), dropout_rate=5.0)
 
         with self.assertRaises(ValueError):
-            TransUNet(in_channels=1, out_channels=3, img_size=(64, 64), hidden_size=200, num_heads=8)
+            TransUNet(in_channels=1, out_channels=3, img_size=(64, 64), hidden_size=192, num_heads=7)
 
         with self.assertRaises(ValueError):
             TransUNet(in_channels=1, out_channels=3, img_size=(60, 60))
