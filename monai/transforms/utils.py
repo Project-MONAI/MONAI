@@ -85,6 +85,7 @@ ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
+sitk, has_sitk = optional_import("SimpleITK")
 # NOTE: cucim is deliberately NOT imported at module level.
 # Module-level cucim imports caused very slow import times and other buggy behaviour.
 # Keep cucim imports inside the functions that need them.
@@ -131,6 +132,7 @@ __all__ = [
     "weighted_patch_samples",
     "zero_margins",
     "equalize_hist",
+    "clahe",
     "get_number_image_type_conversions",
     "get_transform_backends",
     "print_transform_backends",
@@ -2000,6 +2002,112 @@ def equalize_hist(
     # apply linear interpolation
     img = np.interp(img.flatten(), bins, cum)
     return img.reshape(orig_shape)
+
+
+def clahe(
+    img: np.ndarray,
+    radius: Sequence[int] | int = 5,
+    alpha: float = 0.3,
+    beta: float = 0.3,
+    nonzero: bool = False,
+    mask: np.ndarray | None = None,
+    num_threads: int | None = None,
+) -> np.ndarray:
+    """
+    Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to a single image.
+
+    Wraps `SimpleITK.AdaptiveHistogramEqualization
+    <https://simpleitk.org/doxygen/latest/html/classitk_1_1simple_1_1AdaptiveHistogramEqualizationImageFilter.html>`_,
+    ITK's power-law variant, described in `Adaptive Image Contrast Enhancement using
+    Generalizations of Histogram Equalization <https://ieeexplore.ieee.org/document/841534/>`_.
+    The output keeps the intensity range of `img`.
+
+    Args:
+        img: input image to equalize, with at least two dimensions and no channel dimension.
+        radius: radius of the contextual window in voxels, used for every axis if a single
+            number. default to `5`, ITK's own default, which suits small images: scale it to
+            the image, roughly a sixteenth of the shorter side.
+        alpha: `0` gives classical adaptive histogram equalization, `1` an unsharp mask,
+            in `[0, 1]`. default to `0.3`.
+        beta: `0` gives an unsharp mask, `1` together with `alpha=1` returns `img` unchanged,
+            in `[0, 1]`. default to `0.3`.
+        nonzero: whether to leave zero voxels out of the result, keeping their original value.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `img`.
+            voxels at which `mask==False` keep their original value.
+        num_threads: number of threads SimpleITK may use. `None` leaves its default, which is
+            every core and will oversubscribe inside dataloader workers.
+
+    """
+    if not has_sitk:
+        raise RuntimeError("SimpleITK required.")
+    if img.ndim < 2:
+        raise ValueError(
+            f"CLAHE requires an image with at least two dimensions, got shape {img.shape}."
+            " For a channel-first image, pass one channel at a time."
+        )
+    if img.size == 0:
+        raise ValueError(f"CLAHE received an empty image with shape {img.shape}.")
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError(f"alpha must be in [0, 1], got {alpha}.")
+    if not 0.0 <= beta <= 1.0:
+        raise ValueError(f"beta must be in [0, 1], got {beta}.")
+    if num_threads is not None and not (isinstance(num_threads, (int, np.integer)) and num_threads >= 1):
+        raise ValueError(f"num_threads must be a whole number of at least 1, got {num_threads}.")
+    try:
+        neighbourhood = ensure_tuple_rep(radius, img.ndim)
+    except ValueError as e:
+        raise ValueError(
+            f"radius must be a single value, or have {img.ndim} values to match the image shape"
+            f" {img.shape}, got {radius}."
+        ) from e
+    if not all(
+        isinstance(r, (int, float, np.integer, np.floating)) and float(r).is_integer() and r >= 1 for r in neighbourhood
+    ):
+        raise ValueError(f"radius must be whole numbers of at least 1 along every axis, got {radius}.")
+
+    # SimpleITK aborts the process with a segmentation fault when the input holds a NaN, and
+    # spreads an infinity into NaNs across the whole output, so refuse non-finite data here
+    img_min, img_max = float(img.min()), float(img.max())
+    if not (np.isfinite(img_min) and np.isfinite(img_max)):
+        raise ValueError(
+            "CLAHE requires finite intensities, but the input contains NaN or infinity."
+            " Replace the non-finite values first, for example with `np.nan_to_num`."
+        )
+
+    select: np.ndarray | None = None
+    if mask is not None:
+        select = np.asarray(mask, dtype=bool)
+        if select.shape != img.shape:
+            raise ValueError(f"mask shape {select.shape} must match the image shape {img.shape}.")
+
+    # SimpleITK equalizes float32 and float64 natively, so keep double precision when given it
+    compute_dtype = np.float64 if img.dtype == np.float64 else np.float32
+    if img_min == img_max:
+        # SimpleITK maps a constant image to all-NaN, and there is no contrast to redistribute.
+        # This precedes the `nonzero` selection so that an all-zero channel, which `nonzero`
+        # would otherwise empty, is returned untouched rather than rejected.
+        return np.array(img, dtype=compute_dtype)
+
+    if nonzero:
+        is_nonzero = img != 0
+        select = is_nonzero if select is None else (select & is_nonzero)
+    if select is not None and not select.any():
+        raise ValueError("CLAHE has no voxels to equalize, `nonzero` or `mask` excluded all of them.")
+
+    source = np.asarray(img, dtype=compute_dtype)
+    equalizer = sitk.AdaptiveHistogramEqualizationImageFilter()
+    # SimpleITK indexes an image x-first, the reverse of numpy's axis order, so a per-axis
+    # radius has to be reversed as well or an anisotropic neighbourhood lands on the wrong axes
+    equalizer.SetRadius([int(r) for r in reversed(neighbourhood)])
+    equalizer.SetAlpha(float(alpha))
+    equalizer.SetBeta(float(beta))
+    if num_threads is not None:
+        equalizer.SetNumberOfThreads(int(num_threads))
+    out: np.ndarray = sitk.GetArrayFromImage(equalizer.Execute(sitk.GetImageFromArray(source)))
+    if select is not None:
+        # voxels outside the selection are handed back untouched
+        out = np.where(select, out, source)
+    return out
 
 
 class Fourier:
