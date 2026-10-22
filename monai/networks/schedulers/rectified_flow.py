@@ -174,6 +174,8 @@ class RFlowScheduler(Scheduler):
 
         # timestep transform
         self.use_timestep_transform = use_timestep_transform
+        if use_timestep_transform and transform_scale <= 0:
+            raise ValueError("`transform_scale` must be positive when `use_timestep_transform` is True.")
         self.transform_scale = transform_scale
         self.steps_offset = steps_offset
 
@@ -239,6 +241,7 @@ class RFlowScheduler(Scheduler):
                     t,
                     input_img_size_numel=input_img_size_numel,
                     base_img_size_numel=self.base_img_size_numel,
+                    scale=self.transform_scale,
                     num_train_timesteps=self.num_train_timesteps,
                     spatial_dim=self.spatial_dim,
                 )
@@ -274,6 +277,7 @@ class RFlowScheduler(Scheduler):
                 t,
                 input_img_size_numel=input_img_size_numel,
                 base_img_size_numel=self.base_img_size_numel,
+                scale=self.transform_scale,
                 num_train_timesteps=self.num_train_timesteps,
                 spatial_dim=len(x_start.shape) - 2,
             )
