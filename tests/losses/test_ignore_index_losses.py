@@ -143,7 +143,12 @@ class TestIgnoreIndexLosses(unittest.TestCase):
 
     @parameterized.expand([(True, True), (False, True), (True, False)])
     def test_focal_loss_masked_mean_scale(self, use_softmax, include_background):
-        """Ignoring voxels with FocalLoss gives the same mean as cropping them away."""
+        """Ignoring voxels with FocalLoss gives the same mean as cropping them away.
+
+        Args:
+            use_softmax: whether FocalLoss uses softmax instead of sigmoid.
+            include_background: whether the background channel is included in the loss.
+        """
         kwargs = {"to_onehot_y": True, "use_softmax": use_softmax, "include_background": include_background}
         input_data = torch.randn(2, 3, 4, 4)
         target = torch.randint(0, 3, (2, 1, 4, 4))
