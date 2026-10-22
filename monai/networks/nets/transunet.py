@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-import torch
 import torch.nn as nn
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
@@ -158,10 +157,7 @@ class TransUNet(nn.Module):
             spatial_dims=spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [
-                TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias)
-                for _ in range(num_layers)
-            ]
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias) for _ in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
 
