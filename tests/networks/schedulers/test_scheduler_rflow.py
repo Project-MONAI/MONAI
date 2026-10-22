@@ -143,6 +143,13 @@ class TestRFlowScheduler(unittest.TestCase):
                 )
                 assert_allclose(timesteps, expected)
 
+    def test_non_positive_transform_scale(self):
+        for transform_scale in (0.0, -1.0):
+            with self.assertRaises(ValueError):
+                RFlowScheduler(use_timestep_transform=True, transform_scale=transform_scale)
+        scheduler = RFlowScheduler(use_timestep_transform=False, transform_scale=0.0)
+        self.assertEqual(scheduler.transform_scale, 0.0)
+
     def test_set_timesteps_with_num_inference_steps_bigger_than_num_train_timesteps(self):
         scheduler = RFlowScheduler(num_train_timesteps=1000)
         with self.assertRaises(ValueError):
