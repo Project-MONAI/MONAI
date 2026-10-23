@@ -234,7 +234,7 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device=sw_device, dtype=compute_dtype)[0]
 
     # stores output and count map
-    output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0  # type: ignore
+    output_image_list, count_map_list, sw_device_buffer, buffer_scales, b_s, b_i = [], [], [], [], 0, 0  # type: ignore
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
         slice_range = range(slice_g, min(slice_g + sw_batch_size, b_slices[b_s][0] if buffered else total_slices))
@@ -274,15 +274,28 @@ def sliding_window_inference(
         if buffered:
             c_start, c_end = b_slices[b_s][1:]
             if not sw_device_buffer:
-                k = seg_tuple[0].shape[1]  # len(seg_tuple) > 1 is currently ignored
-                sp_size = list(image_size)
-                sp_size[buffer_dim] = c_end - c_start
-                sw_device_buffer = [torch.zeros(size=[1, k, *sp_size], dtype=compute_dtype, device=sw_device)]
-            for p, s in zip(seg_tuple[0], unravel_slice):
-                offset = s[buffer_dim + 2].start - c_start
-                s[buffer_dim + 2] = slice(offset, offset + roi_size[buffer_dim])
-                s[0] = slice(0, 1)
-                sw_device_buffer[0][ensure_tuple(s)] += p * w_t
+                for seg in seg_tuple:
+                    seg_shape = seg.shape[2:]
+                    z_scale = [out_w_i / in_w_i for out_w_i, in_w_i in zip(seg_shape, roi_size)]
+                    sp_size = [int(size * scale) for size, scale in zip(image_size, z_scale)]
+                    sp_size[buffer_dim] = int((c_end - c_start) * z_scale[buffer_dim])
+                    sw_device_buffer.append(
+                        torch.zeros([1, seg.shape[1], *sp_size], dtype=compute_dtype, device=sw_device)
+                    )
+                    buffer_scales.append(z_scale)
+            for ss, seg in enumerate(seg_tuple):
+                seg_shape = seg.shape[2:]
+                w_t_ss = F.interpolate(w_t, seg_shape, mode=_nearest_mode) if seg_shape != roi_size else w_t
+                for p, s in zip(seg, unravel_slice):
+                    output_slice = [slice(0, 1), slice(None)]
+                    for dim, scale in enumerate(buffer_scales[ss]):
+                        start = int(s[dim + 2].start * scale)
+                        stop = int(s[dim + 2].stop * scale)
+                        if dim == buffer_dim:
+                            start -= int(c_start * scale)
+                            stop -= int(c_start * scale)
+                        output_slice.append(slice(start, stop))
+                    sw_device_buffer[ss][ensure_tuple(output_slice)] += p * w_t_ss
             b_i += len(unravel_slice)
             if b_i < b_slices[b_s][0]:
                 continue
@@ -292,10 +305,11 @@ def sliding_window_inference(
         for ss in range(len(sw_device_buffer)):
             b_shape = sw_device_buffer[ss].shape
             seg_chns, seg_shape = b_shape[1], b_shape[2:]
-            z_scale = None
+            z_scale = buffer_scales[ss] if buffered else None
             if not buffered and seg_shape != roi_size:
                 z_scale = [out_w_i / float(in_w_i) for out_w_i, in_w_i in zip(seg_shape, roi_size)]
-                w_t = F.interpolate(w_t, seg_shape, mode=_nearest_mode)
+            weight_shape = tuple(int(size * scale) for size, scale in zip(roi_size, z_scale)) if z_scale else seg_shape
+            w_t_ss = w_t if weight_shape == roi_size else F.interpolate(w_t, weight_shape, mode=_nearest_mode)
             if len(output_image_list) <= ss:
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
@@ -303,26 +317,27 @@ def sliding_window_inference(
                 new_tensor: Callable = torch.empty if non_blocking else torch.zeros  # type: ignore
                 output_image_list.append(new_tensor(output_shape, dtype=compute_dtype, device=device))
                 count_map_list.append(torch.zeros([1, 1] + output_shape[2:], dtype=compute_dtype, device=device))
-                w_t_ = w_t.to(device)
+                w_t_ = w_t_ss.to(device)
                 for __s in slices:
                     if z_scale is not None:
                         __s = tuple(slice(int(_si.start * z_s), int(_si.stop * z_s)) for _si, z_s in zip(__s, z_scale))
                     count_map_list[-1][(slice(None), slice(None), *__s)] += w_t_
             if buffered:
                 o_slice = [slice(None)] * len(inputs.shape)
-                o_slice[buffer_dim + 2] = slice(c_start, c_end)
+                o_slice[buffer_dim + 2] = slice(int(c_start * z_scale[buffer_dim]), int(c_end * z_scale[buffer_dim]))
                 img_b = b_s // n_per_batch  # image batch index
                 o_slice[0] = slice(img_b, img_b + 1)
                 o_slice_idx = ensure_tuple(o_slice)
                 if non_blocking:
-                    output_image_list[0][o_slice_idx].copy_(sw_device_buffer[0], non_blocking=non_blocking)
+                    output_image_list[ss][o_slice_idx].copy_(sw_device_buffer[ss], non_blocking=non_blocking)
                 else:
-                    output_image_list[0][o_slice_idx] += sw_device_buffer[0].to(device=device)
+                    output_image_list[ss][o_slice_idx] += sw_device_buffer[ss].to(device=device)
             else:
-                sw_device_buffer[ss] *= w_t
+                sw_device_buffer[ss] *= w_t_ss
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
                 _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
+        buffer_scales = []
         if buffered:
             b_s += 1
 
