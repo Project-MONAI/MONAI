@@ -17,6 +17,7 @@ from .drop_path import DropPath
 from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, RelPosEmbedding, split_args
 from .filtering import BilateralFilter, PHLFilter, TrainableBilateralFilter, TrainableJointBilateralFilter
 from .gmm import GaussianMixtureModel
+from .layer_norm_nd import LayerNormNd
 from .simplelayers import (
     LLTM,
     ApplyFilter,
