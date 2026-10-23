@@ -12,8 +12,11 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
+from importlib.machinery import PathFinder
 
 import numpy as np
 
@@ -64,6 +67,45 @@ class TestInitLoadImage(unittest.TestCase):
         if has_pydicom:
             inst = LoadImaged("image", reader="NvImgCodecPydicomReader")
             self.assertIsInstance(inst, LoadImaged)
+
+    def test_nvimgcodec_not_imported_on_monai_import(self):
+        """Verify importing MONAI does not eagerly load the optional NVIDIA package."""
+        nvidia_spec = PathFinder.find_spec("nvidia")
+        if nvidia_spec is None or nvidia_spec.submodule_search_locations is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        nvimgcodec_spec = PathFinder.find_spec("nvimgcodec", nvidia_spec.submodule_search_locations)
+        if nvimgcodec_spec is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        code = "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
+        self.assertEqual(result.stderr, "")
+
+    def test_nvimgcodec_not_imported_on_loadimage_init(self):
+        """Verify initializing LoadImage does not eagerly load nvimgcodec."""
+        nvidia_spec = PathFinder.find_spec("nvidia")
+        if nvidia_spec is None or nvidia_spec.submodule_search_locations is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        nvimgcodec_spec = PathFinder.find_spec("nvimgcodec", nvidia_spec.submodule_search_locations)
+        if nvimgcodec_spec is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        code = (
+            "import monai, sys; "
+            "from monai.transforms import LoadImage; "
+            "LoadImage(); "
+            "print('nvidia.nvimgcodec' in sys.modules)"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
+        self.assertEqual(result.stderr, "")
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
