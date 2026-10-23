@@ -178,7 +178,6 @@ class GenerateInstanceBorderd(Transform):
         border_key: the output key where instance border map is written. Defaults to `"border"`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         dtype: target data content type to convert, default is np.float32.
-        allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
         ValueError: when the `hover_map` has only one value.
@@ -259,7 +258,6 @@ class GenerateWatershedMarkersd(Transform):
         min_object_size: objects smaller than this size are removed. Defaults to 10.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
         dtype: target data content type to convert, default is np.uint8.
-        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = GenerateWatershedMarkers.backend
