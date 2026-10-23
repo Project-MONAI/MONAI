@@ -66,12 +66,12 @@ class SABlock(nn.Module):
             include_fc: whether to include the final linear layer. Default to True.
             use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
             use_flash_attention: if True, dispatch attention through
-                ``torch.nn.functional.scaled_dot_product_attention``. PyTorch selects the backend;
-                the true flash kernel is used when no custom additive attention bias is passed.
-                Pure ``causal`` masking (with no ``rel_pos_embedding`` or ``attn_mask``) keeps the
-                fast path via ``is_causal=True``. When an additive bias is required (for example,
+                ``torch.nn.functional.scaled_dot_product_attention``. PyTorch selects the backend
+                based on the inputs and environment. Mask-free and pure ``causal`` calls (passed as
+                ``is_causal=True``, with no ``rel_pos_embedding`` or ``attn_mask``) are eligible for
+                the flash kernel. When an additive bias is required (for example,
                 ``rel_pos_embedding``, or ``causal``/``attn_mask`` merged with another bias),
-                PyTorch falls back to the memory-efficient or cuDNN SDPA backend.
+                another supported backend (memory-efficient, cuDNN, or math) is selected instead.
                 (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
         Raises:
