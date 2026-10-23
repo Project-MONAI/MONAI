@@ -65,5 +65,78 @@ class TestGradientClassActivationMap(unittest.TestCase):
         self.assertTupleEqual(result.shape, x.shape)
 
 
+class TestSmoothGradSampleBatchSize(unittest.TestCase):
+
+    @parameterized.expand([[0], [-1], [1.5], [True], [False], ["2"]])
+    def test_invalid_sample_batch_size(self, value):
+        with self.assertRaises(ValueError):
+            SmoothGrad(DENSENET2D, sample_batch_size=value)
+
+
+class TestSmoothGradModelState(unittest.TestCase):
+
+    def test_mixed_module_modes_are_restored(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model.train()
+        # a submodule deliberately kept in eval mode must stay there
+        frozen = next(m for m in model.modules() if isinstance(m, torch.nn.BatchNorm2d))
+        frozen.eval()
+        before = [m.training for m in model.modules()]
+
+        vis = SmoothGrad(model, n_samples=2, sample_batch_size=2, verbose=False)
+        vis._resolve_index(torch.rand(1, 1, 48, 64), None)
+
+        self.assertEqual([m.training for m in model.modules()], before)
+
+    def test_mode_restored_when_forward_raises(self):
+        model = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=3)
+        model.train()
+        before = [m.training for m in model.modules()]
+
+        vis = SmoothGrad(model, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaises(ValueError):
+            vis._resolve_index(torch.rand(1, 1, 48, 64), None, adjoint_info=0)
+
+        self.assertEqual([m.training for m in model.modules()], before)
+
+
+class TestGradBatchContract(unittest.TestCase):
+
+    @parameterized.expand([[VanillaGrad], [GuidedBackpropGrad]])
+    def test_get_grad_rejects_batch(self, vis_type):
+        vis = vis_type(DENSENET2D)
+        with self.assertRaisesRegex(ValueError, "batch size of 1"):
+            vis(torch.rand(2, 1, 48, 64))
+
+    def test_smoothgrad_batched_rejects_input_batch(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaisesRegex(ValueError, "input batch size of 1"):
+            vis(torch.rand(2, 1, 48, 64))
+
+
+class TestSmoothGradIndex(unittest.TestCase):
+
+    def test_tensor_index_is_normalised(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        self.assertEqual(vis._resolve_index(torch.rand(1, 1, 48, 64), torch.tensor([2])), 2)
+
+    def test_multi_element_tensor_index_rejected(self):
+        vis = SmoothGrad(DENSENET2D, n_samples=2, sample_batch_size=2, verbose=False)
+        with self.assertRaisesRegex(ValueError, "single class index"):
+            vis._resolve_index(torch.rand(1, 1, 48, 64), torch.tensor([0, 1]))
+
+    def test_batched_matches_unbatched(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3).eval()
+        x = torch.rand(1, 1, 48, 64)
+
+        torch.manual_seed(0)
+        expected = SmoothGrad(model, n_samples=4, sample_batch_size=1, verbose=False)(x, index=1)
+        torch.manual_seed(0)
+        actual = SmoothGrad(model, n_samples=4, sample_batch_size=4, verbose=False)(x, index=1)
+
+        self.assertTupleEqual(actual.shape, x.shape)
+        torch.testing.assert_close(actual, expected, atol=1e-4, rtol=1e-3)
+
+
 if __name__ == "__main__":
     unittest.main()
