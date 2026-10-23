@@ -318,6 +318,16 @@ TEST_CASE_TIFF_MPP_4 = [
 
 TEST_CASE_SVS_MPP_SCALAR = [WSI_APERIO_SVS_PATH, {"mpp": 8.0}, {"openslide": (3, 2057, 2875), "cucim": (3, 2057, 2875)}]
 
+# pyramid levels of Aperio SVS (the thumbnail, label, and macro images are not levels)
+TEST_CASE_SVS_LEVELS = [WSI_APERIO_SVS_PATH, [(32914, 46000), (8228, 11500), (2057, 2875)]]
+
+# patch on tissue at the lowest resolution level of Aperio SVS
+TEST_CASE_SVS_LEVEL_2 = [
+    WSI_APERIO_SVS_PATH,
+    {"location": (5120, 36864), "size": (2, 1), "level": 2},
+    np.array([[[141], [100]], [[43], [32]], [[75], [70]]], dtype=np.uint8),
+]
+
 TEST_CASE_DEVICE_2 = [
     WSI_GENERIC_TIFF_PATH,
     {"level": 8, "dtype": torch.float32, "device": "cuda"},
@@ -698,6 +708,27 @@ class WSIReaderTests:
                     self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
                     assert_allclose(meta[WSIPatchKeys.SIZE], patch_info["size"], type_test=False)
                     assert_allclose(meta[WSIPatchKeys.LOCATION], patch_info["location"], type_test=False)
+
+        @parameterized.expand([TEST_CASE_SVS_LEVELS])
+        def test_svs_levels(self, file_path, expected_sizes):
+            reader = WSIReader(self.backend)
+            with reader.read(file_path) as img_obj:
+                self.assertEqual(reader.get_level_count(img_obj), len(expected_sizes))
+                for level, expected_size in enumerate(expected_sizes):
+                    self.assertTupleEqual(tuple(reader.get_size(img_obj, level)), expected_size)
+                    self.assertAlmostEqual(
+                        reader.get_downsample_ratio(img_obj, level), expected_sizes[0][0] / expected_size[0], places=2
+                    )
+
+        @parameterized.expand([TEST_CASE_SVS_LEVEL_2])
+        def test_read_region_svs_level(self, file_path, patch_info, expected_img):
+            reader = WSIReader(self.backend)
+            with reader.read(file_path) as img_obj:
+                img, meta = reader.get_data(img_obj, **patch_info)
+            self.assertTupleEqual(img.shape, expected_img.shape)
+            # JPEG decoding differs slightly between backends
+            assert_allclose(img, expected_img, type_test=False, atol=10)
+            self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
 
         @parameterized.expand([TEST_CASE_MPP_0])
         def test_resolution_mpp(self, file_path, level, expected_mpp):
