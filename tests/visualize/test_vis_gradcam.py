@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, DenseNet121, SEResNet50
-from monai.visualize import GradCAM, GradCAMpp
+from monai.visualize import GradCAM, GradCAMpp, ModelWithHooks
 from tests.test_utils import assert_allclose, skip_if_quick
 
 
@@ -146,6 +146,23 @@ for cam in (GradCAM, GradCAMpp):
 
     TESTS_ILL.append([cam])
 
+TESTS_BATCH: list[Any] = [[GradCAM], [GradCAMpp]]
+
+
+class TestClassScore(unittest.TestCase):
+    def test_class_score(self):
+        """``class_score`` returns one score per batch element for integer and per-element class indices."""
+        hooks = ModelWithHooks(torch.nn.Linear(2, 4), target_layer_names=())
+        logits = torch.arange(12.0).reshape(3, 4)
+        assert_allclose(hooks.class_score(logits, 2), logits[:, 2])
+        assert_allclose(hooks.class_score(logits, torch.tensor(2)), logits[:, 2])
+        assert_allclose(hooks.class_score(logits, torch.tensor([0, 3, 1])), torch.tensor([0.0, 7.0, 9.0]))
+        # one class per batch element is broadcast over the trailing (spatial) dimensions of the logits
+        spatial = torch.arange(24.0).reshape(2, 3, 2, 2)
+        assert_allclose(hooks.class_score(spatial, torch.tensor([2, 0])), torch.stack([spatial[0, 2], spatial[1, 0]]))
+        with self.assertRaises(ValueError):
+            hooks.class_score(logits, torch.tensor([0, 1]))
+
 
 @skip_if_quick
 class TestGradientClassActivationMap(unittest.TestCase):
@@ -194,6 +211,28 @@ class TestGradientClassActivationMap(unittest.TestCase):
         # check result is same whether class_idx=None is used or not
         result2 = cam(x=image, layer_idx=-1, class_idx=inferred, **kwargs)
         assert_allclose(result, result2)
+
+    @parameterized.expand(TESTS_BATCH)
+    def test_batch_matches_single_sample(self, cam_class):
+        """
+        The maps of a batch equal the maps computed one image at a time, for ``class_idx`` given as
+        ``None`` (per-image argmax), an integer (same class for every image) and a tensor (one class per image).
+        """
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model = DenseNet(
+            spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
+        )
+        model.to(device)
+        model.eval()
+        cam = cam_class(nn_module=model, target_layers="class_layers.relu")
+        image = torch.rand((3, 1, 6, 6, 6), device=device)
+        for class_idx in (None, 1, torch.tensor([0, 2, 1], device=device)):
+            batch = cam(x=image, class_idx=class_idx)
+            single = []
+            for i in range(image.shape[0]):
+                class_idx_i = int(class_idx[i]) if isinstance(class_idx, torch.Tensor) else class_idx
+                single.append(cam(x=image[i : i + 1], class_idx=class_idx_i))
+            assert_allclose(batch, torch.cat(single), rtol=1e-4, atol=1e-5)
 
     @parameterized.expand(TESTS_ILL)
     def test_ill(self, cam_class):

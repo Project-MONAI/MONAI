@@ -73,7 +73,7 @@ class ModelWithHooks:
         self.gradients: dict[str, torch.Tensor] = {}
         self.activations: dict[str, torch.Tensor] = {}
         self.score: torch.Tensor | None = None
-        self.class_idx: int | None = None
+        self.class_idx: int | torch.Tensor | None = None
         self.register_backward = register_backward
         self.register_forward = register_forward
 
@@ -124,19 +124,42 @@ class ModelWithHooks:
                     return cast(nn.Module, mod)
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
-        return logits[:, class_idx].squeeze()
+    def class_score(self, logits: torch.Tensor, class_idx: int | torch.Tensor) -> torch.Tensor:
+        """
+        Select the score of the requested class for every batch element.
+
+        Args:
+            logits: model output of shape ``(B, C, ...)``.
+            class_idx: an integer (the same class for every batch element), or a tensor with one class index
+                per batch element, of shape ``(B,)`` or ``(B, ...)`` matching the trailing dimensions of ``logits``.
+
+        Returns:
+            a tensor of shape ``(B, ...)`` holding one score per batch element.
+        """
+        if isinstance(class_idx, int):
+            return logits[:, class_idx]
+        idx = torch.as_tensor(class_idx, dtype=torch.long, device=logits.device)
+        if idx.ndim == 0:
+            return logits[:, int(idx)]
+        if idx.shape[0] != logits.shape[0]:
+            raise ValueError(
+                f"expected one class index per batch element, got {idx.shape[0]} for batch size {logits.shape[0]}."
+            )
+        if idx.ndim == 1:  # one class per batch element, applied to all trailing dimensions of logits
+            return logits[torch.arange(logits.shape[0], device=logits.device), idx]
+        return logits.gather(1, idx.unsqueeze(1)).squeeze(1)  # one class per batch element and location
 
     def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
         train = self.model.training
         self.model.eval()
         logits = self.model(x, **kwargs)
-        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        self.class_idx = class_idx
         acti, grad = None, None
         if self.register_forward:
             acti = tuple(self.activations[layer] for layer in self.target_layers)
         if self.register_backward:
-            self.score = self.class_score(logits, cast(int, self.class_idx))
+            self.score = self.class_score(logits, class_idx)
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
@@ -406,7 +429,9 @@ class GradCAMpp(GradCAM):
         alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
         alpha = alpha_nr.div(alpha_dr + 1e-7)
-        relu_grad = F.relu(cast(torch.Tensor, self.nn_module.score).exp() * grad)
+        # one class score per batch element, broadcast over the channel and spatial dimensions of its gradient
+        score = cast(torch.Tensor, self.nn_module.score).reshape(b, *([1] * (grad.ndim - 1)))
+        relu_grad = F.relu(score.exp() * grad)
         weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
