@@ -319,7 +319,12 @@ def sliding_window_inference(
                 else:
                     output_image_list[0][o_slice_idx] += sw_device_buffer[0].to(device=device)
             else:
-                sw_device_buffer[ss] *= w_t
+                # Predictor outputs may alias input data or each other.
+                if sw_device_buffer[ss].dtype == w_t.dtype:
+                    sw_device_buffer[ss] = sw_device_buffer[ss] * w_t
+                else:
+                    sw_device_buffer[ss] = sw_device_buffer[ss].clone()
+                    sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
                 _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
