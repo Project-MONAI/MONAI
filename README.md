@@ -1,104 +1,95 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/Project-MONAI/MONAI/dev/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
+<img src="https://raw.githubusercontent.com/Project-MONAI/MONAI/dev/docs/images/MONAI-logo-color.png" width="50%" alt="Project MONAI">
 </p>
 
-**M**edical **O**pen **N**etwork for **AI**
+**MONAI: Medical Open Network for AI**
 
-![Supported Python versions](https://raw.githubusercontent.com/Project-MONAI/MONAI/dev/docs/images/python.svg)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![auto-commit-msg](https://img.shields.io/badge/dynamic/json?label=citations&query=%24.citationCount&url=https%3A%2F%2Fapi.semanticscholar.org%2Fgraph%2Fv1%2Fpaper%2FDOI%3A10.48550%2FarXiv.2211.02701%3Ffields%3DcitationCount)](https://arxiv.org/abs/2211.02701)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 [![docker](https://img.shields.io/badge/docker-pull-green.svg?logo=docker&logoColor=white)](https://hub.docker.com/r/projectmonai/monai)
 [![conda](https://img.shields.io/conda/vn/conda-forge/monai?color=green)](https://anaconda.org/conda-forge/monai)
-
-[![premerge](https://github.com/Project-MONAI/MONAI/actions/workflows/pythonapp.yml/badge.svg?branch=dev)](https://github.com/Project-MONAI/MONAI/actions/workflows/pythonapp.yml)
-[![postmerge](https://img.shields.io/github/checks-status/project-monai/monai/dev?label=postmerge)](https://github.com/Project-MONAI/MONAI/actions?query=branch%3Adev)
 [![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/)
-[![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg?token=6FTC7U1JJ4)](https://codecov.io/gh/Project-MONAI/MONAI)
-[![monai Downloads Last Month](https://assets.piptrends.com/get-last-month-downloads-badge/monai.svg 'monai Downloads Last Month by pip Trends')](https://piptrends.com/package/monai)
 
-MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/dev/LICENSE) framework for deep learning in healthcare imaging, part of the [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
-Its ambitions are as follows:
+MONAI is a free and open-source deep learning framework for medical imaging, built on top of [PyTorch](https://pytorch.org/) and listed in the [PyTorch Ecosystem](https://pytorch.org/ecosystem/). The project aims to:
 
-- Developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
-- Creating state-of-the-art, end-to-end training workflows for healthcare imaging;
-- Providing researchers with the optimized and standardized way to create and evaluate deep learning models.
+- Bring academic, industry and clinical researchers together around one shared foundation;
+- Offer modern, complete training pipelines for medical imaging tasks;
+- Give researchers a standard, well-optimized way to build and assess deep learning models.
 
-## Features
+## Key Capabilities
 
-> _Please see [the technical highlights](https://monai.readthedocs.io/en/latest/highlights.html) and [What's New](https://monai.readthedocs.io/en/latest/whatsnew.html) of the milestone releases._
+> For details, see the [technical highlights](https://monai.readthedocs.io/en/latest/highlights.html) and the [release notes](https://monai.readthedocs.io/en/latest/whatsnew.html).
 
-- flexible pre-processing for multi-dimensional medical imaging data;
-- compositional & portable APIs for ease of integration in existing workflows;
-- domain-specific implementations for networks, losses, evaluation metrics and more;
-- customizable design for varying user expertise;
-- multi-GPU multi-node data parallelism support.
+- Pre-processing that can be adapted to medical images of any dimensionality;
+- Modular, portable APIs that slot easily into existing code;
+- Networks, loss functions, metrics and other components designed for the medical domain;
+- A design that suits users with different levels of experience;
+- Data-parallel training across several GPUs and several machines.
 
-## Requirements
+## Dependencies
 
-MONAI works with the [currently supported versions of Python](https://devguide.python.org/versions), and depends directly on NumPy and PyTorch with many optional dependencies.
+MONAI runs on the Python versions that are still officially supported. It depends directly on NumPy and PyTorch, plus a number of optional packages.
 
-* Major releases of MONAI will have dependency versions stated for them. The current state of the `dev` branch in this repository is the unreleased development version of MONAI which typically will support current versions of dependencies and include updates and bug fixes to do so.
-* PyTorch support covers [the current version](https://github.com/pytorch/pytorch/releases) plus three previous minor versions. If compatibility issues with a PyTorch version and other dependencies arise, support for a version may be delayed until a major release.
-* Our support policy for other dependencies adheres for the most part to [SPEC0](https://scientific-python.org/specs/spec-0000), where dependency versions are supported where possible for up to two years. Discovered vulnerabilities or defects may require certain versions to be explicitly not supported.
-* See the `pyproject.toml` file for dependency version information.
+* Each major release lists its own dependency versions. The `dev` branch is the in-progress version and usually tracks current dependencies, including the fixes needed to keep up with them.
+* Supported PyTorch versions are the newest release and the three minor versions before it. If a PyTorch version clashes with another dependency, support for it may wait until the next major release.
+* For other dependencies the project mostly follows [SPEC0](https://scientific-python.org/specs/spec-0000), supporting versions for up to about two years. A version with a known vulnerability or defect may be explicitly dropped.
+* Exact version requirements are in `pyproject.toml`.
 
-## Installation
+## How to Install
 
-To install [the current release](https://pypi.org/project/monai/), you can simply run:
+The latest [stable release](https://pypi.org/project/monai/) installs with a single command:
 
 ```bash
 pip install monai
 ```
 
-Please refer to [the installation guide](https://monai.readthedocs.io/en/latest/installation.html) for other installation options.
+Other ways to install are covered in the [installation guide](https://monai.readthedocs.io/en/latest/installation.html).
 
-## Getting Started
+## Where to Begin
 
-[MedNIST demo](https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/2d_classification/mednist_tutorial.ipynb) and [MONAI for PyTorch Users](https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/modules/developer_guide.ipynb) are available on Colab.
+Two interactive notebooks run directly in Colab: the [MedNIST demo](https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/2d_classification/mednist_tutorial.ipynb) and [MONAI for PyTorch Users](https://colab.research.google.com/github/Project-MONAI/tutorials/blob/main/modules/developer_guide.ipynb).
 
-Examples and notebook tutorials are located at [Project-MONAI/tutorials](https://github.com/Project-MONAI/tutorials).
-
-Technical documentation is available at [monai.readthedocs.io](https://monai.readthedocs.io).
+More examples and notebooks live in the [tutorials repository](https://github.com/Project-MONAI/tutorials). Full technical documentation is at [monai.readthedocs.io](https://monai.readthedocs.io).
 
 ## Docker
 
-The MONAI Docker image is available from [Dockerhub](https://hub.docker.com/r/projectmonai/monai),
-tagged as `latest` for the latest state of `dev` or with a release version. A slimmed down image can also be built
-locally using `Dockerfile.slim`, see that file for instructions.
+A ready-made image is published on [Docker Hub](https://hub.docker.com/r/projectmonai/monai). The `latest` tag follows the current `dev` branch, and release versions have their own tags. If you want a smaller image, you can build one yourself from `Dockerfile.slim`; the instructions are inside that file.
 
-To get started with the latest MONAI, use `docker run -ti --rm --gpus all projectmonai/monai:latest /bin/bash`.
+To start a container with the newest MONAI and GPU access:
 
-## Citation
+```bash
+docker run -ti --rm --gpus all projectmonai/monai:latest /bin/bash
+```
 
-If you have used MONAI in your research, please cite us! The citation can be exported from: <https://arxiv.org/abs/2211.02701>.
+## Citing MONAI
+
+If MONAI helped with your research, please give credit by citing it. A citation can be exported from <https://arxiv.org/abs/2211.02701>.
 
 ## Model Zoo
 
-[The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and great models from the community.
-Utilizing [the MONAI Bundle format](https://monai.readthedocs.io/en/latest/bundle_intro.html) makes it easy to [get started](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo) building workflows with MONAI.
+The [MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a shared collection where the community publishes strong models. Models use the [MONAI Bundle format](https://monai.readthedocs.io/en/latest/bundle_intro.html), which makes it simple to [start building workflows](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
 
 ## Contributing
 
-For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md).
+To learn how to contribute, read the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md).
 
 ## Community
 
-Join the conversation on Twitter/X [@ProjectMONAI](https://twitter.com/ProjectMONAI), [LinkedIn](https://www.linkedin.com/company/projectmonai), or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
+Follow or talk to the project on Twitter/X ([@ProjectMONAI](https://twitter.com/ProjectMONAI)) or [LinkedIn](https://www.linkedin.com/company/projectmonai), or join the [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
 
-Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github.com/Project-MONAI/MONAI/discussions).
+Questions and answers are welcome in the [GitHub Discussions](https://github.com/Project-MONAI/MONAI/discussions) section.
 
-## Links
+## Useful Links
 
 - Website: <https://project-monai.github.io/>
-- API documentation (milestone): <https://monai.readthedocs.io/>
-- API documentation (latest dev): <https://monai.readthedocs.io/en/latest/>
-- Code: <https://github.com/Project-MONAI/MONAI>
-- Project tracker: <https://github.com/Project-MONAI/MONAI/projects>
-- Issue tracker: <https://github.com/Project-MONAI/MONAI/issues>
+- Documentation (stable): <https://monai.readthedocs.io/>
+- Documentation (latest dev): <https://monai.readthedocs.io/en/latest/>
+- Source code: <https://github.com/Project-MONAI/MONAI>
+- Project board: <https://github.com/Project-MONAI/MONAI/projects>
+- Issues: <https://github.com/Project-MONAI/MONAI/issues>
 - Wiki: <https://github.com/Project-MONAI/MONAI/wiki>
-- Test status: <https://github.com/Project-MONAI/MONAI/actions>
-- PyPI package: <https://pypi.org/project/monai/>
+- CI status: <https://github.com/Project-MONAI/MONAI/actions>
+- PyPI: <https://pypi.org/project/monai/>
 - conda-forge: <https://anaconda.org/conda-forge/monai>
-- Weekly previews: <https://pypi.org/project/monai-weekly/>
+- Weekly preview builds: <https://pypi.org/project/monai-weekly/>
 - Docker Hub: <https://hub.docker.com/r/projectmonai/monai>
