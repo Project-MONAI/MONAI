@@ -199,6 +199,13 @@ Metrics
 .. autoclass:: MetricsReloadedCategorical
     :members:
 
+`Uncertainty decomposition`
+----------------------------
+.. autofunction:: compute_uncertainty_decomposition
+
+.. autoclass:: UncertaintyDecompositionMetric
+    :members:
+
 `Calibration Error`
 -------------------
 .. autofunction:: calibration_binning
