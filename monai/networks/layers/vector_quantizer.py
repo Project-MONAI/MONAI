@@ -105,6 +105,8 @@ class EMAQuantizer(nn.Module):
             del encoding_indices_view[1]
 
             inputs = inputs.float()
+            # The codebook is upcast too, so a model cast to float16/bfloat16 (not just autocast) still works.
+            embedding_weight = self.embedding.weight.float()
 
             # Converting to channel last format
             flat_input = inputs.permute(self.flatten_permutation).contiguous().view(-1, self.embedding_dim)
@@ -112,8 +114,8 @@ class EMAQuantizer(nn.Module):
             # Calculate Euclidean distances
             distances = (
                 (flat_input**2).sum(dim=1, keepdim=True)
-                + (self.embedding.weight.t() ** 2).sum(dim=0, keepdim=True)
-                - 2 * torch.mm(flat_input, self.embedding.weight.t())
+                + (embedding_weight.t() ** 2).sum(dim=0, keepdim=True)
+                - 2 * torch.mm(flat_input, embedding_weight.t())
             )
 
             # Mapping distances to indexes
