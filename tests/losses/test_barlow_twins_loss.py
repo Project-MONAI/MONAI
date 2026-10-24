@@ -104,6 +104,22 @@ class TestBarlowTwinsLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             BarlowTwinsLoss(lambd=5e-3, batch_size=1)
 
+    @parameterized.expand([(torch.float64,), (torch.float32,), (torch.bfloat16,), (torch.float16,)])
+    def test_preserves_input_dtype(self, dtype):
+        """Check that the loss keeps the dtype of its inputs.
+
+        The cross-correlation matrix `c` follows the input dtype, but `c - torch.eye(...)` used to silently upcast
+        to float32 whenever the dtype was below float32, because `torch.eye()` was never given an explicit dtype.
+
+        Args:
+            dtype: floating-point dtype of the two input tensors, which the returned loss must also have.
+        """
+        loss = BarlowTwinsLoss(lambd=5e-3)
+        i = torch.randn(4, 8, dtype=dtype)
+        j = torch.randn(4, 8, dtype=dtype)
+        output = loss(i, j)
+        self.assertEqual(output.dtype, dtype)
+
 
 if __name__ == "__main__":
     unittest.main()
