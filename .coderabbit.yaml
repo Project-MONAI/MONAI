@@ -33,6 +33,17 @@ reviews:
         Examine code for logical error or inconsistencies, and suggest what may be changed to addressed these. Suggest
         any enhancements for code improving efficiency, maintainability, comprehensibility, and correctness. Ensure new
         or modified definitions will be covered by existing or new unit tests.
+    - path: '**/AGENTS.md'
+      instructions: >-
+        Check that the guidance matches the current repository conventions (pull requests target the dev branch,
+        commits need a DCO sign-off, formatting and tests run through runtests.sh) and that every file, command,
+        and path it mentions still exists and behaves as described.
+    - path: 'monai/**'
+      instructions: >-
+        This repository keeps AGENTS.md files at the root and in the subpackages. If this change alters behavior,
+        conventions, commands, or public APIs described in the AGENTS.md file closest to the changed code, or in
+        the root AGENTS.md, verify that the relevant AGENTS.md was updated in the same change to stay in sync,
+        and flag it if it was not.
 
   auto_review:
     # Automatic Review | Automatic code review
