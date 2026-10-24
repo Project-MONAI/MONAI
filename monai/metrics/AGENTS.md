@@ -7,9 +7,9 @@ Shared conventions with `monai/losses` (see `monai/losses/AGENTS.md`):
 ## How metrics accumulate
 
 Most metrics derive from `Cumulative` or `CumulativeIterationMetric` in
-`metric.py`. Calls during an epoch append to internal buffers with
-`__call__` / `update`; `aggregate()` computes the result from the buffers;
-`reset()` clears them.
+`metric.py`. Calls during an epoch append to internal buffers through
+`__call__`; `aggregate()` computes the result from the buffers; `reset()`
+clears them.
 
 ## Things that are easy to get wrong
 

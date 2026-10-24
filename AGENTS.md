@@ -60,7 +60,7 @@ Verified in a fresh checkout of `dev` (Python 3.12, CPU-only PyTorch):
 ```bash
 ./runtests.sh --help                        # list every option of the test runner
 ./runtests.sh --setup                       # install git pre-commit hooks (black, isort, ruff, DCO check)
-./runtests.sh --autofix                     # auto-format code with isort and black
+./runtests.sh --autofix                     # auto-format code with isort, black, and Ruff
 ./runtests.sh --ruff                        # ruff checks only, a fast pre-push check
 python -m pytest tests/utils/test_look_up_option.py -q   # run a single test module
 ```

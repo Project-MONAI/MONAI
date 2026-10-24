@@ -16,8 +16,11 @@ always needs both variants, plus their tests.
   `numpy.random` inside a transform: `Compose` and the data loaders seed each
   transform per sample, and global state breaks reproducibility and worker
   safety.
-- Transforms are called from multiple data loader workers. Do not store
-  per-sample state on `self` in `__call__`.
+- Transforms run in multiple data loader worker processes.
+  `RandomizableTransform` may store sampled parameters on `self` for the
+  current call or for explicit `randomize=False` reuse. Do not share one
+  transform instance across concurrent calls or rely on prior-call state
+  unless the API explicitly requests reuse.
 - Many transforms are invertible and record what they did through
   `MetaTensor` applied operations and `InvertibleTransform` tracing. If you
   change a transform's parameters or geometry handling, check the inverse
