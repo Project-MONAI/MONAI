@@ -74,6 +74,7 @@ jobs:
         python -m pip install --pre -U itk
         python -m pip install --user --upgrade pip wheel tomli
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        echo "BUILD_MONAI=$BUILD_MONAI"
         python -m pip install --no-build-isolation .[all,testing]
         python -m pip list
       shell: bash
