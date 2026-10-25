@@ -40,18 +40,18 @@ version numbers into other files, link there instead.
 
 | File | Covers |
 |------|--------|
-| `monai/transforms/AGENTS.md` | array/dict transform pairs, randomness, lazy and inverse transforms |
-| `monai/networks/AGENTS.md` | network, block, and layer conventions |
-| `monai/data/AGENTS.md` | datasets, caching, readers, test data |
-| `monai/losses/AGENTS.md` | loss conventions, shared with metrics |
-| `monai/metrics/AGENTS.md` | cumulative metrics lifecycle |
-| `monai/bundle/AGENTS.md` | config syntax, references, bundle scripts |
-| `monai/apps/AGENTS.md` | application packages and downloaded data |
-| `monai/auto3dseg/AGENTS.md` | Auto3DSeg pipeline and generated bundles |
-| `monai/engines/AGENTS.md` | engines and handlers |
-| `monai/csrc/AGENTS.md` | C++/CUDA extension build |
-| `tests/AGENTS.md` | test layout, minimal tests, skip helpers |
-| `docs/AGENTS.md` | documentation sources and API lists |
+| [`monai/transforms/AGENTS.md`](monai/transforms/AGENTS.md) | array/dict transform pairs, randomness, lazy and inverse transforms |
+| [`monai/networks/AGENTS.md`](monai/networks/AGENTS.md) | network, block, and layer conventions |
+| [`monai/data/AGENTS.md`](monai/data/AGENTS.md) | datasets, caching, readers, test data |
+| [`monai/losses/AGENTS.md`](monai/losses/AGENTS.md) | loss conventions, shared with metrics |
+| [`monai/metrics/AGENTS.md`](monai/metrics/AGENTS.md) | cumulative metrics lifecycle |
+| [`monai/bundle/AGENTS.md`](monai/bundle/AGENTS.md) | config syntax, references, bundle scripts |
+| [`monai/apps/AGENTS.md`](monai/apps/AGENTS.md) | application packages and downloaded data |
+| [`monai/auto3dseg/AGENTS.md`](monai/auto3dseg/AGENTS.md) | Auto3DSeg pipeline and generated bundles |
+| [`monai/engines/AGENTS.md`](monai/engines/AGENTS.md) | engines and handlers |
+| [`monai/csrc/AGENTS.md`](monai/csrc/AGENTS.md) | C++/CUDA extension build |
+| [`tests/AGENTS.md`](tests/AGENTS.md) | test layout, minimal tests, skip helpers |
+| [`docs/AGENTS.md`](docs/AGENTS.md) | documentation sources and API lists |
 
 ## Setup and commands
 
