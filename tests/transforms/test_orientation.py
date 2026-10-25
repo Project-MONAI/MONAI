@@ -26,6 +26,55 @@ from monai.utils import SpaceKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES, assert_allclose
 
+# At 45 degrees, two nearest-axis assignments preserve the same physical image.
+# Keep both full voxel/affine references instead of requiring a unique label.
+_OBLIQUE_BOUNDARY_REFERENCES = {
+    "LPS": [
+        {
+            "shape": [2, 3, 1, 2],
+            "values": [2, 5, 1, 4, 0, 3, 8, 11, 7, 10, 6, 9],
+            "affine": [
+                [-1, 0, 0, 12],
+                [0, -0.707106781186547524, -0.707106781186547524, 20],
+                [0, -0.707106781186547524, 0.707106781186547524, 30],
+                [0, 0, 0, 1],
+            ],
+        },
+        {
+            "shape": [2, 3, 2, 1],
+            "values": [2, 5, 1, 4, 0, 3, 8, 11, 7, 10, 6, 9],
+            "affine": [
+                [-1, 0, 0, 12],
+                [0, -0.707106781186547524, 0.707106781186547524, 20],
+                [0, 0.707106781186547524, 0.707106781186547524, 30],
+                [0, 0, 0, 1],
+            ],
+        },
+    ],
+    "RAS": [
+        {
+            "shape": [2, 3, 1, 2],
+            "values": [0, 3, 1, 4, 2, 5, 6, 9, 7, 10, 8, 11],
+            "affine": [
+                [1, 0, 0, 10],
+                [0, 0.707106781186547524, -0.707106781186547524, 20],
+                [0, 0.707106781186547524, 0.707106781186547524, 30],
+                [0, 0, 0, 1],
+            ],
+        },
+        {
+            "shape": [2, 3, 2, 1],
+            "values": [3, 0, 4, 1, 5, 2, 9, 6, 10, 7, 11, 8],
+            "affine": [
+                [1, 0, 0, 10],
+                [0, 0.707106781186547524, 0.707106781186547524, 19.2928932188134525],
+                [0, -0.707106781186547524, 0.707106781186547524, 30.7071067811865475],
+                [0, 0, 0, 1],
+            ],
+        },
+    ],
+}
+
 TESTS = []
 for device in TEST_DEVICES:
     TESTS.append(
@@ -166,7 +215,7 @@ for device in TEST_DEVICES:
             torch.arange(12).reshape((2, 1, 2, 3)),
             torch.as_tensor(
                 create_translate(3, (10, 20, 30))
-                @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
+                @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 6))
                 @ np.diag([-1, 1, 1, 1])
             ),
             torch.tensor([[[[2, 5]], [[1, 4]], [[0, 3]]], [[[8, 11]], [[7, 10]], [[6, 9]]]]),
@@ -181,7 +230,7 @@ for device in TEST_DEVICES:
             torch.arange(12).reshape((2, 1, 2, 3)),
             torch.as_tensor(
                 create_translate(3, (10, 20, 30))
-                @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
+                @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 6))
                 @ np.diag([-1, 1, 1, 1])
             ),
             torch.tensor([[[[0, 3]], [[1, 4]], [[2, 5]]], [[[6, 9]], [[7, 10]], [[8, 11]]]]),
@@ -275,6 +324,23 @@ class TestOrientationCase(unittest.TestCase):
         labels = (("R", "L"), ("A", "P"), ("I", "S")) if lps_convention else ornt.labels
         new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=labels)  # type: ignore
         self.assertEqual("".join(new_code), expected_code)
+
+    @parameterized.expand([("LPS", {"axcodes": "LPS"}), ("RAS", {"as_closest_canonical": True})])
+    def test_oblique_boundary_geometry(self, target, init_param):
+        affine = torch.as_tensor(
+            create_translate(3, (10, 20, 30))
+            @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
+            @ np.diag([-1, 1, 1, 1])
+        )
+        img = MetaTensor(torch.arange(12).reshape((2, 1, 2, 3)), affine=affine)
+        result = Orientation(**init_param)(img)
+        for reference in _OBLIQUE_BOUNDARY_REFERENCES[target]:
+            expected = torch.tensor(reference["values"], dtype=result.dtype).reshape(reference["shape"])
+            if result.shape == expected.shape and torch.equal(result.as_tensor(), expected):
+                expected_affine = torch.tensor(reference["affine"], dtype=result.affine.dtype)
+                assert_allclose(result.affine, expected_affine, rtol=1e-12, atol=1e-12)
+                return
+        self.fail(f"Unexpected {target} voxel ordering at the oblique boundary: {result}")
 
     @parameterized.expand(TESTS_TORCH)
     def test_ornt_torch(self, init_param, img: torch.Tensor, track_meta: bool, device):
