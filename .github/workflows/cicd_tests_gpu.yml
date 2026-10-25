@@ -24,19 +24,23 @@ concurrency:
 # Supported versions of Python and PyTorch are listed here for use below and as documentation
 env:
   # supported versions of Python
-  PYTHON_VER1: '3.10'
-  PYTHON_VER2: '3.11'
-  PYTHON_VER3: '3.12'
-  PYTHON_VER4: '3.13'
+  PYTHON_VER1: '3.11'
+  PYTHON_VER2: '3.12'
+  PYTHON_VER3: '3.13'
+  PYTHON_VER4: '3.14'
   # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
   # supported versions of PyTorch
-  PYTORCH_VER1: '2.8.0'
-  PYTORCH_VER2: '2.9.1'
-  PYTORCH_VER3: '2.10.0'
-  PYTORCH_VER4: '2.11.0'
-  TORCHVISION_VER1: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
+  PYTORCH_VER1: '2.12.1'
+  PYTORCH_VER2: '2.13.0'
+  PYTORCH_VER3: '2.14.0'
+  PYTORCH_VER4: '2.14.1'
+  TORCHVISION_VER1: '0.27.1'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
+
+  TQDM_DISABLE: 1  # squelch TQDM output to reduce log file size
 
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
+
+  BUILD_MONAI: 1  # always build MONAI and ensure it tries to use the compiled extensions
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
 # Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
@@ -73,11 +77,15 @@ jobs:
         python -m pip install --no-build-isolation .[all,testing]
         python -m pip list
       shell: bash
-    - name: Run compiled tests
+    - name: Run quick tests
       run: |
-        python -m pip uninstall -y monai
-        BUILD_MONAI=1 python -m pip install --no-build-isolation -e .  # compile the cpp extensions
         python -c 'import monai._C' > /dev/null
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
-        python -m unittest -v
+        # python -m unittest -v
+        ./runtests.sh --min
+      env:
+        QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
