@@ -152,24 +152,26 @@ class ModelWithHooks:
     def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
         train = self.model.training
         self.model.eval()
-        logits = self.model(x, **kwargs)
-        class_idx = logits.max(1)[-1] if class_idx is None else class_idx
-        self.class_idx = class_idx
-        acti, grad = None, None
-        if self.register_forward:
-            acti = tuple(self.activations[layer] for layer in self.target_layers)
-        if self.register_backward:
-            self.score = self.class_score(logits, class_idx)
-            self.model.zero_grad()
-            self.score.sum().backward(retain_graph=retain_graph)
-            for layer in self.target_layers:
-                if layer not in self.gradients:
-                    warnings.warn(
-                        f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
-                    )
-            grad = tuple(self.gradients[layer] for layer in self.target_layers if layer in self.gradients)
-        if train:
-            self.model.train()
+        try:
+            logits = self.model(x, **kwargs)
+            class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+            self.class_idx = class_idx
+            acti, grad = None, None
+            if self.register_forward:
+                acti = tuple(self.activations[layer] for layer in self.target_layers)
+            if self.register_backward:
+                self.score = self.class_score(logits, class_idx)
+                self.model.zero_grad()
+                self.score.sum().backward(retain_graph=retain_graph)
+                for layer in self.target_layers:
+                    if layer not in self.gradients:
+                        warnings.warn(
+                            f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
+                        )
+                grad = tuple(self.gradients[layer] for layer in self.target_layers if layer in self.gradients)
+        finally:  # restore the training mode also when the forward or backward pass raises
+            if train:
+                self.model.train()
         return logits, acti, grad
 
     def get_wrapped_net(self):
@@ -429,8 +431,10 @@ class GradCAMpp(GradCAM):
         alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
         alpha = alpha_nr.div(alpha_dr + 1e-7)
-        # one class score per batch element, broadcast over the channel and spatial dimensions of its gradient
-        score = cast(torch.Tensor, self.nn_module.score).reshape(b, *([1] * (grad.ndim - 1)))
+        # one class score per batch element, broadcast over the channel and spatial dimensions of its gradient;
+        # spatial logits give one score per location, averaged here: exp(score) only scales the map of each image
+        # by a positive factor, and the mean keeps that factor finite where a sum over many locations overflows
+        score = cast(torch.Tensor, self.nn_module.score).reshape(b, -1).mean(1).reshape(b, *([1] * (grad.ndim - 1)))
         relu_grad = F.relu(score.exp() * grad)
         weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)

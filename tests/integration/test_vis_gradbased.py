@@ -29,6 +29,14 @@ class DenseNetAdjoint(DenseNet121):
         return super().__call__(x)
 
 
+class HalfSquaredNorm(torch.nn.Module):
+    """Logits ``(s, -s)`` with ``s = 0.5 * ||x||^2`` per image, so the input gradient of class 0 is the input."""
+
+    def forward(self, x):
+        s = 0.5 * x.pow(2).flatten(1).sum(1, keepdim=True)
+        return torch.cat([s, -s], dim=1)
+
+
 DENSENET2D = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
 DENSENET3D = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
 SENET2D = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
@@ -98,6 +106,23 @@ class TestGradientClassActivationMap(unittest.TestCase):
         x = torch.rand((2, 1, 6, 6, 6), device=device)
         smooth = SmoothGrad(model, stdev_spread=0.0, n_samples=1, magnitude=False, verbose=False)
         assert_allclose(smooth(x.clone()), VanillaGrad(model)(x.clone()), rtol=1e-4, atol=1e-5)
+
+    def test_smoothgrad_noise_per_image(self):
+        """
+        ``SmoothGrad`` scales the noise of each image with the intensity range of that image: with a model whose
+        input gradient is the input, one sample returns ``x + noise``, so the noise of an image with range about 1
+        must not take the scale of an image with range about 100, as it would with one range for the whole batch.
+        """
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        torch.manual_seed(0)
+        x = torch.rand((2, 1, 16, 16, 16), device=device)
+        x[1] *= 100.0
+        stdev_spread = 0.15
+        smooth = SmoothGrad(HalfSquaredNorm(), stdev_spread=stdev_spread, n_samples=1, magnitude=False, verbose=False)
+        noise = smooth(x.clone(), index=0) - x
+        for i in range(x.shape[0]):
+            expected = stdev_spread * (x[i].max() - x[i].min()).item()
+            self.assertAlmostEqual(noise[i].std().item() / expected, 1.0, delta=0.1)
 
     def test_index_length_mismatch(self):
         """A tensor ``index`` must hold one class index per image in the batch."""
