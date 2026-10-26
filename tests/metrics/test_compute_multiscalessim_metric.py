@@ -21,6 +21,12 @@ from monai.utils import set_determinism
 
 
 class TestMultiScaleSSIMMetric(unittest.TestCase):
+    def test_four_scales_single_pixel_kernel(self):
+        """Do not downsample after the final scale reaches one pixel."""
+        image = torch.ones(1, 1, 8, 8)
+        metric = MultiScaleSSIMMetric(spatial_dims=2, kernel_size=1, weights=[0.25] * 4)
+
+        torch.testing.assert_close(metric(image, image), torch.ones(1, 1))
 
     def test_2d_gaussian(self):
         set_determinism(0)

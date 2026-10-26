@@ -615,7 +615,7 @@ def compute_ms_ssim(
     avg_pool = getattr(F, f"avg_pool{spatial_dims}d")
 
     multiscale_list: list[torch.Tensor] = []
-    for _ in range(len(weights_tensor)):
+    for scale in range(len(weights_tensor)):
         ssim, cs = compute_ssim_and_cs(
             y_pred=y_pred,
             y=y,
@@ -631,8 +631,9 @@ def compute_ms_ssim(
         cs_per_batch = cs.view(cs.shape[0], -1).mean(1)
 
         multiscale_list.append(torch.relu(cs_per_batch))
-        y_pred = avg_pool(y_pred, kernel_size=2)
-        y = avg_pool(y, kernel_size=2)
+        if scale < len(weights_tensor) - 1:
+            y_pred = avg_pool(y_pred, kernel_size=2)
+            y = avg_pool(y, kernel_size=2)
 
     ssim = ssim.view(ssim.shape[0], -1).mean(1)
     multiscale_list[-1] = torch.relu(ssim)
