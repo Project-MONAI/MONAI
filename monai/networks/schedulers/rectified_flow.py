@@ -174,8 +174,8 @@ class RFlowScheduler(Scheduler):
 
         # timestep transform
         self.use_timestep_transform = use_timestep_transform
-        if use_timestep_transform and transform_scale <= 0:
-            raise ValueError("`transform_scale` must be positive when `use_timestep_transform` is True.")
+        if use_timestep_transform and (not np.isfinite(transform_scale) or transform_scale <= 0):
+            raise ValueError("`transform_scale` must be finite and positive when `use_timestep_transform` is True.")
         self.transform_scale = transform_scale
         self.steps_offset = steps_offset
 
