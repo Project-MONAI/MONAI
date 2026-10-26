@@ -69,6 +69,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
             or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
             ignore_index to keep score values comparable.
+            For a single-channel binary target, ignoring channel 0 excludes locations where the target is 1.
 
     """
 
@@ -159,11 +160,19 @@ def get_confusion_matrix(
             The values should be binarized.
         y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
+            A single channel is a binary membership indicator, not a map of class IDs.
         include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
-            If ignore_index refers to a valid class channel, that channel is excluded. If it is outside the
-            class range, ignored regions are inferred from spatial locations where all label channels are zero.
+            For a valid class index, voxels belonging to that channel are excluded from all classes' counts.
+            The existing channel-exclusion behavior is retained for multi-channel targets. With a single-channel
+            binary target, ignore_index=0 excludes locations where the target is 1 without zeroing the channel.
+            Counts at valid single-channel locations do not depend on include_background. Out-of-range values use all-zero
+            locations for multi-channel targets and direct value comparison for single-channel targets.
+
+    Returns:
+        Tensor of shape [B, C, 4], containing true positive, false positive, true negative, and false negative
+        counts, in that order, for each sample and evaluated channel.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
@@ -179,17 +188,23 @@ def get_confusion_matrix(
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
 
-    # Create spatial mask if ignore_index is provided
-    if ignore_index is not None and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1)):
+    # Single-channel targets need spatial exclusion only, preserving errors at valid locations.
+    if (
+        ignore_index is not None
+        and original_y.shape[1] > 1
+        and 0 <= ignore_index < (y_pred.shape[1] + (0 if include_background else 1))
+    ):
         ignore_channel = ignore_index if include_background else ignore_index - 1
         if 0 <= ignore_channel < y_pred.shape[1]:
             y_pred = y_pred.clone()
             y = y.clone()
             y_pred[:, ignore_channel] = 0
             y[:, ignore_channel] = 0
-        mask = None
+    if ignore_index is not None and 0 <= ignore_index < original_y.shape[1]:
+        # Every channel represents binary membership; comparison also supports boolean targets.
+        mask = (original_y[:, ignore_index : ignore_index + 1] == 0).float()
     else:
-        mask = create_ignore_mask(original_y if ignore_index is not None else y, ignore_index)
+        mask = create_ignore_mask(original_y, ignore_index)
 
     # convert to [BNS], where S is the number of pixels for one sample.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
