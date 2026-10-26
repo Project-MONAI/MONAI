@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Any
 
 import numpy as np
@@ -137,7 +138,8 @@ class SplitLabeld(MapTransform):
         label: key of the label source
         others: other labels storage key, defaults to ``"others"``
         mask_value: the mask_value that will be kept for binarization of the label, defaults to ``"mask_value"``
-        min_area: The smallest allowable object size.
+        min_area: The smallest allowable size (in pixels) of an object in ``others``; connected components of
+            ``others`` smaller than this are removed. Defaults to ``0``, which keeps all the objects.
         others_value: Value/class for other nuclei;  Use this to separate core nuclei vs others.
         to_binary_mask: Convert mask to binary;  Set it false to restore original class values
     """
@@ -147,7 +149,7 @@ class SplitLabeld(MapTransform):
         keys: KeysCollection,
         others: str = NuclickKeys.OTHERS,
         mask_value: str | None = NuclickKeys.MASK_VALUE,
-        min_area: int = 5,
+        min_area: int = 0,
         others_value: int = 0,
         to_binary_mask: bool = True,
     ):
@@ -184,6 +186,11 @@ class SplitLabeld(MapTransform):
             others[others > 0] = 1
             if torch.count_nonzero(others):
                 others = measure.label(convert_to_numpy(others)[0], connectivity=1)
+                if self.min_area > 0:
+                    areas = np.bincount(others.ravel())
+                    small = areas < self.min_area
+                    small[0] = False
+                    others[small[others]] = 0
                 others = torch.from_numpy(others)[None]
 
             label = mask.type(torch.uint8) if isinstance(mask, torch.Tensor) else mask
@@ -528,7 +535,10 @@ class PostFilterLabeld(MapTransform):
         thresh: probability threshold for classifying a pixel as a mask
         min_size: min_size objects that will be removed from the image, refer skimage remove_small_objects
         min_hole: min_hole that will be removed from the image, refer skimage remove_small_holes
-        do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage
+        nuc_points: key of the click map of each patch, an array of shape (N, 1, H, W) or (N, H, W) where N is
+            the number of bounding boxes; only read when ``do_reconstruction`` is ``True``.
+        do_reconstruction: Boolean Flag, if ``True``, keep only the parts of each predicted mask that are connected
+            to its click point (``nuc_points``), using a morphological reconstruction, refer skimage
         allow_missing_keys: don't raise exception if key is missing.
         pred_classes: List of Predicted class for each instance
     """
@@ -569,15 +579,29 @@ class PostFilterLabeld(MapTransform):
 
         for key in self.keys:
             label = d[key].astype(np.uint8)
-            masks = self.post_processing(label, self.thresh, self.min_size, self.min_hole)
+            masks = self.post_processing(
+                label,
+                self.thresh,
+                self.min_size,
+                self.min_hole,
+                do_reconstruction=self.do_reconstruction,
+                nuc_points=d[self.nuc_points] if self.do_reconstruction else None,
+            )
             d[key] = self.gen_instance_map(masks, bounding_boxes, x, y, pred_classes=pred_classes).astype(np.uint8)
         return d
 
-    def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30):
+    def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30, do_reconstruction=False, nuc_points=None):
         masks = preds > thresh
         for i in range(preds.shape[0]):
             masks[i] = morphology.remove_small_objects(masks[i], min_size=min_size)
             masks[i] = morphology.remove_small_holes(masks[i], area_threshold=min_hole)
+            if do_reconstruction:
+                marker = convert_to_numpy(nuc_points[i]).reshape(masks[i].shape) > 0
+                seed = marker & masks[i]
+                if seed.any():
+                    masks[i] = morphology.reconstruction(seed, masks[i], footprint=morphology.disk(1)) > 0
+                elif masks[i].any():
+                    warnings.warn(f"Nuclei reconstruction skipped for patch #{i}: click point is outside the mask.")
         return masks
 
     def gen_instance_map(self, masks, bounding_boxes, x, y, flatten=True, pred_classes=None):
