@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import unittest
 from tempfile import TemporaryDirectory
@@ -453,6 +454,56 @@ class ZarrAvgMergerTests(unittest.TestCase):
         self.assertIs(output, merger.finalize())
         # check if the result is matching the expectation
         assert_allclose(output[:], expected.numpy())
+
+    @unittest.skipUnless(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v3")
+    def test_temporary_stores_remain_alive(self):
+        """Default stores must retain distinct backing directories after garbage collection."""
+        merger = ZarrAvgMerger(merged_shape=(1, 1, 2, 2), store=self.merged_name)
+        self.assertIsNotNone(merger.value_tmpdir)
+        self.assertIsNotNone(merger.count_tmpdir)
+        self.addCleanup(merger.value_tmpdir.cleanup)
+        self.addCleanup(merger.count_tmpdir.cleanup)
+        gc.collect()
+        self.assertNotEqual(merger.value_tmpdir.name, merger.count_tmpdir.name)
+        self.assertTrue(os.path.isdir(merger.value_tmpdir.name))
+        self.assertTrue(os.path.isdir(merger.count_tmpdir.name))
+
+    @unittest.skipUnless(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v3")
+    def test_temporary_stores_read_write(self):
+        """Both default stores must remain usable through reopening and finalization."""
+        merger = ZarrAvgMerger(merged_shape=(1, 1, 2, 2), store=self.merged_name)
+        for name in ("value_tmpdir", "count_tmpdir"):
+            tmpdir = getattr(merger, name, None)
+            if tmpdir is not None:
+                self.addCleanup(tmpdir.cleanup)
+        gc.collect()
+        values = zarr.open_array(store=merger.value_store, mode="r+")
+        counts = zarr.open_array(store=merger.count_store, mode="r+")
+        values[:] = 6
+        counts[:] = 2
+        assert_allclose(merger.get_values()[:], np.full((1, 1, 2, 2), 6))
+        assert_allclose(merger.get_counts()[:], np.full((1, 1, 2, 2), 2))
+        assert_allclose(merger.finalize()[:], np.full((1, 1, 2, 2), 3))
+
+    @parameterized.expand([("list", []), ("tuple", ())])
+    @unittest.skipIf(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v2")
+    def test_empty_codec_sequences(self, _, empty_codecs):
+        """Explicit empty codec sequences disable compression without indexing errors."""
+        merger = ZarrAvgMerger(
+            merged_shape=(1, 1, 2, 2),
+            store=self.merged_name,
+            value_store=zarr.storage.MemoryStore(),
+            count_store=zarr.storage.MemoryStore(),
+            codecs=empty_codecs,
+            value_codecs=empty_codecs,
+            count_codecs=empty_codecs,
+        )
+        self.assertIsNone(merger.output.compressor)
+        self.assertIsNone(merger.values.compressor)
+        self.assertIsNone(merger.counts.compressor)
+        patch = torch.ones((1, 1, 2, 2))
+        merger.aggregate(patch, (0, 0))
+        assert_allclose(merger.finalize()[:], patch.numpy())
 
     def test_zarr_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):

@@ -258,7 +258,6 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
-        remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
         image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -347,7 +346,6 @@ class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
-        remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
         image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
