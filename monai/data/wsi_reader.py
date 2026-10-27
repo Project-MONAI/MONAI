@@ -1331,6 +1331,12 @@ class TiffFileWSIReader(BaseWSIReader):
             wsi: a whole slide image object loaded from a file.
             level: the level number.
 
+        Returns:
+            the TIFF page holding the metadata of that level.
+
+        Raises:
+            IndexError: when ``level`` is not a valid pyramid level of the image.
+
         """
         return wsi.series[0].levels[level].keyframe
 
