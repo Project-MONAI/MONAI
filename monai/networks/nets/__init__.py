@@ -137,6 +137,7 @@ from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .transformer import DecoderOnlyTransformer
+from .u_mamba import MambaBlock, UMamba
 from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
