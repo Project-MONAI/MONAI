@@ -147,9 +147,10 @@ class MambaBlock(nn.Module):
     long-range dependencies over the whole feature map with (near-)linear complexity in the number
     of voxels.
 
-    If the optional ``mamba_ssm`` package is installed, its fused CUDA implementation is used.
-    Otherwise, a pure PyTorch implementation (:class:`_MambaSSM`) is used automatically, which runs
-    on any device but evaluates the selective scan sequentially and is therefore slower.
+    If the optional ``mamba_ssm`` package is installed, its fused CUDA implementation is used for
+    CUDA tensors. Otherwise (and for CPU tensors in general), a pure PyTorch implementation
+    (:class:`_MambaSSM`) is used automatically, which runs on any device but evaluates the selective
+    scan sequentially and is therefore slower.
 
     Args:
         dim: number of channels of the input feature map.
@@ -164,10 +165,24 @@ class MambaBlock(nn.Module):
         self.norm = nn.LayerNorm(dim)
         if has_mamba_ssm:
             self.mamba: nn.Module = Mamba(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
+            # the reference implementation is CUDA-only, so also keep the pure PyTorch fallback
+            # and select between the two based on the input device in the forward pass
+            self.mamba_fallback: nn.Module | None = _MambaSSM(
+                d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand
+            )
         else:
             self.mamba = _MambaSSM(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
+            self.mamba_fallback = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: input feature map of shape (batch, dim, *spatial).
+
+        Returns:
+            Tensor of the same shape and dtype as the input, with long-range dependencies modelled
+            over the flattened spatial dimensions.
+        """
         dtype = x.dtype
         with torch.autocast(device_type=x.device.type, enabled=False):
             if dtype in (torch.float16, torch.bfloat16):
@@ -175,73 +190,77 @@ class MambaBlock(nn.Module):
             batch, channels = x.shape[:2]
             spatial_shape = x.shape[2:]
             x_flat = x.reshape(batch, channels, -1).transpose(1, 2)
-            out = self.mamba(self.norm(x_flat))
+            # the fused CUDA implementation only supports CUDA tensors, so run CPU tensors through
+            # the pure PyTorch fallback instead
+            mamba = self.mamba if x.is_cuda or self.mamba_fallback is None else self.mamba_fallback
+            out = mamba(self.norm(x_flat))
             out = out.transpose(1, 2).reshape(batch, channels, *spatial_shape)
         return out.to(dtype)
 
 
 class UMamba(nn.Module):
     """
-        U-Mamba network for biomedical image segmentation, based on:
-        `U-Mamba: Enhancing Long-range Dependency for Biomedical Image Segmentation
-        <https://arxiv.org/abs/2401.04722>`_.
+    U-Mamba network for biomedical image segmentation, based on:
+    `U-Mamba: Enhancing Long-range Dependency for Biomedical Image Segmentation
+    <https://arxiv.org/abs/2401.04722>`_.
 
-        U-Mamba combines residual convolutional blocks with Mamba state space blocks in a U-Net
-        encoder-decoder with skip connections, so that the network models both local features and
-        long-range dependencies. Two variants are supported through ``mamba_mode``:
+    U-Mamba combines residual convolutional blocks with Mamba state space blocks in a U-Net
+    encoder-decoder with skip connections, so that the network models both local features and
+    long-range dependencies. Two variants are supported through ``mamba_mode``:
 
-        - ``"bot"`` (U-Mamba_Bot in the paper): a single Mamba block is applied to the bottleneck
-          feature map. This is the default and the configuration recommended in most cases.
-        - ``"enc"`` (U-Mamba_Enc in the paper): a Mamba block is applied after every encoder stage,
-          so every skip connection carries state-space features into the decoder.
+    - ``"bot"`` (U-Mamba_Bot in the paper): a single Mamba block is applied to the bottleneck
+      feature map. This is the default and the configuration recommended in most cases.
+    - ``"enc"`` (U-Mamba_Enc in the paper): a Mamba block is applied after every encoder stage,
+      so every skip connection carries state-space features into the decoder.
 
-        Following the reference implementation, when the number of residual blocks per stage is given
-        as a single integer, the stages in the deeper half of the encoder (and of the decoder) use a
-        single residual block.
+    Following the reference implementation, when the number of residual blocks per stage is given
+    as a single integer, the stages in the deeper half of the encoder (and of the decoder) use a
+    single residual block.
 
-        The Mamba blocks use the fused CUDA implementation of the optional ``mamba_ssm`` package when
-        it is installed, and a pure PyTorch implementation otherwise (see :class:`MambaBlock`), so the
-        network can be built and run on CPU as well. Deep supervision follows the reference
-        implementation: when ``deep_supervision`` is enabled, the forward pass returns a list of the
-        segmentation outputs of every decoder stage (highest resolution first), each at its native
-        resolution.
+    The Mamba blocks use the fused CUDA implementation of the optional ``mamba_ssm`` package for
+    CUDA tensors when it is installed, and a pure PyTorch implementation otherwise (see
+    :class:`MambaBlock`), so the network can be built and run on CPU as well. Deep supervision
+    follows the reference
+    implementation: when ``deep_supervision`` is enabled, the forward pass returns a list of the
+    segmentation outputs of every decoder stage (highest resolution first), each at its native
+    resolution.
 
-        Args:
-            spatial_dims: number of spatial dimensions, should be 1, 2 or 3. Defaults to 3.
-            in_channels: number of input channels. Defaults to 1.
-            out_channels: number of output channels (for example, the number of segmentation classes).
-                Defaults to 2.
-            channels: number of feature channels at each encoder stage, given from the highest to the
-                lowest resolution. Defaults to ``(16, 32, 64, 128, 256)``.
-            strides: stride of the first residual block of each encoder stage, in the same order as
-                ``channels``. The first entry is typically 1, and the decoder upsamples with the
-                remaining strides. Defaults to ``(1, 2, 2, 2, 2)``.
-            kernel_size: convolution kernel size of the residual blocks, either a single value used at
-                every stage or one value per encoder stage. Defaults to 3.
-            num_res_units: number of residual blocks per stage, either a single value or one value per
-                encoder stage (the decoder uses the same number of stages minus one). Defaults to 2.
-            act: activation type and arguments. Defaults to ``("LEAKYRELU", {"inplace": True,
-                "negative_slope": 0.01})``.
-            norm: feature normalisation type and arguments. Defaults to ``("INSTANCE", {"affine":
-                True})``.
-            dropout: dropout ratio. Defaults to no dropout.
-            mamba_d_state: dimension of the state space latent state of the Mamba blocks. Defaults
-                to 16.
-            mamba_d_conv: kernel size of the local convolution inside the Mamba blocks. Defaults to 4.
-            mamba_expand: expansion factor of the inner dimension of the Mamba blocks. Defaults to 2.
-            mamba_mode: where the Mamba blocks are placed, ``"bot"`` for bottleneck-only (U-Mamba_Bot)
-                or ``"enc"`` for every encoder stage (U-Mamba_Enc). Defaults to ``"bot"``.
-            deep_supervision: whether to return the segmentation output of every decoder stage.
-                Defaults to False.
+    Args:
+        spatial_dims: number of spatial dimensions, should be 1, 2 or 3. Defaults to 3.
+        in_channels: number of input channels. Defaults to 1.
+        out_channels: number of output channels (for example, the number of segmentation classes).
+            Defaults to 2.
+        channels: number of feature channels at each encoder stage, given from the highest to the
+            lowest resolution. Defaults to ``(16, 32, 64, 128, 256)``.
+        strides: stride of the first residual block of each encoder stage, in the same order as
+            ``channels``. The first entry is typically 1, and the decoder upsamples with the
+            remaining strides. Defaults to ``(1, 2, 2, 2, 2)``.
+        kernel_size: convolution kernel size of the residual blocks, either a single value used at
+            every stage or one value per encoder stage. Defaults to 3.
+        num_res_units: number of residual blocks per stage, either a single value or one value per
+            encoder stage (the decoder uses the same number of stages minus one). Defaults to 2.
+        act: activation type and arguments. Defaults to ``("LEAKYRELU", {"inplace": True,
+            "negative_slope": 0.01})``.
+        norm: feature normalisation type and arguments. Defaults to ``("INSTANCE", {"affine":
+            True})``.
+        dropout: dropout ratio. Defaults to no dropout.
+        mamba_d_state: dimension of the state space latent state of the Mamba blocks. Defaults
+            to 16.
+        mamba_d_conv: kernel size of the local convolution inside the Mamba blocks. Defaults to 4.
+        mamba_expand: expansion factor of the inner dimension of the Mamba blocks. Defaults to 2.
+        mamba_mode: where the Mamba blocks are placed, ``"bot"`` for bottleneck-only (U-Mamba_Bot)
+            or ``"enc"`` for every encoder stage (U-Mamba_Enc). Defaults to ``"bot"``.
+        deep_supervision: whether to return the segmentation output of every decoder stage.
+            Defaults to False.
 
-        Example::
+    Example::
 
-            import torch
-            from monai.networks.nets import UMamba
+        import torch
+        from monai.networks.nets import UMamba
 
-            net = UMamba(spatial_dims=3, in_channels=1, out_channels=2)
-            out = net(torch.randn(1, 1, 32, 32, 32))
-            print(out.shape)  # (1, 2,
+        net = UMamba(spatial_dims=3, in_channels=1, out_channels=2)
+        out = net(torch.randn(1, 1, 32, 32, 32))
+        print(out.shape)  # (1, 2,
     ...[truncated 8243 chars] 32, 32, 32))
     """
 
@@ -263,6 +282,44 @@ class UMamba(nn.Module):
         mamba_mode: str = "bot",
         deep_supervision: bool = False,
     ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions, should be 1, 2 or 3. Defaults to 3.
+            in_channels: number of input channels. Defaults to 1.
+            out_channels: number of output channels (for example, the number of segmentation
+                classes). Defaults to 2.
+            channels: number of feature channels at each encoder stage, given from the highest to
+                the lowest resolution. Defaults to ``(16, 32, 64, 128, 256)``.
+            strides: stride of the first residual block of each encoder stage, in the same order as
+                ``channels``. Defaults to ``(1, 2, 2, 2, 2)``.
+            kernel_size: convolution kernel size of the residual blocks, either a single value or
+                one value per encoder stage. Defaults to 3.
+            num_res_units: number of residual blocks per stage, either a single value or one value
+                per encoder stage. A stage with 0 units applies a single convolution that performs
+                the stage's channel and stride transition. Defaults to 2.
+            act: activation type and arguments. Defaults to ``("LEAKYRELU", {"inplace": True,
+                "negative_slope": 0.01})``.
+            norm: feature normalisation type and arguments. Defaults to ``("INSTANCE", {"affine":
+                True})``.
+            dropout: dropout ratio. Defaults to no dropout.
+            mamba_d_state: dimension of the state space latent state of the Mamba blocks. Defaults
+                to 16.
+            mamba_d_conv: kernel size of the local convolution inside the Mamba blocks. Defaults
+                to 4.
+            mamba_expand: expansion factor of the inner dimension of the Mamba blocks. Defaults
+                to 2.
+            mamba_mode: where the Mamba blocks are placed, ``"bot"`` for bottleneck-only
+                (U-Mamba_Bot) or ``"enc"`` for every encoder stage (U-Mamba_Enc). Defaults to
+                ``"bot"``.
+            deep_supervision: whether to return the segmentation output of every decoder stage.
+                Defaults to False.
+
+        Raises:
+            ValueError: if `spatial_dims` is not 1, 2 or 3.
+            ValueError: if `mamba_mode` is not ``"bot"`` or ``"enc"``.
+            ValueError: if `channels` has fewer than 2 stages.
+            ValueError: if `strides` does not have the same number of entries as `channels`.
+        """
         super().__init__()
         if spatial_dims not in (1, 2, 3):
             raise ValueError(f"spatial_dims must be 1, 2 or 3, got {spatial_dims}.")
@@ -282,6 +339,10 @@ class UMamba(nn.Module):
 
         kernel_sizes = self._per_stage(kernel_size, n_stages, "kernel_size")
         strides_rep = [ensure_tuple_rep(s, spatial_dims) for s in self._per_stage(strides, n_stages, "strides")]
+        # per-dimension product of the stage strides: the input spatial size must be divisible by
+        # this in every dimension for the encoder-decoder skip connections to line up (checked in
+        # the forward pass)
+        self.spatial_divisor = tuple(math.prod(stride[d] for stride in strides_rep) for d in range(spatial_dims))
         n_blocks_enc = self._per_stage(num_res_units, n_stages, "num_res_units")
         if isinstance(num_res_units, int):
             # the reference implementation uses a single residual block in the deeper half of
@@ -312,6 +373,22 @@ class UMamba(nn.Module):
                         norm_name=norm,
                         act_name=act,
                         dropout=dropout,
+                    )
+                )
+            if not blocks:
+                # a stage with no residual units still applies a single convolution that performs
+                # the channel and stride transition of the stage
+                blocks.append(
+                    get_conv_layer(
+                        spatial_dims=spatial_dims,
+                        in_channels=in_ch,
+                        out_channels=channels[s],
+                        kernel_size=kernel_sizes[s],
+                        stride=strides_rep[s],
+                        act=None,
+                        norm=None,
+                        bias=True,
+                        conv_only=True,
                     )
                 )
             self.encoder.append(nn.Sequential(*blocks))
@@ -365,11 +442,42 @@ class UMamba(nn.Module):
                         dropout=dropout,
                     )
                 )
+            if not blocks:
+                # a stage with no residual units still applies a single convolution that maps the
+                # concatenated skip input back to the stage channels
+                blocks.append(
+                    get_conv_layer(
+                        spatial_dims=spatial_dims,
+                        in_channels=2 * in_skip,
+                        out_channels=in_skip,
+                        kernel_size=kernel_sizes[-(s + 1)],
+                        stride=1,
+                        act=None,
+                        norm=None,
+                        bias=True,
+                        conv_only=True,
+                    )
+                )
             self.decoder.append(nn.Sequential(*blocks))
             self.seg_layers.append(UnetOutBlock(spatial_dims, in_skip, out_channels, dropout=dropout))
 
     @staticmethod
     def _per_stage(value: Sequence[int] | int, n_stages: int, name: str) -> list:
+        """
+        Expand a per-stage argument to a list with one entry per stage.
+
+        Args:
+            value: a single value to repeat for every stage, or a sequence with one entry
+                per stage.
+            n_stages: number of stages the argument applies to.
+            name: name of the argument, used in the error message.
+
+        Returns:
+            A list of length `n_stages` with the per-stage values.
+
+        Raises:
+            ValueError: if `value` is a sequence whose length differs from `n_stages`.
+        """
         if isinstance(value, int):
             return [value] * n_stages
         value = list(value)
@@ -378,6 +486,28 @@ class UMamba(nn.Module):
         raise ValueError(f"{name} must be an int or a sequence of length {n_stages}, got {value}.")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
+        """
+        Args:
+            x: input tensor of shape (batch, in_channels, *spatial). Every spatial dimension
+                must be divisible by the product of the stage strides along that dimension.
+
+        Returns:
+            The segmentation output of shape (batch, out_channels, *spatial), or, when
+            `deep_supervision` is enabled, a list with the segmentation output of every decoder
+            stage (highest resolution first), each at its native resolution.
+
+        Raises:
+            ValueError: if a spatial dimension of `x` is not divisible by the product of the
+                configured strides along that dimension.
+        """
+        spatial_size = tuple(x.shape[2:])
+        for dim, (size, divisor) in enumerate(zip(spatial_size, self.spatial_divisor)):
+            if size % divisor != 0:
+                raise ValueError(
+                    f"input spatial size {spatial_size} must be divisible by {self.spatial_divisor}, the "
+                    f"product of the strides, in every dimension, but dimension {dim} has size {size}, "
+                    f"which is not divisible by {divisor}."
+                )
         skips: list[torch.Tensor] = []
         for s, stage in enumerate(self.encoder):
             x = stage(x)

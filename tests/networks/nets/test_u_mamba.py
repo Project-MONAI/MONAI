@@ -137,6 +137,44 @@ class TestUMamba(unittest.TestCase):
         with self.assertRaises(ValueError):
             UMamba(spatial_dims=2, mamba_mode="invalid")
 
+    def test_zero_res_units(self):
+        # a stage with zero residual units must still perform its channel/stride transition;
+        # num_res_units=(2, 0, 2) leaves both encoder stage 1 and decoder stage 0 without
+        # residual units
+        net = UMamba(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=2,
+            channels=(8, 16, 32),
+            strides=(1, 2, 2),
+            num_res_units=(2, 0, 2),
+        )
+        net.eval()
+        with torch.no_grad():
+            out = net(torch.randn(1, 1, 32, 32))
+        self.assertEqual(out.shape, (1, 2, 32, 32))
+        self.assertTrue(torch.isfinite(out).all())
+
+    def test_zero_res_units_all_stages(self):
+        # num_res_units=0 for every stage (the deeper half keeps one unit, following the
+        # reference implementation)
+        net = UMamba(
+            spatial_dims=2, in_channels=1, out_channels=2, channels=(8, 16, 32), strides=(1, 2, 2), num_res_units=0
+        )
+        net.eval()
+        with torch.no_grad():
+            out = net(torch.randn(1, 1, 32, 32))
+        self.assertEqual(out.shape, (1, 2, 32, 32))
+        self.assertTrue(torch.isfinite(out).all())
+
+    def test_indivisible_input_size(self):
+        # the product of the strides is 4 in each dimension, so a spatial size of 30 must be
+        # rejected with a clear error instead of failing at the skip concatenation
+        net = UMamba(spatial_dims=2, in_channels=1, out_channels=2, channels=(8, 16, 32), strides=(1, 2, 2))
+        net.eval()
+        with self.assertRaises(ValueError):
+            net(torch.randn(1, 1, 30, 32))
+
     def test_mamba_block_shape(self):
         block = MambaBlock(dim=8)
         block.eval()
