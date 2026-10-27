@@ -327,6 +327,18 @@ class TestOrientationCase(unittest.TestCase):
 
     @parameterized.expand([("LPS", {"axcodes": "LPS"}), ("RAS", {"as_closest_canonical": True})])
     def test_oblique_boundary_geometry(self, target, init_param):
+        """Allow two arrangements at the 45-degree tie in this oblique boundary test.
+
+        Args:
+            target: Chooses the LPS or RAS references.
+            init_param: Configures the orientation.
+
+        Returns:
+            None if the test succeeds.
+
+        Raises:
+            AssertionError: If the result diverges from the references.
+        """
         affine = torch.as_tensor(
             create_translate(3, (10, 20, 30))
             @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
