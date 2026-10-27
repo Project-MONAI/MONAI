@@ -60,6 +60,8 @@ WSI_GENERIC_TIFF_WIDTH = 46000
 
 TEST_CASE_WHOLE_0 = [WSI_GENERIC_TIFF_PATH, 2, (3, WSI_GENERIC_TIFF_HEIGHT // 4, WSI_GENERIC_TIFF_WIDTH // 4)]
 
+TEST_CASE_WHOLE_1 = [WSI_APERIO_SVS_PATH, 2, (3, 2057, 2875)]
+
 TEST_CASE_TRANSFORM_0 = [
     WSI_GENERIC_TIFF_PATH,
     4,
@@ -500,7 +502,7 @@ class WSIReaderTests:
             """
             gc.collect()
 
-        @parameterized.expand([TEST_CASE_WHOLE_0])
+        @parameterized.expand([TEST_CASE_WHOLE_0, TEST_CASE_WHOLE_1])
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReader(self.backend, level=level)
             with reader.read(file_path) as img_obj:
