@@ -117,10 +117,75 @@ TEST_CASE_8 = [
 ]
 
 
-class TestPartitionDataset(unittest.TestCase):
+TEST_CASE_9 = [
+    {
+        "data": list(range(10)),
+        "ratios": [1, 1, 1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9]],
+]
 
+TEST_CASE_10 = [
+    {
+        "data": list(range(63)),
+        "ratios": [0.8, 0.1, 0.1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [list(range(50)), list(range(50, 56)), list(range(56, 63))],
+]
+
+TEST_CASE_11 = [
+    {
+        "data": list(range(32)),
+        "ratios": [1, 1, 1, 1, 1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [list(range(6)), list(range(6, 12)), list(range(12, 18)), list(range(18, 24)), list(range(24, 32))],
+]
+
+TEST_CASE_12 = [
+    {
+        "data": [1, 2, 3, 4, 5],
+        "ratios": [0.6, 0.2, 0.2],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[1, 2, 3], [4], [5]],
+]
+
+
+class TestPartitionDataset(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+            TEST_CASE_9,
+            TEST_CASE_10,
+            TEST_CASE_11,
+            TEST_CASE_12,
+        ]
     )
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset(**input_param), result)

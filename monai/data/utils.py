@@ -1203,9 +1203,16 @@ def partition_dataset(
     if ratios:
         next_idx = 0
         rsum = sum(ratios)
-        for r in ratios:
+        sizes = [int(r / rsum * data_len + 0.5) for r in ratios]
+        if sum(sizes) < data_len:
+            # Independent rounding can leave trailing items in no partition
+            # (e.g. ratios [1, 1, 1] on 10 items rounds to 3 + 3 + 3); assign
+            # the remainder to the last partition so every item lands in
+            # exactly one partition.
+            sizes[-1] += data_len - sum(sizes)
+        for size in sizes:
             start_idx = next_idx
-            next_idx = min(start_idx + int(r / rsum * data_len + 0.5), data_len)
+            next_idx = min(start_idx + size, data_len)
             datasets.append([data[i] for i in indices[start_idx:next_idx]])
         return datasets
 
