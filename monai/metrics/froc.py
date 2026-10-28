@@ -145,15 +145,18 @@ def compute_froc_curve_data(
     if isinstance(tp_probs, torch.Tensor):
         tp_probs = tp_probs.detach().cpu().numpy()
 
-    total_fps, total_tps = [], []
+    # Keep the threshold definition (unique scores from both arrays, excluding the
+    # smallest score) while avoiding a full scan of both arrays at every threshold.
     all_probs = sorted(set(list(fp_probs) + list(tp_probs)))
-    for thresh in all_probs[1:]:
-        total_fps.append((fp_probs >= thresh).sum())
-        total_tps.append((tp_probs >= thresh).sum())
-    total_fps.append(0)
-    total_tps.append(0)
-    fps_per_image = np.asarray(total_fps) / float(num_images)
-    total_sensitivity = np.asarray(total_tps) / float(num_targets)
+    thresholds = all_probs[1:]
+    sorted_fp_probs = np.sort(fp_probs)
+    sorted_tp_probs = np.sort(tp_probs)
+    total_fps = len(sorted_fp_probs) - np.searchsorted(sorted_fp_probs, thresholds, side="left")
+    total_tps = len(sorted_tp_probs) - np.searchsorted(sorted_tp_probs, thresholds, side="left")
+    total_fps = np.append(total_fps, 0)
+    total_tps = np.append(total_tps, 0)
+    fps_per_image = total_fps / float(num_images)
+    total_sensitivity = total_tps / float(num_targets)
     return fps_per_image, total_sensitivity
 
 
