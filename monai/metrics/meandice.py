@@ -345,6 +345,9 @@ class DiceHelper:
 
         Returns:
             torch.Tensor: Mean Dice over connected components.
+        Raises:
+            OptionalImportError: If the ground truth contains foreground voxels
+                after masking, is on the CPU, and SciPy is unavailable.
         """
         if y_pred.ndim == y.ndim:
             y_pred_idx = torch.argmax(y_pred, dim=1)
