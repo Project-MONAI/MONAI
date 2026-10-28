@@ -1207,9 +1207,15 @@ def partition_dataset(
         if sum(sizes) < data_len:
             # Independent rounding can leave trailing items in no partition
             # (e.g. ratios [1, 1, 1] on 10 items rounds to 3 + 3 + 3); assign
-            # the remainder to the last partition so every item lands in
-            # exactly one partition.
-            sizes[-1] += data_len - sum(sizes)
+            # the remainder so every item lands in exactly one partition.
+            # It goes to the last partition with a positive ratio: a
+            # zero-ratio partition must stay empty (e.g. ratios
+            # [1, 1, 1, 0] on 10 items rounds to 3 + 3 + 3 + 0, and the
+            # leftover item belongs in the third partition, not the empty one).
+            for i in range(len(ratios) - 1, -1, -1):
+                if ratios[i] > 0:
+                    sizes[i] += data_len - sum(sizes)
+                    break
         for size in sizes:
             start_idx = next_idx
             next_idx = min(start_idx + size, data_len)

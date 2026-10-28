@@ -169,6 +169,19 @@ TEST_CASE_12 = [
     [[1, 2, 3], [4], [5]],
 ]
 
+TEST_CASE_13 = [
+    {
+        "data": list(range(10)),
+        "ratios": [1, 1, 1, 0],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9], []],
+]
+
 
 class TestPartitionDataset(unittest.TestCase):
     @parameterized.expand(
@@ -185,6 +198,7 @@ class TestPartitionDataset(unittest.TestCase):
             TEST_CASE_10,
             TEST_CASE_11,
             TEST_CASE_12,
+            TEST_CASE_13,
         ]
     )
     def test_value(self, input_param, result):
