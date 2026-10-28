@@ -249,6 +249,26 @@ class TestNiftiLoadRead(unittest.TestCase):
                 )
                 np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]), atol=1e-4, rtol=1e-4)
 
+    @parameterized.expand([((64, 64),), ((8, 64, 64),)])
+    def test_write_without_original_affine_and_spatial_shape(self, shape):
+        """Verify channel-less NIfTI writing preserves shape, voxel values, and affine without target metadata.
+
+        Args:
+            shape: Shape of the channel-less 2D or 3D input array.
+        """
+        data = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+        with tempfile.TemporaryDirectory() as out_dir:
+            image_name = os.path.join(out_dir, "test.nii")
+            writer_obj = NibabelWriter(output_dtype=np.float32)
+            writer_obj.set_data_array(data, channel_dim=None, spatial_ndim=None)
+            writer_obj.set_metadata({"affine": np.eye(4), "original_affine": None})
+            writer_obj.write(image_name)
+
+            saved = nib.load(image_name)
+            self.assertEqual(saved.shape, data.shape)
+            np.testing.assert_array_equal(saved.get_fdata(), data)
+            np.testing.assert_allclose(saved.affine, np.eye(4))
+
 
 if __name__ == "__main__":
     unittest.main()
