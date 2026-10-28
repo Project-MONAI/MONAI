@@ -149,8 +149,8 @@ def compute_froc_curve_data(
     # smallest score) while avoiding a full scan of both arrays at every threshold.
     all_probs = sorted(set(list(fp_probs) + list(tp_probs)))
     thresholds = all_probs[1:]
-    sorted_fp_probs = np.sort(fp_probs)
-    sorted_tp_probs = np.sort(tp_probs)
+    sorted_fp_probs = np.sort(fp_probs[~np.isnan(fp_probs)])
+    sorted_tp_probs = np.sort(tp_probs[~np.isnan(tp_probs)])
     total_fps = len(sorted_fp_probs) - np.searchsorted(sorted_fp_probs, thresholds, side="left")
     total_tps = len(sorted_tp_probs) - np.searchsorted(sorted_tp_probs, thresholds, side="left")
     total_fps = np.append(total_fps, 0)

@@ -199,6 +199,12 @@ class TestComputeFrocCurveData(unittest.TestCase):
             np.testing.assert_array_equal(actual_array, expected_array)
             self.assertEqual(actual_array.dtype, expected_array.dtype)
 
+    def test_nan_fp_probs_are_not_counted(self):
+        fp_probs = np.asarray([np.nan])
+        tp_probs = np.asarray([0.5, 0.8])
+        fps_per_image, _ = compute_froc_curve_data(fp_probs, tp_probs, num_targets=2, num_images=1)
+        np.testing.assert_array_equal(fps_per_image, np.zeros_like(fps_per_image))
+
 
 if __name__ == "__main__":
     unittest.main()
