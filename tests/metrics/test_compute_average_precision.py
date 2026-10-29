@@ -165,6 +165,7 @@ class TestComputeAveragePrecision(unittest.TestCase):
         )
     )
     def test_tied_scores_label_dtype(self, device, dtype):
+        """Check tied-score average precision across label dtypes on CPU and available CUDA devices."""
         if device == "cuda" and not torch.cuda.is_available():
             self.skipTest("CUDA is not available.")
 
@@ -187,12 +188,13 @@ class TestComputeAveragePrecision(unittest.TestCase):
         )
     )
     def test_weighted_label_dtype(self, device, dtype):
+        """Check weighted scores with supports above float16's exact integer range."""
         if device == "cuda" and not torch.cuda.is_available():
             self.skipTest("CUDA is not available.")
 
-        y = torch.tensor([[1, 0]] * 256 + [[0, 1]] * 128, dtype=dtype, device=device)
-        y_pred = torch.zeros((384, 2), device=device)
-        y_pred[:256, 0] = 1
+        y = torch.tensor([[1, 0]] * 3072 + [[0, 1]] * 1536, dtype=dtype, device=device)
+        y_pred = torch.zeros((4608, 2), device=device)
+        y_pred[:3072, 0] = 1
         expected_values = [("none", [1.0, 1 / 3]), ("macro", 2 / 3), ("weighted", 7 / 9)]
 
         for average, expected in expected_values:

@@ -158,12 +158,13 @@ class TestComputeROCAUC(unittest.TestCase):
         )
     )
     def test_tied_scores_label_dtype(self, device, dtype):
+        """Check tied-score ROC AUC across label dtypes on CPU and available CUDA devices."""
         if device == "cuda" and not torch.cuda.is_available():
             self.skipTest("CUDA is not available.")
 
-        y = torch.tensor([0] * 256 + [1] * 256, dtype=dtype, device=device)
-        y_pred = y.float()
-        expected = 1.0
+        y = torch.tensor([0] * 4096 + [1] * 4096, dtype=dtype, device=device)
+        y_pred = torch.zeros(y.shape, device=device)
+        expected = 0.5
 
         result = compute_roc_auc(y_pred, y)
         np.testing.assert_allclose(result, expected, rtol=1e-6)
@@ -180,12 +181,13 @@ class TestComputeROCAUC(unittest.TestCase):
         )
     )
     def test_weighted_label_dtype(self, device, dtype):
+        """Check weighted scores with supports above float16's exact integer range."""
         if device == "cuda" and not torch.cuda.is_available():
             self.skipTest("CUDA is not available.")
 
-        y = torch.tensor([[1, 0]] * 256 + [[0, 1]] * 128, dtype=dtype, device=device)
-        y_pred = torch.zeros((384, 2), device=device)
-        y_pred[:256, 0] = 1
+        y = torch.tensor([[1, 0]] * 3072 + [[0, 1]] * 1536, dtype=dtype, device=device)
+        y_pred = torch.zeros((4608, 2), device=device)
+        y_pred[:3072, 0] = 1
         expected_values = [("none", [1.0, 0.5]), ("macro", 0.75), ("weighted", 5 / 6)]
 
         for average, expected in expected_values:
