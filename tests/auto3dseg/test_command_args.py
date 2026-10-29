@@ -118,6 +118,14 @@ class TestBundleAlgoLoadState(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     BundleAlgo().load_state_dict({"device_setting": setting})
 
+    def test_partial_device_setting_keeps_defaults(self):
+        algo = BundleAlgo()
+        defaults = dict(algo.device_setting)
+        algo.load_state_dict({"device_setting": {"CUDA_VISIBLE_DEVICES": "0", "n_devices": 1, "NUM_NODES": 1}})
+        self.assertEqual(algo.device_setting["CMD_PREFIX"], defaults["CMD_PREFIX"])
+        self.assertEqual(algo.device_setting["MN_START_METHOD"], defaults["MN_START_METHOD"])
+        self.assertEqual(algo.device_setting["CUDA_VISIBLE_DEVICES"], "0")
+
     def test_numeric_strings_are_converted(self):
         algo = BundleAlgo()
         algo.load_state_dict({"device_setting": {"n_devices": "2", "NUM_NODES": "1", "CUDA_VISIBLE_DEVICES": "0,1"}})

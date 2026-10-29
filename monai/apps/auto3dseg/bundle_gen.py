@@ -407,7 +407,8 @@ class BundleAlgo(Algo):
             )
         if "device_setting" in state:
             state = dict(state)
-            state["device_setting"] = _validate_device_setting(state["device_setting"])
+            # merge into the current settings so fields missing from the saved state keep their defaults
+            state["device_setting"] = {**self.device_setting, **_validate_device_setting(state["device_setting"])}
         for key, value in state.items():
             setattr(self, key, value)
 
