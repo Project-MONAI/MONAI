@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Any, cast
@@ -143,7 +144,7 @@ class NNIGen(HPOGen):
         logger.info("=" * 140)
         logger.info("If NNI will run in your local env: ")
         logger.info("1. Add the following line to the trialCommand in your NNI config: ")
-        logger.info(f"{hint} {self.obj_filename} {{result_dir}}")
+        logger.info(f"{hint} {shlex.quote(str(self.obj_filename))} {{result_dir}}")
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(

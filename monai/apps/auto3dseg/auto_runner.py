@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import warnings
 from copy import deepcopy
@@ -35,6 +36,28 @@ from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd
 logger = get_logger(module_name=__name__)
 
 nni, has_nni = optional_import("nni")
+
+
+def _nni_trial_command(obj_filename: str, work_dir: str) -> str:
+    """
+    Build the NNI ``trialCommand`` that runs one algo trial.
+
+    NNI runs ``trialCommand`` through the platform shell, so each argument is quoted for that shell
+    and paths containing spaces or shell metacharacters are passed through unchanged.
+
+    Args:
+        obj_filename: the serialized algo object file.
+        work_dir: the Auto3DSeg working directory.
+
+    Returns:
+        the command string to store as ``trialCommand``.
+    """
+    args = ["python", "-m", "monai.apps.auto3dseg", "NNIGen", "run_algo", str(obj_filename), str(work_dir)]
+    if os.name == "nt":
+        from subprocess import list2cmdline
+
+        return list2cmdline(args)
+    return shlex.join(args)
 
 
 class AutoRunner:
@@ -797,7 +820,7 @@ class AutoRunner:
                     nni_config[key] = self.hpo_params[key]
             nni_config.update({"experimentName": name})
             nni_config.update({"search_space": self.search_space})
-            trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
+            trial_cmd = _nni_trial_command(obj_filename, self.work_dir)
             nni_config.update({"trialCommand": trial_cmd})
             nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
             ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
