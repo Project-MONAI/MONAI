@@ -40,6 +40,8 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import (
+    GridSampleMode,
+    InterpolateMode,
     TransformBackends,
     convert_data_type,
     convert_to_tensor,
@@ -1005,6 +1007,7 @@ class Invert(Transform):
         device: str | torch.device | None = None,
         post_func: Callable | None = None,
         to_tensor: bool | Sequence[bool] = True,
+        interp: str | int | None = None,
     ) -> None:
         """
         Args:
@@ -1014,11 +1017,31 @@ class Invert(Transform):
             device: move the inverted results to a target device before `post_func`, default to `None`.
             post_func: postprocessing for the inverted result, should be a callable function.
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
+            interp: interpolation mode to use when inverting the spatial transforms, e.g. ``"bilinear"`` or a
+                spline interpolation order (``0``-``5``). When provided, it takes precedence over both
+                ``nearest_interp`` and the modes recorded by the forward transforms. ``None`` (the default)
+                keeps the previous behavior, where ``nearest_interp`` selects between ``"nearest"`` and the
+                recorded modes. This argument only chooses the interpolation that the inverse transforms
+                use; it does not clip or otherwise constrain output values, and it does not guarantee that
+                outputs stay within any particular range such as [0, 1]. The accepted values are the union
+                of the modes supported by the different inverse resamplers, and whether a specific mode is
+                usable depends on the transforms being inverted (e.g. spline orders require SciPy).
         """
         if not isinstance(transform, InvertibleTransform):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
         self.nearest_interp = nearest_interp
+        self.interp = interp
+        if self.interp is not None:
+            valid_modes = tuple(sorted({*(m.value for m in GridSampleMode), *(m.value for m in InterpolateMode)}))
+            if isinstance(self.interp, bool) or not isinstance(self.interp, (str, int)):
+                raise TypeError(
+                    f"interp must be a string interpolation mode or an integer spline order, got {self.interp!r}."
+                )
+            if isinstance(self.interp, str):
+                self.interp = look_up_option(self.interp, valid_modes)
+            elif self.interp not in range(6):
+                raise ValueError(f"interp spline order must be an integer in [0, 5], got {self.interp}.")
         self.device = device
         self.post_func = post_func
         self.to_tensor = to_tensor
@@ -1028,7 +1051,9 @@ class Invert(Transform):
         if not isinstance(data, MetaTensor):
             return data
 
-        if self.nearest_interp:
+        if self.interp is not None:
+            data.applied_operations = convert_applied_interp_mode(trans_info=data.applied_operations, mode=self.interp)
+        elif self.nearest_interp:
             data.applied_operations = convert_applied_interp_mode(
                 trans_info=data.applied_operations, mode="nearest", align_corners=None
             )
