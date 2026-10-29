@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
 
 import numpy as np
 import torch
@@ -156,6 +157,53 @@ class TestComputeAveragePrecision(unittest.TestCase):
         result = metric.aggregate(average=average)  # test optional argument
         metric.reset()
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
+
+    @parameterized.expand(
+        product(
+            ("cpu", "cuda"),
+            (torch.uint8, torch.int8, torch.int64, torch.bool, torch.float16, torch.float32, torch.float64),
+        )
+    )
+    def test_tied_scores_label_dtype(self, device, dtype):
+        if device == "cuda" and not torch.cuda.is_available():
+            self.skipTest("CUDA is not available.")
+
+        y = torch.tensor([0] + [1] * 256, dtype=dtype, device=device)
+        y_pred = torch.tensor([1.0] + [0.0] * 256, device=device)
+        expected = 256 / 257
+
+        result = compute_average_precision(y_pred, y)
+        np.testing.assert_allclose(result, expected, rtol=1e-6)
+
+        metric = AveragePrecisionMetric()
+        for predictions, labels in zip(y_pred.split(128), y.split(128)):
+            metric(predictions, labels)
+        np.testing.assert_allclose(metric.aggregate(), expected, rtol=1e-6)
+
+    @parameterized.expand(
+        product(
+            ("cpu", "cuda"),
+            (torch.uint8, torch.int8, torch.int64, torch.bool, torch.float16, torch.float32, torch.float64),
+        )
+    )
+    def test_weighted_label_dtype(self, device, dtype):
+        if device == "cuda" and not torch.cuda.is_available():
+            self.skipTest("CUDA is not available.")
+
+        y = torch.tensor([[1, 0]] * 256 + [[0, 1]] * 128, dtype=dtype, device=device)
+        y_pred = torch.zeros((384, 2), device=device)
+        y_pred[:256, 0] = 1
+        expected_values = [("none", [1.0, 1 / 3]), ("macro", 2 / 3), ("weighted", 7 / 9)]
+
+        for average, expected in expected_values:
+            with self.subTest(average=average):
+                result = compute_average_precision(y_pred, y, average=average)
+                np.testing.assert_allclose(result, expected, rtol=1e-6)
+
+                metric = AveragePrecisionMetric(average=average)
+                for predictions, labels in zip(y_pred.split(128), y.split(128)):
+                    metric(predictions, labels)
+                np.testing.assert_allclose(metric.aggregate(), expected, rtol=1e-6)
 
 
 if __name__ == "__main__":

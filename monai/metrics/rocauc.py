@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -94,7 +93,7 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):
-        y_i = cast(float, y[i])
+        y_i = float(y[i])
         if i + 1 < n and y_pred[i] == y_pred[i + 1]:
             tmp_pos += y_i
             tmp_neg += 1 - y_i
@@ -178,6 +177,6 @@ def compute_roc_auc(
     if average == Average.MACRO:
         return np.mean(auc_values)
     if average == Average.WEIGHTED:
-        weights = [sum(y_) for y_ in y]
+        weights = np.sum(y.cpu().numpy(), axis=1, dtype=np.float64)
         return np.average(auc_values, weights=weights)  # type: ignore[no-any-return]
     raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')
