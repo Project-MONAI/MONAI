@@ -11,18 +11,47 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
-import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
 from monai.apps.auto3dseg.hpo_gen import _nni_trial_command, _quote_trial_arg
+from tests.test_utils import skip_if_windows
 
 PREFIX = ["python", "-m", "monai.apps.auto3dseg", "NNIGen", "run_algo"]
-SPECIAL = ("my work", "a;b", "$(echo x)", "`x`", "a'b\"c", "a|b&c", "a\u2019b", "$env:PATH", "@(1)")
-POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
+SPECIAL_POSIX = ("my work", "a;b", "$(echo x)", "`x`", "a'b\"c", "a|b&c", "a\u2019b", "%PATH%", "a!b")
+SPECIAL_WINDOWS = ("my work", "a;b", "$(echo x)", "`x`", "a'b", "a|b&c", "a\u2019b", "a^b", "(x)", "a<b>c")
+ECHO_ARGS = "import json, sys; print(json.dumps(sys.argv[1:]))"
+
+
+def _run_through_shell(cmd: str, tempdir: str) -> list[str]:
+    """
+    Run ``cmd`` with the platform shell, as NNI does, with ``python`` swapped for a script printing its arguments.
+
+    ``subprocess.run(..., shell=True)`` uses ``/bin/sh`` on POSIX and ``cmd.exe`` on Windows, matching the shells
+    NNI's local training service runs ``trialCommand`` with.
+
+    Args:
+        cmd: a command produced by ``_nni_trial_command``.
+        tempdir: a directory for the helper script.
+
+    Returns:
+        the arguments the program received.
+    """
+    script = os.path.join(tempdir, "echo_args.py")
+    with open(script, "w") as f:
+        f.write(ECHO_ARGS)
+    if sys.platform == "win32":
+        program = subprocess.list2cmdline([sys.executable, script])
+    else:
+        program = shlex.join([sys.executable, script])
+    full_cmd = program + cmd[len("python") :]
+    out = subprocess.run(full_cmd, shell=True, capture_output=True, text=True, check=True, cwd=tempdir).stdout
+    return json.loads(out)
 
 
 class TestNNITrialCommandPosix(unittest.TestCase):
@@ -31,54 +60,48 @@ class TestNNITrialCommandPosix(unittest.TestCase):
         self.assertEqual(cmd, "python -m monai.apps.auto3dseg NNIGen run_algo /work/algo_0/algo_object.json /work")
 
     def test_paths_with_special_characters_are_single_arguments(self):
-        for name in SPECIAL:
+        for name in SPECIAL_POSIX:
             with self.subTest(name=name):
                 work_dir = f"/tmp/{name}"
                 cmd = _nni_trial_command(f"{work_dir}/algo_object.json", work_dir, windows=False)
                 self.assertEqual(shlex.split(cmd), PREFIX + [f"{work_dir}/algo_object.json", work_dir])
 
-    @unittest.skipIf(os.name == "nt" or not shutil.which("sh"), "Requires a POSIX sh")
+    @skip_if_windows
     def test_shell_receives_the_literal_path(self):
-        """Run the command through ``sh`` with ``python`` swapped for ``printf`` and check the arguments it sees."""
         with tempfile.TemporaryDirectory() as tempdir:
             marker = os.path.join(tempdir, "marker")
-            work_dir = f"{tempdir}/w; touch {marker}; $(touch {marker})"
-            cmd = _nni_trial_command("obj.json", work_dir, windows=False)
-            out = subprocess.run(
-                ["sh", "-c", "printf '%s\\n' " + cmd[len("python ") :]], capture_output=True, text=True, check=True
-            ).stdout
-            self.assertEqual(out.splitlines(), PREFIX[1:] + ["obj.json", work_dir])
-            self.assertFalse(os.path.exists(marker))
-
-
-class TestNNITrialCommandPowerShell(unittest.TestCase):
-    def test_powershell_literal_quoting(self):
-        self.assertEqual(_quote_trial_arg("C:\\work dir", windows=True), "'C:\\work dir'")
-        self.assertEqual(_quote_trial_arg("C:\\O'Neil", windows=True), "'C:\\O''Neil'")
-        self.assertEqual(_quote_trial_arg("a\u2019b", windows=True), "'a\u2019\u2019b'")
-        self.assertEqual(
-            _nni_trial_command("C:\\w\\obj.json", "C:\\w", windows=True),
-            "python -m monai.apps.auto3dseg NNIGen run_algo 'C:\\w\\obj.json' 'C:\\w'",
-        )
-
-    @unittest.skipUnless(POWERSHELL, "Requires PowerShell")
-    def test_powershell_receives_the_literal_path(self):
-        """Run the command through PowerShell with ``python`` swapped for a function that echoes its arguments."""
-        with tempfile.TemporaryDirectory() as tempdir:
-            marker = os.path.join(tempdir, "marker")
-            for name in SPECIAL + (f"w; New-Item {marker}", f"$(New-Item {marker})"):
+            for name in SPECIAL_POSIX + (f"w; touch {marker}", f"$(touch {marker})"):
                 with self.subTest(name=name):
                     work_dir = os.path.join(tempdir, name)
-                    cmd = _nni_trial_command("obj.json", work_dir, windows=True)
-                    script = "function python { $args | ForEach-Object { Write-Output $_ } }; " + cmd
-                    out = subprocess.run(
-                        [str(POWERSHELL), "-NoProfile", "-NonInteractive", "-Command", script],
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        check=True,
-                    ).stdout
-                    self.assertEqual(out.splitlines(), PREFIX[1:] + ["obj.json", work_dir])
+                    args = _run_through_shell(_nni_trial_command("obj.json", work_dir), tempdir)
+                    self.assertEqual(args, PREFIX[1:] + ["obj.json", work_dir])
+                    self.assertFalse(os.path.exists(marker))
+
+
+class TestNNITrialCommandWindows(unittest.TestCase):
+    def test_cmd_quoting(self):
+        self.assertEqual(_quote_trial_arg("C:\\work dir", windows=True), '"C:\\work dir"')
+        self.assertEqual(_quote_trial_arg("C:\\", windows=True), '"C:\\\\"')
+        self.assertEqual(
+            _nni_trial_command("C:\\w\\obj.json", "C:\\w", windows=True),
+            'python -m monai.apps.auto3dseg NNIGen run_algo "C:\\w\\obj.json" "C:\\w"',
+        )
+
+    def test_characters_cmd_cannot_quote_are_rejected(self):
+        for name in ('a"b', "%PATH%", "a!b", "a\nb", "a\x00b"):
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    _nni_trial_command("obj.json", f"C:\\{name}", windows=True)
+
+    @unittest.skipUnless(sys.platform == "win32", "Requires Windows cmd.exe")
+    def test_cmd_receives_the_literal_path(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "marker")
+            for name in SPECIAL_WINDOWS + (f"w & type nul > {marker}", f"w | type nul > {marker}"):
+                with self.subTest(name=name):
+                    work_dir = os.path.join(tempdir, name)
+                    args = _run_through_shell(_nni_trial_command("obj.json", work_dir), tempdir)
+                    self.assertEqual(args, PREFIX[1:] + ["obj.json", work_dir])
                     self.assertFalse(os.path.exists(marker))
 
 

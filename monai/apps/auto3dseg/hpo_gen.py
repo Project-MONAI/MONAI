@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import shlex
+import sys
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Any, cast
@@ -33,28 +34,36 @@ logger = get_logger(module_name=__name__)
 __all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 
-# characters PowerShell accepts as single quotes; each is escaped by doubling it
-_POWERSHELL_SINGLE_QUOTES = ("'", "\u2018", "\u2019", "\u201a", "\u201b")
+# cmd.exe expands or ends a quoted argument at these characters even inside double quotes
+_CMD_UNSAFE_CHARS = frozenset('"%!\r\n\x00')
 
 
 def _quote_trial_arg(arg: Any, windows: bool | None = None) -> str:
     """
     Quote one argument of an NNI ``trialCommand`` as a literal for the shell NNI uses.
 
-    NNI runs ``trialCommand`` with bash on Linux and macOS and with PowerShell on Windows.
+    NNI's local training service runs ``trialCommand`` with bash on Linux and macOS and with ``cmd.exe`` on
+    Windows. For ``cmd.exe`` the argument is wrapped in double quotes, which make ``&``, ``|``, ``<``, ``>``,
+    ``^`` and parentheses literal, and backslashes before the closing quote are doubled so the program receives
+    the argument unchanged. Characters that ``cmd.exe`` interprets even inside double quotes are rejected.
 
     Args:
         arg: the argument value.
-        windows: quote for PowerShell instead of a POSIX shell. Defaults to ``os.name == "nt"``.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
 
     Returns:
         the quoted argument.
+
+    Raises:
+        ValueError: on Windows, if the argument contains ``"``, ``%``, ``!`` or a line break or NUL character.
     """
     text = str(arg)
-    if windows if windows is not None else os.name == "nt":
-        for quote in _POWERSHELL_SINGLE_QUOTES:
-            text = text.replace(quote, quote * 2)
-        return f"'{text}'"
+    if sys.platform == "win32" if windows is None else windows:
+        unsafe = sorted(_CMD_UNSAFE_CHARS.intersection(text))
+        if unsafe:
+            raise ValueError(f"Cannot pass {text!r} to an NNI trial on Windows: it contains {unsafe}.")
+        trailing = len(text) - len(text.rstrip("\\"))
+        return '"' + text + "\\" * trailing + '"'
     return shlex.quote(text)
 
 
@@ -68,7 +77,7 @@ def _nni_trial_command(obj_filename: Any, work_dir: Any, windows: bool | None = 
     Args:
         obj_filename: the serialized algo object file.
         work_dir: the Auto3DSeg working directory.
-        windows: quote for PowerShell instead of a POSIX shell. Defaults to ``os.name == "nt"``.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
 
     Returns:
         the command string to store as ``trialCommand``.
