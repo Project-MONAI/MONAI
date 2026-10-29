@@ -63,13 +63,13 @@ def _require_pickle_allowed() -> None:
         raise RuntimeError(_PICKLE_DISABLED_MSG)
 
 
-def _reject_non_algo_target(target: Any, filename: str) -> None:
+def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     """
     Require that ``target`` names an ``Algo`` subclass before it is instantiated.
 
-    ``algo_from_json`` resolves ``_target_`` through ``ConfigParser``, which imports the dotted path
-    and calls it. ``algo_object.json`` has exactly one legitimate target type -- an ``Algo``
-    subclass -- so resolving the name and checking it here rejects payloads such as
+    ``algo_from_json`` resolves ``_target_`` by importing the dotted path and then calls it.
+    ``algo_object.json`` has exactly one legitimate target type -- an ``Algo`` subclass -- so
+    resolving the name and checking it here rejects payloads such as
     ``subprocess.call`` or ``os.system`` before they are ever invoked.
 
     Importing the named module still runs that module's top-level code, so this narrows the sink
@@ -79,6 +79,9 @@ def _reject_non_algo_target(target: Any, filename: str) -> None:
     Args:
         target: the ``_target_`` value read from the file.
         filename: the file the value came from, used in the error message.
+
+    Returns:
+        the resolved ``Algo`` subclass.
 
     Raises:
         ValueError: if ``target`` is not a string, or does not resolve to a concrete ``Algo`` subclass.
@@ -97,6 +100,7 @@ def _reject_non_algo_target(target: Any, filename: str) -> None:
             "may be named in a configuration "
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-2wx3-8x3w-r8qv)."
         )
+    return resolved
 
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -525,15 +529,12 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
                 sys.path.insert(0, path)
                 path_added = True
 
-            algo_config: dict[str, Any] = {"_target_": target}
+            algo_cls = _reject_non_algo_target(target, filename)
+
+            # Values read from the file are plain data: pass them to the constructor as literals
+            # rather than through ConfigParser, which would evaluate "$"/"@"/"%" prefixed strings.
             state_template_path = state.get("template_path")
-            if state_template_path:
-                algo_config["template_path"] = state_template_path
-
-            _reject_non_algo_target(target, filename)
-
-            parser = ConfigParser(algo_config)
-            algo = parser.get_parsed_content()
+            algo = algo_cls(template_path=state_template_path) if state_template_path else algo_cls()
             if not isinstance(algo, Algo):
                 raise ValueError(
                     f"refusing to return the object built from '{target}' in {filename}: it is a "
