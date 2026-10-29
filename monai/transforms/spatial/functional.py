@@ -162,8 +162,11 @@ def spatial_resample(
     in_spatial_size = torch.tensor(original_spatial_shape[:spatial_rank])
     if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
         spatial_size = in_spatial_size
-    elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-        spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+    elif spatial_size is None:
+        if spatial_rank > 1:  # auto spatial size
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+        else:
+            spatial_size = in_spatial_size
     spatial_size = torch.tensor(
         fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x is not None and x >= 0)
     )

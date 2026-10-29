@@ -222,6 +222,20 @@ class TestSpatialResample(unittest.TestCase):
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
 
+    @parameterized.expand([(False, None), (False, -1), (True, None), (True, -1)])
+    def test_1d_unchanged(self, lazy, spatial_size):
+        """Verify rank-one no-op resampling preserves values, pending shape, and affine.
+
+        Args:
+            lazy: Whether to record the resampling lazily instead of executing eagerly.
+            spatial_size: Output size setting, either None or -1, expected to preserve the input size.
+        """
+        img = MetaTensor(torch.arange(8, dtype=torch.float32).reshape(1, 8))
+        result = SpatialResample(lazy=lazy)(img, spatial_size=spatial_size)
+        assert_allclose(result, img)
+        assert_allclose(result.peek_pending_affine(), img.affine)
+        self.assertEqual(tuple(result.peek_pending_shape()), (8,))
+
     def test_unchange(self):
         for i, p in enumerate(TEST_NDARRAYS_ALL):
             set_track_meta(i % 2)
