@@ -169,6 +169,7 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
     """``ModelnnUNetWrapper`` and ``get_nnunet_monai_predictor`` apply the same check before building the network."""
 
     def setUp(self):
+        """Create a model folder with ``dataset.json`` and a minimal ``nnunet_checkpoint.pth``."""
         import torch
 
         self._tmp = tempfile.TemporaryDirectory()
@@ -182,9 +183,23 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
         )
 
     def tearDown(self):
+        """Remove the model folder."""
         self._tmp.cleanup()
 
     def _wrap(self, plans: dict, **kwargs):
+        """
+        Write ``plans`` next to the model folder and build a ``ModelnnUNetWrapper`` from it.
+
+        Args:
+            plans: the content of ``plans.json``.
+            kwargs: extra arguments for ``ModelnnUNetWrapper``.
+
+        Returns:
+            the wrapper.
+
+        Raises:
+            ValueError: if the plans reference a name outside the allowed modules.
+        """
         from monai.apps.nnunet.nnunet_bundle import ModelnnUNetWrapper
 
         with open(os.path.join(self._tmp.name, "plans.json"), "w") as f:
@@ -192,6 +207,7 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
         return ModelnnUNetWrapper(mock.MagicMock(), self.model_folder, **kwargs)
 
     def test_default_plans_pass_the_check(self):
+        """Standard plans reach the trainer's network builder."""
         import torch
         from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 
@@ -201,6 +217,7 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
         build.assert_called_once()
 
     def test_disallowed_network_is_not_built(self):
+        """A network class outside the allowed modules is rejected before the trainer builds anything."""
         from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 
         output = os.path.join(self._tmp.name, "out.npz")
@@ -210,7 +227,18 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
         build.assert_not_called()
         self.assertFalse(os.path.exists(output))
 
+    def test_disallowed_imported_argument_is_not_built(self):
+        """An imported network argument outside the allowed modules is rejected before the trainer builds anything."""
+        from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+
+        with mock.patch("os.system") as system, mock.patch.object(nnUNetTrainer, "build_network_architecture") as build:
+            with self.assertRaisesRegex(ValueError, "'nonlin'"):
+                self._wrap(_plans(nonlin="os.system"))
+        build.assert_not_called()
+        system.assert_not_called()
+
     def test_custom_modules_are_forwarded(self):
+        """A custom prefix is accepted only when passed in ``allowed_network_modules``."""
         import torch
         from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 
@@ -223,6 +251,7 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
         build.assert_called_once()
 
     def test_predictor_factory_forwards_allowed_modules(self):
+        """``get_nnunet_monai_predictor`` passes ``allowed_network_modules`` on to the wrapper."""
         from monai.apps.nnunet import nnunet_bundle
 
         with (
