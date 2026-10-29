@@ -40,6 +40,7 @@ cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 openslide, has_osl = optional_import("openslide")
 imwrite, has_tiff = optional_import("tifffile", name="imwrite")
+TiffWriter, _ = optional_import("tifffile", name="TiffWriter")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
@@ -324,10 +325,12 @@ TEST_CASE_SVS_MPP_SCALAR = [WSI_APERIO_SVS_PATH, {"mpp": 8.0}, {"openslide": (3,
 TEST_CASE_SVS_LEVELS = [WSI_APERIO_SVS_PATH, [(32914, 46000), (8228, 11500), (2057, 2875)]]
 
 # patch on tissue at the lowest resolution level of Aperio SVS
+# (the location maps to about 0.3 pixel past a level-2 pixel, and the surrounding pixels differ by at most 5,
+# so backends that round, truncate, or interpolate the level-2 location give nearly the same values)
 TEST_CASE_SVS_LEVEL_2 = [
     WSI_APERIO_SVS_PATH,
-    {"location": (5120, 36864), "size": (2, 1), "level": 2},
-    np.array([[[141], [100]], [[43], [32]], [[75], [70]]], dtype=np.uint8),
+    {"location": (16261, 31782), "size": (2, 1), "level": 2},
+    np.array([[[106], [105]], [[64], [66]], [[115], [116]]], dtype=np.uint8),
 ]
 
 TEST_CASE_DEVICE_2 = [
@@ -457,6 +460,33 @@ def save_gray_tiff(array: np.ndarray, filename: str):
     """
     img_gray = array
     imwrite(filename, img_gray, shape=img_gray.shape)
+
+    return filename
+
+
+def save_pyramid_tiff_with_thumbnail(array: np.ndarray, filename: str):
+    """
+    Save a two-level RGB pyramid with a thumbnail page between the levels, as in Aperio SVS files.
+    Level 0 has 1 micron per pixel and level 1 has 2 microns per pixel.
+
+    Args:
+        array: numpy ndarray with the shape of HxWx3, the full resolution image
+        filename: the filename to be used for the tiff file.
+
+    Returns:
+        the filename of the saved tiff file.
+    """
+    with TiffWriter(filename) as tif:
+        tif.write(array, photometric="rgb", tile=(64, 64), resolution=(1e4, 1e4), resolutionunit="CENTIMETER")
+        tif.write(array[::5, ::5], photometric="rgb")
+        tif.write(
+            array[::2, ::2],
+            photometric="rgb",
+            tile=(64, 64),
+            subfiletype=1,
+            resolution=(5e3, 5e3),
+            resolutionunit="CENTIMETER",
+        )
 
     return filename
 
@@ -713,6 +743,12 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_SVS_LEVELS])
         def test_svs_levels(self, file_path, expected_sizes):
+            """Verify the level count, level sizes, and downsample ratios of an Aperio SVS pyramid.
+
+            Args:
+                file_path: Path to the Aperio SVS file.
+                expected_sizes: Expected (height, width) of each pyramid level, from level 0 down.
+            """
             reader = WSIReader(self.backend)
             with reader.read(file_path) as img_obj:
                 self.assertEqual(reader.get_level_count(img_obj), len(expected_sizes))
@@ -724,12 +760,19 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_SVS_LEVEL_2])
         def test_read_region_svs_level(self, file_path, patch_info, expected_img):
+            """Verify that a patch read at a reduced level of an Aperio SVS file comes from the requested location.
+
+            Args:
+                file_path: Path to the Aperio SVS file.
+                patch_info: Keyword arguments for ``get_data``: level-0 location, patch size, and level.
+                expected_img: Expected patch in channel-first layout.
+            """
             reader = WSIReader(self.backend)
             with reader.read(file_path) as img_obj:
                 img, meta = reader.get_data(img_obj, **patch_info)
             self.assertTupleEqual(img.shape, expected_img.shape)
-            # JPEG decoding differs slightly between backends
-            assert_allclose(img, expected_img, type_test=False, atol=10)
+            # backends map a level-0 location to a level-2 pixel slightly differently (see TEST_CASE_SVS_LEVEL_2)
+            assert_allclose(img, expected_img, type_test=False, atol=5)
             self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
 
         @parameterized.expand([TEST_CASE_MPP_0])
@@ -804,6 +847,19 @@ class TestTiffFile(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "tifffile"
+
+    def test_mpp_levels_with_thumbnail_page(self):
+        """Verify that level metadata and MPP reads skip a thumbnail page stored between pyramid levels."""
+        image = np.random.RandomState(0).randint(0, 256, (512, 512, 3), dtype=np.uint8)
+        file_path = save_pyramid_tiff_with_thumbnail(
+            image, os.path.join(TESTS_PATH, "testing_data", "temp_tiff_pyramid_thumbnail.tiff")
+        )
+        reader = WSIReader(self.backend)
+        with reader.read(file_path) as img_obj:
+            self.assertEqual(reader.get_level_count(img_obj), 2)
+            self.assertTupleEqual(tuple(reader.get_mpp(img_obj, 1)), (2.0, 2.0))
+            img = reader.get_wsi_at_mpp(img_obj, mpp=2.0)
+        assert_allclose(img, np.moveaxis(image[::2, ::2], -1, 0), type_test=False)
 
 
 if __name__ == "__main__":
