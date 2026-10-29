@@ -119,14 +119,24 @@ class TestPickleGate(unittest.TestCase):
 class TestAlgoFromJsonStateLiterals(unittest.TestCase):
     """Values in the saved ``_state_`` are restored as plain data, not interpreted as config syntax."""
 
-    def _load(self, template_path: str) -> object:
+    def _load(self, template_path: str, **state: object) -> object:
+        """
+        Write an ``algo_object.json`` for a ``BundleAlgo`` and load it with ``algo_from_json``.
+
+        Args:
+            template_path: the ``template_path`` value stored in ``_state_``.
+            state: other ``_state_`` entries to store.
+
+        Returns:
+            the loaded Algo object.
+        """
         with tempfile.TemporaryDirectory() as tempdir:
             path = os.path.join(tempdir, "algo_object.json")
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(
                     {
                         "_target_": "monai.apps.auto3dseg.bundle_gen.BundleAlgo",
-                        "_state_": {"template_path": template_path},
+                        "_state_": {"template_path": template_path, **state},
                     },
                     f,
                 )
@@ -134,6 +144,7 @@ class TestAlgoFromJsonStateLiterals(unittest.TestCase):
             return algo
 
     def test_template_path_with_config_prefixes_is_not_evaluated(self) -> None:
+        """Strings that look like config syntax reach the constructor verbatim and are never evaluated."""
         from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 
         for value in ("$len([1, 2])", "@some_id", "%other.json#key"):
@@ -148,9 +159,12 @@ class TestAlgoFromJsonStateLiterals(unittest.TestCase):
                 init.assert_called_once_with(algo, template_path=value)
 
     def test_plain_state_is_restored(self) -> None:
-        algo = self._load("/some/templates")
-        self.assertEqual(algo.name, "")
-        self.assertIsInstance(algo.fill_records, dict)
+        """Saved state values that differ from the constructor defaults are restored exactly."""
+        records = {"hyper_parameters.yaml": {"num_epochs": 2}}
+        algo = self._load("/some/templates", name="segresnet_0", fill_records=records, best_metric=0.5)
+        self.assertEqual(algo.name, "segresnet_0")
+        self.assertEqual(algo.fill_records, records)
+        self.assertEqual(algo.best_metric, 0.5)
 
 
 if __name__ == "__main__":
