@@ -72,6 +72,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
 
 
 def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
+    """Compute binary ROC AUC, assigning half credit to tied prediction scores."""
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     y_unique = y.unique()
