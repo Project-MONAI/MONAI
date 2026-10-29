@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import unittest
 from unittest import mock
@@ -86,7 +87,7 @@ class TestBundleAlgoCommand(unittest.TestCase):
         with mock.patch("monai.apps.auto3dseg.bundle_gen.run_cmd") as run:
             algo.train({"num_epochs": 1})
         args = run.call_args.args[0]
-        self.assertEqual(args[:3], ["python", "/tmp/my algo/scripts/train.py", "run"])
+        self.assertEqual(args[:3], ["python", os.path.join("/tmp/my algo", "scripts", "train.py"), "run"])
         self.assertIn("--num_epochs=1", args)
 
 
