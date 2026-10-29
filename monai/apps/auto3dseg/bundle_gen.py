@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import importlib
+import ntpath
 import os
 import re
 import shutil
@@ -52,7 +53,7 @@ __all__ = ["BundleAlgo", "BundleGen"]
 
 def _check_single_path_component(value: Any, what: str) -> None:
     """
-    Require ``value`` to be one non-empty directory name with no path separators.
+    Require ``value`` to be one non-empty directory name with no path separators, drive or NUL character.
 
     Args:
         value: the name to check.
@@ -63,7 +64,14 @@ def _check_single_path_component(value: Any, what: str) -> None:
     """
     name = str(value)
     separators = {os.sep, "/"} | ({os.altsep} if os.altsep else set())
-    if not name or name in (".", "..") or any(sep in name for sep in separators) or os.path.isabs(name):
+    if (
+        not name
+        or name in (".", "..")
+        or "\x00" in name
+        or any(sep in name for sep in separators)
+        or os.path.isabs(name)
+        or ntpath.splitdrive(name)[0]
+    ):
         raise ValueError(f"Invalid {what} {value!r}: expected a single directory name without path separators.")
 
 
@@ -229,12 +237,15 @@ class BundleAlgo(Algo):
             _check_single_path_component(algo_name, "algo_name")
             if self.name:  # an empty name copies the whole template_path
                 _check_single_path_component(self.name, "the Algo name")
+            source = os.path.join(str(self.template_path), self.name)
+            if not os.path.isdir(source):
+                raise ValueError(f"Algo template folder {source!r} does not exist.")
             self.output_path = _confined_join(output_path, algo_name)
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
             # copy algorithm_templates/<Algo> to the working directory output_path
-            shutil.copytree(os.path.join(str(self.template_path), self.name), self.output_path)
+            shutil.copytree(source, self.output_path)
         else:
             self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):

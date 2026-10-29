@@ -59,17 +59,39 @@ class TestExportToDiskPathConfinement(unittest.TestCase):
         self.assertFalse(os.path.exists(stale))
 
     def test_algo_name_outside_output_path_is_rejected(self):
-        for algo_name in ("../sibling", os.path.join("..", "sibling"), self.sibling, "a/b", ".", "..", ""):
+        for algo_name in (
+            "../sibling",
+            os.path.join("..", "sibling"),
+            self.sibling,
+            "a/b",
+            ".",
+            "..",
+            "",
+            "C:sibling",
+            "a\x00b",
+        ):
             with self.subTest(algo_name=algo_name):
                 with self.assertRaises(ValueError):
                     self._algo().export_to_disk(self.output, algo_name, fill_template=False)
                 self._assert_sibling_untouched()
 
     def test_symlinked_destination_outside_output_path_is_rejected(self):
-        os.symlink(self.sibling, os.path.join(self.output, "linked"))
+        try:
+            os.symlink(self.sibling, os.path.join(self.output, "linked"), target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            self.skipTest(f"cannot create symlinks here: {e}")
         with self.assertRaisesRegex(ValueError, "not inside"):
             self._algo().export_to_disk(self.output, "linked", fill_template=False)
         self._assert_sibling_untouched()
+
+    def test_invalid_source_keeps_existing_export(self):
+        """An Algo name that cannot be copied from is rejected before the existing export is replaced."""
+        self._algo().export_to_disk(self.output, "net_0", fill_template=False)
+        for name in ("a\x00b", "missing"):
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    self._algo(name=name).export_to_disk(self.output, "net_0", fill_template=False)
+                self.assertTrue(os.path.isfile(os.path.join(self.output, "net_0", "scripts", "train.py")))
 
     def test_algo_name_attribute_outside_template_path_is_rejected(self):
         with self.assertRaises(ValueError):
