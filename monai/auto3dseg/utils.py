@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import pickle
+import shlex
 import subprocess
 import sys
 import warnings
@@ -584,14 +585,20 @@ def list_to_python_fire_arg_str(args: list) -> str:
 
 
 def check_and_set_optional_args(params: dict) -> str:
-    """convert `params` into '--key_1=value_1 --key_2=value_2 ...'"""
+    """
+    Convert `params` into ' --key_1=value_1 --key_2=value_2 ...'.
+
+    Each ``--key=value`` option is shell-quoted as a whole, so a value is always a single argument when the
+    command is split with ``shlex.split`` (as ``_run_cmd_torchrun`` and ``BundleAlgo._run_cmd`` do), even if
+    it contains whitespace or quotes.
+    """
     cmd_mod_opt = ""
     for k, v in params.items():
         if isinstance(v, dict):
             raise ValueError("Nested dict is not supported.")
         elif isinstance(v, list):
             v = list_to_python_fire_arg_str(v)
-        cmd_mod_opt += f" --{k}={v}"
+        cmd_mod_opt += " " + shlex.quote(f"--{k}={v}")
     return cmd_mod_opt
 
 
@@ -684,7 +691,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     """
     params = kwargs.copy()
 
-    cmd_list = cmd.split()
+    cmd_list = shlex.split(cmd)
 
     # append arguments to the command list
     torchrun_list = ["torchrun"]

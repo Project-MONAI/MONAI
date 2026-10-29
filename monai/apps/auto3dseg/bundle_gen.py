@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -226,7 +227,7 @@ class BundleAlgo(Algo):
 
             return (
                 _prepare_cmd_bcprun(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -234,11 +235,11 @@ class BundleAlgo(Algo):
                 "",
             )
         elif int(self.device_setting["n_devices"]) > 1:
-            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
+            return _prepare_cmd_torchrun(f"{shlex.quote(train_py)} run", config_file=config_files, **params), ""
         else:
             return (
                 _prepare_cmd_default(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -274,7 +275,7 @@ class BundleAlgo(Algo):
                 cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
         else:
-            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
+            return run_cmd(shlex.split(cmd), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -398,8 +399,51 @@ class BundleAlgo(Algo):
         Args:
             state: A dictionary containing the state to restore.
         """
+        allowed = set(self.state_dict())
+        unknown = sorted(set(state) - allowed)
+        if unknown:
+            raise ValueError(
+                f"Unexpected keys in {type(self).__name__} state: {unknown}. Expected a subset of {sorted(allowed)}."
+            )
+        if "device_setting" in state:
+            state = dict(state)
+            state["device_setting"] = _validate_device_setting(state["device_setting"])
         for key, value in state.items():
             setattr(self, key, value)
+
+
+def _validate_device_setting(device_setting: Any) -> dict:
+    """
+    Check a restored ``device_setting`` dictionary before it is used to build training commands.
+
+    Args:
+        device_setting: the value restored from a saved state.
+
+    Returns:
+        a copy of ``device_setting`` with the numeric fields converted to ``int``.
+
+    Raises:
+        ValueError: if the value is not a dictionary, has unknown keys, or has malformed fields.
+    """
+    known = {"CUDA_VISIBLE_DEVICES", "n_devices", "NUM_NODES", "MN_START_METHOD", "CMD_PREFIX"}
+    if not isinstance(device_setting, dict):
+        raise ValueError(f"device_setting must be a dict, got {type(device_setting).__name__}.")
+    unknown = sorted(set(device_setting) - known)
+    if unknown:
+        raise ValueError(f"Unexpected keys in device_setting: {unknown}.")
+    checked = dict(device_setting)
+    for key in ("n_devices", "NUM_NODES"):
+        if key in checked:
+            value = checked[key]
+            if isinstance(value, bool) or not re.fullmatch(r"\d+", str(value)):
+                raise ValueError(f"device_setting[{key!r}] must be a non-negative integer, got {value!r}.")
+            checked[key] = int(value)
+    if "CUDA_VISIBLE_DEVICES" in checked and not re.fullmatch(r"[\w,-]*", str(checked["CUDA_VISIBLE_DEVICES"])):
+        raise ValueError(f"device_setting['CUDA_VISIBLE_DEVICES'] is malformed: {checked['CUDA_VISIBLE_DEVICES']!r}.")
+    for key in ("MN_START_METHOD", "CMD_PREFIX"):
+        if key in checked and not isinstance(checked[key], str):
+            raise ValueError(f"device_setting[{key!r}] must be a string, got {type(checked[key]).__name__}.")
+    return checked
 
 
 # path to download the algo_templates
