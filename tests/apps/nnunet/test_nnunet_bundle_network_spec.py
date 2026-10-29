@@ -164,5 +164,74 @@ class TestGetNetworkFromPlans(unittest.TestCase):
         system.assert_not_called()
 
 
+@unittest.skipUnless(has_nnunet, "Requires nnunetv2")
+class TestModelWrapperNetworkSpec(unittest.TestCase):
+    """``ModelnnUNetWrapper`` and ``get_nnunet_monai_predictor`` apply the same check before building the network."""
+
+    def setUp(self):
+        import torch
+
+        self._tmp = tempfile.TemporaryDirectory()
+        self.model_folder = os.path.join(self._tmp.name, "fold_0")
+        os.makedirs(self.model_folder)
+        with open(os.path.join(self._tmp.name, "dataset.json"), "w") as f:
+            json.dump({"channel_names": {"0": "CT"}, "labels": {"background": 0, "a": 1}, "file_ending": ".nii.gz"}, f)
+        torch.save(
+            {"trainer_name": "nnUNetTrainer", "init_args": {"configuration": "2d"}},
+            os.path.join(self._tmp.name, "nnunet_checkpoint.pth"),
+        )
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _wrap(self, plans: dict, **kwargs):
+        from monai.apps.nnunet.nnunet_bundle import ModelnnUNetWrapper
+
+        with open(os.path.join(self._tmp.name, "plans.json"), "w") as f:
+            json.dump(plans, f)
+        return ModelnnUNetWrapper(mock.MagicMock(), self.model_folder, **kwargs)
+
+    def test_default_plans_pass_the_check(self):
+        import torch
+        from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+
+        # mocked because the trainer's build_network_architecture signature differs across nnunetv2 releases
+        with mock.patch.object(nnUNetTrainer, "build_network_architecture", return_value=torch.nn.Identity()) as build:
+            self._wrap(_plans())
+        build.assert_called_once()
+
+    def test_disallowed_network_is_not_built(self):
+        from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+
+        output = os.path.join(self._tmp.name, "out.npz")
+        with mock.patch.object(nnUNetTrainer, "build_network_architecture") as build:
+            with self.assertRaisesRegex(ValueError, "not in"):
+                self._wrap(_plans(class_name="numpy.savez", file=output))
+        build.assert_not_called()
+        self.assertFalse(os.path.exists(output))
+
+    def test_custom_modules_are_forwarded(self):
+        import torch
+        from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+
+        plans = _plans(class_name="monai.networks.nets.BasicUNet")
+        with mock.patch.object(nnUNetTrainer, "build_network_architecture", return_value=torch.nn.Identity()) as build:
+            with self.assertRaisesRegex(ValueError, "not in"):
+                self._wrap(plans)
+            build.assert_not_called()
+            self._wrap(plans, allowed_network_modules=["monai.networks", "torch.nn"])
+        build.assert_called_once()
+
+    def test_predictor_factory_forwards_allowed_modules(self):
+        from monai.apps.nnunet import nnunet_bundle
+
+        with (
+            mock.patch("nnunetv2.inference.predict_from_raw_data.nnUNetPredictor"),
+            mock.patch.object(nnunet_bundle, "ModelnnUNetWrapper") as wrapper,
+        ):
+            nnunet_bundle.get_nnunet_monai_predictor(self.model_folder, allowed_network_modules=["custom_nets"])
+        self.assertEqual(wrapper.call_args.args[1:], (self.model_folder, "model.pt", ["custom_nets"]))
+
+
 if __name__ == "__main__":
     unittest.main()
