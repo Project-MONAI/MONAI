@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from .nnunet_bundle import (
+    DEFAULT_NNUNET_NETWORK_MODULES,
     ModelnnUNetWrapper,
     convert_monai_bundle_to_nnunet,
     convert_nnunet_to_monai_bundle,
