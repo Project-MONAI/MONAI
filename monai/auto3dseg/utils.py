@@ -529,7 +529,7 @@ def algo_from_json(filename: str, template_path: PathLike | None = None, **kwarg
                 sys.path.insert(0, path)
                 path_added = True
 
-            algo_cls = _reject_non_algo_target(target, filename)
+            algo_cls: Any = _reject_non_algo_target(target, filename)  # subclasses may accept template_path
 
             # Values read from the file are plain data: pass them to the constructor as literals
             # rather than through ConfigParser, which would evaluate "$"/"@"/"%" prefixed strings.
