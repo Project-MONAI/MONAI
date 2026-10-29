@@ -33,6 +33,50 @@ logger = get_logger(module_name=__name__)
 __all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 
+# characters PowerShell accepts as single quotes; each is escaped by doubling it
+_POWERSHELL_SINGLE_QUOTES = ("'", "\u2018", "\u2019", "\u201a", "\u201b")
+
+
+def _quote_trial_arg(arg: Any, windows: bool | None = None) -> str:
+    """
+    Quote one argument of an NNI ``trialCommand`` as a literal for the shell NNI uses.
+
+    NNI runs ``trialCommand`` with bash on Linux and macOS and with PowerShell on Windows.
+
+    Args:
+        arg: the argument value.
+        windows: quote for PowerShell instead of a POSIX shell. Defaults to ``os.name == "nt"``.
+
+    Returns:
+        the quoted argument.
+    """
+    text = str(arg)
+    if windows if windows is not None else os.name == "nt":
+        for quote in _POWERSHELL_SINGLE_QUOTES:
+            text = text.replace(quote, quote * 2)
+        return f"'{text}'"
+    return shlex.quote(text)
+
+
+def _nni_trial_command(obj_filename: Any, work_dir: Any, windows: bool | None = None) -> str:
+    """
+    Build the NNI ``trialCommand`` that runs one algo trial.
+
+    The fixed part of the command is plain text; the two paths are quoted with ``_quote_trial_arg`` so they
+    are passed to ``NNIGen run_algo`` unchanged, whatever characters they contain.
+
+    Args:
+        obj_filename: the serialized algo object file.
+        work_dir: the Auto3DSeg working directory.
+        windows: quote for PowerShell instead of a POSIX shell. Defaults to ``os.name == "nt"``.
+
+    Returns:
+        the command string to store as ``trialCommand``.
+    """
+    paths = " ".join(_quote_trial_arg(p, windows) for p in (obj_filename, work_dir))
+    return f"python -m monai.apps.auto3dseg NNIGen run_algo {paths}"
+
+
 class HPOGen(AlgoGen):
     """
     The base class for hyperparameter optimization (HPO) interfaces to generate algos in the Auto3Dseg pipeline.
@@ -144,7 +188,7 @@ class NNIGen(HPOGen):
         logger.info("=" * 140)
         logger.info("If NNI will run in your local env: ")
         logger.info("1. Add the following line to the trialCommand in your NNI config: ")
-        logger.info(f"{hint} {shlex.quote(str(self.obj_filename))} {{result_dir}}")
+        logger.info(f"{hint} {_quote_trial_arg(self.obj_filename)} {{result_dir}}")
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(

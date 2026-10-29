@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import shutil
 import warnings
 from copy import deepcopy
@@ -24,7 +23,7 @@ import torch
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.auto3dseg.ensemble_builder import EnsembleRunner
-from monai.apps.auto3dseg.hpo_gen import NNIGen
+from monai.apps.auto3dseg.hpo_gen import NNIGen, _nni_trial_command
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_json
@@ -36,28 +35,6 @@ from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd
 logger = get_logger(module_name=__name__)
 
 nni, has_nni = optional_import("nni")
-
-
-def _nni_trial_command(obj_filename: str, work_dir: str) -> str:
-    """
-    Build the NNI ``trialCommand`` that runs one algo trial.
-
-    NNI runs ``trialCommand`` through the platform shell, so each argument is quoted for that shell
-    and paths containing spaces or shell metacharacters are passed through unchanged.
-
-    Args:
-        obj_filename: the serialized algo object file.
-        work_dir: the Auto3DSeg working directory.
-
-    Returns:
-        the command string to store as ``trialCommand``.
-    """
-    args = ["python", "-m", "monai.apps.auto3dseg", "NNIGen", "run_algo", str(obj_filename), str(work_dir)]
-    if os.name == "nt":
-        from subprocess import list2cmdline
-
-        return list2cmdline(args)
-    return shlex.join(args)
 
 
 class AutoRunner:
