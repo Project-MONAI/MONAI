@@ -1942,10 +1942,7 @@ def convert_applied_interp_mode(
     if ("mode" not in trans_info) and ("align_corners" not in trans_info):
         return {
             k: convert_applied_interp_mode(
-                trans_info[k],
-                mode=mode,
-                align_corners=align_corners,
-                preserve_align_corners=preserve_align_corners,
+                trans_info[k], mode=mode, align_corners=align_corners, preserve_align_corners=preserve_align_corners
             )
             for k in trans_info
         }
