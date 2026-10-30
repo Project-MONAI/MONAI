@@ -1895,7 +1895,9 @@ def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransfo
 _interp_modes = list(InterpolateMode) + list(GridSampleMode)
 
 
-def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners: bool | None = None):
+def convert_applied_interp_mode(
+    trans_info, mode: str = "nearest", align_corners: bool | None = None, preserve_align_corners: bool = False
+):
     """
     Recursively change the interpolation mode in the applied operation stacks, default to "nearest".
 
@@ -1905,10 +1907,23 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
         trans_info: applied operation stack, tracking the previously applied invertible transform.
         mode: target interpolation mode to convert, default to "nearest" as it's usually used to save the mode output.
         align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
+        preserve_align_corners: if True, the ``align_corners`` values recorded by the forward transforms are left
+            unchanged instead of being replaced with ``align_corners`` (or reset when it is None). Intended for
+            interpolation modes that support ``align_corners`` (``"linear"``, ``"bilinear"``, ``"bicubic"``,
+            ``"trilinear"``); modes that do not support it should keep resetting the recorded values.
+    Returns:
+        The transformed copy of ``trans_info``: a list or dict whose recorded interpolation modes are set
+        to ``mode`` and whose recorded ``align_corners`` values are -- unless ``preserve_align_corners`` is
+        set -- replaced with ``align_corners`` or reset to ``TraceKeys.NONE`` when it is None.
 
     """
     if isinstance(trans_info, (list, tuple)):
-        return [convert_applied_interp_mode(x, mode=mode, align_corners=align_corners) for x in trans_info]
+        return [
+            convert_applied_interp_mode(
+                x, mode=mode, align_corners=align_corners, preserve_align_corners=preserve_align_corners
+            )
+            for x in trans_info
+        ]
     if not isinstance(trans_info, Mapping):
         return trans_info
     trans_info = dict(trans_info)
@@ -1918,7 +1933,7 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
             trans_info["mode"] = mode
         elif isinstance(current_mode[0], int) or current_mode[0] in _interp_modes:
             trans_info["mode"] = [mode for _ in range(len(mode))]
-    if "align_corners" in trans_info:
+    if "align_corners" in trans_info and not preserve_align_corners:
         _align_corners = TraceKeys.NONE if align_corners is None else align_corners
         current_value = trans_info["align_corners"]
         trans_info["align_corners"] = (
@@ -1926,7 +1941,10 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
         )
     if ("mode" not in trans_info) and ("align_corners" not in trans_info):
         return {
-            k: convert_applied_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
+            k: convert_applied_interp_mode(
+                trans_info[k], mode=mode, align_corners=align_corners, preserve_align_corners=preserve_align_corners
+            )
+            for k in trans_info
         }
     return trans_info
 
