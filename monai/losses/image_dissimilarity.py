@@ -361,7 +361,10 @@ class GlobalMutualInformationLoss(_Loss):
         wa, pa, wb, pb = self.parzen_windowing(pred, target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
 
         pab = torch.bmm(wa.permute(0, 2, 1), wb.to(wa)).div(wa.shape[1])  # (batch, num_bins, num_bins)
-        papb = torch.bmm(pa.permute(0, 2, 1), pb.to(pa))  # (batch, num_bins, num_bins)
+        # FIXME: in CI tests bmm raises "RuntimeError: Failed to find C compiler." when it tries to compile a kernel,
+        # forcing CPU mode here is needed to get around this as there are no means of forcing native ops.
+        papb = torch.bmm(pa.permute(0, 2, 1).cpu(), pb.cpu()).to(pab)  # (batch, 1 num_bins)
+
         mi = torch.sum(
             pab * torch.log((pab + self.smooth_nr) / (papb + self.smooth_dr) + self.smooth_dr), dim=(1, 2)
         )  # (batch)
