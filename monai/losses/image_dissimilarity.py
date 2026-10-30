@@ -295,7 +295,11 @@ class GlobalMutualInformationLoss(_Loss):
         compute_img = (
             img.float() if not torch.is_floating_point(img) or img.dtype in (torch.float16, torch.bfloat16) else img
         )
-        _max, _min = torch.max(compute_img), torch.min(compute_img)
+        # Bin each image from its own intensity range (as in ITK's Mattes MI): a batch-wide min/max would make one
+        # sample's loss depend on the other images in the batch.
+        reduce_dims = tuple(range(1, compute_img.ndim))
+        _max = torch.amax(compute_img, dim=reduce_dims, keepdim=True)
+        _min = torch.amin(compute_img, dim=reduce_dims, keepdim=True)
         padding = 2
         interior_bins = self.num_bins - 2 * padding
         value_range = _max - _min
