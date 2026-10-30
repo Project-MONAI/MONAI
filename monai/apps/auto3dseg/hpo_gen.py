@@ -72,7 +72,8 @@ def _nni_trial_command(obj_filename: Any, work_dir: Any, windows: bool | None = 
     Build the NNI ``trialCommand`` that runs one algo trial.
 
     The fixed part of the command is plain text; the two paths are quoted with ``_quote_trial_arg`` so they
-    are passed to ``NNIGen run_algo`` unchanged, whatever characters they contain.
+    are passed to ``NNIGen run_algo`` unchanged. On a POSIX shell any path is accepted; ``cmd.exe`` cannot
+    carry a few characters even inside double quotes, see ``_quote_trial_arg``.
 
     Args:
         obj_filename: the serialized algo object file.
@@ -81,9 +82,34 @@ def _nni_trial_command(obj_filename: Any, work_dir: Any, windows: bool | None = 
 
     Returns:
         the command string to store as ``trialCommand``.
+
+    Raises:
+        ValueError: on Windows, if ``obj_filename`` or ``work_dir`` contains ``"``, ``%``, ``!``, a line
+            break or a NUL character.
     """
     paths = " ".join(_quote_trial_arg(p, windows) for p in (obj_filename, work_dir))
     return f"python -m monai.apps.auto3dseg NNIGen run_algo {paths}"
+
+
+def _quote_or_raw(arg: Any, windows: bool | None = None) -> str:
+    """
+    Quote one argument of the printed trialCommand instruction, falling back to the unquoted text.
+
+    ``print_bundle_algo_instruction`` only reports how to write the command, so a path its shell cannot
+    quote must not stop the instructions from printing: warn and print the path as it is.
+
+    Args:
+        arg: the argument value.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
+
+    Returns:
+        the quoted argument, or ``str(arg)`` if the shell cannot quote it.
+    """
+    try:
+        return _quote_trial_arg(arg, windows)
+    except ValueError as error:
+        logger.warning(f"Leaving {str(arg)!r} unquoted in the printed trialCommand: {error}")
+        return str(arg)
 
 
 class HPOGen(AlgoGen):
@@ -197,7 +223,7 @@ class NNIGen(HPOGen):
         logger.info("=" * 140)
         logger.info("If NNI will run in your local env: ")
         logger.info("1. Add the following line to the trialCommand in your NNI config: ")
-        logger.info(f"{hint} {_quote_trial_arg(self.obj_filename)} {{result_dir}}")
+        logger.info(f"{hint} {_quote_or_raw(self.obj_filename)} {{result_dir}}")
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(

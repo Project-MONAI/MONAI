@@ -18,8 +18,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from typing import Any, cast
+from unittest import mock
 
-from monai.apps.auto3dseg.hpo_gen import _nni_trial_command, _quote_trial_arg
+from monai.apps.auto3dseg.hpo_gen import NNIGen, _nni_trial_command, _quote_or_raw, _quote_trial_arg
 from tests.test_utils import skip_if_windows
 
 PREFIX = ["python", "-m", "monai.apps.auto3dseg", "NNIGen", "run_algo"]
@@ -103,6 +106,40 @@ class TestNNITrialCommandWindows(unittest.TestCase):
                     args = _run_through_shell(_nni_trial_command("obj.json", work_dir), tempdir)
                     self.assertEqual(args, PREFIX[1:] + ["obj.json", work_dir])
                     self.assertFalse(os.path.exists(marker))
+
+
+class TestPrintedInstruction(unittest.TestCase):
+    def setUp(self):
+        self.gen = NNIGen()
+        self.gen.obj_filename = "C:\\data\\100%\\algo_object.json"
+        self.gen.algo = cast(Any, SimpleNamespace(template_path="/templates", get_output_path=lambda: "/work/algo_0"))
+
+    def test_unquotable_path_still_prints_the_instructions(self):
+        with mock.patch("monai.apps.auto3dseg.hpo_gen.logger") as logger, mock.patch("sys.platform", "win32"):
+            self.gen.print_bundle_algo_instruction()
+
+        printed = "\n".join(str(call.args[0]) for call in logger.info.call_args_list)
+        self.assertIn("C:\\data\\100%\\algo_object.json {result_dir}", printed)
+        self.assertIn("{remote_algo_dir} {result_dir} {remote_algorithm_templates_dir}", printed)
+        self.assertEqual(logger.warning.call_count, 1)
+
+    def test_quotable_path_is_still_quoted(self):
+        with mock.patch("monai.apps.auto3dseg.hpo_gen.logger") as logger, mock.patch("sys.platform", "win32"):
+            self.gen.obj_filename = "C:\\data\\my algo\\algo_object.json"
+            self.gen.print_bundle_algo_instruction()
+
+        printed = "\n".join(str(call.args[0]) for call in logger.info.call_args_list)
+        self.assertIn('"C:\\data\\my algo\\algo_object.json" {result_dir}', printed)
+        logger.warning.assert_not_called()
+
+
+class TestQuoteOrRaw(unittest.TestCase):
+    def test_falls_back_to_the_raw_text(self):
+        with mock.patch("monai.apps.auto3dseg.hpo_gen.logger"), mock.patch("sys.platform", "win32"):
+            self.assertEqual(_quote_or_raw("C:\\100%\\obj.json"), "C:\\100%\\obj.json")
+
+    def test_quotes_what_the_shell_accepts(self):
+        self.assertEqual(_quote_or_raw("/tmp/my work/obj.json", windows=False), "'/tmp/my work/obj.json'")
 
 
 if __name__ == "__main__":
