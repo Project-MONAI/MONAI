@@ -362,7 +362,7 @@ class GlobalMutualInformationLoss(_Loss):
 
         pab = torch.bmm(wa.permute(0, 2, 1), wb.to(wa)).div(wa.shape[1])  # (batch, num_bins, num_bins)
         # FIXME: in CI tests bmm raises "RuntimeError: Failed to find C compiler." when it tries to compile a kernel,
-        # forcing CPU mode here is needed to get around this as there are no means of forcing native ops. 
+        # forcing CPU mode here is needed to get around this as there are no means of forcing native ops.
         papb = torch.bmm(pa.permute(0, 2, 1).cpu(), pb.cpu()).to(pab)  # (batch, 1 num_bins)
 
         mi = torch.sum(
