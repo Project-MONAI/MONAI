@@ -51,6 +51,11 @@ from monai.utils import (
 )
 from monai.utils.type_conversion import convert_to_dst_type
 
+_ALIGN_CORNERS_MODES = frozenset(
+    m.value
+    for m in (InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.BICUBIC, InterpolateMode.TRILINEAR)
+)
+
 __all__ = [
     "Activations",
     "AsDiscrete",
@@ -1025,7 +1030,10 @@ class Invert(Transform):
                 use; it does not clip or otherwise constrain output values, and it does not guarantee that
                 outputs stay within any particular range such as [0, 1]. The accepted values are the union
                 of the modes supported by the different inverse resamplers, and whether a specific mode is
-                usable depends on the transforms being inverted (e.g. spline orders require SciPy).
+                usable depends on the transforms being inverted (e.g. spline orders require SciPy). For
+                modes that support ``align_corners`` (``"linear"``, ``"bilinear"``, ``"bicubic"``,
+                ``"trilinear"``), the alignment recorded by the forward transforms is preserved; for other
+                modes the recorded alignment is reset, as with the ``nearest`` behavior.
         """
         if not isinstance(transform, InvertibleTransform):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
@@ -1052,7 +1060,11 @@ class Invert(Transform):
             return data
 
         if self.interp is not None:
-            data.applied_operations = convert_applied_interp_mode(trans_info=data.applied_operations, mode=self.interp)
+            data.applied_operations = convert_applied_interp_mode(
+                trans_info=data.applied_operations,
+                mode=self.interp,
+                preserve_align_corners=isinstance(self.interp, str) and self.interp in _ALIGN_CORNERS_MODES,
+            )
         elif self.nearest_interp:
             data.applied_operations = convert_applied_interp_mode(
                 trans_info=data.applied_operations, mode="nearest", align_corners=None

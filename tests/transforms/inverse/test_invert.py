@@ -33,6 +33,7 @@ from monai.transforms import (
     RandRotate,
     RandRotate90,
     RandZoom,
+    Resize,
     ResizeWithPadOrCrop,
     Spacing,
     convert_applied_interp_mode,
@@ -150,13 +151,29 @@ class TestInvertInterp(unittest.TestCase):
         self.assertLessEqual(float(out_interp.max()), 1.0 + 1e-6)
         # and matches the manual recorded-mode rewrite mechanism
         sim = resampled.clone()
-        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode="bilinear")
+        sim.applied_operations = convert_applied_interp_mode(
+            sim.applied_operations, mode="bilinear", preserve_align_corners=True
+        )
         expected = fwd.inverse(sim)
         assert_allclose(out_interp, expected, type_test=False)
         # transformation metadata is preserved: the affine is restored and the trace fully consumed
         self.assertIsInstance(out_interp, MetaTensor)
         assert_allclose(out_interp.affine, data.affine, type_test=False)
         self.assertEqual(out_interp.applied_operations, [])
+
+    def test_interp_preserves_recorded_align_corners(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Resize(spatial_size=(24, 24, 24), mode="bilinear", align_corners=True)])
+        resampled = fwd(data)
+        out_recorded = Invert(transform=fwd, nearest_interp=False, to_tensor=False)(resampled.clone())
+        out_interp = Invert(transform=fwd, interp="bilinear", to_tensor=False)(resampled.clone())
+        # "bilinear" supports align_corners: the recorded alignment is preserved, matching the
+        # verbatim recorded-mode reuse (this fails if the override resets the recorded alignment)
+        assert_allclose(out_interp, out_recorded, type_test=False)
+        # the forced-nearest default resets the alignment and resamples differently
+        out_default = Invert(transform=fwd, to_tensor=False)(resampled.clone())
+        self.assertFalse(torch.allclose(out_interp, out_default))
 
     def test_legacy_default_unchanged(self):
         set_determinism(seed=0)

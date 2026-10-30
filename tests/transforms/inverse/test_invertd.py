@@ -33,6 +33,7 @@ from monai.transforms import (
     RandRotate90d,
     RandRotated,
     RandZoomd,
+    Resized,
     ResizeWithPadOrCropd,
     ScaleIntensityd,
     Spacingd,
@@ -452,7 +453,9 @@ class TestInvertdInterp(unittest.TestCase):
         # forward with `nearest` so that rewriting the recorded mode to bilinear is observable
         fwd, resampled = self._forward(data, mode="nearest")
         sim = resampled.clone()
-        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode="bilinear")
+        sim.applied_operations = convert_applied_interp_mode(
+            sim.applied_operations, mode="bilinear", preserve_align_corners=True
+        )
         expected = fwd.inverse({"img": sim})["img"]
         inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
         out = inverter({"img": resampled.clone()})["img"]
@@ -461,6 +464,23 @@ class TestInvertdInterp(unittest.TestCase):
         self.assertIsInstance(out, MetaTensor)
         assert_allclose(out.affine, data.affine, type_test=False)
         self.assertEqual(out.applied_operations, [])
+
+    def test_interp_preserves_recorded_align_corners(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Resized("img", spatial_size=(24, 24, 24), mode="bilinear", align_corners=True)])
+        resampled = fwd({"img": data})["img"]
+        out_recorded = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=False, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+        out_interp = inverter({"img": resampled.clone()})["img"]
+        # "bilinear" supports align_corners: the recorded alignment is preserved, matching the
+        # verbatim recorded-mode reuse (this fails if the override resets the recorded alignment)
+        assert_allclose(out_interp, out_recorded, type_test=False)
+        # the forced-nearest default resets the alignment and resamples differently
+        out_default = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)({"img": resampled.clone()})["img"]
+        self.assertFalse(torch.allclose(out_interp, out_default))
 
     def test_legacy_paths_unchanged(self):
         set_determinism(seed=0)

@@ -60,6 +60,11 @@ from monai.utils import (
 )
 from monai.utils.type_conversion import convert_to_dst_type
 
+_ALIGN_CORNERS_MODES = frozenset(
+    m.value
+    for m in (InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.BICUBIC, InterpolateMode.TRILINEAR)
+)
+
 __all__ = [
     "ActivationsD",
     "ActivationsDict",
@@ -1020,7 +1025,10 @@ class Invertd(MapTransform):
                 values are the union of the modes supported by the different inverse resamplers, and
                 whether a specific mode is usable depends on the transforms being inverted (e.g. spline
                 orders require SciPy, while grid-sample based inverses such as `Spacing` support
-                ``"bilinear"``, ``"nearest"`` and ``"bicubic"``). It also can be a list, each matches to
+                ``"bilinear"``, ``"nearest"`` and ``"bicubic"``). For modes that support ``align_corners``
+                (``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``), the alignment recorded by the
+                forward transforms is preserved; for other modes the recorded alignment is reset, as with
+                the ``nearest`` behavior. It also can be a list, each matches to
                 the `keys` data, and ``None`` items fall back to the ``nearest_interp`` behavior for the
                 corresponding key.
 
@@ -1102,7 +1110,11 @@ class Invertd(MapTransform):
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
                 meta_info = d.get(orig_meta_key, {})
             if interp is not None:
-                transform_info = convert_applied_interp_mode(trans_info=transform_info, mode=interp)
+                transform_info = convert_applied_interp_mode(
+                    trans_info=transform_info,
+                    mode=interp,
+                    preserve_align_corners=isinstance(interp, str) and interp in _ALIGN_CORNERS_MODES,
+                )
             elif nearest_interp:
                 transform_info = convert_applied_interp_mode(
                     trans_info=transform_info, mode="nearest", align_corners=None
