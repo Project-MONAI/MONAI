@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -26,6 +27,7 @@ from monai.transforms import SaveImaged
 from monai.utils import optional_import
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
+nib, has_nibabel = optional_import("nibabel")
 
 TEST_CASE_1 = [
     {"img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nii.gz"})},
@@ -124,6 +126,41 @@ class TestSaveImaged(unittest.TestCase):
 
             self.assertTrue("saved_to" in test_data["img"].meta.keys())
             self.assertTrue(os.path.exists(test_data["img"].meta["saved_to"]))
+
+
+@unittest.skipUnless(has_nibabel, "nibabel not installed")
+class TestSaveImagedChannelDim(unittest.TestCase):
+
+    @parameterized.expand(
+        [
+            ("image_first", ("image", "label"), False),
+            ("label_first", ("label", "image"), False),
+            ("metatensor", ("image", "label"), True),
+        ]
+    )
+    def test_mixed_channel_dimensions(self, _, keys, use_metatensor):
+        image = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        label = (image + 100)[None]
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = SaveImaged(
+                keys=keys,
+                output_dir=tempdir,
+                writer="NibabelWriter",
+                resample=False,
+                separate_folder=False,
+                print_log=False,
+            )
+            data = {}
+            for key, array in (("image", image), ("label", label)):
+                metadata = {"filename_or_obj": key, "spatial_shape": (2, 3, 4)}
+                data[key] = MetaTensor(array, meta=metadata) if use_metatensor else array
+                if not use_metatensor:
+                    data[f"{key}_meta_dict"] = metadata
+            for _ in range(2):
+                saver(data)
+                for key, expected in (("image", image), ("label", label[0])):
+                    saved = nib.load(os.path.join(tempdir, f"{key}_trans.nii.gz")).get_fdata()
+                    np.testing.assert_array_equal(saved, expected)
 
 
 if __name__ == "__main__":

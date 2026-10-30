@@ -510,21 +510,22 @@ class SaveImage(Transform):
             kw = self.fname_formatter(meta_data, self)
             filename = self.folder_layout.filename(**kw)
 
+        data_kwargs = self.data_kwargs.copy()
         if meta_data:
             meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
             if len(meta_spatial_shape) >= len(img.shape):
-                self.data_kwargs["channel_dim"] = None
-            elif is_no_channel(self.data_kwargs.get("channel_dim")):
+                data_kwargs["channel_dim"] = None
+            elif is_no_channel(data_kwargs.get("channel_dim")):
                 warnings.warn(
                     f"data shape {img.shape} (with spatial shape {meta_spatial_shape}) "
-                    f"but SaveImage `channel_dim` is set to {self.data_kwargs.get('channel_dim')} no channel."
+                    f"but SaveImage `channel_dim` is set to {data_kwargs.get('channel_dim')} no channel."
                 )
 
         err = []
         for writer_cls in self.writers:
             try:
                 writer_obj = writer_cls(**self.init_kwargs)
-                writer_obj.set_data_array(data_array=img, **self.data_kwargs)
+                writer_obj.set_data_array(data_array=img, **data_kwargs)
                 writer_obj.set_metadata(meta_dict=meta_data, **self.meta_kwargs)
                 writer_obj.write(filename, **self.write_kwargs)
                 self.writer_obj = writer_obj

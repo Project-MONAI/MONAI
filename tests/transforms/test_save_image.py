@@ -15,6 +15,7 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -23,6 +24,7 @@ from monai.transforms import SaveImage
 from monai.utils import optional_import
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
+nib, has_nibabel = optional_import("nibabel")
 
 TEST_CASE_1 = [torch.randint(0, 255, (1, 2, 3, 4)), {"filename_or_obj": "testfile0.nii.gz"}, ".nii.gz", False]
 
@@ -74,6 +76,44 @@ class TestSaveImage(unittest.TestCase):
             trans(test_data, filename=filename)
 
             self.assertTrue(os.path.exists(filename + output_ext))
+
+
+@unittest.skipUnless(has_nibabel, "nibabel not installed")
+class TestSaveImageChannelDim(unittest.TestCase):
+
+    @parameterized.expand(
+        [
+            ("numpy_single", "numpy", 1, 0, True),
+            ("numpy_no_metadata", "numpy", 1, 0, False),
+            ("tensor", "tensor", 1, 0, True),
+            ("metatensor", "metatensor", 1, 0, True),
+            ("multiple_channels", "numpy", 2, 0, True),
+            ("channel_last", "numpy", 2, -1, True),
+        ]
+    )
+    def test_reuse_after_channel_less(self, _, input_type, channels, channel_dim, with_metadata):
+        spatial_shape = (2, 3, 4)
+        first = np.arange(24, dtype=np.float32).reshape(spatial_shape)
+        second = np.arange(channels * 24, dtype=np.float32).reshape((channels, *spatial_shape)) + 100
+        expected = second[0] if channels == 1 else np.moveaxis(second, 0, -1)
+        second = np.moveaxis(second, 0, channel_dim)
+        metadata = {"spatial_shape": spatial_shape}
+        if input_type == "tensor":
+            first, second = torch.as_tensor(first), torch.as_tensor(second)
+        elif input_type == "metatensor":
+            first, second = MetaTensor(first, meta=metadata), MetaTensor(second, meta=metadata)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = SaveImage(writer="NibabelWriter", resample=False, print_log=False)
+            saver.set_options(data_kwargs={"channel_dim": channel_dim})
+            original_options = saver.data_kwargs.copy()
+            saver(first, meta_data=metadata, filename=os.path.join(tempdir, "first"))
+            np.testing.assert_array_equal(
+                nib.load(os.path.join(tempdir, "first.nii.gz")).get_fdata(), np.arange(24).reshape(spatial_shape)
+            )
+            saver(second, meta_data=metadata if with_metadata else None, filename=os.path.join(tempdir, "second"))
+            np.testing.assert_array_equal(nib.load(os.path.join(tempdir, "second.nii.gz")).get_fdata(), expected)
+            self.assertEqual(saver.data_kwargs, original_options)
 
 
 if __name__ == "__main__":
