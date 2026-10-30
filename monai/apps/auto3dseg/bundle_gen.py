@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import importlib
+import ntpath
 import os
 import re
 import shutil
@@ -48,6 +49,52 @@ logger = get_logger(module_name=__name__)
 ALGO_HASH = MONAIEnvVars.algo_hash()
 
 __all__ = ["BundleAlgo", "BundleGen"]
+
+
+def _check_single_path_component(value: Any, what: str) -> None:
+    """
+    Require ``value`` to be one non-empty directory name with no path separators, drive or NUL character.
+
+    Args:
+        value: the name to check.
+        what: a description of the value, used in the error message.
+
+    Raises:
+        ValueError: if ``value`` is not a plain directory name.
+    """
+    name = str(value)
+    separators = {os.sep, "/"} | ({os.altsep} if os.altsep else set())
+    if (
+        not name
+        or name in (".", "..")
+        or "\x00" in name
+        or any(sep in name for sep in separators)
+        or os.path.isabs(name)
+        or ntpath.splitdrive(name)[0]
+    ):
+        raise ValueError(f"Invalid {what} {value!r}: expected a single directory name without path separators.")
+
+
+def _confined_join(root: str, name: str) -> str:
+    """
+    Join ``name`` to ``root`` and check that the resolved result stays inside ``root``.
+
+    Args:
+        root: the parent directory.
+        name: the child directory name.
+
+    Returns:
+        the joined path.
+
+    Raises:
+        ValueError: if the resolved path is not inside ``root``.
+    """
+    path = os.path.join(root, name)
+    real_root = os.path.realpath(root)
+    real_path = os.path.realpath(path)
+    if real_path == real_root or os.path.commonpath([real_root, real_path]) != real_root:
+        raise ValueError(f"Invalid path: {path!r} is not inside {root!r}.")
+    return path
 
 
 class BundleAlgo(Algo):
@@ -176,18 +223,29 @@ class BundleAlgo(Algo):
         Args:
             output_path: Path to export the 'scripts' and 'configs' directories.
             algo_name: the identifier of the algorithm (usually contains the name and extra info like fold ID).
+                It must be a single directory name: path separators, ``.`` and ``..`` are rejected.
             kwargs: other parameters, including: "copy_dirs=True/False" means whether to copy the template as output
                 instead of inplace operation, "fill_template=True/False" means whether to fill the placeholders
                 in the template. other parameters are for `fill_template_config` function.
 
+
+        Raises:
+            ValueError: if ``algo_name`` or the Algo ``name`` is not a single directory name, or the destination
+                does not resolve inside ``output_path``.
         """
         if kwargs.pop("copy_dirs", True):
-            self.output_path = os.path.join(output_path, algo_name)
+            _check_single_path_component(algo_name, "algo_name")
+            if self.name:  # an empty name copies the whole template_path
+                _check_single_path_component(self.name, "the Algo name")
+            source = os.path.join(str(self.template_path), self.name)
+            if not os.path.isdir(source):
+                raise ValueError(f"Algo template folder {source!r} does not exist.")
+            self.output_path = _confined_join(output_path, algo_name)
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
             # copy algorithm_templates/<Algo> to the working directory output_path
-            shutil.copytree(os.path.join(str(self.template_path), self.name), self.output_path)
+            shutil.copytree(source, self.output_path)
         else:
             self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):
