@@ -1320,6 +1320,27 @@ class TiffFileWSIReader(BaseWSIReader):
         super().__init__(**kwargs)
 
     @staticmethod
+    def _get_level_page(wsi, level: int):
+        """
+        Returns the first TIFF page of the given pyramid level.
+
+        Pyramid levels are taken from the first image series, the same levels used by `wsi.asarray(level=...)`.
+        They do not always map one-to-one to TIFF pages, e.g. Aperio SVS files store a thumbnail as the second page.
+
+        Args:
+            wsi: a whole slide image object loaded from a file.
+            level: the level number.
+
+        Returns:
+            the TIFF page holding the metadata of that level.
+
+        Raises:
+            IndexError: when ``level`` is not a valid pyramid level of the image.
+
+        """
+        return wsi.series[0].levels[level].keyframe
+
+    @staticmethod
     def get_level_count(wsi) -> int:
         """
         Returns the number of levels in the whole slide image.
@@ -1328,7 +1349,7 @@ class TiffFileWSIReader(BaseWSIReader):
             wsi: a whole slide image object loaded from a file.
 
         """
-        return len(wsi.pages)
+        return len(wsi.series[0].levels)
 
     def get_size(self, wsi, level: int) -> tuple[int, int]:
         """
@@ -1339,7 +1360,8 @@ class TiffFileWSIReader(BaseWSIReader):
             level: the level number where the size is calculated.
 
         """
-        return (wsi.pages[level].imagelength, wsi.pages[level].imagewidth)
+        page = self._get_level_page(wsi, level)
+        return (page.imagelength, page.imagewidth)
 
     def get_downsample_ratio(self, wsi, level: int) -> float:
         """
@@ -1350,7 +1372,7 @@ class TiffFileWSIReader(BaseWSIReader):
             level: the level number where the downsample ratio is calculated.
 
         """
-        return float(wsi.pages[0].imagelength) / float(wsi.pages[level].imagelength)
+        return float(self._get_level_page(wsi, 0).imagelength) / float(self._get_level_page(wsi, level).imagelength)
 
     @staticmethod
     def get_file_path(wsi) -> str:
@@ -1366,13 +1388,14 @@ class TiffFileWSIReader(BaseWSIReader):
             level: the level number where the mpp is calculated.
 
         """
+        page = self._get_level_page(wsi, level)
         if (
-            "XResolution" in wsi.pages[level].tags
-            and "YResolution" in wsi.pages[level].tags
-            and wsi.pages[level].tags["XResolution"].value
-            and wsi.pages[level].tags["YResolution"].value
+            "XResolution" in page.tags
+            and "YResolution" in page.tags
+            and page.tags["XResolution"].value
+            and page.tags["YResolution"].value
         ):
-            unit = wsi.pages[level].tags.get("ResolutionUnit")
+            unit = page.tags.get("ResolutionUnit")
             if unit is not None:
                 unit = str(unit.value.name)
             if unit is None or len(unit) == 0:
@@ -1382,8 +1405,8 @@ class TiffFileWSIReader(BaseWSIReader):
             convert_to_micron = ConvertUnits(unit, "micrometer")
 
             # Here, x and y resolutions are rational numbers so each of them is represented by a tuple.
-            yres = wsi.pages[level].tags["YResolution"].value
-            xres = wsi.pages[level].tags["XResolution"].value
+            yres = page.tags["YResolution"].value
+            xres = page.tags["XResolution"].value
             if xres[0] and yres[0]:
                 return convert_to_micron(yres[1] / yres[0]), convert_to_micron(xres[1] / xres[0])
             else:
@@ -1417,16 +1440,16 @@ class TiffFileWSIReader(BaseWSIReader):
         """
         mpp = ensure_tuple_rep(mpp, 2)
 
-        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]  # Fails for some Tifffiles
+        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(self.get_level_count(wsi))]  # Fails for some Tifffiles
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
 
         within_tolerance, closest_level_is_bigger = self._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
             # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
-            # TiffFile does not expose `read_region`; read the whole page instead (consistent with `_get_patch`).
+            # TiffFile does not expose `read_region`; read the whole level instead (consistent with `_get_patch`).
             pil_image, _ = optional_import("PIL", name="Image")
-            closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())
+            closest_lvl_wsi = pil_image.fromarray(wsi.asarray(level=closest_lvl))
 
         elif closest_level_is_bigger:
             # Otherwise, select the level closest to the desired mpp with a higher resolution and downsample it.
@@ -1563,7 +1586,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         target_res_x, target_res_y = self._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
 
-        closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())
+        closest_lvl_wsi = pil_image.fromarray(wsi.asarray(level=closest_lvl))
         # PIL `resize` takes (W, H); use the same row/col order as OpenSlide.
         closest_lvl_wsi = closest_lvl_wsi.resize((target_res_y, target_res_x), pil_image.BILINEAR)
 
