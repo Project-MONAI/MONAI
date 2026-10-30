@@ -1911,6 +1911,10 @@ def convert_applied_interp_mode(
             unchanged instead of being replaced with ``align_corners`` (or reset when it is None). Intended for
             interpolation modes that support ``align_corners`` (``"linear"``, ``"bilinear"``, ``"bicubic"``,
             ``"trilinear"``); modes that do not support it should keep resetting the recorded values.
+    Returns:
+        The transformed copy of ``trans_info``: a list or dict whose recorded interpolation modes are set
+        to ``mode`` and whose recorded ``align_corners`` values are -- unless ``preserve_align_corners`` is
+        set -- replaced with ``align_corners`` or reset to ``TraceKeys.NONE`` when it is None.
 
     """
     if isinstance(trans_info, (list, tuple)):
@@ -1938,7 +1942,10 @@ def convert_applied_interp_mode(
     if ("mode" not in trans_info) and ("align_corners" not in trans_info):
         return {
             k: convert_applied_interp_mode(
-                trans_info[k], mode=mode, align_corners=align_corners, preserve_align_corners=preserve_align_corners
+                trans_info[k],
+                mode=mode,
+                align_corners=align_corners,
+                preserve_align_corners=preserve_align_corners,
             )
             for k in trans_info
         }
