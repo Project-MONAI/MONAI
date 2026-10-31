@@ -211,6 +211,9 @@ class ResNet(nn.Module):
         bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
+        block_norm_act: whether the residual blocks and their downsampling layers also use `act` and `norm`.
+            Defaults to `False`, in which case only the first convolution uses them and the blocks keep
+            ReLU and batch norm, matching previous versions.
 
     """
 
@@ -231,6 +234,7 @@ class ResNet(nn.Module):
         bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
         act: str | tuple = ("relu", {"inplace": True}),
         norm: str | tuple = "batch",
+        block_norm_act: bool = False,
     ) -> None:
         super().__init__()
 
@@ -271,10 +275,17 @@ class ResNet(nn.Module):
         self.bn1 = norm_layer
         self.act = get_act_layer(name=act)
         self.maxpool = pool_type(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
-        self.layer2 = self._make_layer(block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2)
-        self.layer3 = self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
-        self.layer4 = self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
+        block_kwargs: dict = {"norm": norm, "act": act} if block_norm_act else {}
+        self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type, **block_kwargs)
+        self.layer2 = self._make_layer(
+            block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2, **block_kwargs
+        )
+        self.layer3 = self._make_layer(
+            block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2, **block_kwargs
+        )
+        self.layer4 = self._make_layer(
+            block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2, **block_kwargs
+        )
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
         self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes) if feed_forward else None
 
@@ -282,8 +293,11 @@ class ResNet(nn.Module):
             if isinstance(m, conv_type):
                 nn.init.kaiming_normal_(torch.as_tensor(m.weight), mode="fan_out", nonlinearity="relu")
             elif isinstance(m, type(norm_layer)):
-                nn.init.constant_(torch.as_tensor(m.weight), 1)
-                nn.init.constant_(torch.as_tensor(m.bias), 0)
+                # non-affine norm layers (e.g. instance/layer norm defaults) have no weight/bias
+                if m.weight is not None:
+                    nn.init.constant_(torch.as_tensor(m.weight), 1)
+                if m.bias is not None:
+                    nn.init.constant_(torch.as_tensor(m.bias), 0)
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
@@ -302,6 +316,7 @@ class ResNet(nn.Module):
         shortcut_type: str,
         stride: int = 1,
         norm: str | tuple = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
     ) -> nn.Sequential:
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
 
@@ -333,13 +348,14 @@ class ResNet(nn.Module):
                 spatial_dims=spatial_dims,
                 stride=stride,
                 downsample=downsample,
+                act=act,
                 norm=norm,
             )
         ]
 
         self.in_planes = planes * block.expansion
         for _i in range(1, blocks):
-            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, norm=norm))
+            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, act=act, norm=norm))
 
         return nn.Sequential(*layers)
 
