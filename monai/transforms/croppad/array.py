@@ -108,7 +108,7 @@ class Pad(InvertibleTransform, LazyTransform):
 
     def __init__(
         self,
-        to_pad: tuple[tuple[int, int]] | None = None,
+        to_pad: Sequence[tuple[int, int]] | None = None,
         mode: str = PytorchPadMode.CONSTANT,
         lazy: bool = False,
         **kwargs,
@@ -118,7 +118,7 @@ class Pad(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.kwargs = kwargs
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int], ...]:
         """
         dynamically compute the pad width according to the spatial shape.
         the output is the amount of padding for all dimensions including the channel.
@@ -132,7 +132,7 @@ class Pad(InvertibleTransform, LazyTransform):
     def __call__(  # type: ignore[override]
         self,
         img: torch.Tensor,
-        to_pad: tuple[tuple[int, int]] | None = None,
+        to_pad: Sequence[tuple[int, int]] | None = None,
         mode: str | None = None,
         lazy: bool | None = None,
         **kwargs,
@@ -218,7 +218,7 @@ class SpatialPad(Pad):
         self.method: Method = look_up_option(method, Method)
         super().__init__(mode=mode, lazy=lazy, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int], ...]:
         """
         dynamically compute the pad width according to the spatial shape.
 
@@ -273,7 +273,7 @@ class BorderPad(Pad):
         self.spatial_border = spatial_border
         super().__init__(mode=mode, lazy=lazy, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int], ...]:
         spatial_border = ensure_tuple(self.spatial_border)
         if not all(isinstance(b, int) for b in spatial_border):
             raise ValueError(f"self.spatial_border must contain only ints, got {spatial_border}.")
@@ -336,7 +336,7 @@ class DivisiblePad(Pad):
         self.method: Method = Method(method)
         super().__init__(mode=mode, lazy=lazy, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int], ...]:
         new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
         spatial_pad = SpatialPad(spatial_size=new_size, method=self.method)
         return spatial_pad.compute_pad_width(spatial_shape)
