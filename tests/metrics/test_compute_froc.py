@@ -139,7 +139,6 @@ TEST_CASE_ND_2 = [
 
 
 class TestComputeFpTp(unittest.TestCase):
-
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_EXCLUDE_ABSENT, TEST_CASE_EXCLUDE_DUPLICATE]
     )
@@ -151,7 +150,6 @@ class TestComputeFpTp(unittest.TestCase):
 
 
 class TestComputeFpTpNd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_ND_1, TEST_CASE_ND_2])
     def test_value(self, input_data, expected_fp, expected_tp, expected_num):
         fp_probs, tp_probs, num_tumors = compute_fp_tp_probs_nd(**input_data)
@@ -161,12 +159,51 @@ class TestComputeFpTpNd(unittest.TestCase):
 
 
 class TestComputeFrocScore(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, thresholds, expected_score):
         fps_per_image, total_sensitivity = compute_froc_curve_data(**input_data)
         score = compute_froc_score(fps_per_image, total_sensitivity, thresholds)
         np.testing.assert_allclose(score, expected_score, rtol=1e-5)
+
+
+def _reference_compute_froc_curve_data(fp_probs, tp_probs, num_targets, num_images):
+    """Original threshold-by-threshold implementation, retained for regression comparisons."""
+    total_fps, total_tps = [], []
+    all_probs = sorted(set(list(fp_probs) + list(tp_probs)))
+    for thresh in all_probs[1:]:
+        total_fps.append((fp_probs >= thresh).sum())
+        total_tps.append((tp_probs >= thresh).sum())
+    total_fps.append(0)
+    total_tps.append(0)
+    return np.asarray(total_fps) / float(num_images), np.asarray(total_tps) / float(num_targets)
+
+
+class TestComputeFrocCurveData(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("duplicates", [0.2, 0.5, 0.5, 0.9], [0.1, 0.5, 0.5, 0.8]),
+            ("mostly_unique", [0.12, 0.34, 0.56, 0.78], [0.23, 0.45, 0.67, 0.89]),
+            ("all_equal", [0.4, 0.4], [0.4, 0.4, 0.4]),
+            ("empty", [], []),
+            ("empty_fp", [], [0.2, 0.6, 0.6]),
+            ("empty_tp", [0.2, 0.6, 0.6], []),
+            ("threshold_equality", [0.2, 0.5, 0.8], [0.5, 0.5, 0.9]),
+        ]
+    )
+    def test_matches_reference(self, _, fp_probs, tp_probs):
+        fp_probs = np.asarray(fp_probs)
+        tp_probs = np.asarray(tp_probs)
+        actual = compute_froc_curve_data(fp_probs, tp_probs, num_targets=3, num_images=2)
+        expected = _reference_compute_froc_curve_data(fp_probs, tp_probs, num_targets=3, num_images=2)
+        for actual_array, expected_array in zip(actual, expected):
+            np.testing.assert_array_equal(actual_array, expected_array)
+            self.assertEqual(actual_array.dtype, expected_array.dtype)
+
+    def test_nan_fp_probs_are_not_counted(self):
+        fp_probs = np.asarray([np.nan])
+        tp_probs = np.asarray([0.5, 0.8])
+        fps_per_image, _ = compute_froc_curve_data(fp_probs, tp_probs, num_targets=2, num_images=1)
+        np.testing.assert_array_equal(fps_per_image, np.zeros_like(fps_per_image))
 
 
 if __name__ == "__main__":
