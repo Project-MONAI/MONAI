@@ -256,13 +256,23 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
             )
             return torch.nn.Identity()
 
+        # two input channels and three labels, so the channel counts differ from the single-channel defaults
+        with open(os.path.join(self._tmp.name, "dataset.json"), "w") as f:
+            json.dump(
+                {
+                    "channel_names": {"0": "T1", "1": "T2"},
+                    "labels": {"background": 0, "a": 1, "b": 2},
+                    "file_ending": ".nii.gz",
+                },
+                f,
+            )
         for name, build in (("legacy", legacy), ("current", current)):
             with (
                 self.subTest(name),
                 mock.patch.object(nnUNetTrainer, "build_network_architecture", staticmethod(build)),
             ):
                 self._wrap(_plans())
-                self.assertEqual(calls.get(name), (UNET, 1, 2, False))
+                self.assertEqual(calls.get(name), (UNET, 2, 3, False))
 
     def test_disallowed_network_is_not_built(self):
         """A network class outside the allowed modules is rejected before the trainer builds anything."""
