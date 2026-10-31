@@ -39,6 +39,8 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
 ]
+# The NVIDIA distributions named below are swapped for the detected accelerator vendor's equivalents
+# by monai/config/vendor_deps.py when MONAI is built or installed against that vendor's PyTorch.
 dependencies = [
   "torch>=2.8.0",
   "numpy>=1.24,<3.0"
