@@ -103,6 +103,85 @@ class LabelQualityScore(Metric):
         )
 
 
+class UncertaintyDecompositionMetric(Metric):
+    """
+    Decompose the predictive uncertainty of a given T-repeats N-dimensional probability array/tensor into its total,
+    aleatoric and epistemic parts, see :py:func:`compute_uncertainty_decomposition`.
+
+    The repeats are typically the outputs of Monte Carlo dropout (:py:class:`monai.inferers.MCDropoutInferer`), of test
+    time augmentation (:py:class:`monai.data.TestTimeAugmentation` with ``return_full_data=True``) or of an ensemble.
+
+    Args:
+        spatial_map: Boolean, if set to True, spatial maps of the uncertainties will be returned corresponding to i/p
+            image dimensions
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+        eps: small value added inside the logarithms to avoid ``log(0)``
+
+    """
+
+    def __init__(self, spatial_map: bool = False, scalar_reduction: str = "mean", eps: float = 1e-8) -> None:
+        super().__init__()
+        self.spatial_map = spatial_map
+        self.scalar_reduction = scalar_reduction
+        self.eps = eps
+
+    def __call__(self, y_pred: Any) -> dict[str, torch.Tensor]:
+        """
+        Args:
+            y_pred: class probabilities, typically softmax of the model output.
+                It must be N-repeats, repeat-first tensor [N,C,H,W,D].
+
+        Returns:
+            Dictionary with keys ``"total"``, ``"aleatoric"`` and ``"epistemic"``, each a scalar or a spatial map
+
+        """
+        return compute_uncertainty_decomposition(
+            y_pred=y_pred, spatial_map=self.spatial_map, scalar_reduction=self.scalar_reduction, eps=self.eps
+        )
+
+
+def compute_uncertainty_decomposition(
+    y_pred: torch.Tensor, spatial_map: bool = False, scalar_reduction: str = "mean", eps: float = 1e-8
+) -> dict[str, torch.Tensor]:
+    """
+    Decompose predictive uncertainty into total, aleatoric and epistemic parts with entropies:
+
+    - total: entropy of the mean prediction (predictive entropy), ``H[E_n p_n]``
+    - aleatoric: mean entropy of the individual predictions (expected entropy), ``E_n H[p_n]``
+    - epistemic: their difference, the mutual information between the prediction and the model, ``total - aleatoric``
+
+    Entropies are in nats. See Depeweg et al., "Decomposition of Uncertainty in Bayesian Deep Learning for Efficient
+    and Risk-sensitive Learning", ICML 2018.
+
+    Args:
+        y_pred: [N, C, H, W, D] or [N, C, H, W] or [N, C] class probabilities where N is repeats, C is channels and
+            H, W, D stand for Height, Width & Depth. Probabilities must sum to one over C.
+        spatial_map: Boolean, if set to True, spatial maps of the uncertainties will be returned corresponding to i/p
+            image dimensions
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+        eps: small value added inside the logarithms to avoid ``log(0)``
+    Returns:
+        Dictionary with keys ``"total"``, ``"aleatoric"`` and ``"epistemic"``, each a scalar or a spatial map
+    """
+    if y_pred.ndim < 2:
+        raise ValueError(f"y_pred must have at least 2 dimensions [N, C, ...], got shape {tuple(y_pred.shape)}.")
+    y_pred = y_pred.float()
+
+    mean_pred = y_pred.mean(dim=0)
+    total = -(mean_pred * torch.log(mean_pred + eps)).sum(dim=0)
+    aleatoric = -(y_pred * torch.log(y_pred + eps)).sum(dim=1).mean(dim=0)
+    # clamp the small negative values that rounding can produce
+    uncertainties = {"total": total, "aleatoric": aleatoric, "epistemic": (total - aleatoric).clamp_min(0)}
+
+    if spatial_map:
+        return uncertainties
+    if scalar_reduction == MetricReduction.MEAN:
+        return {k: torch.mean(v) for k, v in uncertainties.items()}
+    if scalar_reduction == MetricReduction.SUM:
+        return {k: torch.sum(v) for k, v in uncertainties.items()}
+    raise ValueError(f"scalar_reduction={scalar_reduction} not supported.")
+
+
 def compute_variance(
     y_pred: torch.Tensor,
     include_background: bool = True,
