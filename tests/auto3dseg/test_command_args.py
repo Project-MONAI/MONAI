@@ -132,6 +132,27 @@ class TestBundleAlgoLoadState(unittest.TestCase):
         self.assertEqual(algo.device_setting["n_devices"], 2)
         self.assertEqual(algo.device_setting["NUM_NODES"], 1)
 
+    def test_missing_n_devices_follows_visible_devices(self):
+        """A state that only names the visible devices must not keep the device count of the current host."""
+        algo = BundleAlgo()
+        algo.device_setting = _device_setting(n_devices=4)
+        algo.load_state_dict({"device_setting": {"CUDA_VISIBLE_DEVICES": "0"}})
+        self.assertEqual(algo.device_setting["n_devices"], 1)
+        self.assertEqual(algo.device_setting["CUDA_VISIBLE_DEVICES"], "0")
+
+    def test_n_devices_above_visible_devices_is_rejected(self):
+        algo = BundleAlgo()
+        algo.device_setting = _device_setting(n_devices=4)
+        with self.assertRaisesRegex(ValueError, "exposes 1"):
+            algo.load_state_dict({"device_setting": {"CUDA_VISIBLE_DEVICES": "0", "n_devices": 4}})
+
+    def test_mig_device_identifiers_are_accepted(self):
+        mig = "MIG-GPU-8932f937-d72c-4106-c12f-20bd9faed9f6/1/2"
+        algo = BundleAlgo()
+        algo.load_state_dict({"device_setting": {"CUDA_VISIBLE_DEVICES": mig}})
+        self.assertEqual(algo.device_setting["CUDA_VISIBLE_DEVICES"], mig)
+        self.assertEqual(algo.device_setting["n_devices"], 1)
+
     def test_state_keys_do_not_need_a_constructed_instance(self):
         """A deserializer that builds the object without ``__init__`` still gets key validation, not AttributeError."""
         algo = object.__new__(BundleAlgo)

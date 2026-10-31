@@ -460,6 +460,10 @@ class BundleAlgo(Algo):
 
         Args:
             state: A dictionary containing the state to restore.
+
+        Raises:
+            ValueError: if the state has unknown keys, or a ``device_setting`` that is malformed or that asks for
+                more devices than the restored ``CUDA_VISIBLE_DEVICES`` exposes.
         """
         allowed = set(self._STATE_KEYS)
         unknown = sorted(set(state) - allowed)
@@ -469,10 +473,28 @@ class BundleAlgo(Algo):
             )
         if "device_setting" in state:
             state = dict(state)
+            restored = _validate_device_setting(state["device_setting"])
             # merge into the current settings so fields missing from the saved state keep their defaults
-            state["device_setting"] = {**self.device_setting, **_validate_device_setting(state["device_setting"])}
+            merged = {**getattr(self, "device_setting", {}), **restored}
+            if "CUDA_VISIBLE_DEVICES" in restored:
+                visible = _count_visible_devices(restored["CUDA_VISIBLE_DEVICES"])
+                if "n_devices" in restored:
+                    if merged["n_devices"] > visible:
+                        raise ValueError(
+                            f"device_setting asks for {merged['n_devices']} devices but "
+                            f"CUDA_VISIBLE_DEVICES={restored['CUDA_VISIBLE_DEVICES']!r} exposes {visible}."
+                        )
+                else:
+                    # a state without n_devices must not keep the device count of this host
+                    merged["n_devices"] = visible
+            state["device_setting"] = merged
         for key, value in state.items():
             setattr(self, key, value)
+
+
+def _count_visible_devices(visible: str) -> int:
+    """Number of devices selected by a ``CUDA_VISIBLE_DEVICES`` value (a single MIG identifier counts as one)."""
+    return len([item for item in str(visible).split(",") if item.strip()])
 
 
 def _validate_device_setting(device_setting: Any) -> dict:
@@ -501,7 +523,8 @@ def _validate_device_setting(device_setting: Any) -> dict:
             if isinstance(value, bool) or not re.fullmatch(r"\d+", str(value)):
                 raise ValueError(f"device_setting[{key!r}] must be a non-negative integer, got {value!r}.")
             checked[key] = int(value)
-    if "CUDA_VISIBLE_DEVICES" in checked and not re.fullmatch(r"[\w,-]*", str(checked["CUDA_VISIBLE_DEVICES"])):
+    if "CUDA_VISIBLE_DEVICES" in checked and not re.fullmatch(r"[\w,./-]*", str(checked["CUDA_VISIBLE_DEVICES"])):
+        # device indices, GPU UUIDs and MIG identifiers (``MIG-GPU-<uuid>/<gi>/<ci>``) are all accepted
         raise ValueError(f"device_setting['CUDA_VISIBLE_DEVICES'] is malformed: {checked['CUDA_VISIBLE_DEVICES']!r}.")
     for key in ("MN_START_METHOD", "CMD_PREFIX"):
         if key in checked and not isinstance(checked[key], str):
