@@ -10,6 +10,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import inspect
 import os
 import shutil
 from collections.abc import Sequence
@@ -285,14 +286,25 @@ class ModelnnUNetWrapper(torch.nn.Module):
             configuration_manager.network_arch_init_kwargs_req_import,
             allowed_network_modules,
         )
-        network = trainer_class.build_network_architecture(
-            configuration_manager.network_arch_class_name,
-            configuration_manager.network_arch_init_kwargs,
-            configuration_manager.network_arch_init_kwargs_req_import,
-            num_input_channels,
-            plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
-            enable_deep_supervision=False,
-        )
+        num_output_channels = plans_manager.get_label_manager(dataset_json).num_segmentation_heads
+        # nnunetv2 >= 2.7 trainers take the plans and configuration managers, not the unpacked architecture arguments
+        if "plans_manager" in inspect.signature(trainer_class.build_network_architecture).parameters:
+            network = trainer_class.build_network_architecture(
+                plans_manager,
+                configuration_manager,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision=False,
+            )
+        else:
+            network = trainer_class.build_network_architecture(
+                configuration_manager.network_arch_class_name,
+                configuration_manager.network_arch_init_kwargs,
+                configuration_manager.network_arch_init_kwargs_req_import,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision=False,
+            )
 
         predictor.plans_manager = plans_manager  # type: ignore
         predictor.configuration_manager = configuration_manager  # type: ignore
