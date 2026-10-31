@@ -52,6 +52,13 @@ for sample_method in ["uniform", "logit-normal"]:
 
 TEST_CASES = TEST_2D_CASE + TEST_3D_CASE
 
+TEST_TRANSFORM_SCALE_CASES = [
+    (transform_scale, spatial_dim, use_discrete_timesteps)
+    for transform_scale in [0.5, 1.0, 2.0]
+    for spatial_dim in [2, 3]
+    for use_discrete_timesteps in [False, True]
+]
+
 TEST_FULl_LOOP = [
     [{"sample_method": "uniform"}, (1, 1, 2, 2), torch.Tensor([[[[-0.786166, -0.057519], [2.442662, -0.407664]]]])]
 ]
@@ -94,6 +101,55 @@ class TestRFlowScheduler(unittest.TestCase):
         scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=16 * 16 * 16)
         self.assertEqual(scheduler.num_inference_steps, 100)
         self.assertEqual(len(scheduler.timesteps), 100)
+
+    @parameterized.expand(TEST_TRANSFORM_SCALE_CASES)
+    def test_set_timesteps_transform_scale(self, transform_scale, spatial_dim, use_discrete_timesteps):
+        scheduler = RFlowScheduler(
+            use_timestep_transform=True,
+            transform_scale=transform_scale,
+            use_discrete_timesteps=use_discrete_timesteps,
+            base_img_size_numel=4**spatial_dim,
+            spatial_dim=spatial_dim,
+        )
+        scheduler.set_timesteps(num_inference_steps=4, input_img_size_numel=4**spatial_dim)
+        original_timesteps = torch.tensor([1.0, 0.75, 0.5, 0.25])
+        expected = 1000 * transform_scale * original_timesteps / (1 + (transform_scale - 1) * original_timesteps)
+        expected = expected.to(torch.float16)
+        if use_discrete_timesteps:
+            expected = expected.long()
+        assert_allclose(scheduler.timesteps, expected, rtol=0, atol=0)
+
+    @parameterized.expand(TEST_TRANSFORM_SCALE_CASES)
+    def test_sample_timesteps_transform_scale(self, transform_scale, spatial_dim, use_discrete_timesteps):
+        inputs = torch.zeros((8, 1) + (4,) * spatial_dim)
+        for sample_method in ["uniform", "logit-normal"]:
+            with self.subTest(sample_method=sample_method):
+                params = {
+                    "sample_method": sample_method,
+                    "transform_scale": transform_scale,
+                    "use_discrete_timesteps": use_discrete_timesteps,
+                    "base_img_size_numel": 4**spatial_dim,
+                    "spatial_dim": spatial_dim,
+                }
+                original_scheduler = RFlowScheduler(**params)
+                scheduler = RFlowScheduler(**params, use_timestep_transform=True)
+                with torch.random.fork_rng(devices=[]):
+                    torch.manual_seed(42)
+                    original_timesteps = original_scheduler.sample_timesteps(inputs) / 1000
+                    torch.manual_seed(42)
+                    timesteps = scheduler.sample_timesteps(inputs)
+                expected = (
+                    1000 * transform_scale * original_timesteps / (1 + (transform_scale - 1) * original_timesteps)
+                )
+                assert_allclose(timesteps, expected)
+
+    def test_invalid_transform_scale(self):
+        """Require a finite, positive scale only when timestep transforms are enabled."""
+        for transform_scale in (0.0, -1.0, float("nan"), float("inf"), float("-inf")):
+            with self.subTest(transform_scale=transform_scale):
+                with self.assertRaises(ValueError):
+                    RFlowScheduler(use_timestep_transform=True, transform_scale=transform_scale)
+                RFlowScheduler(use_timestep_transform=False, transform_scale=transform_scale)
 
     def test_set_timesteps_with_num_inference_steps_bigger_than_num_train_timesteps(self):
         scheduler = RFlowScheduler(num_train_timesteps=1000)
