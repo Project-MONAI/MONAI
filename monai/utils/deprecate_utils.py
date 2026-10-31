@@ -277,7 +277,7 @@ def deprecated_arg_default(
         # smaller than `since`, do nothing
         return lambda obj: obj
     if since is None and replaced is None:
-        # raise a DeprecatedError directly
+        # no versions given: the default has already changed, so always warn that it changed
         is_replaced = True
         is_deprecated = True
     else:
@@ -291,7 +291,9 @@ def deprecated_arg_default(
         msg_prefix = f" Current default value of argument `{name}={old_default}`"
 
         if is_replaced:
-            msg_infix = f"was changed in version {replaced} from `{name}={old_default}` to `{name}={new_default}`."
+            msg_prefix = f" Default value of argument `{name}`"
+            in_version = f" in version {replaced}" if replaced is not None else ""
+            msg_infix = f"was changed{in_version} from `{name}={old_default}` to `{name}={new_default}`."
         elif is_deprecated:
             msg_infix = f"has been deprecated since version {since}."
             if replaced is not None:
