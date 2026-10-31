@@ -78,6 +78,7 @@ class TestInteractions(unittest.TestCase):
             optimizer=opt,
             loss_function=loss,
             iteration_update=i,
+            decollate=True,
         )
         engine.add_event_handler(IterationEvents.INNER_ITERATION_STARTED, add_one)
         engine.add_event_handler(IterationEvents.INNER_ITERATION_COMPLETED, add_one)
