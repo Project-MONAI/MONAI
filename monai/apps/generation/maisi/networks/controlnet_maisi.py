@@ -14,9 +14,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import torch
+from torch import nn
 
-from monai.networks.nets.controlnet import ControlNet
-from monai.networks.nets.diffusion_model_unet import get_timestep_embedding
+from monai.networks.blocks import Convolution
+from monai.networks.nets.controlnet import ControlNet, ControlNetConditioningEmbedding, zero_module
+from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_block, get_timestep_embedding
+from monai.utils import ensure_tuple_rep
 
 
 class ControlNetMaisi(ControlNet):
@@ -46,6 +49,7 @@ class ControlNetMaisi(ControlNet):
         include_fc: whether to include the final linear layer. Default to False.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        include_modality_input: if True, use modality input.
     """
 
     def __init__(
@@ -70,29 +74,199 @@ class ControlNetMaisi(ControlNet):
         include_fc: bool = False,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
+        include_modality_input: bool = False,
     ) -> None:
-        super().__init__(
-            spatial_dims,
-            in_channels,
-            num_res_blocks,
-            num_channels,
-            attention_levels,
-            norm_num_groups,
-            norm_eps,
-            resblock_updown,
-            num_head_channels,
-            with_conditioning,
-            transformer_num_layers,
-            cross_attention_dim,
-            num_class_embeds,
-            upcast_attention,
-            conditioning_embedding_in_channels,
-            conditioning_embedding_num_channels,
-            include_fc,
-            use_combined_linear,
-            use_flash_attention,
-        )
+        nn.Module.__init__(self)
+        if with_conditioning is True and cross_attention_dim is None:
+            raise ValueError(
+                "ControlNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
+                "to be specified when with_conditioning=True."
+            )
+        if cross_attention_dim is not None and with_conditioning is False:
+            raise ValueError("ControlNet expects with_conditioning=True when specifying the cross_attention_dim.")
+
+        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+            raise ValueError(
+                f"ControlNet expects all channels to be a multiple of norm_num_groups, but got"
+                f" channels={num_channels} and norm_num_groups={norm_num_groups}"
+            )
+
+        if len(num_channels) != len(attention_levels):
+            raise ValueError(
+                f"ControlNet expects channels to have the same length as attention_levels, but got "
+                f"channels={num_channels} and attention_levels={attention_levels}"
+            )
+
+        if isinstance(num_head_channels, int):
+            num_head_channels = ensure_tuple_rep(num_head_channels, len(attention_levels))
+
+        if len(num_head_channels) != len(attention_levels):
+            raise ValueError(
+                f"num_head_channels should have the same length as attention_levels, but got channels={num_channels} "
+                f"and attention_levels={attention_levels} . For the i levels without attention,"
+                " i.e. `attention_level[i]=False`, the num_head_channels[i] will be ignored."
+            )
+
+        if isinstance(num_res_blocks, int):
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+
+        if len(num_res_blocks) != len(num_channels):
+            raise ValueError(
+                f"`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
+                f"`num_channels`, but got num_res_blocks={num_res_blocks} and channels={num_channels}."
+            )
+
+        self.in_channels = in_channels
+        self.block_out_channels = num_channels
+        self.num_res_blocks = num_res_blocks
+        self.attention_levels = attention_levels
+        self.num_head_channels = num_head_channels
+        self.with_conditioning = with_conditioning
         self.use_checkpointing = use_checkpointing
+        self.include_modality_input = include_modality_input
+
+        self.conv_in = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=num_channels[0],
+            strides=1,
+            kernel_size=3,
+            padding=1,
+            conv_only=True,
+        )
+
+        time_embed_dim = num_channels[0] * 4
+        self.time_embed = self._create_embedding_module(num_channels[0], time_embed_dim)
+
+        self.num_class_embeds = num_class_embeds
+        if num_class_embeds is not None:
+            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
+
+        new_time_embed_dim = time_embed_dim
+        if self.include_modality_input:
+            self.modality_layer = self._create_embedding_module(1, time_embed_dim)
+            new_time_embed_dim += time_embed_dim
+
+        self.controlnet_cond_embedding = ControlNetConditioningEmbedding(
+            spatial_dims=spatial_dims,
+            in_channels=conditioning_embedding_in_channels,
+            channels=conditioning_embedding_num_channels,
+            out_channels=num_channels[0],
+        )
+
+        self.down_blocks = nn.ModuleList([])
+        self.controlnet_down_blocks = nn.ModuleList([])
+        output_channel = num_channels[0]
+
+        controlnet_block = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=output_channel,
+            out_channels=output_channel,
+            strides=1,
+            kernel_size=1,
+            padding=0,
+            conv_only=True,
+        )
+        controlnet_block = zero_module(controlnet_block.conv)
+        self.controlnet_down_blocks.append(controlnet_block)
+
+        for i in range(len(num_channels)):
+            input_channel = output_channel
+            output_channel = num_channels[i]
+            is_final_block = i == len(num_channels) - 1
+
+            down_block = get_down_block(
+                spatial_dims=spatial_dims,
+                in_channels=input_channel,
+                out_channels=output_channel,
+                temb_channels=new_time_embed_dim,
+                num_res_blocks=num_res_blocks[i],
+                norm_num_groups=norm_num_groups,
+                norm_eps=norm_eps,
+                add_downsample=not is_final_block,
+                resblock_updown=resblock_updown,
+                with_attn=(attention_levels[i] and not with_conditioning),
+                with_cross_attn=(attention_levels[i] and with_conditioning),
+                num_head_channels=num_head_channels[i],
+                transformer_num_layers=transformer_num_layers,
+                cross_attention_dim=cross_attention_dim,
+                upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
+            )
+            self.down_blocks.append(down_block)
+
+            for _ in range(num_res_blocks[i]):
+                controlnet_block = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=output_channel,
+                    out_channels=output_channel,
+                    strides=1,
+                    kernel_size=1,
+                    padding=0,
+                    conv_only=True,
+                )
+                controlnet_block = zero_module(controlnet_block)
+                self.controlnet_down_blocks.append(controlnet_block)
+            if not is_final_block:
+                controlnet_block = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=output_channel,
+                    out_channels=output_channel,
+                    strides=1,
+                    kernel_size=1,
+                    padding=0,
+                    conv_only=True,
+                )
+                controlnet_block = zero_module(controlnet_block)
+                self.controlnet_down_blocks.append(controlnet_block)
+
+        mid_block_channel = num_channels[-1]
+        self.middle_block = get_mid_block(
+            spatial_dims=spatial_dims,
+            in_channels=mid_block_channel,
+            temb_channels=new_time_embed_dim,
+            norm_num_groups=norm_num_groups,
+            norm_eps=norm_eps,
+            with_conditioning=with_conditioning,
+            num_head_channels=num_head_channels[-1],
+            transformer_num_layers=transformer_num_layers,
+            cross_attention_dim=cross_attention_dim,
+            upcast_attention=upcast_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
+        )
+
+        controlnet_block = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=output_channel,
+            out_channels=output_channel,
+            strides=1,
+            kernel_size=1,
+            padding=0,
+            conv_only=True,
+        )
+        self.controlnet_mid_block = zero_module(controlnet_block)
+
+    def _create_embedding_module(self, input_dim, embed_dim):
+        model = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.SiLU(), nn.Linear(embed_dim, embed_dim))
+        return model
+
+    def _validate_input_tensor(self, tensor, tensor_name, include_flag_name, expected_last_dim, emb):
+        if tensor is None:
+            raise ValueError(f"{tensor_name} should be provided when {include_flag_name} is True.")
+        if tensor.dim() != 2 or tensor.shape[1] != expected_last_dim:
+            raise ValueError(f"{tensor_name} should have shape (N, {expected_last_dim}), got {tuple(tensor.shape)}.")
+        return tensor.to(dtype=emb.dtype)
+
+    def _get_input_embeddings(self, emb, modality):
+        if self.include_modality_input:
+            modality = self._validate_input_tensor(modality, "modality_tensor", "include_modality_input", 1, emb)
+            _emb = self.modality_layer(modality)
+            emb = torch.cat((emb, _emb), dim=1)
+        return emb
 
     def forward(
         self,
@@ -102,8 +276,9 @@ class ControlNetMaisi(ControlNet):
         conditioning_scale: float = 1.0,
         context: torch.Tensor | None = None,
         class_labels: torch.Tensor | None = None,
+        modality_tensor: torch.Tensor | None = None,
     ) -> tuple[list[torch.Tensor], torch.Tensor]:
-        emb = self._prepare_time_and_class_embedding(x, timesteps, class_labels)
+        emb = self._prepare_time_and_class_embedding(x, timesteps, class_labels, modality_tensor)
         h = self._apply_initial_convolution(x)
         if self.use_checkpointing:
             controlnet_cond = torch.utils.checkpoint.checkpoint(
@@ -121,7 +296,7 @@ class ControlNetMaisi(ControlNet):
 
         return down_block_res_samples, mid_block_res_sample
 
-    def _prepare_time_and_class_embedding(self, x, timesteps, class_labels):
+    def _prepare_time_and_class_embedding(self, x, timesteps, class_labels, modality_tensor):
         # 1. time
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
 
@@ -139,6 +314,7 @@ class ControlNetMaisi(ControlNet):
             class_emb = class_emb.to(dtype=x.dtype)
             emb = emb + class_emb
 
+        emb = self._get_input_embeddings(emb, modality_tensor)
         return emb
 
     def _apply_initial_convolution(self, x):
