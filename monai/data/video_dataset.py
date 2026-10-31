@@ -140,7 +140,13 @@ class VideoDataset:
     def get_frame(self) -> Any:
         """Get next frame. For a file, this will be the next frame, whereas for a camera
         source, it will be the next available frame."""
-        ret, frame = self._get_cap().read()
+        #Assign explicit videocapture object to cap to realease file to avoid error in multiprocessing
+        if self.multiprocessing:
+            cap = self._get_cap()
+            ret, frame = cap.read()
+            cap.release()
+        else:
+            ret, frame = self._get_cap().read()
         if not ret:
             raise RuntimeError("Failed to read frame.")
         # Switch color order if desired
