@@ -341,9 +341,11 @@ def sliding_window_inference(
             final_slicing: list[slice] = []
             for sp in range(num_spatial_dims):
                 si = num_spatial_dims - sp - 1
+                # `float(...)` first: under torch.jit tracing the shape-derived values are
+                # (single-element) tensors, for which round() is not defined
                 slice_dim = slice(
-                    int(round(pad_size[sp * 2] * zoom_scale[si])),
-                    int(round((pad_size[sp * 2] + image_size_[si]) * zoom_scale[si])),
+                    int(round(float(pad_size[sp * 2] * zoom_scale[si]))),
+                    int(round(float((pad_size[sp * 2] + image_size_[si]) * zoom_scale[si]))),
                 )
                 final_slicing.insert(0, slice_dim)
             output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
