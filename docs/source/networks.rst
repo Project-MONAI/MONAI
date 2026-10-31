@@ -616,6 +616,13 @@ Nets
 .. autoclass:: DynUnet
 .. autoclass:: Dynunet
 
+`UMamba`
+~~~~~~~~
+.. autoclass:: UMamba
+  :members:
+.. autoclass:: MambaBlock
+  :members:
+
 `UNet`
 ~~~~~~
 .. autoclass:: UNet
