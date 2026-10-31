@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
 
 import numpy as np
 import torch
@@ -149,6 +150,55 @@ class TestComputeROCAUC(unittest.TestCase):
         result = metric.aggregate(average=average)  # test optional argument
         metric.reset()
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
+
+    @parameterized.expand(
+        product(
+            ("cpu", "cuda"),
+            (torch.uint8, torch.int8, torch.int64, torch.bool, torch.float16, torch.float32, torch.float64),
+        )
+    )
+    def test_tied_scores_label_dtype(self, device, dtype):
+        """Check tied-score ROC AUC across label dtypes on CPU and available CUDA devices."""
+        if device == "cuda" and not torch.cuda.is_available():
+            self.skipTest("CUDA is not available.")
+
+        y = torch.tensor([0] * 4096 + [1] * 4096, dtype=dtype, device=device)
+        y_pred = torch.zeros(y.shape, device=device)
+        expected = 0.5
+
+        result = compute_roc_auc(y_pred, y)
+        np.testing.assert_allclose(result, expected, rtol=1e-6)
+
+        metric = ROCAUCMetric()
+        for predictions, labels in zip(y_pred.split(128), y.split(128)):
+            metric(predictions, labels)
+        np.testing.assert_allclose(metric.aggregate(), expected, rtol=1e-6)
+
+    @parameterized.expand(
+        product(
+            ("cpu", "cuda"),
+            (torch.uint8, torch.int8, torch.int64, torch.bool, torch.float16, torch.float32, torch.float64),
+        )
+    )
+    def test_weighted_label_dtype(self, device, dtype):
+        """Check weighted scores with supports above float16's exact integer range."""
+        if device == "cuda" and not torch.cuda.is_available():
+            self.skipTest("CUDA is not available.")
+
+        y = torch.tensor([[1, 0]] * 3072 + [[0, 1]] * 1536, dtype=dtype, device=device)
+        y_pred = torch.zeros((4608, 2), device=device)
+        y_pred[:3072, 0] = 1
+        expected_values = [("none", [1.0, 0.5]), ("macro", 0.75), ("weighted", 5 / 6)]
+
+        for average, expected in expected_values:
+            with self.subTest(average=average):
+                result = compute_roc_auc(y_pred, y, average=average)
+                np.testing.assert_allclose(result, expected, rtol=1e-6)
+
+                metric = ROCAUCMetric(average=average)
+                for predictions, labels in zip(y_pred.split(128), y.split(128)):
+                    metric(predictions, labels)
+                np.testing.assert_allclose(metric.aggregate(), expected, rtol=1e-6)
 
 
 if __name__ == "__main__":
