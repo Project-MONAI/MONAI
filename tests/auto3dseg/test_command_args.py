@@ -132,6 +132,12 @@ class TestBundleAlgoLoadState(unittest.TestCase):
         self.assertEqual(algo.device_setting["n_devices"], 2)
         self.assertEqual(algo.device_setting["NUM_NODES"], 1)
 
+    def test_state_keys_do_not_need_a_constructed_instance(self):
+        """A deserializer that builds the object without ``__init__`` still gets key validation, not AttributeError."""
+        algo = object.__new__(BundleAlgo)
+        algo.load_state_dict({"template_path": "$len([1, 2])"})
+        self.assertEqual(algo.template_path, "$len([1, 2])")
+
 
 if __name__ == "__main__":
     unittest.main()

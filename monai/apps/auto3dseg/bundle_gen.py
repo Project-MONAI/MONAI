@@ -120,6 +120,21 @@ class BundleAlgo(Algo):
 
     """
 
+    # Keys carried by ``state_dict``/``load_state_dict``. Declared once so that a partially initialized instance
+    # (for example one built without running ``__init__``) can still validate the keys of a restored state.
+    _STATE_KEYS = (
+        "template_path",
+        "data_stats_files",
+        "data_list_file",
+        "mlflow_tracking_uri",
+        "mlflow_experiment_name",
+        "output_path",
+        "name",
+        "best_metric",
+        "fill_records",
+        "device_setting",
+    )
+
     def __init__(self, template_path: PathLike | None = None):
         """
         Create an Algo instance based on the predefined Algo template.
@@ -437,18 +452,7 @@ class BundleAlgo(Algo):
             template_path is excluded as it is determined dynamically at load time
             based on which path successfully imports the Algo class.
         """
-        return {
-            "template_path": self.template_path,
-            "data_stats_files": self.data_stats_files,
-            "data_list_file": self.data_list_file,
-            "mlflow_tracking_uri": self.mlflow_tracking_uri,
-            "mlflow_experiment_name": self.mlflow_experiment_name,
-            "output_path": self.output_path,
-            "name": self.name,
-            "best_metric": self.best_metric,
-            "fill_records": self.fill_records,
-            "device_setting": self.device_setting,
-        }
+        return {key: getattr(self, key) for key in self._STATE_KEYS}
 
     def load_state_dict(self, state: dict) -> None:
         """
@@ -457,7 +461,7 @@ class BundleAlgo(Algo):
         Args:
             state: A dictionary containing the state to restore.
         """
-        allowed = set(self.state_dict())
+        allowed = set(self._STATE_KEYS)
         unknown = sorted(set(state) - allowed)
         if unknown:
             raise ValueError(
