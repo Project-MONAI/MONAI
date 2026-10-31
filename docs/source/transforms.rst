@@ -528,6 +528,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`CLAHE`
+"""""""
+.. autoclass:: CLAHE
+    :members:
+    :special-members: __call__
+
 
 `ForegroundMask`
 """"""""""""""""
@@ -1659,6 +1665,13 @@ Intensity (Dict)
 .. autoclass:: HistogramNormalized
     :members:
     :special-members: __call__
+
+`CLAHEd`
+""""""""
+.. autoclass:: CLAHEd
+    :members:
+    :special-members: __call__
+
 
 `ForegroundMaskd`
 """""""""""""""""
