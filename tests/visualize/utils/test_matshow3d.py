@@ -28,7 +28,7 @@ from monai.transforms import (
 )
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
-from tests.test_utils import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule, get_matplotlib_baseline
 
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
@@ -57,7 +57,7 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_test.png", tempimg, 5e-2)
+            comp = compare_images(get_matplotlib_baseline("matshow3d_test.png"), tempimg, 5e-2)
             self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
 
         _, axes = pyplot.subplots()
@@ -86,8 +86,9 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2, in_decorator=True)
-            if comp:
+            baseline = get_matplotlib_baseline("matshow3d_patch_test.png")
+            comp = compare_images(baseline, tempimg, 5e-2, in_decorator=True)
+            if comp and baseline == Path(testing_dir) / "matshow3d_patch_test.png":
                 print("not none comp: ", comp)  # matplotlib 3.2.2
                 np.testing.assert_allclose(comp["rms"], 30.786983, atol=1e-3, rtol=1e-3)
             else:
@@ -125,7 +126,7 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_rgb_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_rgb_test.png", tempimg, 5e-2)
+            comp = compare_images(get_matplotlib_baseline("matshow3d_rgb_test.png"), tempimg, 5e-2)
             self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
 
 
