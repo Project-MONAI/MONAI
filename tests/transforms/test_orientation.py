@@ -329,6 +329,9 @@ class TestOrientationCase(unittest.TestCase):
     def test_oblique_boundary_geometry(self, target, init_param):
         """Allow two arrangements at the 45-degree tie in this oblique boundary test.
 
+        The affine lies exactly on a nearest-axis boundary, so either reference
+        layout is valid when the implementation resolves the tie.
+
         Args:
             target: Chooses the LPS or RAS references.
             init_param: Configures the orientation.
