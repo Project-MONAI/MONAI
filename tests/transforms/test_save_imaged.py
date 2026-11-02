@@ -130,6 +130,7 @@ class TestSaveImaged(unittest.TestCase):
 
 @unittest.skipUnless(has_nibabel, "nibabel not installed")
 class TestSaveImagedChannelDim(unittest.TestCase):
+    """Check that SaveImaged keeps channel inference local to each saved image or label."""
 
     @parameterized.expand(
         [
@@ -139,6 +140,18 @@ class TestSaveImagedChannelDim(unittest.TestCase):
         ]
     )
     def test_mixed_channel_dimensions(self, _, keys, use_metatensor):
+        """Preserve image and label values across key orders and repeated saves.
+
+        Each of two calls must save the channel-less image unchanged and the
+        single-channel label with its singleton channel axis removed. Both saved
+        arrays must have shape (2, 3, 4) and retain all their respective input values.
+
+        Args:
+            _: Case name used to identify the parameterized test.
+            keys: Order in which the image and label are saved.
+            use_metatensor: Whether to use MetaTensor inputs with embedded metadata
+                instead of NumPy arrays with separate metadata dictionaries.
+        """
         image = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
         label = (image + 100)[None]
         with tempfile.TemporaryDirectory() as tempdir:

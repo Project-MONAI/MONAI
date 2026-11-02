@@ -80,6 +80,7 @@ class TestSaveImage(unittest.TestCase):
 
 @unittest.skipUnless(has_nibabel, "nibabel not installed")
 class TestSaveImageChannelDim(unittest.TestCase):
+    """Check that reusing SaveImage preserves saved values and configured channel options."""
 
     @parameterized.expand(
         [
@@ -92,6 +93,19 @@ class TestSaveImageChannelDim(unittest.TestCase):
         ]
     )
     def test_reuse_after_channel_less(self, _, input_type, channels, channel_dim, with_metadata):
+        """Save channel-less and channel-bearing inputs without leaking inferred options.
+
+        Both saved arrays must retain all input values. The second saved array omits
+        a singleton channel axis or places multiple channels last, while the saver's
+        configured data options remain unchanged.
+
+        Args:
+            _: Case name used to identify the parameterized test.
+            input_type: Input representation: numpy, tensor, or metatensor.
+            channels: Number of channels in the second input.
+            channel_dim: Channel axis configured for the second input.
+            with_metadata: Whether to pass explicit metadata on the second save.
+        """
         spatial_shape = (2, 3, 4)
         first = np.arange(24, dtype=np.float32).reshape(spatial_shape)
         second = np.arange(channels * 24, dtype=np.float32).reshape((channels, *spatial_shape)) + 100
