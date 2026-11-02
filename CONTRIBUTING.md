@@ -45,6 +45,11 @@ We encourage you to create pull requests early. It helps us track the contributi
 
 Please note that, as per PyTorch, MONAI uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
+The repository also carries [`AGENTS.md`](AGENTS.md) files, which describe how the code base works for
+AI coding assistants. They are treated as part of the documentation: when a change makes a
+convention they describe obsolete, update the matching file in the same pull request, and add a
+leaf file next to the code it describes when a package needs its own notes.
+
 ### Preparing pull requests
 
 To ensure the code quality, MONAI relies on several linting tools ([black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort), [ruff](https://github.com/astral-sh/ruff)),
