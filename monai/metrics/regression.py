@@ -34,6 +34,9 @@ class RegressionMetric(CumulativeIterationMetric):
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    When both inputs use ``uint8``, ``int8``, or ``int16``, they are converted to the default floating-point
+    dtype (at least ``float32``) before computation to avoid integer overflow and unsupported reductions.
+
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
@@ -82,6 +85,10 @@ class RegressionMetric(CumulativeIterationMetric):
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
+        small_integer_dtypes = (torch.uint8, torch.int8, torch.int16)
+        if y_pred.dtype in small_integer_dtypes and y.dtype in small_integer_dtypes:
+            dtype = torch.promote_types(torch.get_default_dtype(), torch.float32)
+            y_pred, y = y_pred.to(dtype=dtype), y.to(dtype=dtype)
         return self._compute_metric(y_pred, y)
 
 
