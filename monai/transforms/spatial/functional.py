@@ -216,6 +216,17 @@ def spatial_resample(
     if isinstance(mode, int) or _use_compiled:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
+        if align_corners and not isinstance(mode, int):
+            # Resample/AffineGrid re-apply the align_corners=True scalings; cancel them so `xform`
+            # (already in voxel space) reaches grid_pull unchanged.
+            _eye = torch.eye(spatial_rank + 1, dtype=xform.dtype, device=xform.device)
+            _s_inv, _d_inv, _tm = _eye.clone(), _eye.clone(), _eye.clone()
+            for _i in range(spatial_rank):
+                _din, _dout = max(2, int(in_sp_size[_i])), max(2, int(spatial_size[_i]))
+                _s_inv[_i, _i] = _din / (_din - 1)
+                _d_inv[_i, _i] = (_dout - 1) / _dout
+                _tm[_i, -1] = -0.5
+            xform = _tm @ _s_inv @ xform @ _d_inv
         affine_xform = monai.transforms.Affine(
             affine=xform,
             spatial_size=spatial_size,

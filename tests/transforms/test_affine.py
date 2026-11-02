@@ -18,11 +18,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data import MetaTensor, set_track_meta
-from monai.transforms import Affine, Resize
+from monai.transforms import Affine, RandRotate, Resize
 from monai.transforms.lazy.functional import apply_pending
 from monai.utils import optional_import
-from tests.lazy_transforms_utils import test_resampler_lazy
+from tests.lazy_transforms_utils import get_apply_param, test_resampler_lazy
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
 
 TESTS = []
@@ -290,6 +291,27 @@ class TestAffineConsistency(unittest.TestCase):
                     out = call(im, ac)
                     ref = Resize(align_corners=ac, spatial_size=(sp_size, sp_size), mode="bilinear")(im)
                     assert_allclose(out, ref, rtol=1e-4, atol=1e-4, type_test=False)
+
+    @unittest.skipUnless(USE_COMPILED, "requires the compiled extension (BUILD_MONAI=1)")
+    def test_lazy_rotate_align_corners_compiled(self):
+        """lazy resampling with the compiled backend and align_corners=True must match eager."""
+        init = dict(
+            range_x=np.pi,
+            prob=1.0,
+            keep_size=False,
+            mode="nearest",
+            padding_mode="zeros",
+            dtype=np.float64,
+            align_corners=True,
+        )
+        img = MetaTensor(torch.arange(64 * 48, dtype=torch.float32).reshape(1, 64, 48))
+        xform = RandRotate(**init)
+        xform.set_random_state(seed=243)
+        eager = xform(img)
+        xform.set_random_state(seed=243)
+        xform.lazy = True
+        lazy = apply_pending(xform(img), overrides=get_apply_param(init, {"img": img}))[0]
+        assert_allclose(lazy, eager, rtol=1e-3, atol=1e-3)
 
 
 if __name__ == "__main__":
