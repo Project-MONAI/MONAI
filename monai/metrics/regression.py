@@ -82,6 +82,18 @@ class RegressionMetric(CumulativeIterationMetric):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        """Validate inputs and promote small integer pairs before computing the metric.
+
+        Pairs of uint8, int8, or int16 tensors use the default floating-point dtype,
+        with at least float32 precision. Other input dtypes are left unchanged.
+
+        Args:
+            y_pred: Batch-first prediction tensor.
+            y: Batch-first reference tensor with the same shape as ``y_pred``.
+
+        Returns:
+            Metric values produced by the concrete metric implementation.
+        """
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
