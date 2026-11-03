@@ -40,7 +40,11 @@ try:
     BUILD_CPP = True
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
-    BUILD_CUDA = FORCE_CUDA or (torch.cuda.is_available() and (CUDA_HOME is not None))
+    # On a ROCm build of torch, `CUDA_HOME` is None and the toolkit is located by `ROCM_HOME`
+    # instead; `CUDAExtension` hipifies the .cu sources transparently in that case. Accept
+    # either so the extensions are not silently skipped on ROCm.
+    _toolkit_home = CUDA_HOME or getattr(torch.utils.cpp_extension, "ROCM_HOME", None)
+    BUILD_CUDA = FORCE_CUDA or (torch.cuda.is_available() and (_toolkit_home is not None))
 
     _pt_version = version.parse(torch.__version__).release
     if _pt_version is None or len(_pt_version) < 3:

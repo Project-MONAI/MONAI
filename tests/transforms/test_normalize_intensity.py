@@ -17,7 +17,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import NormalizeIntensity
+from monai.data import MetaTensor, get_track_meta, set_track_meta
+from monai.transforms import Compose, NormalizeIntensity
 from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TESTS = []
@@ -137,6 +138,52 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         normalizer = NormalizeIntensity(nonzero=True, channel_wise=True, subtrahend=[1, 2], divisor=[1])
         with self.assertRaises(ValueError):
             normalizer(input_data)
+
+    @parameterized.expand(
+        [
+            ["global_computed", {}],
+            ["channelwise_computed", {"channel_wise": True}],
+            ["global_explicit", {"subtrahend": 2.0, "divisor": 3.0}],
+            ["channelwise_explicit", {"subtrahend": [1.0, 2.0, 3.0], "divisor": [2.0, 3.0, 4.0], "channel_wise": True}],
+            ["nonzero", {"nonzero": True}],
+            ["channelwise_nonzero", {"nonzero": True, "channel_wise": True}],
+            ["nonzero_explicit", {"nonzero": True, "subtrahend": 2.0, "divisor": 3.0}],
+        ]
+    )
+    def test_inverse(self, _, args):
+        self.addCleanup(set_track_meta, get_track_meta())
+        set_track_meta(True)
+        img = MetaTensor(torch.randn(3, 6, 6) * 5 + 2)
+        img[0, :2] = 0  # some zero voxels, which nonzero=True must leave untouched
+        img[2] = 0  # an all-zero channel, where nonzero=True has nothing to normalize
+        normalizer = NormalizeIntensity(**args)
+        out = normalizer(img.clone())
+        inv = normalizer.inverse(out)
+        assert_allclose(inv, img, type_test=False, rtol=1e-4, atol=1e-4)
+        self.assertEqual(len(inv.applied_operations), 0)
+
+    @parameterized.expand([["global", {}], ["channelwise", {"channel_wise": True}]])
+    def test_inverse_nonzero_value_equal_to_mean(self, _, args):
+        """A non-zero voxel equal to the mean becomes exactly 0 and must still be restored."""
+        self.addCleanup(set_track_meta, get_track_meta())
+        set_track_meta(True)
+        # mean of the non-zero voxels is 2 globally and in each channel, so the voxels equal to 2 become 0
+        img = MetaTensor(torch.tensor([[0.0, 1.0, 2.0, 3.0], [0.0, 0.0, 0.0, 2.0]]))
+        normalizer = NormalizeIntensity(nonzero=True, **args)
+        out = normalizer(img.clone())
+        self.assertEqual(out[0, 2].item(), 0.0)
+        self.assertEqual(out[1, 3].item(), 0.0)
+        inv = normalizer.inverse(out)
+        assert_allclose(inv, img, type_test=False, rtol=0, atol=0)
+
+    def test_inverse_nonzero_in_compose(self):
+        self.addCleanup(set_track_meta, get_track_meta())
+        set_track_meta(True)
+        img = MetaTensor(torch.randn(2, 5, 5))
+        img[0, 0] = 0
+        transform = Compose([NormalizeIntensity(nonzero=True)])
+        inv = transform.inverse(transform(img.clone()))
+        assert_allclose(inv, img, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
