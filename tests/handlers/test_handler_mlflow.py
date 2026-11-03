@@ -560,7 +560,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             data_dir = os.path.join(tempdir, "endoscopic_tool_dataset")
             with skip_if_downloading_fails():
                 if not os.path.exists(data_dir):
-                    download_and_extract(resource, compressed_file, tempdir, md5)
+                    download_and_extract(resource, compressed_file, tempdir, md5, "md5")
 
                 download(test_bundle_name, bundle_dir=tempdir)
 

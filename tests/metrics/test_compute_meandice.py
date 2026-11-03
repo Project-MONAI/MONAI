@@ -290,6 +290,19 @@ TEST_CASE_17 = [
     [[0.6400], [1.0], [1.0], [1.0], [1.0]],
 ]
 
+# Testcase for per_component DiceMetric with ignore_index: a disagreement confined
+# entirely to the ignored (sentinel, all-zero one-hot) region must not affect the score.
+y = torch.zeros((1, 2, 8, 8))
+y_hat = torch.zeros((1, 2, 8, 8))
+y[0, 1, :, :4] = 1
+y_hat[0, 1, :, :4] = 1
+y_hat[0, 1, :, 4:] = 1  # disagreement, but this region is ignored below
+y[0, 0] = 1 - y[0, 1]
+y[0, 0, :, 4:] = 0  # sentinel: both channels 0 -> ignored by ignore_index=2
+y_hat[0, 0] = 1 - y_hat[0, 1]
+
+TEST_CASE_18 = [{"per_component": True, "ignore_empty": False, "ignore_index": 2}, {"y": y, "y_pred": y_hat}, [[1.0]]]
+
 
 class TestComputeMeanDice(unittest.TestCase):
 
@@ -342,7 +355,7 @@ class TestComputeMeanDice(unittest.TestCase):
             np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     # CC DiceMetric  tests
-    @parameterized.expand([TEST_CASE_16, TEST_CASE_17])
+    @parameterized.expand([TEST_CASE_16, TEST_CASE_17, TEST_CASE_18])
     @unittest.skipUnless(has_ndimage, "Requires scipy.ndimage.")
     def test_cc_dice_value_nogpu(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)

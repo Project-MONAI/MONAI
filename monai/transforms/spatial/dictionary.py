@@ -18,7 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Hashable, Mapping, Sequence
+from collections.abc import Hashable, Mapping, MutableMapping, Sequence
 from typing import Any, cast
 
 import numpy as np
@@ -523,7 +523,13 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 lazy=lazy_,
             )
             if isinstance(d[key], MetaTensor):
-                meta_keys = [k for k in d.keys() if k is not None and k.startswith(f"{key}_")]
+                # only refresh metadata dictionaries (e.g. "image_meta_dict"); other entries that merely
+                # share the prefix (e.g. a string "image_path") must be left untouched
+                meta_keys = [
+                    k
+                    for k in d.keys()
+                    if isinstance(k, str) and k.startswith(f"{key}_") and isinstance(d[k], MutableMapping)
+                ]
                 for meta_key in meta_keys:
                     if "filename_or_obj" in d[key].meta and is_supported_format(
                         d[key].meta["filename_or_obj"], ["nii", "nii.gz"]
