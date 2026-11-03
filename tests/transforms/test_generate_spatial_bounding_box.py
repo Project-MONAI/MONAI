@@ -17,7 +17,13 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import generate_spatial_bounding_box
+from monai.utils import optional_import
 from tests.test_utils import TEST_NDARRAYS
+
+_, has_skimage = optional_import("skimage")
+_, has_cucim = optional_import("cucim.skimage")
+# get_largest_connected_component_mask needs skimage or cucim, absent in the min-dep tests
+HAS_CC_BACKEND = has_skimage or has_cucim
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -101,6 +107,49 @@ for p in TEST_NDARRAYS:
             ([0, 0], [5, 5]),
         ]
     )
+    # a large 3x3 blob plus a single disconnected pixel (e.g. a scanner marker/text annotation
+    # away from the anatomy of interest) -- without keep_largest_component the box stretches to
+    # cover both; with it, only the largest connected component (the blob) is kept.
+    _two_component_img = p(
+        np.array(
+            [
+                [
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0],
+                ]
+            ]
+        )
+    )
+    TESTS.append(
+        [
+            {
+                "img": _two_component_img,
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": 0,
+                "keep_largest_component": False,
+            },
+            ([1, 1], [6, 6]),
+        ]
+    )
+    if HAS_CC_BACKEND:
+        TESTS.append(
+            [
+                {
+                    "img": _two_component_img,
+                    "select_fn": lambda x: x > 0,
+                    "channel_indices": None,
+                    "margin": 0,
+                    "keep_largest_component": True,
+                },
+                ([1, 1], [4, 4]),
+            ]
+        )
 
 
 class TestGenerateSpatialBoundingBox(unittest.TestCase):
