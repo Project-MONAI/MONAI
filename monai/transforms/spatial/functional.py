@@ -45,7 +45,6 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
-from monai.utils.enums import TransformBackends
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -214,11 +213,10 @@ def spatial_resample(
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
     _use_compiled = USE_COMPILED and not _compiled_unsupported(img.device)
-    backend, interp_mode, _, _ = resolves_modes(mode, padding_mode, backend=None, use_compiled=_use_compiled)
     if isinstance(mode, int) or _use_compiled:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
-        if align_corners and backend == TransformBackends.NUMPY and interp_mode == 1:
+        if align_corners and not isinstance(mode, int):
             # Resample/AffineGrid re-apply the align_corners=True scalings; cancel them so `xform`
             # (already in voxel space) reaches grid_pull unchanged.
             _eye = torch.eye(spatial_rank + 1, dtype=xform.dtype, device=xform.device)
