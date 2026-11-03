@@ -1,7 +1,6 @@
 name: tests
 
 on:
-  # quick tests for pull requests and the releasing branches
   push:
     branches:
       - dev
@@ -12,6 +11,10 @@ on:
       - dev
       - main
       - releasing/*
+  # schedule:
+  #   - cron: "0 2 * * 3"  # at 02:00 UTC Wednesday
+  # Allows you to run this workflow manually from the Actions tab
+  # workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,8 +30,8 @@ env:
   PYTHON_VER1: '3.11'
   PYTHON_VER2: '3.12'
   PYTHON_VER3: '3.13'
-  PYTHON_VER4: '3.14'
-  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  # PYTHON_VER4: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  # PYTHON_VER5: '3.15'  
   # supported versions of PyTorch
   PYTORCH_VER1: '2.12.1'
   PYTORCH_VER2: '2.13.0'
@@ -54,6 +57,10 @@ jobs:
       fail-fast: false
     timeout-minutes: 360
     steps:
+    - name: Install build tools
+      run: |
+        apt update
+        apt install build-essential
     - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
