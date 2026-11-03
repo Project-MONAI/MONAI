@@ -15,6 +15,7 @@ A collection of "functional" transforms for spatial operations.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -154,7 +155,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 def pad_func(
     img: torch.Tensor,
-    to_pad: tuple[tuple[int, int]],
+    to_pad: Sequence[tuple[int, int]],
     transform_info: dict,
     mode: str = PytorchPadMode.CONSTANT,
     lazy: bool = False,
