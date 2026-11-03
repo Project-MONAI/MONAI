@@ -59,8 +59,8 @@ jobs:
     steps:
     - name: Install build tools
       run: |
-        apt update
-        apt install build-essential
+        sudo apt update
+        sudo apt install build-essential
     - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
