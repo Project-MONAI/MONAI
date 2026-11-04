@@ -269,8 +269,9 @@ def softmax_focal_loss(
 
     `alpha` can be a scalar in [0, 1], in which case the first channel (background) is weighted by
     `1 - alpha` and all other channels by `alpha`. It can also be a tensor of per-class weights,
-    one per channel, which are not restricted to [0, 1]. Only the target class contributes to the loss,
-    so each weight applies to the voxels whose target is that class.
+    one per channel, which are not restricted to [0, 1]. Each channel's term is scaled by its target value.
+    With one-hot targets only the target class contributes, so each weight applies to the voxels of that
+    class. With soft or multi-hot targets, every channel with a nonzero target contributes with its own weight.
     """
     input_ls = input.log_softmax(1)
     loss: torch.Tensor = -(1 - input_ls.exp()).pow(gamma) * input_ls * target
@@ -307,10 +308,11 @@ def sigmoid_focal_loss(
 
     where p = sigmoid(x), pt = p if label is 1 or 1 - p if label is 0
 
-    `alpha` can be a scalar in [0, 1], as in the alpha-balanced Focal loss: positive targets are weighted
-    by `alpha` and negative targets by `1 - alpha`. It can also be a tensor of per-class weights, one per
-    channel: `alpha[c]` is applied to the positive targets of class `c` only, negative targets keep weight 1,
-    and the values are not restricted to [0, 1].
+    `alpha` can be a scalar in [0, 1], as in the alpha-balanced Focal loss: targets equal to 1 are weighted
+    by `alpha`, targets equal to 0 by `1 - alpha`, and fractional targets by the interpolated value.
+    It can also be a tensor of per-class weights, one per channel: `alpha[c]` is applied only where the
+    target of class `c` equals 1, all other target values keep weight 1, and the values are not restricted
+    to [0, 1].
     """
     # computing binary cross entropy with logits
     # equivalent to F.binary_cross_entropy_with_logits(input, target, reduction='none')
