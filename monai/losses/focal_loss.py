@@ -80,14 +80,19 @@ class FocalLoss(_Loss):
         """
         Args:
             include_background: if False, channel index 0 (background category) is excluded from the loss calculation.
-                If False, `alpha` is invalid when using softmax unless `alpha` is a sequence (explicit class weights).
+                If False, a scalar `alpha` is ignored when using softmax; a sequence `alpha` is still applied.
             to_onehot_y: whether to convert the label `y` into the one-hot format. Defaults to False.
             gamma: value of the exponent gamma in the definition of the Focal loss. Defaults to 2.
-            alpha: value of the alpha in the definition of the alpha-balanced Focal loss.
-                The value should be in [0, 1].
-                If a sequence is provided, its length must match the number of classes
-                (excluding the background class if `include_background=False`).
-                Defaults to None.
+            alpha: class balancing factor. Defaults to None (no balancing).
+
+                - scalar: the alpha of the alpha-balanced Focal loss, which should be in [0, 1].
+                  With sigmoid, positive targets are weighted by `alpha` and negative targets by `1 - alpha`.
+                  With softmax, the background class (channel 0) is weighted by `1 - alpha` and the
+                  other classes by `alpha`.
+                - sequence or tensor: per-class weights, one per channel. Its length must match the number of
+                  classes (excluding the background class if `include_background=False`). Each weight is
+                  applied to the positive targets of its class only; with sigmoid, negative targets keep
+                  weight 1 (not `1 - alpha[c]`). Values are not restricted to [0, 1].
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
                 of the sequence should be the same as the number of classes. If not ``include_background``,
@@ -261,6 +266,11 @@ def softmax_focal_loss(
 
     where p_i = exp(s_i) / sum_j exp(s_j), t is the target (ground truth) class, and
     s_j is the unnormalized score for class j.
+
+    `alpha` can be a scalar in [0, 1], in which case the first channel (background) is weighted by
+    `1 - alpha` and all other channels by `alpha`. It can also be a tensor of per-class weights,
+    one per channel, which are not restricted to [0, 1]. Only the target class contributes to the loss,
+    so each weight applies to the voxels whose target is that class.
     """
     input_ls = input.log_softmax(1)
     loss: torch.Tensor = -(1 - input_ls.exp()).pow(gamma) * input_ls * target
@@ -296,6 +306,11 @@ def sigmoid_focal_loss(
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
 
     where p = sigmoid(x), pt = p if label is 1 or 1 - p if label is 0
+
+    `alpha` can be a scalar in [0, 1], as in the alpha-balanced Focal loss: positive targets are weighted
+    by `alpha` and negative targets by `1 - alpha`. It can also be a tensor of per-class weights, one per
+    channel: `alpha[c]` is applied to the positive targets of class `c` only, negative targets keep weight 1,
+    and the values are not restricted to [0, 1].
     """
     # computing binary cross entropy with logits
     # equivalent to F.binary_cross_entropy_with_logits(input, target, reduction='none')
