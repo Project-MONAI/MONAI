@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 
 import torch
 from parameterized import parameterized
@@ -44,6 +45,21 @@ class TestResampleFunction(unittest.TestCase):
         out = resample(img, matrix, {"lazy_resample_mode": "auto", "lazy_dtype": torch.float})
         out_1 = resample(img, matrix, {"lazy_resample_mode": "other value", "lazy_dtype": torch.float})
         self.assertIs(out.dtype, out_1.dtype)  # testing dtype in different lazy_resample_mode
+
+    def test_resample_warns_on_non_float_dtype(self):
+        """Lazy resampling upcasts non-floating-point inputs to float32; the user should be warned (see issue #6713)."""
+        img = convert_to_tensor(get_arange_img((3, 3)), dtype=torch.uint8)
+        with self.assertWarns(Warning):
+            out = resample(img, torch.eye(3), {"lazy_resample_mode": "auto"})
+        self.assertIs(out.dtype, torch.float32)
+        self.assertIs(img.dtype, torch.uint8)  # the input tensor itself is not mutated
+
+    def test_resample_no_warning_for_float_dtype(self):
+        """Float32 inputs do not trigger the lazy resampling dtype warning."""
+        img = convert_to_tensor(get_arange_img((3, 3)), dtype=torch.float32)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # turn any warning into an error
+            resample(img, torch.eye(3), {"lazy_resample_mode": "auto"})
 
 
 if __name__ == "__main__":
