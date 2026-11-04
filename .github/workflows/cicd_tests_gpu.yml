@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
     timeout-minutes: 360
     steps:
-    - name: Install build tools
+    - name: Install build tools (may not be necessary)
       run: |
         sudo apt update
         sudo apt install build-essential
