@@ -248,7 +248,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                 i.close()
 
     def test_shuffle_no_duplicates(self):
-        # a re-iterable stream source must be read only once per epoch when shuffling
+        """Shuffling a re-iterable stream source yields each item once per epoch."""
         chunks = [
             pd.DataFrame({"subject_id": ["s0", "s1"], "label": [0, 1]}),
             pd.DataFrame({"subject_id": ["s2", "s3"], "label": [2, 3]}),
