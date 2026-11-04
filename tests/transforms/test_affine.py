@@ -18,7 +18,6 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.config import USE_COMPILED
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Affine, RandRotate, Resize
 from monai.transforms.lazy.functional import apply_pending
@@ -292,7 +291,6 @@ class TestAffineConsistency(unittest.TestCase):
                     ref = Resize(align_corners=ac, spatial_size=(sp_size, sp_size), mode="bilinear")(im)
                     assert_allclose(out, ref, rtol=1e-4, atol=1e-4, type_test=False)
 
-    @unittest.skipUnless(USE_COMPILED, "requires the compiled extension (BUILD_MONAI=1)")
     def test_lazy_rotate_align_corners_compiled(self):
         """lazy resampling with the compiled backend and align_corners=True must match eager."""
         init = dict(
