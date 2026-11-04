@@ -89,8 +89,6 @@ class VanillaGrad:
     def get_grad(
         self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph: bool = True, **kwargs: Any
     ) -> torch.Tensor:
-        if x.shape[0] != 1:
-            raise ValueError("expect batch size of 1")
         x.requires_grad = True
 
         self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
