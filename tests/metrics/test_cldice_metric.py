@@ -60,18 +60,28 @@ class TestClDiceMetric(unittest.TestCase):
                 result = metric.aggregate()
                 self.assertAlmostEqual(result.item(), expected, places=4)
 
-    def test_solid_squares_zero_skeleton_fallback(self) -> None:
-        """Verify that disjoint 10x10 squares score 0.0 while identical 10x10 squares score 1.0 at iter_=3."""
+        with self.assertRaises(ValueError):
+            compute_cldice(torch.zeros((1, 1, 16, 16)), torch.zeros((1, 2, 16, 16)), include_background=False)
+
+    def test_solid_and_nested_thick_squares(self) -> None:
+        """Verify disjoint, identical, and concentric nested thick squares (10x10 inside 12x12) at iter_=3."""
         y_pred_disjoint = torch.zeros((1, 1, 40, 40))
         y_ref = torch.zeros((1, 1, 40, 40))
         y_pred_disjoint[..., 5:15, 5:15] = 1.0
         y_ref[..., 25:35, 25:35] = 1.0
 
+        y_pred_nested = torch.zeros((1, 1, 40, 40))
+        y_ref_nested = torch.zeros((1, 1, 40, 40))
+        y_pred_nested[..., 15:25, 15:25] = 1.0
+        y_ref_nested[..., 14:26, 14:26] = 1.0
+
         for mode in ("cldice", "tprec", "tsens"):
             disjoint_score = compute_cldice(y_pred_disjoint, y_ref, include_background=True, iter_=3, mode=mode)
             identical_score = compute_cldice(y_ref, y_ref, include_background=True, iter_=3, mode=mode)
+            nested_score = compute_cldice(y_pred_nested, y_ref_nested, include_background=True, iter_=3, mode=mode)
             self.assertEqual(disjoint_score.item(), 0.0)
             self.assertEqual(identical_score.item(), 1.0)
+            self.assertEqual(nested_score.item(), 1.0)
 
     def test_empty_masks(self) -> None:
         """Verify that two empty masks return 1.0 and empty reference with non-empty prediction returns NaN."""

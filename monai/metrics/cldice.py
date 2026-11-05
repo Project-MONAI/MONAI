@@ -22,6 +22,36 @@ from .metric import CumulativeIterationMetric
 __all__ = ["ClDiceMetric", "compute_cldice"]
 
 
+def _compute_converged_skel(img: torch.Tensor, iter_: int, reduce_axis: list[int]) -> torch.Tensor:
+    """
+    Compute the morphological soft skeleton with ``iter_`` iterations, and if any non-empty mask
+    still yields zero skeleton mass (e.g. thick solid shapes), continue skeletonization up to
+    the half-width of the spatial dimensions so the medial axis is extracted before falling back.
+
+    Args:
+        img: Binary or soft segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
+        iter_: Initial number of morphological skeletonization iterations.
+        reduce_axis: Spatial dimensions to sum over when checking mask and skeleton mass.
+
+    Returns:
+        Skeletonized tensor of the same shape as ``img``.
+    """
+    skel = soft_skel(img, iter_)
+    img_sum = torch.sum(img, dim=reduce_axis)
+    skel_sum = torch.sum(skel, dim=reduce_axis)
+    needs_more = (img_sum > 0) & (skel_sum == 0)
+    if not torch.any(needs_more):
+        return skel
+
+    max_iter = max(iter_, max(img.shape[2:]) // 2)
+    if max_iter <= iter_:
+        return skel
+
+    converged_skel = soft_skel(img, max_iter)
+    view_shape = img_sum.shape + (1,) * (img.ndim - 2)
+    return torch.where(needs_more.reshape(view_shape), converged_skel, skel)
+
+
 class ClDiceMetric(CumulativeIterationMetric):
     """
     Compute the centerline Dice (clDSC), Topology Precision (Tprec), or Topology Sensitivity (Tsens)
@@ -116,8 +146,9 @@ def compute_cldice(
     Functional interface to compute ``cldice``, ``tprec``, or ``tsens`` per batch and per class.
 
     If a reference mask channel is empty while the corresponding prediction is non-empty, ``NaN`` is returned
-    for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. If a non-empty
-    mask yields zero soft-skeleton mass, the corresponding precision or sensitivity falls back to mask overlap.
+    for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. For thick masks
+    where ``iter_`` is insufficient to reach the medial axis, skeletonization converges automatically before
+    falling back to mask overlap if skeleton mass remains zero.
 
     Args:
         y_pred: Predicted segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
@@ -125,7 +156,7 @@ def compute_cldice(
         include_background: Whether to include the first channel (background) in computation. Defaults to True.
         iter_: Number of iterations for morphological skeletonization. Defaults to 3.
         mode: Metric to return: ``"cldice"``, ``"tprec"``, or ``"tsens"``. Defaults to ``"cldice"``.
-        smooth: Smoothing constant to avoid division by zero when skeleton mass is non-zero. Defaults to 1e-5.
+        smooth: Smoothing constant for numerical stability. Defaults to 1e-5.
 
     Returns:
         A tensor of shape ``[batch_size, num_classes]`` containing the computed metric values.
@@ -135,19 +166,19 @@ def compute_cldice(
     """
     mode = look_up_option(mode.lower(), {"cldice", "tprec", "tsens"})
 
+    if y.shape != y_pred.shape:
+        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     y = y.float()
     y_pred = y_pred.float()
 
-    if y.shape != y_pred.shape:
-        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
-
-    skel_pred = soft_skel(y_pred, iter_)
-    skel_true = soft_skel(y, iter_)
-
     reduce_axis = list(range(2, y_pred.ndim))
+    skel_pred = _compute_converged_skel(y_pred, iter_, reduce_axis)
+    skel_true = _compute_converged_skel(y, iter_, reduce_axis)
+
     y_sum = torch.sum(y, dim=reduce_axis)
     y_pred_sum = torch.sum(y_pred, dim=reduce_axis)
     skel_pred_sum = torch.sum(skel_pred, dim=reduce_axis)
@@ -157,14 +188,17 @@ def compute_cldice(
     fallback_tprec = torch.where(y_pred_sum > 0, intersection / y_pred_sum, torch.zeros_like(y_pred_sum))
     fallback_tsens = torch.where(y_sum > 0, intersection / y_sum, torch.zeros_like(y_sum))
 
+    skel_pred_overlap = torch.sum(skel_pred * y, dim=reduce_axis)
+    skel_true_overlap = torch.sum(skel_true * y_pred, dim=reduce_axis)
+
     tprec = torch.where(
         skel_pred_sum > 0,
-        (torch.sum(skel_pred * y, dim=reduce_axis) + smooth) / (skel_pred_sum + smooth),
+        torch.where(skel_pred_overlap > 0, (skel_pred_overlap + smooth) / (skel_pred_sum + smooth), torch.zeros_like(skel_pred_sum)),
         fallback_tprec,
     )
     tsens = torch.where(
         skel_true_sum > 0,
-        (torch.sum(skel_true * y_pred, dim=reduce_axis) + smooth) / (skel_true_sum + smooth),
+        torch.where(skel_true_overlap > 0, (skel_true_overlap + smooth) / (skel_true_sum + smooth), torch.zeros_like(skel_true_sum)),
         fallback_tsens,
     )
 
