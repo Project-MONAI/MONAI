@@ -80,6 +80,22 @@ class TestAlgoScoreConfig(unittest.TestCase):
 
         self.assertAlmostEqual(self._algo().get_score(), 0.33)
 
+    def test_integer_reference_through_str_still_resolves(self):
+        """The ``dints`` and ``swinunetr`` templates use ``$@bundle_root + '/model_fold' + str(@fold)``."""
+        ckpt_dir = os.path.join(self.algo_dir, "model_fold0")
+        self._write_progress(ckpt_dir, 0.61)
+        self._write_config(bundle_root=self.algo_dir, fold=0, ckpt_path="$@bundle_root + '/model_fold' + str(@fold)")
+
+        self.assertAlmostEqual(self._algo().get_score(), 0.61)
+
+    def test_integer_reference_cannot_be_concatenated(self):
+        """An integer reference is only usable through str(); concatenating it directly is refused."""
+        self._assert_refused(bundle_root=self.algo_dir, fold=0, ckpt_path="$@bundle_root + @fold")
+
+    def test_unknown_reference_key_is_refused(self):
+        """A subscript that does not come from a matched @reference raises ValueError, not KeyError."""
+        self._assert_refused(ckpt_path="$__local_refs['missing']")
+
     def test_whole_value_reference_still_resolves(self):
         ckpt_dir = os.path.join(self.algo_dir, "ckpt")
         self._write_progress(ckpt_dir, 0.5)
