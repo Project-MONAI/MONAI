@@ -48,6 +48,7 @@ class ClDiceMetric(CumulativeIterationMetric):
         get_not_nans: bool = False,
         smooth: float = 1e-5,
     ) -> None:
+        """Initialize ClDiceMetric with skeletonization iterations, mode, and reduction settings."""
         super().__init__()
         self.include_background = include_background
         self.iter_ = iter_
@@ -57,6 +58,19 @@ class ClDiceMetric(CumulativeIterationMetric):
         self.smooth = smooth
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the metric tensor for a single batch of predictions and targets.
+
+        Args:
+            y_pred: Predicted segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
+            y: Reference segmentation tensor with the same shape as ``y_pred``.
+
+        Returns:
+            A tensor of shape ``[B, C]`` (or ``[B, C - 1]`` if ``include_background=False``) containing the scores.
+
+        Raises:
+            ValueError: When ``y_pred`` is not a 4D (2D) or 5D (3D) tensor, or shapes do not match.
+        """
         if y_pred.ndim not in (4, 5):
             raise ValueError(f"y_pred should be a 4D (2D) or 5D (3D) tensor, got shape {y_pred.shape}.")
         return compute_cldice(
@@ -71,6 +85,18 @@ class ClDiceMetric(CumulativeIterationMetric):
     def aggregate(
         self, reduction: MetricReduction | str | None = None
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """
+        Aggregate the buffered metric results across iterations according to the specified reduction mode.
+
+        Args:
+            reduction: Optional override for the reduction mode (``"mean"``, ``"sum"``, ``"none"``, etc.).
+
+        Returns:
+            The aggregated metric tensor, or a tuple ``(aggregated_metric, not_nans)`` if ``get_not_nans=True``.
+
+        Raises:
+            ValueError: When the buffered data to aggregate is not a PyTorch Tensor.
+        """
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("The data to aggregate must be a PyTorch Tensor.")
@@ -88,7 +114,24 @@ def compute_cldice(
 ) -> torch.Tensor:
     """
     Functional interface to compute ``cldice``, ``tprec``, or ``tsens`` per batch and per class.
-    Returns a tensor of shape ``[batch_size, num_classes]``.
+
+    If a reference mask channel is empty while the corresponding prediction is non-empty, ``NaN`` is returned
+    for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. If a non-empty
+    mask yields zero soft-skeleton mass, the corresponding skeleton precision or sensitivity is ``0.0``.
+
+    Args:
+        y_pred: Predicted segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
+        y: Reference segmentation tensor with the same shape as ``y_pred``.
+        include_background: Whether to include the first channel (background) in computation. Defaults to True.
+        iter_: Number of iterations for morphological skeletonization. Defaults to 3.
+        mode: Metric to return: ``"cldice"``, ``"tprec"``, or ``"tsens"``. Defaults to ``"cldice"``.
+        smooth: Smoothing constant to avoid division by zero when skeleton mass is non-zero. Defaults to 1e-5.
+
+    Returns:
+        A tensor of shape ``[batch_size, num_classes]`` containing the computed metric values.
+
+    Raises:
+        ValueError: When ``mode`` is unsupported or ``y_pred`` and ``y`` have different shapes.
     """
     mode = look_up_option(mode.lower(), {"cldice", "tprec", "tsens"})
 
@@ -107,9 +150,19 @@ def compute_cldice(
     reduce_axis = list(range(2, y_pred.ndim))
     y_sum = torch.sum(y, dim=reduce_axis)
     y_pred_sum = torch.sum(y_pred, dim=reduce_axis)
+    skel_pred_sum = torch.sum(skel_pred, dim=reduce_axis)
+    skel_true_sum = torch.sum(skel_true, dim=reduce_axis)
 
-    tprec = (torch.sum(skel_pred * y, dim=reduce_axis) + smooth) / (torch.sum(skel_pred, dim=reduce_axis) + smooth)
-    tsens = (torch.sum(skel_true * y_pred, dim=reduce_axis) + smooth) / (torch.sum(skel_true, dim=reduce_axis) + smooth)
+    tprec = torch.where(
+        skel_pred_sum > 0,
+        (torch.sum(skel_pred * y, dim=reduce_axis) + smooth) / (skel_pred_sum + smooth),
+        torch.zeros_like(skel_pred_sum),
+    )
+    tsens = torch.where(
+        skel_true_sum > 0,
+        (torch.sum(skel_true * y_pred, dim=reduce_axis) + smooth) / (skel_true_sum + smooth),
+        torch.zeros_like(skel_true_sum),
+    )
 
     if mode == "tprec":
         score = tprec
