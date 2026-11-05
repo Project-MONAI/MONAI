@@ -117,7 +117,7 @@ def compute_cldice(
 
     If a reference mask channel is empty while the corresponding prediction is non-empty, ``NaN`` is returned
     for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. If a non-empty
-    mask yields zero soft-skeleton mass, the corresponding skeleton precision or sensitivity is ``0.0``.
+    mask yields zero soft-skeleton mass, the corresponding precision or sensitivity falls back to mask overlap.
 
     Args:
         y_pred: Predicted segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
@@ -152,16 +152,20 @@ def compute_cldice(
     y_pred_sum = torch.sum(y_pred, dim=reduce_axis)
     skel_pred_sum = torch.sum(skel_pred, dim=reduce_axis)
     skel_true_sum = torch.sum(skel_true, dim=reduce_axis)
+    intersection = torch.sum(y_pred * y, dim=reduce_axis)
+
+    fallback_tprec = torch.where(y_pred_sum > 0, intersection / y_pred_sum, torch.zeros_like(y_pred_sum))
+    fallback_tsens = torch.where(y_sum > 0, intersection / y_sum, torch.zeros_like(y_sum))
 
     tprec = torch.where(
         skel_pred_sum > 0,
         (torch.sum(skel_pred * y, dim=reduce_axis) + smooth) / (skel_pred_sum + smooth),
-        torch.zeros_like(skel_pred_sum),
+        fallback_tprec,
     )
     tsens = torch.where(
         skel_true_sum > 0,
         (torch.sum(skel_true * y_pred, dim=reduce_axis) + smooth) / (skel_true_sum + smooth),
-        torch.zeros_like(skel_true_sum),
+        fallback_tsens,
     )
 
     if mode == "tprec":
