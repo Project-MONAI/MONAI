@@ -57,6 +57,7 @@ def zero_module(module: nn.Module) -> nn.Module:
     return module
 
 
+# TODO: Cast after LayerNorm in autocast??
 class DiffusionUNetTransformerBlock(nn.Module):
     """
     A Transformer block that allows for the input dimension to differ from the hidden dimension.
@@ -146,6 +147,7 @@ class SpatialTransformer(nn.Module):
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
 
     """
 
@@ -158,16 +160,18 @@ class SpatialTransformer(nn.Module):
         num_layers: int = 1,
         dropout: float = 0.0,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
+        cast_after_norm: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
+        self.cast_after_norm = cast_after_norm
         inner_dim = num_attention_heads * num_head_channels
 
         self.norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=norm_eps, affine=True)
@@ -221,6 +225,8 @@ class SpatialTransformer(nn.Module):
 
         residual = x
         x = self.norm(x)
+        if self.cast_after_norm and torch.is_autocast_enabled(x.device.type):
+            x = x.to(torch.get_autocast_dtype(x.device.type))
         x = self.proj_in(x)
 
         inner_dim = x.shape[1]
@@ -340,6 +346,7 @@ class DiffusionUNetResnetBlock(nn.Module):
         down: if True, performs downsampling.
         norm_num_groups: number of groups for the group normalization.
         norm_eps: epsilon for the group normalization.
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -351,7 +358,8 @@ class DiffusionUNetResnetBlock(nn.Module):
         up: bool = False,
         down: bool = False,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
+        cast_after_norm: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -360,6 +368,7 @@ class DiffusionUNetResnetBlock(nn.Module):
         self.out_channels = out_channels or in_channels
         self.up = up
         self.down = down
+        self.cast_after_norm = cast_after_norm
 
         self.norm1 = nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=norm_eps, affine=True)
         self.nonlinearity = nn.SiLU()
@@ -418,6 +427,8 @@ class DiffusionUNetResnetBlock(nn.Module):
     def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
         h = x
         h = self.norm1(h)
+        if self.cast_after_norm and torch.is_autocast_enabled(h.device.type):
+            h = h.to(torch.get_autocast_dtype(h.device.type))
         h = self.nonlinearity(h)
 
         if self.upsample is not None:
@@ -429,13 +440,22 @@ class DiffusionUNetResnetBlock(nn.Module):
 
         h = self.conv1(h)
 
-        if self.spatial_dims == 2:
-            temb = self.time_emb_proj(self.nonlinearity(emb))[:, :, None, None]
+        if emb.dtype == torch.float32 and torch.is_autocast_enabled(h.device.type):
+            with torch.autocast(device_type=x.device.type, enabled=False):
+                temb = self.time_emb_proj(self.nonlinearity(emb.float()))
+            temb = temb.to(dtype=h.dtype)
         else:
-            temb = self.time_emb_proj(self.nonlinearity(emb))[:, :, None, None, None]
+            temb = self.time_emb_proj(self.nonlinearity(emb))
+
+        if self.spatial_dims == 2:
+            temb = temb[:, :, None, None]
+        else:
+            temb = temb[:, :, None, None, None]
         h = h + temb
 
         h = self.norm2(h)
+        if self.cast_after_norm and torch.is_autocast_enabled(h.device.type):
+            h = h.to(torch.get_autocast_dtype(h.device.type))
         h = self.nonlinearity(h)
         h = self.conv2(h)
         output: torch.Tensor = self.skip_connection(x) + h
@@ -457,6 +477,7 @@ class DownBlock(nn.Module):
         add_downsample: if True add downsample block.
         resblock_updown: if True use residual blocks for downsampling.
         downsample_padding: padding used in the downsampling block.
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -467,10 +488,11 @@ class DownBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_downsample: bool = True,
         resblock_updown: bool = False,
         downsample_padding: int = 1,
+        cast_after_norm: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -487,6 +509,7 @@ class DownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -502,6 +525,7 @@ class DownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     down=True,
                 )
             else:
@@ -548,10 +572,12 @@ class AttnDownBlock(nn.Module):
         resblock_updown: if True use residual blocks for downsampling.
         downsample_padding: padding used in the downsampling block.
         num_head_channels: number of channels in each attention head.
+        upcast_attention: if True, upcast attention operations to full precision.
         include_fc: whether to include the final linear layer. Default to True.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -562,11 +588,13 @@ class AttnDownBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_downsample: bool = True,
         resblock_updown: bool = False,
         downsample_padding: int = 1,
         num_head_channels: int = 1,
+        upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
@@ -587,6 +615,7 @@ class AttnDownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
             attentions.append(
@@ -596,9 +625,11 @@ class AttnDownBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    attention_dtype=torch.float if upcast_attention else None,
                     include_fc=include_fc,
                     use_combined_linear=use_combined_linear,
                     use_flash_attention=use_flash_attention,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -615,6 +646,7 @@ class AttnDownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     down=True,
                 )
             else:
@@ -670,6 +702,7 @@ class CrossAttnDownBlock(nn.Module):
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -680,7 +713,7 @@ class CrossAttnDownBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_downsample: bool = True,
         resblock_updown: bool = False,
         downsample_padding: int = 1,
@@ -688,6 +721,7 @@ class CrossAttnDownBlock(nn.Module):
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         dropout_cattn: float = 0.0,
         include_fc: bool = True,
         use_combined_linear: bool = False,
@@ -709,6 +743,7 @@ class CrossAttnDownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -727,6 +762,7 @@ class CrossAttnDownBlock(nn.Module):
                     include_fc=include_fc,
                     use_combined_linear=use_combined_linear,
                     use_flash_attention=use_flash_attention,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -743,6 +779,7 @@ class CrossAttnDownBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     down=True,
                 )
             else:
@@ -784,10 +821,12 @@ class AttnMidBlock(nn.Module):
         norm_num_groups: number of groups for the group normalization.
         norm_eps: epsilon for the group normalization.
         num_head_channels: number of channels in each attention head.
+        upcast_attention: if True, upcast attention operations to full precision.
         include_fc: whether to include the final linear layer. Default to True.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -796,8 +835,10 @@ class AttnMidBlock(nn.Module):
         in_channels: int,
         temb_channels: int,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         num_head_channels: int = 1,
+        upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
@@ -811,6 +852,7 @@ class AttnMidBlock(nn.Module):
             temb_channels=temb_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            cast_after_norm=cast_after_norm,
         )
         self.attention = SpatialAttentionBlock(
             spatial_dims=spatial_dims,
@@ -818,9 +860,11 @@ class AttnMidBlock(nn.Module):
             num_head_channels=num_head_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            attention_dtype=torch.float if upcast_attention else None,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
+            cast_after_norm=cast_after_norm,
         )
 
         self.resnet_2 = DiffusionUNetResnetBlock(
@@ -830,6 +874,7 @@ class AttnMidBlock(nn.Module):
             temb_channels=temb_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            cast_after_norm=cast_after_norm,
         )
 
     def forward(
@@ -861,6 +906,7 @@ class CrossAttnMidBlock(nn.Module):
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -869,11 +915,12 @@ class CrossAttnMidBlock(nn.Module):
         in_channels: int,
         temb_channels: int,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         num_head_channels: int = 1,
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         dropout_cattn: float = 0.0,
         include_fc: bool = True,
         use_combined_linear: bool = False,
@@ -888,6 +935,7 @@ class CrossAttnMidBlock(nn.Module):
             temb_channels=temb_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            cast_after_norm=cast_after_norm,
         )
         self.attention = SpatialTransformer(
             spatial_dims=spatial_dims,
@@ -903,6 +951,7 @@ class CrossAttnMidBlock(nn.Module):
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
+            cast_after_norm=cast_after_norm,
         )
         self.resnet_2 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
@@ -911,6 +960,7 @@ class CrossAttnMidBlock(nn.Module):
             temb_channels=temb_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            cast_after_norm=cast_after_norm,
         )
 
     def forward(
@@ -938,6 +988,7 @@ class UpBlock(nn.Module):
         norm_eps: epsilon for the group normalization.
         add_upsample: if True add downsample block.
         resblock_updown: if True use residual blocks for upsampling.
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -949,9 +1000,10 @@ class UpBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_upsample: bool = True,
         resblock_updown: bool = False,
+        cast_after_norm: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -969,6 +1021,7 @@ class UpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -984,6 +1037,7 @@ class UpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     up=True,
                 )
             else:
@@ -1048,10 +1102,12 @@ class AttnUpBlock(nn.Module):
         add_upsample: if True add downsample block.
         resblock_updown: if True use residual blocks for upsampling.
         num_head_channels: number of channels in each attention head.
+        upcast_attention: if True, upcast attention operations to full precision.
         include_fc: whether to include the final linear layer. Default to True.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -1063,10 +1119,12 @@ class AttnUpBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_upsample: bool = True,
         resblock_updown: bool = False,
         num_head_channels: int = 1,
+        upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
@@ -1089,6 +1147,7 @@ class AttnUpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
             attentions.append(
@@ -1098,9 +1157,11 @@ class AttnUpBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    attention_dtype=torch.float if upcast_attention else None,
                     include_fc=include_fc,
                     use_combined_linear=use_combined_linear,
                     use_flash_attention=use_flash_attention,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -1117,6 +1178,7 @@ class AttnUpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     up=True,
                 )
             else:
@@ -1190,6 +1252,7 @@ class CrossAttnUpBlock(nn.Module):
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
     """
 
     def __init__(
@@ -1201,13 +1264,14 @@ class CrossAttnUpBlock(nn.Module):
         temb_channels: int,
         num_res_blocks: int = 1,
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         add_upsample: bool = True,
         resblock_updown: bool = False,
         num_head_channels: int = 1,
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
+        cast_after_norm: bool = False,
         dropout_cattn: float = 0.0,
         include_fc: bool = True,
         use_combined_linear: bool = False,
@@ -1231,6 +1295,7 @@ class CrossAttnUpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                 )
             )
             attentions.append(
@@ -1248,6 +1313,7 @@ class CrossAttnUpBlock(nn.Module):
                     include_fc=include_fc,
                     use_combined_linear=use_combined_linear,
                     use_flash_attention=use_flash_attention,
+                    cast_after_norm=cast_after_norm,
                 )
             )
 
@@ -1264,6 +1330,7 @@ class CrossAttnUpBlock(nn.Module):
                     temb_channels=temb_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    cast_after_norm=cast_after_norm,
                     up=True,
                 )
             else:
@@ -1328,6 +1395,7 @@ def get_down_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
+    cast_after_norm: bool = False,
     dropout_cattn: float = 0.0,
     include_fc: bool = True,
     use_combined_linear: bool = False,
@@ -1345,6 +1413,8 @@ def get_down_block(
             add_downsample=add_downsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
+            upcast_attention=upcast_attention,
+            cast_after_norm=cast_after_norm,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
@@ -1364,6 +1434,7 @@ def get_down_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            cast_after_norm=cast_after_norm,
             dropout_cattn=dropout_cattn,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
@@ -1380,6 +1451,7 @@ def get_down_block(
             norm_eps=norm_eps,
             add_downsample=add_downsample,
             resblock_updown=resblock_updown,
+            cast_after_norm=cast_after_norm,
         )
 
 
@@ -1394,6 +1466,7 @@ def get_mid_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
+    cast_after_norm: bool = False,
     dropout_cattn: float = 0.0,
     include_fc: bool = True,
     use_combined_linear: bool = False,
@@ -1414,6 +1487,7 @@ def get_mid_block(
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
+            cast_after_norm=cast_after_norm,
         )
     else:
         return AttnMidBlock(
@@ -1423,9 +1497,11 @@ def get_mid_block(
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
             num_head_channels=num_head_channels,
+            upcast_attention=upcast_attention,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
+            cast_after_norm=cast_after_norm,
         )
 
 
@@ -1446,6 +1522,7 @@ def get_up_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
+    cast_after_norm: bool = False,
     dropout_cattn: float = 0.0,
     include_fc: bool = True,
     use_combined_linear: bool = False,
@@ -1464,6 +1541,8 @@ def get_up_block(
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
+            upcast_attention=upcast_attention,
+            cast_after_norm=cast_after_norm,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
@@ -1484,6 +1563,7 @@ def get_up_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            cast_after_norm=cast_after_norm,
             dropout_cattn=dropout_cattn,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
@@ -1501,6 +1581,7 @@ def get_up_block(
             norm_eps=norm_eps,
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
+            cast_after_norm=cast_after_norm,
         )
 
 
@@ -1527,6 +1608,8 @@ class DiffusionModelUNet(nn.Module):
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
             classes.
         upcast_attention: if True, upcast attention operations to full precision.
+        upcast_embeddings: if True, upcast timestep and class embedding operations to full precision.
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
         dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers.
         include_fc: whether to include the final linear layer. Default to True.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
@@ -1543,7 +1626,7 @@ class DiffusionModelUNet(nn.Module):
         channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         resblock_updown: bool = False,
         num_head_channels: int | Sequence[int] = 8,
         with_conditioning: bool = False,
@@ -1551,6 +1634,8 @@ class DiffusionModelUNet(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
+        upcast_embeddings: bool = False,
+        cast_after_norm: bool = False,
         dropout_cattn: float = 0.0,
         include_fc: bool = True,
         use_combined_linear: bool = False,
@@ -1601,6 +1686,8 @@ class DiffusionModelUNet(nn.Module):
         self.attention_levels = attention_levels
         self.num_head_channels = num_head_channels
         self.with_conditioning = with_conditioning
+        self.upcast_embeddings = upcast_embeddings
+        self.cast_after_norm = cast_after_norm
 
         # input
         self.conv_in = Convolution(
@@ -1648,6 +1735,7 @@ class DiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                cast_after_norm=cast_after_norm,
                 dropout_cattn=dropout_cattn,
                 include_fc=include_fc,
                 use_combined_linear=use_combined_linear,
@@ -1668,6 +1756,7 @@ class DiffusionModelUNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            cast_after_norm=cast_after_norm,
             dropout_cattn=dropout_cattn,
             include_fc=include_fc,
             use_combined_linear=use_combined_linear,
@@ -1705,6 +1794,7 @@ class DiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                cast_after_norm=cast_after_norm,
                 dropout_cattn=dropout_cattn,
                 include_fc=include_fc,
                 use_combined_linear=use_combined_linear,
@@ -1714,20 +1804,18 @@ class DiffusionModelUNet(nn.Module):
             self.up_blocks.append(up_block)
 
         # out
-        self.out = nn.Sequential(
-            nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[0], eps=norm_eps, affine=True),
-            nn.SiLU(),
-            zero_module(
-                Convolution(
-                    spatial_dims=spatial_dims,
-                    in_channels=channels[0],
-                    out_channels=out_channels,
-                    strides=1,
-                    kernel_size=3,
-                    padding=1,
-                    conv_only=True,
-                )
-            ),
+        self.out_norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[0], eps=norm_eps, affine=True)
+        self.out_act = nn.SiLU()
+        self.out_conv = zero_module(
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=channels[0],
+                out_channels=out_channels,
+                strides=1,
+                kernel_size=3,
+                padding=1,
+                conv_only=True,
+            )
         )
 
     def forward(
@@ -1749,21 +1837,30 @@ class DiffusionModelUNet(nn.Module):
             mid_block_additional_residual: additional residual tensor for mid block (N, C, FeatureMapsDims).
         """
         # 1. time
-        t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
-
-        # timesteps does not contain any weights and will always return f32 tensors
-        # but time_embedding might actually be running in fp16. so we need to cast here.
-        # there might be better ways to encapsulate this.
-        t_emb = t_emb.to(dtype=x.dtype)
-        emb = self.time_embed(t_emb)
+        if self.upcast_embeddings:
+            with torch.autocast(device_type=x.device.type, enabled=False):
+                t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
+                emb = self.time_embed(t_emb.float())
+        else:
+            t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
+            # timesteps does not contain any weights and will always return f32 tensors
+            # but time_embedding might actually be running in fp16. so we need to cast here.
+            # there might be better ways to encapsulate this.
+            t_emb = t_emb.to(dtype=x.dtype)
+            emb = self.time_embed(t_emb)
 
         # 2. class
         if self.num_class_embeds is not None:
             if class_labels is None:
                 raise ValueError("class_labels should be provided when num_class_embeds > 0")
-            class_emb = self.class_embedding(class_labels)
-            class_emb = class_emb.to(dtype=x.dtype)
-            emb = emb + class_emb
+            if self.upcast_embeddings:
+                with torch.autocast(device_type=x.device.type, enabled=False):
+                    class_emb = self.class_embedding(class_labels)
+                    emb = emb + class_emb.float()
+            else:
+                class_emb = self.class_embedding(class_labels)
+                class_emb = class_emb.to(dtype=x.dtype)
+                emb = emb + class_emb
 
         # 3. initial convolution
         h = self.conv_in(x)
@@ -1803,9 +1900,13 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        output: torch.Tensor = self.out(h)
+        h = self.out_norm(h)
+        if self.cast_after_norm and torch.is_autocast_enabled(h.device.type):
+            h = h.to(torch.get_autocast_dtype(h.device.type))
+        h = self.out_act(h)
+        h = self.out_conv(h)
 
-        return output
+        return h
 
     def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
         """
@@ -1908,7 +2009,7 @@ class DiffusionModelEncoder(nn.Module):
         channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
+        norm_eps: float = 1e-5,
         resblock_updown: bool = False,
         num_head_channels: int | Sequence[int] = 8,
         with_conditioning: bool = False,

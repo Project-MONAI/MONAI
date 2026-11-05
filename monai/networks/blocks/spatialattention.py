@@ -34,6 +34,7 @@ class SpatialAttentionBlock(nn.Module):
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        cast_after_norm: whether to cast the output of norm layers to autocast dtype after normalization. Default to False.
 
     """
 
@@ -48,9 +49,11 @@ class SpatialAttentionBlock(nn.Module):
         include_fc: bool = True,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
+        cast_after_norm: bool = False,
     ) -> None:
         super().__init__()
 
+        self.cast_after_norm = cast_after_norm
         self.spatial_dims = spatial_dims
         self.norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels, eps=norm_eps, affine=True)
         # check num_head_channels is divisible by num_channels
@@ -71,6 +74,8 @@ class SpatialAttentionBlock(nn.Module):
         residual = x
         shape = x.shape
         x = self.norm(x)
+        if self.cast_after_norm and torch.is_autocast_enabled(x.device.type):
+            x = x.to(torch.get_autocast_dtype(x.device.type))
         x = x.reshape(*shape[:2], -1).transpose(1, 2)  # "b c h w d -> b (h w d) c"
         x = self.attn(x)
         x = x.transpose(1, 2).reshape(shape)  # "b (h w d) c -> b c h w d"
