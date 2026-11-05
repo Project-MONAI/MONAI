@@ -239,8 +239,9 @@ class FocalLoss(_Loss):
 
         elif self.reduction == LossReduction.MEAN.value:
             if mask is not None:
-                # Sum loss over valid (non-ignored) elements, then divide by mask count
-                loss = loss.sum() / mask.sum().clamp(min=torch.finfo(mask.dtype).eps)
+                # Sum loss over valid (non-ignored) elements, then divide by the number of valid elements;
+                # the mask has a single channel, so count it once per channel of the loss
+                loss = loss.sum() / mask.expand_as(loss).sum().clamp(min=torch.finfo(mask.dtype).eps)
             else:
                 loss = loss.mean()
 
