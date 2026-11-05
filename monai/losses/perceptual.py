@@ -468,12 +468,9 @@ def spatial_average(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
 
 
 def torchvision_zscore_norm(x: torch.Tensor) -> torch.Tensor:
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    x[:, 0, :, :] = (x[:, 0, :, :] - mean[0]) / std[0]
-    x[:, 1, :, :] = (x[:, 1, :, :] - mean[1]) / std[1]
-    x[:, 2, :, :] = (x[:, 2, :, :] - mean[2]) / std[2]
-    return x
+    mean = x.new_tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+    std = x.new_tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+    return (x - mean) / std
 
 
 def subtract_mean(x: torch.Tensor) -> torch.Tensor:
