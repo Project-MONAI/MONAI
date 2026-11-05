@@ -15,6 +15,7 @@ from .absolute_volume_difference import AbsoluteVolumeDifferenceMetric, compute_
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
 from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning
+from .cldice import ClDiceMetric, compute_cldice
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
 from .embedding_collapse import EmbeddingCollapseMetric, compute_embedding_collapse
@@ -45,4 +46,3 @@ from .surface_dice import SurfaceDiceMetric, compute_surface_dice
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance
 from .utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background, is_binary_tensor
 from .wrapper import MetricsReloadedBinary, MetricsReloadedCategorical
-from .cldice import ClDiceMetric, compute_cldice
