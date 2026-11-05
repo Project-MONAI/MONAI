@@ -35,6 +35,7 @@ from monai.auto3dseg.utils import (
     _prepare_cmd_bcprun,
     _prepare_cmd_default,
     _prepare_cmd_torchrun,
+    _reject_non_algo_target,
     _run_cmd_bcprun,
     _run_cmd_torchrun,
     algo_to_json,
@@ -531,13 +532,66 @@ def _copy_algos_folder(folder, at_path):
     return algos_all
 
 
+def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
+    """Instantiate one algorithm from an entry of the ``algos`` mapping, using literal values only.
+
+    The mapping is user input: ``AutoRunner`` reads it from ``input.yaml`` and ``BundleGen``/its CLI accept it
+    directly. Its values are therefore plain data, and they are handed to the ``Algo`` subclass as literals.
+    They are never passed through ``ConfigParser``, which would treat strings starting with ``$``, ``@`` or
+    ``%`` as configuration directives and evaluate them.
+
+    Args:
+        algo_name: the key of the entry, used in error messages.
+        algo_params: the mapping with a ``_target_`` key naming an ``Algo`` subclass and optional keyword
+            arguments for its constructor, such as ``template_path``.
+
+    Returns:
+        the instantiated ``Algo``.
+
+    Raises:
+        ValueError: if the entry is not a mapping, has no ``_target_``, or the target is not an ``Algo``
+            subclass.
+    """
+    if not isinstance(algo_params, dict):
+        raise ValueError(
+            f"Invalid algos entry {algo_name!r}: expected a dict with a '_target_' key, "
+            f"got {type(algo_params).__name__}."
+        )
+
+    params = dict(algo_params)
+    target = params.pop("_target_", None)
+    if target is None:
+        raise ValueError(f"Invalid algos entry {algo_name!r}: missing '_target_' key.")
+
+    template_path = params.get("template_path", ".")
+    if template_path is not None and not isinstance(template_path, str):
+        raise ValueError(
+            f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: expected a string, "
+            f"got {type(template_path).__name__}."
+        )
+    if template_path and template_path not in sys.path:
+        sys.path.append(template_path)
+
+    algo_cls: Any = _reject_non_algo_target(target, f"algos entry {algo_name!r}")
+    algo = algo_cls(**params)
+    if not isinstance(algo, Algo):
+        raise ValueError(
+            f"Refusing to use the object built from '{target}' for algos entry {algo_name!r}: "
+            f"it is a {type(algo).__name__}, not an Algo instance."
+        )
+    return algo
+
+
 class BundleGen(AlgoGen):
     """
     This class generates a set of bundles according to the cross-validation folds, each of them can run independently.
 
     Args:
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
-        algos: If dictionary, it outlines the algorithm to use. If a list or a string, defines a subset of names of
+        algos: If dictionary, it outlines the algorithm to use. The values are treated as plain data: each entry
+            needs a ``_target_`` key naming an ``Algo`` subclass and may pass further keyword arguments for its
+            constructor (for example ``template_path``). Configuration expressions (``$``, ``@``, ``%``) are not
+            evaluated. If a list or a string, defines a subset of names of
             the algorithms to use, e.g. ('segresnet', 'dints') out of the full set of algorithm templates provided
             by templates_path_or_url. Defaults to None - to use all available algorithms.
         templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
@@ -592,12 +646,8 @@ class BundleGen(AlgoGen):
         self.algos: Any = []
         if isinstance(algos, dict):
             for algo_name, algo_params in sorted(algos.items()):
-                template_path = algo_params.get("template_path", ".")
-                if len(template_path) > 0 and template_path not in sys.path:
-                    sys.path.append(template_path)
-
                 try:
-                    onealgo = ConfigParser(algo_params).get_parsed_content()
+                    onealgo: Any = _algo_from_params(algo_name, algo_params)
                     onealgo.name = algo_name
                     self.algos.append(onealgo)
                 except RuntimeError as e:
