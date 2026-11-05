@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 
@@ -58,6 +59,22 @@ class TestAlgoTargetAllowlist(unittest.TestCase):
         """Resolving a short name does not admit the abstract Algo base class."""
         with self.assertRaisesRegex(ValueError, r"GHSA-2wx3-8x3w-r8qv"):
             _reject_non_algo_target("Algo", "algo_object.json")
+
+    def test_bare_name_is_not_shadowed_by_a_module_on_the_path(self):
+        """A module file named like a monai component does not take precedence over the component."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "SHADOWED")
+            with open(os.path.join(tempdir, "BundleAlgo.py"), "w") as f:
+                f.write(f"open({marker!r}, 'w').close()\n")
+            sys.path.insert(0, tempdir)
+            try:
+                from monai.apps.auto3dseg import BundleAlgo
+
+                self.assertIs(_reject_non_algo_target("BundleAlgo", "algo_object.json"), BundleAlgo)
+                self.assertFalse(os.path.exists(marker), "the same-named module in template_path was imported")
+            finally:
+                sys.path.remove(tempdir)
+                sys.modules.pop("BundleAlgo", None)
 
     def test_non_string_target_is_rejected(self):
         """A JSON ``null`` ``_target_`` raises the documented ``ValueError``, not ``AttributeError``."""

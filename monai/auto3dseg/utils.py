@@ -87,6 +87,8 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     A ``_target_`` may name a monai component without its module path, e.g. ``"BundleAlgo"``.
     ``ComponentLocator`` maps such a name to the module that defines it, only for classes and
     functions defined in ``monai.*`` modules, so expanding the name does not widen the allowlist.
+    Bare names go through the locator instead of ``locate``, so a module of the same name on
+    ``sys.path`` (for example a file in ``template_path``) cannot shadow the real component.
 
     Importing the named module still runs that module's top-level code, so this narrows the sink
     rather than closing it: an untrusted ``algo_object.json`` combined with an attacker-controlled
@@ -106,9 +108,12 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     """
     if not isinstance(target, str):
         raise ValueError(f"Invalid `_target_` in {filename}: expected a string, got {type(target).__name__}.")
-    resolved = locate(target)
-    if resolved is None:
-        # a bare component name, e.g. "BundleAlgo" instead of "monai.apps.auto3dseg.BundleAlgo"
+    if "." in target:
+        resolved = locate(target)
+    else:
+        # a bare component name, e.g. "BundleAlgo" instead of "monai.apps.auto3dseg.BundleAlgo".
+        # It is resolved through ComponentLocator rather than ``locate`` so that a module of the same
+        # name on sys.path, for example one in template_path, cannot shadow it.
         module = _component_locator().get_component_module_name(target)
         if isinstance(module, list):
             warnings.warn(
@@ -116,8 +121,7 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
                 f" if want to use others, please set its full module path in `_target_` directly."
             )
             module = module[0]
-        if module is not None:
-            resolved = locate(f"{module}.{target}")
+        resolved = locate(f"{module}.{target}") if module is not None else None
     if resolved is None:
         raise ModuleNotFoundError(f"Cannot resolve `_target_` {target!r} from {filename}.")
     if not (isinstance(resolved, type) and resolved is not Algo and issubclass(resolved, Algo)):
