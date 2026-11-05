@@ -123,7 +123,11 @@ def check_torch_cuda():
     """
     import torch
 
-    fprint("CUDA version:", torch.version.cuda)
+    # `torch.version.cuda` is None on a ROCm build, where the toolkit version is `torch.version.hip`.
+    if torch.version.hip:
+        fprint("HIP version:", torch.version.hip)
+    else:
+        fprint("CUDA version:", torch.version.cuda)
 
     try:
         dcount = torch.cuda.device_count()
