@@ -193,12 +193,20 @@ def compute_cldice(
 
     tprec = torch.where(
         skel_pred_sum > 0,
-        torch.where(skel_pred_overlap > 0, (skel_pred_overlap + smooth) / (skel_pred_sum + smooth), torch.zeros_like(skel_pred_sum)),
+        torch.where(
+            skel_pred_overlap > 0,
+            (skel_pred_overlap + smooth) / (skel_pred_sum + smooth),
+            torch.zeros_like(skel_pred_sum),
+        ),
         fallback_tprec,
     )
     tsens = torch.where(
         skel_true_sum > 0,
-        torch.where(skel_true_overlap > 0, (skel_true_overlap + smooth) / (skel_true_sum + smooth), torch.zeros_like(skel_true_sum)),
+        torch.where(
+            skel_true_overlap > 0,
+            (skel_true_overlap + smooth) / (skel_true_sum + smooth),
+            torch.zeros_like(skel_true_sum),
+        ),
         fallback_tsens,
     )
 
