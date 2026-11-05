@@ -952,7 +952,6 @@ class CrossAttnMidBlock(nn.Module):
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
             cast_after_norm=cast_after_norm,
-
         )
         self.resnet_2 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
