@@ -28,9 +28,10 @@ from monai.apps.utils import get_logger
 from monai.data import decollate_batch
 from monai.data.meta_tensor import MetaTensor
 from monai.data.thread_buffer import ThreadBuffer
+from monai.data.utils import dense_patch_slices, get_valid_patch_size
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
-from monai.inferers.utils import compute_importance_map, sliding_window_inference
+from monai.inferers.utils import _get_scan_interval, compute_importance_map, sliding_window_inference
 from monai.networks.nets import (
     VQVAE,
     AutoencoderKL,
@@ -42,7 +43,17 @@ from monai.networks.nets import (
 )
 from monai.networks.schedulers import RFlowScheduler, Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
-from monai.utils import BlendMode, Ordering, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
+from monai.utils import (
+    BlendMode,
+    Ordering,
+    PatchKeys,
+    PytorchPadMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+    look_up_option,
+    optional_import,
+)
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
@@ -57,6 +68,7 @@ __all__ = [
     "SaliencyInferer",
     "SliceInferer",
     "SlidingWindowInfererAdapt",
+    "SlidingWindowInfererExport",
 ]
 
 
@@ -693,6 +705,187 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
         raise RuntimeError(  # not possible to finish after the trials
             f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
         )
+
+
+class SlidingWindowInfererExport(nn.Module):
+    """
+    Sliding window inference as a single ``torch.nn.Module``, suitable for exporting the
+    full pipeline (windowing, network, blending and stitching) to ONNX with ``torch.onnx.export``.
+
+    :py:class:`monai.inferers.SlidingWindowInferer` drives :py:func:`monai.inferers.sliding_window_inference`,
+    whose runtime bookkeeping (data-dependent Python control flow, device juggling and in-place
+    stitching over dynamically computed slices) prevents the whole computation from being captured
+    as one ONNX graph, so a network using it cannot be deployed without PyTorch (see
+    https://github.com/Project-MONAI/MONAI/issues/6526). This module precomputes the window layout
+    for a fixed input spatial size at construction time and expresses the forward pass with tensor
+    operations only (padding, static slicing, weighted accumulation and normalisation), which the
+    ONNX exporter can trace into a single graph that reproduces
+    :py:class:`monai.inferers.SlidingWindowInferer` numerics for the same configuration.
+
+    The exportable path intentionally covers the representative deployment case:
+
+    - the input spatial size is fixed to ``spatial_size`` (the batch size is read from the input),
+    - ``network`` returns a single tensor whose spatial size equals ``roi_size``,
+    - blending uses a precomputed importance map (``mode="constant"`` or ``mode="gaussian"``).
+
+    Features of :py:class:`monai.inferers.SlidingWindowInferer` that require runtime decisions
+    (multiple or dictionary outputs, multi-resolution outputs, buffered stitching, ``process_fn``
+    and ``with_coord``) are not supported here; use :py:class:`monai.inferers.SlidingWindowInferer`
+    for those.
+
+    Args:
+        network: the network to run on every window. It should be a ``torch.nn.Module`` so that it
+            becomes part of this module (and of the exported graph); other callables are accepted
+            but are then not registered as submodules.
+        roi_size: the window size to execute sliding window evaluation. If it has non-positive
+            components, the corresponding ``spatial_size`` components will be used.
+        spatial_size: the spatial size of the inputs this module will process, excluding the batch
+            and channel dimensions. The window layout is derived from it once, at construction time.
+        sw_batch_size: the batch size to run window slices, defaults to 1.
+        overlap: amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
+        mode: {``"constant"``, ``"gaussian"``} how to blend output of overlapping windows,
+            defaults to ``"constant"``.
+        sigma_scale: the standard deviation coefficient of the Gaussian window when ``mode`` is
+            ``"gaussian"``. Default: 0.125. Actual window sigma is ``sigma_scale`` * ``dim_size``.
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``} padding mode
+            for inputs when ``roi_size`` is larger than ``spatial_size``. Defaults to ``"constant"``.
+        cval: fill value for 'constant' padding mode. Default: 0.
+
+    Example:
+
+    .. code-block:: python
+
+        import torch
+        from monai.inferers import SlidingWindowInfererExport
+        from monai.networks.nets import BasicUNet
+
+        net = BasicUNet(spatial_dims=2, in_channels=1, out_channels=2)
+        exportable = SlidingWindowInfererExport(net, roi_size=(64, 64), spatial_size=(128, 160))
+        torch.onnx.export(
+            exportable.eval(),
+            (torch.randn(1, 1, 128, 160),),
+            "model.onnx",
+            input_names=["input"],
+            output_names=["output"],
+        )
+
+    """
+
+    def __init__(
+        self,
+        network: Callable[..., torch.Tensor],
+        roi_size: Sequence[int] | int,
+        spatial_size: Sequence[int],
+        sw_batch_size: int = 1,
+        overlap: Sequence[float] | float = 0.25,
+        mode: BlendMode | str = BlendMode.CONSTANT,
+        sigma_scale: Sequence[float] | float = 0.125,
+        padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
+        cval: float = 0.0,
+    ) -> None:
+        super().__init__()
+        if isinstance(network, nn.Module):
+            self.network = network
+        else:
+            self._predictor: Callable[..., torch.Tensor] = network
+            self.network = None
+        self.spatial_size = tuple(int(s) for s in spatial_size)
+        self.num_spatial_dims = len(self.spatial_size)
+        self.roi_size = fall_back_tuple(roi_size, self.spatial_size)
+        self.sw_batch_size = int(sw_batch_size)
+        if self.sw_batch_size < 1:
+            raise ValueError(f"sw_batch_size must be a positive integer, got {sw_batch_size}.")
+        overlap_tuple = ensure_tuple_rep(overlap, self.num_spatial_dims)
+        for o in overlap_tuple:
+            if o < 0 or o >= 1:
+                raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
+        self.overlap = overlap_tuple
+        self.mode = BlendMode(mode)
+        self.sigma_scale = sigma_scale
+        self.padding_mode = look_up_option(padding_mode, PytorchPadMode)
+        self.cval = cval
+
+        # static geometry: padded image size and symmetric padding (in ``F.pad`` order)
+        self.image_size = tuple(max(self.spatial_size[i], self.roi_size[i]) for i in range(self.num_spatial_dims))
+        pad_size: list[int] = []
+        for k in range(self.num_spatial_dims - 1, -1, -1):
+            diff = max(self.roi_size[k] - self.spatial_size[k], 0)
+            half = diff // 2
+            pad_size.extend([half, diff - half])
+        self.pad_size = pad_size
+
+        scan_interval = _get_scan_interval(self.image_size, self.roi_size, self.num_spatial_dims, self.overlap)
+        win_slices = dense_patch_slices(self.image_size, self.roi_size, scan_interval, return_slice=True)
+        # flatten (batch, window) pairs exactly like `sliding_window_inference` iterates over them;
+        # the batch index is resolved in `forward`, here we only store the spatial window slices
+        self.win_slices: tuple[tuple[slice, ...], ...] = tuple(tuple(s) for s in win_slices)
+
+        valid_patch_size = get_valid_patch_size(self.image_size, self.roi_size)
+        importance_map = compute_importance_map(
+            ensure_tuple(valid_patch_size), mode=self.mode, sigma_scale=self.sigma_scale, dtype=torch.float32
+        )
+        if len(importance_map.shape) == self.num_spatial_dims:
+            importance_map = importance_map[None, None]
+        self.register_buffer("roi_weight_map", importance_map, persistent=False)
+
+    def _run_network(self, patches: torch.Tensor) -> torch.Tensor:
+        net = self.network if self.network is not None else self._predictor
+        return net(patches)  # type: ignore
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        if tuple(inputs.shape[2:]) != self.spatial_size:
+            raise ValueError(
+                f"this module was built for inputs with spatial size {self.spatial_size}, "
+                f"but got inputs with shape {tuple(inputs.shape)}."
+            )
+        batch_size = inputs.shape[0]
+        x = inputs
+        if any(self.pad_size):
+            x = F.pad(x, pad=self.pad_size, mode=self.padding_mode, value=self.cval)
+
+        num_win = len(self.win_slices)
+        total_slices = num_win * batch_size
+        output: torch.Tensor | None = None
+        count_map: torch.Tensor | None = None
+        for start in range(0, total_slices, self.sw_batch_size):
+            idx_range = range(start, min(start + self.sw_batch_size, total_slices))
+            unravel = [(idx // num_win, self.win_slices[idx % num_win]) for idx in idx_range]
+            patches = torch.cat([x[(slice(b, b + 1), slice(None), *win_slice)] for b, win_slice in unravel], dim=0)
+            seg_out = self._run_network(patches)
+            if not isinstance(seg_out, torch.Tensor):
+                raise TypeError(
+                    f"the network of {type(self).__name__} must return a single tensor, "
+                    f"but got {type(seg_out).__name__}."
+                )
+            if tuple(seg_out.shape[2:]) != self.roi_size:
+                raise ValueError(
+                    f"the network output spatial size {tuple(seg_out.shape[2:])} must equal roi_size "
+                    f"{self.roi_size} for {type(self).__name__}."
+                )
+            weight = self.roi_weight_map.to(dtype=seg_out.dtype, device=seg_out.device)
+            if output is None:
+                out_shape = (batch_size, seg_out.shape[1], *self.image_size)
+                output = torch.zeros(out_shape, dtype=seg_out.dtype, device=seg_out.device)
+                count_map = torch.zeros((1, 1, *self.image_size), dtype=seg_out.dtype, device=seg_out.device)
+                # the blend normalisation is the per-image window coverage, built once here
+                # (it must not scale with the number of images in the batch)
+                for win_slice in self.win_slices:
+                    count_map[(slice(None), slice(None), *win_slice)] += weight
+            weighted = seg_out * weight
+            for j, (b, win_slice) in enumerate(unravel):
+                output[(slice(b, b + 1), slice(None), *win_slice)] += weighted[j : j + 1]
+        if output is None or count_map is None:  # pragma: no cover
+            raise RuntimeError("no sliding windows were generated, check roi_size and spatial_size.")
+        output = output / count_map
+
+        if any(self.pad_size):
+            crop_slices: list[slice] = []
+            for d in range(self.num_spatial_dims):
+                pair = (self.num_spatial_dims - 1 - d) * 2
+                start_d = self.pad_size[pair]
+                crop_slices.append(slice(start_d, start_d + self.spatial_size[d]))
+            output = output[(slice(None), slice(None), *crop_slices)]
+        return output
 
 
 class SaliencyInferer(Inferer):

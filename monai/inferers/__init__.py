@@ -23,6 +23,7 @@ from .inferer import (
     SliceInferer,
     SlidingWindowInferer,
     SlidingWindowInfererAdapt,
+    SlidingWindowInfererExport,
     VQVAETransformerInferer,
 )
 from .merger import AvgMerger, Merger, ZarrAvgMerger
