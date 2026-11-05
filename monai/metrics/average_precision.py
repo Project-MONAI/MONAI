@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -84,6 +83,7 @@ class AveragePrecisionMetric(CumulativeIterationMetric):
 
 
 def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
+    """Compute binary average precision, grouping equal prediction scores."""
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     y_unique = y.unique()
@@ -103,7 +103,7 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     npos = ap = tmp_pos = 0.0
 
     for i in range(n):
-        y_i = cast(float, y[i])
+        y_i = float(y[i])
         if i + 1 < n and y_pred[i] == y_pred[i + 1]:
             tmp_pos += y_i
         else:
@@ -181,6 +181,6 @@ def compute_average_precision(
     if average == Average.MACRO:
         return np.mean(ap_values)
     if average == Average.WEIGHTED:
-        weights = [sum(y_) for y_ in y]
+        weights = np.sum(y.cpu().numpy(), axis=1, dtype=np.float64)
         return np.average(ap_values, weights=weights)  # type: ignore[no-any-return]
     raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')
