@@ -540,6 +540,9 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
     They are never passed through ``ConfigParser``, which would treat strings starting with ``$``, ``@`` or
     ``%`` as configuration directives and evaluate them.
 
+    The class named by ``_target_`` is still imported, from ``template_path`` if the module is not installed,
+    so ``template_path`` must point to a directory you trust: importing a module runs its top-level code.
+
     Args:
         algo_name: the key of the entry, used in error messages.
         algo_params: the mapping with a ``_target_`` key naming an ``Algo`` subclass and optional keyword
@@ -589,9 +592,11 @@ class BundleGen(AlgoGen):
     Args:
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
         algos: If dictionary, it outlines the algorithm to use. The values are treated as plain data: each entry
-            needs a ``_target_`` key naming an ``Algo`` subclass and may pass further keyword arguments for its
-            constructor (for example ``template_path``). Configuration expressions (``$``, ``@``, ``%``) are not
-            evaluated. If a list or a string, defines a subset of names of
+            needs a ``_target_`` key naming an ``Algo`` subclass (a full module path or a monai component name)
+            and may pass further keyword arguments for its constructor (for example ``template_path``).
+            Configuration expressions (``$``, ``@``, ``%``) are not evaluated. The target class is imported
+            from ``template_path`` when the module is not installed, so that directory must be trusted.
+            If a list or a string, defines a subset of names of
             the algorithms to use, e.g. ('segresnet', 'dints') out of the full set of algorithm templates provided
             by templates_path_or_url. Defaults to None - to use all available algorithms.
         templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template

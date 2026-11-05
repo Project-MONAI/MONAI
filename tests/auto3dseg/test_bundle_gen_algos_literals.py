@@ -98,6 +98,21 @@ class TestBundleGenAlgosLiterals(unittest.TestCase):
         self.assertFalse(os.path.exists(self.marker), "a nested _target_ in the algos mapping was resolved")
         self.assertEqual(gen.algos[0].extra["note"], nested)
 
+    def test_reference_and_file_strings_are_literal(self):
+        """``@`` and ``%`` strings in the mapping reach the constructor as plain strings."""
+        for value in ("@some_id", "%other.json#key"):
+            with self.subTest(value=value):
+                gen = BundleGen(algos={"algo1": {"_target_": self.target, "template_path": self.root, "note": value}})
+                self.assertEqual(gen.algos[0].extra["note"], value)
+
+    def test_short_target_name_is_resolved(self):
+        """A bare monai component name, as bundle syntax allows, still instantiates the class."""
+        gen = BundleGen(algos={"algo1": {"_target_": "BundleAlgo", "template_path": self.root}})
+
+        self.assertEqual(len(gen.algos), 1)
+        self.assertEqual(type(gen.algos[0]).__name__, "BundleAlgo")
+        self.assertEqual(gen.algos[0].template_path, self.root)
+
     def test_expression_as_template_path_is_not_evaluated(self):
         """A ``$`` expression used as ``template_path`` is not evaluated, even though the module then fails."""
         payload = self._payload()

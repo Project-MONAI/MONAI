@@ -27,6 +27,7 @@ import numpy as np
 import torch
 
 from monai.auto3dseg import Algo
+from monai.bundle.config_item import ComponentLocator
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
 from monai.config import PathLike
@@ -63,6 +64,17 @@ def _require_pickle_allowed() -> None:
         raise RuntimeError(_PICKLE_DISABLED_MSG)
 
 
+_COMPONENT_LOCATOR: ComponentLocator | None = None
+
+
+def _component_locator() -> ComponentLocator:
+    """Return the process-wide locator used to expand short component names into module paths."""
+    global _COMPONENT_LOCATOR
+    if _COMPONENT_LOCATOR is None:
+        _COMPONENT_LOCATOR = ComponentLocator()
+    return _COMPONENT_LOCATOR
+
+
 def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     """
     Require that ``target`` names an ``Algo`` subclass before it is instantiated.
@@ -71,6 +83,10 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     ``algo_object.json`` has exactly one legitimate target type -- an ``Algo`` subclass -- so
     resolving the name and checking it here rejects payloads such as
     ``subprocess.call`` or ``os.system`` before they are ever invoked.
+
+    A ``_target_`` may name a monai component without its module path, e.g. ``"BundleAlgo"``.
+    ``ComponentLocator`` maps such a name to the module that defines it, only for classes and
+    functions defined in ``monai.*`` modules, so expanding the name does not widen the allowlist.
 
     Importing the named module still runs that module's top-level code, so this narrows the sink
     rather than closing it: an untrusted ``algo_object.json`` combined with an attacker-controlled
@@ -91,6 +107,17 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
     if not isinstance(target, str):
         raise ValueError(f"Invalid `_target_` in {filename}: expected a string, got {type(target).__name__}.")
     resolved = locate(target)
+    if resolved is None:
+        # a bare component name, e.g. "BundleAlgo" instead of "monai.apps.auto3dseg.BundleAlgo"
+        module = _component_locator().get_component_module_name(target)
+        if isinstance(module, list):
+            warnings.warn(
+                f"there are more than 1 component have name `{target}`: {module}, use the first one `{module[0]}."
+                f" if want to use others, please set its full module path in `_target_` directly."
+            )
+            module = module[0]
+        if module is not None:
+            resolved = locate(f"{module}.{target}")
     if resolved is None:
         raise ModuleNotFoundError(f"Cannot resolve `_target_` {target!r} from {filename}.")
     if not (isinstance(resolved, type) and resolved is not Algo and issubclass(resolved, Algo)):

@@ -48,6 +48,17 @@ class TestAlgoTargetAllowlist(unittest.TestCase):
         """A real Algo subclass passes the check."""
         _reject_non_algo_target("monai.apps.auto3dseg.BundleAlgo", "algo_object.json")
 
+    def test_short_component_name_is_resolved(self):
+        """A bare monai component name resolves to the module that defines it, as ConfigParser does."""
+        from monai.apps.auto3dseg import BundleAlgo
+
+        self.assertIs(_reject_non_algo_target("BundleAlgo", "algo_object.json"), BundleAlgo)
+
+    def test_bare_base_class_name_is_rejected(self):
+        """Resolving a short name does not admit the abstract Algo base class."""
+        with self.assertRaisesRegex(ValueError, r"GHSA-2wx3-8x3w-r8qv"):
+            _reject_non_algo_target("Algo", "algo_object.json")
+
     def test_non_string_target_is_rejected(self):
         """A JSON ``null`` ``_target_`` raises the documented ``ValueError``, not ``AttributeError``."""
         with self.assertRaisesRegex(ValueError, r"expected a string"):
