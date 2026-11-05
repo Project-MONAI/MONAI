@@ -92,6 +92,12 @@ class TestAlgoScoreConfig(unittest.TestCase):
         """An integer reference is only usable through str(); concatenating it directly is refused."""
         self._assert_refused(bundle_root=self.algo_dir, fold=0, ckpt_path="$@bundle_root + @fold")
 
+    def test_missing_reference_is_refused(self):
+        """A reference to an id that is not in the file raises ValueError with the documented message."""
+        self._write_config(ckpt_path="$@no_such_entry + '/model'")
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self._algo().get_score()
+
     def test_unknown_reference_key_is_refused(self):
         """A subscript that does not come from a matched @reference raises ValueError, not KeyError."""
         self._assert_refused(ckpt_path="$__local_refs['missing']")

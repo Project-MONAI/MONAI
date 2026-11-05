@@ -153,8 +153,8 @@ def _resolve_path_reference(ref: str, parser: ConfigParser, what: str, allow_int
     templates use it through ``str()``, as in ``str(@fold)``; it is never concatenated directly.
     """
     try:
-        ref_value = parser.get(ref)
-    except KeyError as e:
+        ref_value = parser[ref]
+    except (KeyError, IndexError) as e:
         raise ValueError(f"Invalid {what}: reference @{ref} does not exist.") from e
     if isinstance(ref_value, str):
         if ref_value.startswith(("@", "$")):
