@@ -216,6 +216,64 @@ class TestModelWrapperNetworkSpec(unittest.TestCase):
             self._wrap(_plans())
         build.assert_called_once()
 
+    def test_default_plans_build_the_network(self):
+        """The installed nnunetv2 trainer builds the plans' network without deep supervision."""
+        network = self._wrap(_plans()).network_weights
+        self.assertEqual(type(network).__name__, "PlainConvUNet")
+        self.assertFalse(network.decoder.deep_supervision)
+
+    def test_build_network_architecture_signatures(self):
+        """Trainers with the nnunetv2 < 2.7 and >= 2.7 ``build_network_architecture`` signatures are both supported."""
+        import torch
+        from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+
+        calls = {}
+
+        def legacy(
+            architecture_class_name,
+            arch_init_kwargs,
+            arch_init_kwargs_req_import,
+            num_input_channels,
+            num_output_channels,
+            enable_deep_supervision=True,
+        ):
+            calls["legacy"] = (
+                architecture_class_name,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision,
+            )
+            return torch.nn.Identity()
+
+        def current(
+            plans_manager, configuration_manager, num_input_channels, num_output_channels, enable_deep_supervision=True
+        ):
+            calls["current"] = (
+                configuration_manager.network_arch_class_name,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision,
+            )
+            return torch.nn.Identity()
+
+        # two input channels and three labels, so the channel counts differ from the single-channel defaults
+        with open(os.path.join(self._tmp.name, "dataset.json"), "w") as f:
+            json.dump(
+                {
+                    "channel_names": {"0": "T1", "1": "T2"},
+                    "labels": {"background": 0, "a": 1, "b": 2},
+                    "file_ending": ".nii.gz",
+                },
+                f,
+            )
+        for name, build in (("legacy", legacy), ("current", current)):
+            with (
+                self.subTest(name),
+                mock.patch.object(nnUNetTrainer, "build_network_architecture", staticmethod(build)),
+            ):
+                self._wrap(_plans())
+                self.assertEqual(calls.get(name), (UNET, 2, 3, False))
+
     def test_disallowed_network_is_not_built(self):
         """A network class outside the allowed modules is rejected before the trainer builds anything."""
         from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
