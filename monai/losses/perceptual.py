@@ -66,6 +66,7 @@ class PerceptualLoss(nn.Module):
             - "resnet50"
         is_fake_3d: if True use 2.5D approach for a 3D perceptual loss.
         fake_3d_ratio: ratio of how many slices per axis are used in the 2.5D approach.
+            At least one slice per axis is used.
         cache_dir: path to cache directory to save the pretrained network weights.
         pretrained: whether to load pretrained weights. This argument only works when using networks from
             LIPIS or Torchvision. Defaults to ``True``.
@@ -183,9 +184,8 @@ class PerceptualLoss(nn.Module):
 
         channel_axis = 1
         input_slices = batchify_axis(x=input, fake_3d_perm=(spatial_axis, channel_axis) + tuple(preserved_axes))
-        indices = torch.randperm(input_slices.shape[0])[: int(input_slices.shape[0] * self.fake_3d_ratio)].to(
-            input_slices.device
-        )
+        num_slices = max(1, int(input_slices.shape[0] * self.fake_3d_ratio))
+        indices = torch.randperm(input_slices.shape[0])[:num_slices].to(input_slices.device)
         input_slices = torch.index_select(input_slices, dim=0, index=indices)
         target_slices = batchify_axis(x=target, fake_3d_perm=(spatial_axis, channel_axis) + tuple(preserved_axes))
         target_slices = torch.index_select(target_slices, dim=0, index=indices)
