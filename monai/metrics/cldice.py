@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.losses.cldice import soft_skel
+from monai.losses.cldice import soft_erode, soft_open, soft_skel
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, look_up_option
 
@@ -22,34 +22,37 @@ from .metric import CumulativeIterationMetric
 __all__ = ["ClDiceMetric", "compute_cldice"]
 
 
-def _compute_converged_skel(img: torch.Tensor, iter_: int, reduce_axis: list[int]) -> torch.Tensor:
+def _compute_converged_skel(img: torch.Tensor, iter_: int) -> torch.Tensor:
     """
-    Compute the morphological soft skeleton with ``iter_`` iterations, and if any non-empty mask
-    still yields zero skeleton mass (e.g. thick solid shapes), continue skeletonization up to
-    the half-width of the spatial dimensions so the medial axis is extracted before falling back.
+    Compute the morphological soft skeleton with at least ``iter_`` iterations, and if any thick
+    component still retains un-eroded interior mass after ``iter_`` erosions, continue skeletonization
+    until all components are reduced to their medial axes.
 
     Args:
         img: Binary or soft segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
-        iter_: Initial number of morphological skeletonization iterations.
-        reduce_axis: Spatial dimensions to sum over when checking mask and skeleton mass.
+        iter_: Minimum number of morphological skeletonization iterations.
 
     Returns:
         Skeletonized tensor of the same shape as ``img``.
     """
     skel = soft_skel(img, iter_)
-    img_sum = torch.sum(img, dim=reduce_axis)
-    skel_sum = torch.sum(skel, dim=reduce_axis)
-    needs_more = (img_sum > 0) & (skel_sum == 0)
-    if not torch.any(needs_more):
+    eroded = img
+    for _ in range(iter_):
+        eroded = soft_erode(eroded)
+
+    if not torch.any(eroded > 0):
         return skel
 
-    max_iter = max(iter_, max(img.shape[2:]) // 2)
-    if max_iter <= iter_:
-        return skel
+    max_extra = max(0, (max(img.shape[2:]) + 1) // 2 - iter_)
+    for _ in range(max_extra):
+        eroded = soft_erode(eroded)
+        opened = soft_open(eroded)
+        delta = torch.relu(eroded - opened)
+        skel = skel + torch.relu(delta - skel * delta)
+        if not torch.any(eroded > 0):
+            break
 
-    converged_skel = soft_skel(img, max_iter)
-    view_shape = img_sum.shape + (1,) * (img.ndim - 2)
-    return torch.where(needs_more.reshape(view_shape), converged_skel, skel)
+    return skel
 
 
 class ClDiceMetric(CumulativeIterationMetric):
@@ -146,9 +149,9 @@ def compute_cldice(
     Functional interface to compute ``cldice``, ``tprec``, or ``tsens`` per batch and per class.
 
     If a reference mask channel is empty while the corresponding prediction is non-empty, ``NaN`` is returned
-    for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. For thick masks
-    where ``iter_`` is insufficient to reach the medial axis, skeletonization converges automatically before
-    falling back to mask overlap if skeleton mass remains zero.
+    for that channel; if both reference and prediction masks are empty, ``1.0`` is returned. For thick
+    components where ``iter_`` is insufficient to reach the medial axis, skeletonization continues until
+    convergence before falling back to mask overlap if skeleton mass remains zero.
 
     Args:
         y_pred: Predicted segmentation tensor of shape ``[B, C, H, W]`` or ``[B, C, H, W, D]``.
@@ -176,8 +179,8 @@ def compute_cldice(
     y_pred = y_pred.float()
 
     reduce_axis = list(range(2, y_pred.ndim))
-    skel_pred = _compute_converged_skel(y_pred, iter_, reduce_axis)
-    skel_true = _compute_converged_skel(y, iter_, reduce_axis)
+    skel_pred = _compute_converged_skel(y_pred, iter_)
+    skel_true = _compute_converged_skel(y, iter_)
 
     y_sum = torch.sum(y, dim=reduce_axis)
     y_pred_sum = torch.sum(y_pred, dim=reduce_axis)

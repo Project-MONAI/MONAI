@@ -64,7 +64,7 @@ class TestClDiceMetric(unittest.TestCase):
             compute_cldice(torch.zeros((1, 1, 16, 16)), torch.zeros((1, 2, 16, 16)), include_background=False)
 
     def test_solid_and_nested_thick_squares(self) -> None:
-        """Verify disjoint, identical, and concentric nested thick squares (10x10 inside 12x12) at iter_=3."""
+        """Verify disjoint, identical, nested, and mixed thin-line + thick-square cases at iter_=3."""
         y_pred_disjoint = torch.zeros((1, 1, 40, 40))
         y_ref = torch.zeros((1, 1, 40, 40))
         y_pred_disjoint[..., 5:15, 5:15] = 1.0
@@ -82,6 +82,17 @@ class TestClDiceMetric(unittest.TestCase):
             self.assertEqual(disjoint_score.item(), 0.0)
             self.assertEqual(identical_score.item(), 1.0)
             self.assertEqual(nested_score.item(), 1.0)
+
+        # Mixed case: reference-matching thin line (mass 10) + disjoint 10x10 false-positive square (skel mass 4)
+        y_ref_line = torch.zeros((1, 1, 40, 40))
+        y_ref_line[..., 2, 2:12] = 1.0
+        y_pred_mixed = y_ref_line.clone()
+        y_pred_mixed[..., 20:30, 20:30] = 1.0
+
+        tprec_mixed = compute_cldice(y_pred_mixed, y_ref_line, include_background=True, iter_=3, mode="tprec")
+        cldice_mixed = compute_cldice(y_pred_mixed, y_ref_line, include_background=True, iter_=3, mode="cldice")
+        self.assertAlmostEqual(tprec_mixed.item(), 10.0 / 14.0, places=4)
+        self.assertAlmostEqual(cldice_mixed.item(), 10.0 / 12.0, places=4)
 
     def test_empty_masks(self) -> None:
         """Verify that two empty masks return 1.0 and empty reference with non-empty prediction returns NaN."""
