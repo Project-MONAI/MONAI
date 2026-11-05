@@ -79,6 +79,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         include_top_region_index_input: If True, use top region index input.
         include_bottom_region_index_input: If True, use bottom region index input.
         include_spacing_input: If True, use spacing input.
+        include_modality_input: If True, use modality input.
     """
 
     def __init__(
@@ -105,6 +106,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         include_top_region_index_input: bool = False,
         include_bottom_region_index_input: bool = False,
         include_spacing_input: bool = False,
+        include_modality_input: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -186,6 +188,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         self.include_top_region_index_input = include_top_region_index_input
         self.include_bottom_region_index_input = include_bottom_region_index_input
         self.include_spacing_input = include_spacing_input
+        self.include_modality_input = include_modality_input
 
         new_time_embed_dim = time_embed_dim
         if self.include_top_region_index_input:
@@ -196,6 +199,9 @@ class DiffusionModelUNetMaisi(nn.Module):
             new_time_embed_dim += time_embed_dim
         if self.include_spacing_input:
             self.spacing_layer = self._create_embedding_module(3, time_embed_dim)
+            new_time_embed_dim += time_embed_dim
+        if self.include_modality_input:
+            self.modality_layer = self._create_embedding_module(1, time_embed_dim)
             new_time_embed_dim += time_embed_dim
 
         # down
@@ -307,6 +313,13 @@ class DiffusionModelUNetMaisi(nn.Module):
         model = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.SiLU(), nn.Linear(embed_dim, embed_dim))
         return model
 
+    def _validate_input_tensor(self, tensor, tensor_name, include_flag_name, expected_last_dim, emb):
+        if tensor is None:
+            raise ValueError(f"{tensor_name} should be provided when {include_flag_name} is True.")
+        if tensor.dim() != 2 or tensor.shape[1] != expected_last_dim:
+            raise ValueError(f"{tensor_name} should have shape (N, {expected_last_dim}), got {tuple(tensor.shape)}.")
+        return tensor.to(dtype=emb.dtype)
+
     def _get_time_and_class_embedding(self, x, timesteps, class_labels):
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
 
@@ -324,15 +337,26 @@ class DiffusionModelUNetMaisi(nn.Module):
             emb += class_emb
         return emb
 
-    def _get_input_embeddings(self, emb, top_index, bottom_index, spacing):
+    def _get_input_embeddings(self, emb, top_index, bottom_index, spacing, modality):
         if self.include_top_region_index_input:
+            top_index = self._validate_input_tensor(
+                top_index, "top_region_index_tensor", "include_top_region_index_input", 4, emb
+            )
             _emb = self.top_region_index_layer(top_index)
             emb = torch.cat((emb, _emb), dim=1)
         if self.include_bottom_region_index_input:
+            bottom_index = self._validate_input_tensor(
+                bottom_index, "bottom_region_index_tensor", "include_bottom_region_index_input", 4, emb
+            )
             _emb = self.bottom_region_index_layer(bottom_index)
             emb = torch.cat((emb, _emb), dim=1)
         if self.include_spacing_input:
+            spacing = self._validate_input_tensor(spacing, "spacing_tensor", "include_spacing_input", 3, emb)
             _emb = self.spacing_layer(spacing)
+            emb = torch.cat((emb, _emb), dim=1)
+        if self.include_modality_input:
+            modality = self._validate_input_tensor(modality, "modality_tensor", "include_modality_input", 1, emb)
+            _emb = self.modality_layer(modality)
             emb = torch.cat((emb, _emb), dim=1)
         return emb
 
@@ -376,6 +400,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         top_region_index_tensor: torch.Tensor | None = None,
         bottom_region_index_tensor: torch.Tensor | None = None,
         spacing_tensor: torch.Tensor | None = None,
+        modality_tensor: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Forward pass through the UNet model.
@@ -390,13 +415,16 @@ class DiffusionModelUNetMaisi(nn.Module):
             top_region_index_tensor: Tensor representing top region index of shape (N, 4).
             bottom_region_index_tensor: Tensor representing bottom region index of shape (N, 4).
             spacing_tensor: Tensor representing spacing of shape (N, 3).
+            modality_tensor: Tensor representing modality of shape (N, 1).
 
         Returns:
             A tensor representing the output of the UNet model.
         """
 
         emb = self._get_time_and_class_embedding(x, timesteps, class_labels)
-        emb = self._get_input_embeddings(emb, top_region_index_tensor, bottom_region_index_tensor, spacing_tensor)
+        emb = self._get_input_embeddings(
+            emb, top_region_index_tensor, bottom_region_index_tensor, spacing_tensor, modality_tensor
+        )
         h = self.conv_in(x)
         h, _updated_down_block_res_samples = self._apply_down_blocks(h, emb, context, down_block_additional_residuals)
         h = self.middle_block(h, emb, context)
