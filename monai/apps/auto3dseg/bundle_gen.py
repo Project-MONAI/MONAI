@@ -360,11 +360,21 @@ class BundleAlgo(Algo):
     def get_score(self, *args, **kwargs):
         """
         Returns validation scores of the model trained by the current Algo.
+
+        The configuration is read from the algorithm output directory, which may belong to a work
+        directory this process did not create (``import_bundle_algo_history`` reads any work dir).
+        ``ckpt_path`` is therefore evaluated without imports or builtins, so string forms such as
+        ``$@bundle_root + '/model_fold_0'`` still work while an expression cannot import a module.
         """
         config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
-        parser = ConfigParser()
+        # ConfigParser(globals=False) keeps `monai`, `torch` and `numpy` out of the evaluation namespace;
+        # the empty builtins mapping removes `__import__`, `eval` and the rest.
+        parser = ConfigParser(globals=False)
+        parser.globals["__builtins__"] = {}
         parser.read_config(config_yaml)
         ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
+        if not isinstance(ckpt_path, str):
+            raise ValueError(f"Invalid ckpt_path in {config_yaml}: expected a string, got {type(ckpt_path).__name__}.")
 
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
         # dict_file: a list of scores saved in the form of dict in progress.yaml
