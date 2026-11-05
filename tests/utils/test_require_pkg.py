@@ -43,13 +43,14 @@ class TestRequirePkg(unittest.TestCase):
         test_func(x=None)
 
     def test_class_exception(self):
-        with self.assertRaises(OptionalImportError):
+        with self.assertRaises(OptionalImportError) as context:
 
             @require_pkg(pkg_name="test123")
             class TestClass:
                 pass
 
             TestClass()
+        self.assertEqual(context.exception.name, "test123")
 
     def test_class_version_exception(self):
         with self.assertRaises(OptionalImportError):
