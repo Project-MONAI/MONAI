@@ -256,6 +256,37 @@ FastMRIReader
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
+`MAISI`
+-------
+
+.. autoclass:: monai.apps.generation.maisi.networks.autoencoderkl_maisi.AutoencoderKlMaisi
+    :members:
+
+By default, ``AutoencoderKlMaisi`` concatenates split convolution outputs and normalization
+groups on their original device, falling back to CPU concatenation if CUDA concatenation
+runs out of memory. The result is returned to the original device. Set ``concat_memory_margin``
+to a nonnegative number of bytes to also check available CUDA memory before concatenation:
+
+.. code-block:: python
+
+    from monai.apps.generation.maisi.networks.autoencoderkl_maisi import AutoencoderKlMaisi
+
+    model = AutoencoderKlMaisi(
+        spatial_dims=3,
+        in_channels=1,
+        out_channels=1,
+        num_res_blocks=(1, 1, 1),
+        num_channels=(32, 64, 64),
+        attention_levels=(False, False, False),
+        concat_memory_margin=512 * 1024**2,  # 512 MiB
+    )
+
+With a margin set, concatenation uses the CPU when the estimated output size plus the margin
+exceeds the currently free CUDA memory. This check uses a snapshot of driver-reported free
+memory, excludes reusable allocator cache, and does not reserve memory or guarantee that
+other model operations or concurrent allocations fit. The default ``None`` skips this check;
+CPU inputs do not query CUDA memory.
+
 `Vista3d`
 ---------
 .. automodule:: monai.apps.vista3d.inferer
