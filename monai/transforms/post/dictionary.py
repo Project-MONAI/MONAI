@@ -49,8 +49,21 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ApplyTransformToPoints, ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
+from monai.utils import (
+    GridSampleMode,
+    InterpolateMode,
+    PostFix,
+    convert_to_tensor,
+    ensure_tuple,
+    ensure_tuple_rep,
+    look_up_option,
+)
 from monai.utils.type_conversion import convert_to_dst_type
+
+_ALIGN_CORNERS_MODES = frozenset(
+    m.value
+    for m in (InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.BICUBIC, InterpolateMode.TRILINEAR)
+)
 
 __all__ = [
     "ActivationsD",
@@ -971,6 +984,7 @@ class Invertd(MapTransform):
         device: str | torch.device | Sequence[str | torch.device] | None = None,
         post_func: Callable | Sequence[Callable] | None = None,
         allow_missing_keys: bool = False,
+        interp: str | int | Sequence[str | int | None] | None = None,
     ) -> None:
         """
         Args:
@@ -1001,6 +1015,22 @@ class Invertd(MapTransform):
             post_func: post processing for the inverted data, should be a callable function.
                 It also can be a list of callable, each matches to the `keys` data.
             allow_missing_keys: don't raise exception if key is missing.
+            interp: interpolation mode to use when inverting the spatial transforms, e.g. ``"bilinear"`` or a
+                spline interpolation order (``0``-``5``). When provided, it takes precedence over both
+                ``nearest_interp`` and the interpolation modes recorded by the forward transforms. ``None``
+                (the default) keeps the previous behavior, where ``nearest_interp`` selects between
+                ``"nearest"`` and the recorded modes. This argument only chooses the interpolation that the
+                inverse transforms use; it does not clip or otherwise constrain output values, and it does
+                not guarantee that outputs stay within any particular range such as [0, 1]. The accepted
+                values are the union of the modes supported by the different inverse resamplers, and
+                whether a specific mode is usable depends on the transforms being inverted (e.g. spline
+                orders require SciPy, while grid-sample based inverses such as `Spacing` support
+                ``"bilinear"``, ``"nearest"`` and ``"bicubic"``). For modes that support ``align_corners``
+                (``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``), the alignment recorded by the
+                forward transforms is preserved; for other modes the recorded alignment is reset, as with
+                the ``nearest`` behavior. It also can be a list, each matches to
+                the `keys` data, and ``None`` items fall back to the ``nearest_interp`` behavior for the
+                corresponding key.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -1014,6 +1044,24 @@ class Invertd(MapTransform):
         self.orig_meta_keys = ensure_tuple_rep(orig_meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.keys))
+        self.interp = ensure_tuple_rep(interp, len(self.keys))
+        if any(item is not None for item in self.interp):
+            valid_modes = tuple(sorted({*(m.value for m in GridSampleMode), *(m.value for m in InterpolateMode)}))
+            normalized = []
+            for item in self.interp:
+                if item is None:
+                    normalized.append(None)
+                elif isinstance(item, bool) or not isinstance(item, (str, int)):
+                    raise TypeError(
+                        f"interp items must be a string interpolation mode or an integer spline order, got {item!r}."
+                    )
+                elif isinstance(item, str):
+                    normalized.append(look_up_option(item, valid_modes))
+                elif item not in range(6):
+                    raise ValueError(f"interp spline order must be an integer in [0, 5], got {item}.")
+                else:
+                    normalized.append(item)
+            self.interp = tuple(normalized)
         self.to_tensor = ensure_tuple_rep(to_tensor, len(self.keys))
         self.device = ensure_tuple_rep(device, len(self.keys))
         self.post_func = ensure_tuple_rep(post_func, len(self.keys))
@@ -1028,6 +1076,7 @@ class Invertd(MapTransform):
             orig_meta_key,
             meta_key_postfix,
             nearest_interp,
+            interp,
             to_tensor,
             device,
             post_func,
@@ -1038,6 +1087,7 @@ class Invertd(MapTransform):
             self.orig_meta_keys,
             self.meta_key_postfix,
             self.nearest_interp,
+            self.interp,
             self.to_tensor,
             self.device,
             self.post_func,
@@ -1059,7 +1109,13 @@ class Invertd(MapTransform):
             else:
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
                 meta_info = d.get(orig_meta_key, {})
-            if nearest_interp:
+            if interp is not None:
+                transform_info = convert_applied_interp_mode(
+                    trans_info=transform_info,
+                    mode=interp,
+                    preserve_align_corners=isinstance(interp, str) and interp in _ALIGN_CORNERS_MODES,
+                )
+            elif nearest_interp:
                 transform_info = convert_applied_interp_mode(
                     trans_info=transform_info, mode="nearest", align_corners=None
                 )

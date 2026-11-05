@@ -33,14 +33,16 @@ from monai.transforms import (
     RandRotate90d,
     RandRotated,
     RandZoomd,
+    Resized,
     ResizeWithPadOrCropd,
     ScaleIntensityd,
     Spacingd,
+    convert_applied_interp_mode,
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.dictionary import Lambdad
-from monai.utils import TraceKeys, set_determinism
+from monai.utils import TraceKeys, optional_import, set_determinism
 from tests.test_utils import assert_allclose, make_nifti_image
 
 KEYS = ["image", "label"]
@@ -370,6 +372,230 @@ class TestInvertd(unittest.TestCase):
         inverter = Invertd(key, transform=pipeline1, orig_keys=key)
         inverted2 = inverter(result2)
         self.assertIsNotNone(inverted2)
+
+
+class TestInvertdInterp(unittest.TestCase):
+    """Tests for the optional `interp` argument of `Invertd` (issue #7836)."""
+
+    def _make_edge_soft_seg(self, shape):
+        axes = [torch.arange(float(s)) for s in shape]
+        grids = torch.meshgrid(*axes, indexing="ij")
+        center = tuple(s / 2.0 for s in shape)
+        r = torch.sqrt(sum((g - c) ** 2 for g, c in zip(grids, center)))
+        field = torch.sigmoid((min(shape) * 0.3 - r) * 1.8).clamp(0.0, 1.0)
+        return MetaTensor(field.unsqueeze(0), affine=torch.eye(len(shape) + 1))
+
+    def _forward(self, data, keys="img", pixdim=1.4, mode="bilinear"):
+        fwd = Compose([Spacingd(keys, pixdim=pixdim, mode=mode)])
+        return fwd, fwd({keys: data})[keys]
+
+    def test_positional_arguments_unchanged(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, _ = self._forward(data)
+        # legacy positional order: keys, transform, orig_keys, meta_keys, orig_meta_keys,
+        # meta_key_postfix, nearest_interp, to_tensor, device, post_func, allow_missing_keys
+        inverter = Invertd("img", fwd, "img", None, None, "meta_dict", False, True, None, None, False)
+        self.assertEqual(inverter.nearest_interp, (False,))
+        self.assertEqual(inverter.to_tensor, (True,))
+        self.assertIsNone(inverter.device[0])
+        self.assertIsNone(inverter.post_func[0])
+        self.assertFalse(inverter.allow_missing_keys)
+        # the appended parameter defaults to None and does not shift any positional argument
+        self.assertEqual(inverter.interp, (None,))
+
+    def test_invalid_interp_rejected(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, _ = self._forward(data)
+        with self.assertRaises(ValueError):
+            Invertd("img", transform=fwd, orig_keys="img", interp="banana")
+        with self.assertRaises(ValueError):
+            Invertd("img", transform=fwd, orig_keys="img", interp=7)
+        with self.assertRaises((TypeError, ValueError)):
+            Invertd("img", transform=fwd, orig_keys="img", interp=True)
+        # per-key sequence length mismatches are rejected with a clear error
+        with self.assertRaises(ValueError):
+            Invertd("img", transform=fwd, orig_keys="img", interp=("bilinear", "nearest"))
+
+    def test_allow_missing_keys_unchanged(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, _ = self._forward(data)
+        missing = {"other": torch.rand(1, 4, 4)}
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", allow_missing_keys=True)
+        out = inverter(dict(missing))
+        self.assertNotIn("img", out)
+        self.assertIn("other", out)
+        with self.assertRaises(KeyError):
+            Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", allow_missing_keys=False)(dict(missing))
+
+    def test_interp_overrides_nearest_interp_default(self):
+        set_determinism(seed=0)
+        for shape, pixdim in [((16, 20, 20), 1.4), ((20, 20), (1.4, 1.4))]:
+            with self.subTest(shape=shape):
+                data = self._make_edge_soft_seg(shape)
+                fwd, resampled = self._forward(data, pixdim=pixdim)
+                inverter = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)
+                out_default = inverter({"img": resampled.clone()})["img"]
+                inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+                out_interp = inverter({"img": resampled.clone()})["img"]
+                # an explicitly supplied `interp` takes precedence over the `nearest_interp=True` default
+                self.assertFalse(torch.allclose(out_default, out_interp))
+                # for this saturated, in-range input the bilinear inversion stays inside [0, 1]
+                # (a convex combination of in-range values -- data-specific, not a general guarantee)
+                self.assertGreaterEqual(float(out_interp.min()), -1e-6)
+                self.assertLessEqual(float(out_interp.max()), 1.0 + 1e-6)
+
+    def test_interp_matches_manual_recorded_mode_rewrite(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        # forward with `nearest` so that rewriting the recorded mode to bilinear is observable
+        fwd, resampled = self._forward(data, mode="nearest")
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(
+            sim.applied_operations, mode="bilinear", preserve_align_corners=True
+        )
+        expected = fwd.inverse({"img": sim})["img"]
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+        out = inverter({"img": resampled.clone()})["img"]
+        assert_allclose(out, expected, type_test=False)
+        # transformation metadata is preserved: the affine is restored and the trace fully consumed
+        self.assertIsInstance(out, MetaTensor)
+        assert_allclose(out.affine, data.affine, type_test=False)
+        self.assertEqual(out.applied_operations, [])
+
+    def test_interp_preserves_recorded_align_corners(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Resized("img", spatial_size=(24, 24, 24), mode="bilinear", align_corners=True)])
+        resampled = fwd({"img": data})["img"]
+        out_recorded = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=False, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+        out_interp = inverter({"img": resampled.clone()})["img"]
+        # "bilinear" supports align_corners: the recorded alignment is preserved, matching the
+        # verbatim recorded-mode reuse (this fails if the override resets the recorded alignment)
+        assert_allclose(out_interp, out_recorded, type_test=False)
+        # the forced-nearest default resets the alignment and resamples differently
+        out_default = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)({"img": resampled.clone()})["img"]
+        self.assertFalse(torch.allclose(out_interp, out_default))
+
+    def test_legacy_paths_unchanged(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, resampled = self._forward(data)
+        # default construction and nearest_interp=True both use the forced-nearest rewrite
+        out_default = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)({"img": resampled.clone()})["img"]
+        out_true = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=True, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode="nearest", align_corners=None)
+        expected_nearest = fwd.inverse({"img": sim})["img"]
+        assert_allclose(out_default, out_true, type_test=False)
+        assert_allclose(out_default, expected_nearest, type_test=False)
+        # nearest_interp=False reuses the recorded forward modes verbatim (no rewrite at all)
+        out_recorded = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=False, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        expected_recorded = fwd.inverse({"img": resampled.clone()})["img"]
+        assert_allclose(out_recorded, expected_recorded, type_test=False)
+
+    def test_interp_nearest_equals_legacy_default(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, resampled = self._forward(data)
+        out_default = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)({"img": resampled.clone()})["img"]
+        out_nearest = Invertd("img", transform=fwd, orig_keys="img", interp="nearest", to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        assert_allclose(out_default, out_nearest, type_test=False)
+
+    def test_precedence_over_both_legacy_flags(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        # forward with `nearest` so the bilinear override is observable against both legacy paths
+        fwd, resampled = self._forward(data, mode="nearest")
+        out_default = Invertd("img", transform=fwd, orig_keys="img", to_tensor=False)({"img": resampled.clone()})["img"]
+        out_recorded = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=False, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        inverter = Invertd(
+            "img", transform=fwd, orig_keys="img", nearest_interp=False, interp="bilinear", to_tensor=False
+        )
+        out_both = inverter({"img": resampled.clone()})["img"]
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+        out_interp = inverter({"img": resampled.clone()})["img"]
+        # documented precedence: an explicit `interp` wins over both legacy settings
+        assert_allclose(out_both, out_interp, type_test=False)
+        self.assertFalse(torch.allclose(out_both, out_default))
+        self.assertFalse(torch.allclose(out_both, out_recorded))
+
+    def test_per_key_interp(self):
+        set_determinism(seed=0)
+        keys = ["pred", "seg"]
+        data = {k: self._make_edge_soft_seg((16, 20, 20)) for k in keys}
+        fwd = Compose([Spacingd(keys, pixdim=1.4, mode="bilinear")])
+        resampled = fwd(data)
+        out = Invertd(keys, transform=fwd, orig_keys=keys, interp=("bilinear", "nearest"), to_tensor=False)(
+            {k: v.clone() for k, v in resampled.items()}
+        )
+        # "pred" was inverted with bilinear, which differs from the nearest default for the same key
+        out_default = Invertd(keys, transform=fwd, orig_keys=keys, to_tensor=False)(
+            {k: v.clone() for k, v in resampled.items()}
+        )
+        self.assertFalse(torch.allclose(out["pred"], out_default["pred"]))
+        # "seg" requested nearest, matching the default behavior for that key
+        assert_allclose(out["seg"], out_default["seg"], type_test=False)
+
+    def test_per_key_none_fallback(self):
+        set_determinism(seed=0)
+        keys = ["pred", "seg"]
+        data = {k: self._make_edge_soft_seg((16, 20, 20)) for k in keys}
+        fwd = Compose([Spacingd(keys, pixdim=1.4, mode="bilinear")])
+        resampled = fwd(data)
+        out = Invertd(keys, transform=fwd, orig_keys=keys, interp=("bilinear", None), to_tensor=False)(
+            {k: v.clone() for k, v in resampled.items()}
+        )
+        out_default = Invertd(keys, transform=fwd, orig_keys=keys, to_tensor=False)(
+            {k: v.clone() for k, v in resampled.items()}
+        )
+        # "seg" has a None item and falls back to the nearest_interp=True behavior
+        assert_allclose(out["seg"], out_default["seg"], type_test=False)
+        # "pred" still uses its explicit bilinear mode
+        self.assertFalse(torch.allclose(out["pred"], out_default["pred"]))
+
+    @unittest.skipUnless(optional_import("scipy")[1], "Requires SciPy.")
+    def test_recorded_spline_mode_reuse(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, resampled = self._forward(data, mode=2)
+        # nearest_interp=False reuses the recorded spline order verbatim (near-exact reconstruction)
+        out_recorded = Invertd("img", transform=fwd, orig_keys="img", nearest_interp=False, to_tensor=False)(
+            {"img": resampled.clone()}
+        )["img"]
+        expected = fwd.inverse({"img": resampled.clone()})["img"]
+        assert_allclose(out_recorded, expected, type_test=False)
+        mae = float(np.abs(out_recorded.numpy() - data.numpy()).mean())
+        self.assertLess(mae, 0.02)
+        # and the new `interp` argument overrides the recorded spline order
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp="bilinear", to_tensor=False)
+        out_interp = inverter({"img": resampled.clone()})["img"]
+        self.assertFalse(torch.allclose(out_recorded, out_interp))
+
+    @unittest.skipUnless(optional_import("scipy")[1], "Requires SciPy.")
+    def test_interp_spline_order(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd, resampled = self._forward(data)
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode=2)
+        expected = fwd.inverse({"img": sim})["img"]
+        inverter = Invertd("img", transform=fwd, orig_keys="img", interp=2, to_tensor=False)
+        out = inverter({"img": resampled.clone()})["img"]
+        assert_allclose(out, expected, type_test=False)
 
 
 if __name__ == "__main__":
