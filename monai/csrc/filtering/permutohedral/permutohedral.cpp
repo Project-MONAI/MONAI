@@ -60,15 +60,15 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
     }
 
 #define CASE(dc, fc)                                                                                                  \
-  AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \
-                               for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                      \
-                                 scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;         \
-                                 scalar_t* offsetFeatures =                                                           \
-                                     features.data_ptr<scalar_t>() + batchIndex * fc * elementCount;                  \
-                                 PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true); \
-                               }                                                                                      \
-                             }));
-    SWITCH_AB(CASE, PHL_CUDA_MAX_CHANNELS, PHL_CUDA_MAX_FEATURES, channelCount, featureCount);
+  // AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \
+  //                              for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                      \
+  //                                scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;         \
+  //                                scalar_t* offsetFeatures =                                                           \
+  //                                    features.data_ptr<scalar_t>() + batchIndex * fc * elementCount;                  \
+  //                                PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true); \
+  //                              }                                                                                      \
+  //                            }));
+  //   SWITCH_AB(CASE, PHL_CUDA_MAX_CHANNELS, PHL_CUDA_MAX_FEATURES, channelCount, featureCount);
 
   } else {
 #endif
