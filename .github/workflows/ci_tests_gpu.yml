@@ -46,6 +46,7 @@ env:
   BUILD_MONAI: 1  # always build MONAI and ensure it tries to use the compiled extensions
   FORCE_CUDA: 1  # ensure CUDA code is built
   CUDA_HOME: '/usr/local/cuda'  # ensure the CUDA directory is definitely found
+  TORCH_CUDA_ARCH_LIST: "7.5 8.0 8.6 8.9 9.0+PTX 12.0"  # specify supported architectures
 
 jobs:
 
@@ -92,7 +93,7 @@ jobs:
       shell: bash
     - name: Run quick tests
       run: |
-        python -c 'import monai._C; assert monai._C.max_compute_capability() > 0' > /dev/null
+        python -c 'import monai._C; cap=monai._C.max_compute_capability(); assert cap > 0, f"Capabilities too low: {cap}"'
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
         ./runtests.sh -u --net

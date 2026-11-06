@@ -114,6 +114,12 @@ def print_config(file=sys.stdout):
     fprint(f"MONAI flags: {HAS_EXT=}, {USE_COMPILED=}, {USE_META_DICT=}", file=file)
     fprint(f"MONAI rev id: {monai.__revision_id__}", file=file)
     fprint(f"MONAI __file__: {monai.__file__}", file=file)
+
+    if HAS_EXT:
+        fprint(f"monai._C.max_compute_capability: {monai._C.max_compute_capability()}", file=file)
+        fprint(f"monai._C.compiled_with_cuda: {monai._C.compiled_with_cuda()}", file=file)
+        fprint(f"monai._C.monai_torch_version: {monai._C.monai_torch_version()}", file=file)
+
     fprint("\nOptional dependencies:", file=file)
     for k, v in get_optional_config_values().items():
         fprint(f"{k} version: {v}", file=file)
