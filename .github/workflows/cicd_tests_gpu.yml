@@ -45,10 +45,7 @@ env:
 
   BUILD_MONAI: 1  # always build MONAI and ensure it tries to use the compiled extensions
   FORCE_CUDA: 1  # ensure CUDA code is built
-
-# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
-# Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
-# When support is dropped for a version it is important to update these as appropriate.
+  CUDA_HOME: '/usr/local/cuda'  # ensure the CUDA directory is definitely found
 
 jobs:
 
@@ -68,6 +65,18 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+    - name: Install CUDA
+      run: |
+        sudo apt update
+        sudo apt upgrade -y
+        sudo apt install --no-install-recommends -y ca-certificates git wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
+        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+        sudo apt update
+        sudo apt install --no-install-recommends -y cuda-toolkit-13-3
+      env:
+        DEBIAN_FRONTEND: 'noninteractive'
+
     - name: Install torch gpu
       run: |
         # install the lowest version of PyTorch supported

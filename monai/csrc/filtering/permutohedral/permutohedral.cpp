@@ -28,7 +28,6 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
   int channelCount = input.size(1);
   int featureCount = features.size(1);
 
-  std::cout << "movedim" << std::flush << std::endl; 
 // movedim not support in torch < 1.7.1
 #if MONAI_TORCH_VERSION >= 10701
   torch::Tensor data = input.clone().movedim(1, -1).contiguous();
@@ -46,12 +45,8 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
   features = features.contiguous();
 #endif
 
-std::cout << "WITH_CUDA " << torch::cuda::is_available() << std::flush << std::endl; 
-std::cout << data.is_cuda() << " " << data.is_contiguous() << std::flush << std::endl; 
-std::cout << WITH_CUDA << std::flush << std::endl;
 #ifdef WITH_CUDA
   if (torch::cuda::is_available() && data.is_cuda()) {
-    std::cout << "CHECK_CONTIGUOUS_CUDA" << std::flush << std::endl; 
     CHECK_CONTIGUOUS_CUDA(data);
 
     if (channelCount > PHL_CUDA_MAX_CHANNELS) {
@@ -65,15 +60,15 @@ std::cout << WITH_CUDA << std::flush << std::endl;
     }
 
 #define CASE(dc, fc)                                                                                                  \
-  // AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \
-  //                              for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                      \
-  //                                scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;         \
-  //                                scalar_t* offsetFeatures =                                                           \
-  //                                    features.data_ptr<scalar_t>() + batchIndex * fc * elementCount;                  \
-  //                                PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true); \
-  //                              }                                                                                      \
-  //                            }));
-  //   SWITCH_AB(CASE, PHL_CUDA_MAX_CHANNELS, PHL_CUDA_MAX_FEATURES, channelCount, featureCount);
+  AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \
+                               for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                      \
+                                 scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;         \
+                                 scalar_t* offsetFeatures =                                                           \
+                                     features.data_ptr<scalar_t>() + batchIndex * fc * elementCount;                  \
+                                 PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true); \
+                               }                                                                                      \
+                             }));
+    SWITCH_AB(CASE, PHL_CUDA_MAX_CHANNELS, PHL_CUDA_MAX_FEATURES, channelCount, featureCount);
 
   } else {
 #endif
@@ -88,8 +83,6 @@ std::cout << WITH_CUDA << std::flush << std::endl;
 #ifdef WITH_CUDA
   }
 #endif
-
-std::cout << "movedim again" << std::flush << std::endl; 
 
 // movedim not support in torch < 1.7.1
 #if MONAI_TORCH_VERSION >= 10701
