@@ -70,7 +70,7 @@ jobs:
     - name: Install torch gpu
       run: |
         # install the lowest version of PyTorch supported
-        python -m pip install torch==${PYTORCH_VER4} torchvision
+        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
       shell: bash
     - name: Install the complete dependencies
       run: |
