@@ -89,17 +89,14 @@ jobs:
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
         python -m pip install --no-build-isolation -e .[all,testing]
-        python -m pip list
       shell: bash
     - name: Run quick tests
       run: |
-        #python -c 'import monai._C' > /dev/null
+        python -c 'import monai._C' > /dev/null
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
-        # python -m unittest -v
-        ./runtests.sh --min
+        python -m unittest -v
       env:
-        QUICKTEST: True
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
         NGC_ORG: ${{ secrets.NGC_ORG }}
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
