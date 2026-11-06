@@ -48,6 +48,7 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
 
 std::cout << "WITH_CUDA " << torch::cuda::is_available() << std::flush << std::endl; 
 std::cout << data.is_cuda() << " " << data.is_contiguous() << std::flush << std::endl; 
+std::cout << WITH_CUDA << std::flush << std::endl;
 #ifdef WITH_CUDA
   if (torch::cuda::is_available() && data.is_cuda()) {
     std::cout << "CHECK_CONTIGUOUS_CUDA" << std::flush << std::endl; 

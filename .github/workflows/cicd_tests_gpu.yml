@@ -44,6 +44,7 @@ env:
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   BUILD_MONAI: 1  # always build MONAI and ensure it tries to use the compiled extensions
+  FORCE_CUDA: 1  # ensure CUDA code is built
 
 # These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
 # Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
