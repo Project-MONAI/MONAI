@@ -102,7 +102,8 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
         the resolved ``Algo`` subclass.
 
     Raises:
-        ValueError: if ``target`` is not a string, or does not resolve to a concrete ``Algo`` subclass.
+        ValueError: if ``target`` is not a string, does not resolve to a concrete ``Algo`` subclass, or is
+            a short name that more than one monai module defines.
         ModuleNotFoundError: if the module cannot be imported, so callers can try the next
             template path.
     """
@@ -116,11 +117,10 @@ def _reject_non_algo_target(target: Any, filename: str) -> type[Algo]:
         # name on sys.path, for example one in template_path, cannot shadow it.
         module = _component_locator().get_component_module_name(target)
         if isinstance(module, list):
-            warnings.warn(
-                f"there are more than 1 component have name `{target}`: {module}, use the first one `{module[0]}."
-                f" if want to use others, please set its full module path in `_target_` directly."
+            raise ValueError(
+                f"Multiple components have name `{target}`: {module}. "
+                f"Set its full module path in `_target_` to specify which one is used."
             )
-            module = module[0]
         resolved = locate(f"{module}.{target}") if module is not None else None
     if resolved is None:
         raise ModuleNotFoundError(f"Cannot resolve `_target_` {target!r} from {filename}.")

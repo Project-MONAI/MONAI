@@ -16,6 +16,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from monai.auto3dseg.utils import _reject_non_algo_target, algo_from_json
 
@@ -62,19 +63,18 @@ class TestAlgoTargetAllowlist(unittest.TestCase):
 
     def test_bare_name_is_not_shadowed_by_a_module_on_the_path(self):
         """A module file named like a monai component does not take precedence over the component."""
-        with tempfile.TemporaryDirectory() as tempdir:
+        with (
+            tempfile.TemporaryDirectory() as tempdir,
+            mock.patch("sys.path", [tempdir, *sys.path]),
+            mock.patch.dict(sys.modules),
+        ):
             marker = os.path.join(tempdir, "SHADOWED")
             with open(os.path.join(tempdir, "BundleAlgo.py"), "w") as f:
                 f.write(f"open({marker!r}, 'w').close()\n")
-            sys.path.insert(0, tempdir)
-            try:
-                from monai.apps.auto3dseg import BundleAlgo
+            from monai.apps.auto3dseg import BundleAlgo
 
-                self.assertIs(_reject_non_algo_target("BundleAlgo", "algo_object.json"), BundleAlgo)
-                self.assertFalse(os.path.exists(marker), "the same-named module in template_path was imported")
-            finally:
-                sys.path.remove(tempdir)
-                sys.modules.pop("BundleAlgo", None)
+            self.assertIs(_reject_non_algo_target("BundleAlgo", "algo_object.json"), BundleAlgo)
+            self.assertFalse(os.path.exists(marker), "the same-named module in template_path was imported")
 
     def test_non_string_target_is_rejected(self):
         """A JSON ``null`` ``_target_`` raises the documented ``ValueError``, not ``AttributeError``."""

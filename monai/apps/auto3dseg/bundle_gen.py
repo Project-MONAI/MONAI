@@ -567,7 +567,7 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
         raise ValueError(f"Invalid algos entry {algo_name!r}: missing '_target_' key.")
 
     template_path = params.get("template_path", ".")
-    if template_path is not None and not isinstance(template_path, str):
+    if not isinstance(template_path, str):
         raise ValueError(
             f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: expected a string, "
             f"got {type(template_path).__name__}."
@@ -575,14 +575,9 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
     if template_path and template_path not in sys.path:
         sys.path.append(template_path)
 
+    # the allowlist resolves the class and checks issubclass(..., Algo) before anything is instantiated
     algo_cls: Any = _reject_non_algo_target(target, f"algos entry {algo_name!r}")
-    algo = algo_cls(**params)
-    if not isinstance(algo, Algo):
-        raise ValueError(
-            f"Refusing to use the object built from '{target}' for algos entry {algo_name!r}: "
-            f"it is a {type(algo).__name__}, not an Algo instance."
-        )
-    return algo
+    return algo_cls(**params)
 
 
 class BundleGen(AlgoGen):
