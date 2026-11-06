@@ -92,10 +92,10 @@ jobs:
       shell: bash
     - name: Run quick tests
       run: |
-        python -c 'import monai._C' > /dev/null
+        python -c 'import monai._C; assert monai._C.max_compute_capability() > 0' > /dev/null
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
-        python -m unittest -v
+        ./runtests.sh -u --net
       env:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
         NGC_ORG: ${{ secrets.NGC_ORG }}
