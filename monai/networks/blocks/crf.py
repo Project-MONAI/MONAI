@@ -93,11 +93,8 @@ class CRF(torch.nn.Module):
         # mean field loop
         for i in range(self.iterations):
             # message passing step for both kernels
-            print(i, "bilateral_output",flush=True)
             bilateral_output = PHLFilter.apply(output_tensor, bilateral_features)
-            print(i, "gaussian_output",flush=True)
             gaussian_output = PHLFilter.apply(output_tensor, gaussian_features)
-            print(i, "done",flush=True)
 
             # combining filter outputs
             combined_output = self.bilateral_weight * bilateral_output + self.gaussian_weight * gaussian_output

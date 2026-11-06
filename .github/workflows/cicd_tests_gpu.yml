@@ -97,8 +97,7 @@ jobs:
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
         # python -m unittest -v
-        # ./runtests.sh --min
-        PYTHONPATH=. python tests/networks/blocks/test_crf_cuda.py
+        ./runtests.sh --min
       env:
         QUICKTEST: True
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
