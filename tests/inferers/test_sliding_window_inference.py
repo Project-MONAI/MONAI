@@ -313,52 +313,62 @@ class TestSlidingWindowInference(unittest.TestCase):
 
     def test_multioutput(self):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = torch.ones((1, 6, 20, 20)).to(device=device)
+        inputs = torch.arange(1 * 6 * 20 * 20, dtype=torch.float32, device=device).reshape((1, 6, 20, 20))
         roi_shape = (8, 8)
         sw_batch_size = 10
 
         def compute(data):
-            return data + 1, data[:, ::3, ::2, ::2] + 2, data[:, ::2, ::4, ::4] + 3
+            return data + 1, data[:, ::3, ::2, ::2] + 2, data[:, ::2, ::4, ::2] + 3
 
         def compute_dict(data):
-            return {1: data + 1, 2: data[:, ::3, ::2, ::2] + 2, 3: data[:, ::2, ::4, ::4] + 3}
+            return {1: data + 1, 2: data[:, ::3, ::2, ::2] + 2, 3: data[:, ::2, ::4, ::2] + 3}
 
-        result = sliding_window_inference(
-            inputs,
-            roi_shape,
-            sw_batch_size,
-            compute,
-            0.5,
-            "constant",
-            1.0,
-            "constant",
-            0.0,
-            device,
-            device,
-            has_tqdm,
-            None,
-        )
-        result_dict = sliding_window_inference(
-            inputs,
-            roi_shape,
-            sw_batch_size,
-            compute_dict,
-            0.5,
-            "constant",
-            1.0,
-            "constant",
-            0.0,
-            device,
-            device,
-            has_tqdm,
-            None,
-        )
-        expected = (np.ones((1, 6, 20, 20)) + 1, np.ones((1, 2, 10, 10)) + 2, np.ones((1, 3, 5, 5)) + 3)
-        expected_dict = {1: np.ones((1, 6, 20, 20)) + 1, 2: np.ones((1, 2, 10, 10)) + 2, 3: np.ones((1, 3, 5, 5)) + 3}
-        for rr, ee in zip(result, expected):
-            np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
-        for rr, _ in zip(result_dict, expected_dict):
-            np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
+        expected = tuple(output.cpu().numpy() for output in compute(inputs))
+        expected_dict = {key: output.cpu().numpy() for key, output in compute_dict(inputs).items()}
+
+        for buffer_steps in (None, 2):
+            result = sliding_window_inference(
+                inputs,
+                roi_shape,
+                sw_batch_size,
+                compute,
+                0.5,
+                "constant",
+                1.0,
+                "constant",
+                0.0,
+                device,
+                device,
+                has_tqdm,
+                None,
+                buffer_steps=buffer_steps,
+                buffer_dim=0,
+            )
+            result_dict = sliding_window_inference(
+                inputs,
+                roi_shape,
+                sw_batch_size,
+                compute_dict,
+                0.5,
+                "constant",
+                1.0,
+                "constant",
+                0.0,
+                device,
+                device,
+                has_tqdm,
+                None,
+                buffer_steps=buffer_steps,
+                buffer_dim=0,
+            )
+            self.assertIsInstance(result, tuple)
+            self.assertEqual(len(result), len(expected))
+            self.assertIsInstance(result_dict, dict)
+            self.assertEqual(set(result_dict), set(expected_dict))
+            for rr, ee in zip(result, expected):
+                np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
+            for rr in result_dict:
+                np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
         result = SlidingWindowInferer(
             roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
