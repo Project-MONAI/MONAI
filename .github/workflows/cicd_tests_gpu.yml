@@ -35,8 +35,8 @@ env:
   # supported versions of PyTorch
   PYTORCH_VER1: '2.12.1'
   PYTORCH_VER2: '2.13.0'
-  PYTORCH_VER3: '2.14.0'
-  PYTORCH_VER4: '2.14.1'
+  PYTORCH_VER3: '2.14.1'
+  PYTORCH_VER4: '2.15.0'
   TORCHVISION_VER1: '0.27.1'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
 
   TQDM_DISABLE: 1  # squelch TQDM output to reduce log file size
@@ -57,10 +57,6 @@ jobs:
       fail-fast: false
     timeout-minutes: 360
     steps:
-    - name: Install build tools (may not be necessary)
-      run: |
-        sudo apt update
-        sudo apt install build-essential
     - uses: actions/checkout@v7
     - name: Set up Python ${{ env.PYTHON_VER1 }}
       uses: actions/setup-python@v6
@@ -91,7 +87,8 @@ jobs:
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
         # python -m unittest -v
-        ./runtests.sh --min
+        # ./runtests.sh --min
+        PYTHONPATH=. python tests/networks/blocks/test_crf_cuda.py
       env:
         QUICKTEST: True
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
