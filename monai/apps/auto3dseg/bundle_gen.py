@@ -466,6 +466,16 @@ class BundleAlgo(Algo):
         ``ckpt_path`` is therefore resolved as data rather than evaluated: string literals,
         ``+`` concatenation and ``@references`` such as ``$@bundle_root + '/model_fold' + str(@fold)``
         work, while any other call, an attribute, a comprehension or a ``_target_`` mapping is refused.
+
+        Args:
+            *args: unused, kept for compatibility with the ``Algo`` interface.
+            **kwargs: unused, kept for compatibility with the ``Algo`` interface.
+
+        Returns:
+            the best average Dice score recorded in ``progress.yaml``.
+
+        Raises:
+            ValueError: if ``ckpt_path`` in the saved configuration is not a plain path string.
         """
         config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
         parser = ConfigParser(globals=False)
