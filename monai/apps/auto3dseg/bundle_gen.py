@@ -15,6 +15,7 @@ import importlib
 import ntpath
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -118,6 +119,21 @@ class BundleAlgo(Algo):
     ``export_to_disk``. Then created bundle keeps the same file structure as the template.
 
     """
+
+    # Keys carried by ``state_dict``/``load_state_dict``. Declared once so that a partially initialized instance
+    # (for example one built without running ``__init__``) can still validate the keys of a restored state.
+    _STATE_KEYS = (
+        "template_path",
+        "data_stats_files",
+        "data_list_file",
+        "mlflow_tracking_uri",
+        "mlflow_experiment_name",
+        "output_path",
+        "name",
+        "best_metric",
+        "fill_records",
+        "device_setting",
+    )
 
     def __init__(self, template_path: PathLike | None = None):
         """
@@ -284,7 +300,7 @@ class BundleAlgo(Algo):
 
             return (
                 _prepare_cmd_bcprun(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -292,11 +308,11 @@ class BundleAlgo(Algo):
                 "",
             )
         elif int(self.device_setting["n_devices"]) > 1:
-            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
+            return _prepare_cmd_torchrun(f"{shlex.quote(train_py)} run", config_file=config_files, **params), ""
         else:
             return (
                 _prepare_cmd_default(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -332,7 +348,7 @@ class BundleAlgo(Algo):
                 cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
         else:
-            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
+            return run_cmd(shlex.split(cmd), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -436,18 +452,7 @@ class BundleAlgo(Algo):
             template_path is excluded as it is determined dynamically at load time
             based on which path successfully imports the Algo class.
         """
-        return {
-            "template_path": self.template_path,
-            "data_stats_files": self.data_stats_files,
-            "data_list_file": self.data_list_file,
-            "mlflow_tracking_uri": self.mlflow_tracking_uri,
-            "mlflow_experiment_name": self.mlflow_experiment_name,
-            "output_path": self.output_path,
-            "name": self.name,
-            "best_metric": self.best_metric,
-            "fill_records": self.fill_records,
-            "device_setting": self.device_setting,
-        }
+        return {key: getattr(self, key) for key in self._STATE_KEYS}
 
     def load_state_dict(self, state: dict) -> None:
         """
@@ -455,9 +460,76 @@ class BundleAlgo(Algo):
 
         Args:
             state: A dictionary containing the state to restore.
+
+        Raises:
+            ValueError: if the state has unknown keys, or a ``device_setting`` that is malformed or that asks for
+                more devices than the restored ``CUDA_VISIBLE_DEVICES`` exposes.
         """
+        allowed = set(self._STATE_KEYS)
+        unknown = sorted(set(state) - allowed)
+        if unknown:
+            raise ValueError(
+                f"Unexpected keys in {type(self).__name__} state: {unknown}. Expected a subset of {sorted(allowed)}."
+            )
+        if "device_setting" in state:
+            state = dict(state)
+            restored = _validate_device_setting(state["device_setting"])
+            # merge into the current settings so fields missing from the saved state keep their defaults
+            merged = {**getattr(self, "device_setting", {}), **restored}
+            if "CUDA_VISIBLE_DEVICES" in restored:
+                visible = _count_visible_devices(restored["CUDA_VISIBLE_DEVICES"])
+                if "n_devices" in restored:
+                    if merged["n_devices"] > visible:
+                        raise ValueError(
+                            f"device_setting asks for {merged['n_devices']} devices but "
+                            f"CUDA_VISIBLE_DEVICES={restored['CUDA_VISIBLE_DEVICES']!r} exposes {visible}."
+                        )
+                else:
+                    # a state without n_devices must not keep the device count of this host
+                    merged["n_devices"] = visible
+            state["device_setting"] = merged
         for key, value in state.items():
             setattr(self, key, value)
+
+
+def _count_visible_devices(visible: str) -> int:
+    """Number of devices selected by a ``CUDA_VISIBLE_DEVICES`` value (a single MIG identifier counts as one)."""
+    return len([item for item in str(visible).split(",") if item.strip()])
+
+
+def _validate_device_setting(device_setting: Any) -> dict:
+    """
+    Check a restored ``device_setting`` dictionary before it is used to build training commands.
+
+    Args:
+        device_setting: the value restored from a saved state.
+
+    Returns:
+        a copy of ``device_setting`` with the numeric fields converted to ``int``.
+
+    Raises:
+        ValueError: if the value is not a dictionary, has unknown keys, or has malformed fields.
+    """
+    known = {"CUDA_VISIBLE_DEVICES", "n_devices", "NUM_NODES", "MN_START_METHOD", "CMD_PREFIX"}
+    if not isinstance(device_setting, dict):
+        raise ValueError(f"device_setting must be a dict, got {type(device_setting).__name__}.")
+    unknown = sorted(set(device_setting) - known)
+    if unknown:
+        raise ValueError(f"Unexpected keys in device_setting: {unknown}.")
+    checked = dict(device_setting)
+    for key in ("n_devices", "NUM_NODES"):
+        if key in checked:
+            value = checked[key]
+            if isinstance(value, bool) or not re.fullmatch(r"\d+", str(value)):
+                raise ValueError(f"device_setting[{key!r}] must be a non-negative integer, got {value!r}.")
+            checked[key] = int(value)
+    if "CUDA_VISIBLE_DEVICES" in checked and not re.fullmatch(r"[\w,./-]*", str(checked["CUDA_VISIBLE_DEVICES"])):
+        # device indices, GPU UUIDs and MIG identifiers (``MIG-GPU-<uuid>/<gi>/<ci>``) are all accepted
+        raise ValueError(f"device_setting['CUDA_VISIBLE_DEVICES'] is malformed: {checked['CUDA_VISIBLE_DEVICES']!r}.")
+    for key in ("MN_START_METHOD", "CMD_PREFIX"):
+        if key in checked and not isinstance(checked[key], str):
+            raise ValueError(f"device_setting[{key!r}] must be a string, got {type(checked[key]).__name__}.")
+    return checked
 
 
 # path to download the algo_templates
