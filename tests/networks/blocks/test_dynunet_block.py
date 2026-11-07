@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
-from tests.test_utils import dict_product, test_script_save
+from tests.test_utils import dict_product, test_export_save, test_script_save
 
 TEST_CASE_RES_BASIC_BLOCK = []
 for params in dict_product(
@@ -91,6 +91,13 @@ class TestResBasicBlock(unittest.TestCase):
             test_data = torch.randn(input_shape)
             test_script_save(net, test_data)
 
+    @parameterized.expand([[UnetResBlock], [UnetBasicBlock]])
+    def test_export(self, net_type):
+        input_param, input_shape, _ = TEST_CASE_RES_BASIC_BLOCK[0]
+        net = net_type(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
+
 
 class TestUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_UP_BLOCK)
@@ -107,6 +114,14 @@ class TestUpBlock(unittest.TestCase):
         test_data = torch.randn(input_shape)
         skip_data = torch.randn(skip_shape)
         test_script_save(net, test_data, skip_data)
+
+    def test_export(self):
+        input_param, input_shape, _, skip_shape = TEST_UP_BLOCK[0]
+
+        net = UnetUpBlock(**input_param)
+        test_data = torch.randn(input_shape)
+        skip_data = torch.randn(skip_shape)
+        test_export_save(net, test_data, skip_data)
 
 
 if __name__ == "__main__":
