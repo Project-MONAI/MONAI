@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNetDS, SegResNetDS2
-from tests.test_utils import dict_product, test_script_save
+from tests.test_utils import dict_product, test_export_save, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -140,6 +140,12 @@ class TestSegResNetDS(unittest.TestCase):
         net = SegResNetDS(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        input_param, input_shape, _ = TEST_CASE_SEGRESNET_DS[0]
+        net = SegResNetDS(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

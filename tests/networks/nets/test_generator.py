@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import Generator
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 TEST_CASE_0 = [
     {"latent_shape": (64,), "start_shape": (8, 8, 8), "channels": (8, 4, 1), "strides": (2, 2, 2), "num_res_units": 0},
@@ -53,6 +53,11 @@ class TestGenerator(unittest.TestCase):
         net = Generator(latent_shape=(64,), start_shape=(8, 8, 8), channels=(8, 1), strides=(2, 2), num_res_units=2)
         test_data = torch.rand(16, 64)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        net = Generator(latent_shape=(64,), start_shape=(8, 8, 8), channels=(8, 1), strides=(2, 2), num_res_units=2)
+        test_data = torch.rand(16, 64)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

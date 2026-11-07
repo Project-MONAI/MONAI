@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vqvae import VQVAE
+from tests.test_utils import test_export_save
 
 TEST_CASES = [
     [
@@ -142,6 +143,23 @@ class TestVQVAE(unittest.TestCase):
     #     )
     #     test_data = torch.randn(1, 1, 16, 16)
     #     test_script_save(net, test_data)
+
+    def test_export(self):
+        net = VQVAE(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            downsample_parameters=((2, 4, 1, 1),) * 2,
+            upsample_parameters=((2, 4, 1, 1, 0),) * 2,
+            num_res_layers=1,
+            channels=(8, 8),
+            num_res_channels=(8, 8),
+            num_embeddings=16,
+            embedding_dim=8,
+            ddp_sync=False,
+        )
+        test_data = torch.randn(1, 1, 16, 16)
+        test_export_save(net, test_data)
 
     def test_channels_not_same_size_of_num_res_channels(self):
         with self.assertRaises(ValueError):

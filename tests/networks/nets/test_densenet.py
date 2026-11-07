@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121, Densenet169, DenseNet264, densenet201
 from monai.utils import optional_import
-from tests.test_utils import skip_if_downloading_fails, skip_if_quick, test_script_save
+from tests.test_utils import skip_if_downloading_fails, skip_if_quick, test_export_save, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -119,6 +119,12 @@ class TestDENSENET(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    @parameterized.expand(TEST_SCRIPT_CASES)
+    def test_export(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

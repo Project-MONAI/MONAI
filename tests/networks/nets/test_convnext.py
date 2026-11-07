@@ -28,7 +28,7 @@ from monai.networks.nets import (
     convnext_large,
     convnext_tiny,
 )
-from tests.test_utils import skip_if_quick, test_script_save
+from tests.test_utils import skip_if_quick, test_export_save, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -99,6 +99,12 @@ class TestConvNeXt(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    @parameterized.expand(TEST_SCRIPT_CASES)
+    def test_export(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
     @parameterized.expand(TEST_REFERENCE_PARAMS)
     @skip_if_quick

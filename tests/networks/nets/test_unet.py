@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.layers import Act, Norm
 from monai.networks.nets import UNet
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -179,6 +179,13 @@ class TestUNET(unittest.TestCase):
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
 
+    def test_export(self):
+        net = UNet(
+            spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
+        )
+        test_data = torch.randn(16, 1, 32, 32)
+        test_export_save(net, test_data)
+
     def test_script_without_running_stats(self):
         net = UNet(
             spatial_dims=2,
@@ -191,6 +198,19 @@ class TestUNET(unittest.TestCase):
         )
         test_data = torch.randn(16, 1, 16, 4)
         test_script_save(net, test_data)
+
+    def test_export_without_running_stats(self):
+        net = UNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=3,
+            channels=(16, 32, 64),
+            strides=(2, 2),
+            num_res_units=0,
+            norm=("batch", {"track_running_stats": False}),
+        )
+        test_data = torch.randn(16, 1, 16, 4)
+        test_export_save(net, test_data)
 
     def test_ill_input_shape(self):
         net = UNet(spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2))

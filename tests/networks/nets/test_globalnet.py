@@ -21,7 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks import Warp
 from monai.networks.nets import GlobalNet
 from monai.networks.nets.regunet import AffineHead
-from tests.test_utils import assert_allclose, test_script_save
+from tests.test_utils import assert_allclose, test_export_save, test_script_save
 
 TEST_CASES_AFFINE_TRANSFORM = [
     [
@@ -97,6 +97,12 @@ class TestGlobalNet(unittest.TestCase):
         net = GlobalNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    @parameterized.expand(TEST_CASES_GLOBAL_NET)
+    def test_export(self, input_param, input_shape, _):
+        net = GlobalNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
     @parameterized.expand(TEST_CASES_GLOBAL_NET)
     def test_half_precision_forward(self, input_param, input_shape, expected_shape):
