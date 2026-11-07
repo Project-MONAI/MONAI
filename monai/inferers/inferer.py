@@ -444,6 +444,64 @@ class SimpleInferer(Inferer):
         return network(inputs, *args, **kwargs)
 
 
+class MCDropoutInferer(Inferer):
+    """
+    Monte Carlo dropout inference (Gal & Ghahramani, "Dropout as a Bayesian Approximation", ICML 2016): runs ``inferer``
+    ``num_samples`` times with the dropout layers of ``network`` active, giving a sample of predictions from which an
+    uncertainty can be estimated, for example with :py:class:`monai.metrics.UncertaintyDecompositionMetric` or
+    :py:class:`monai.metrics.VarianceMetric`.
+
+    Only dropout layers are switched to training mode, so normalization layers keep their evaluation behavior. The
+    original training/evaluation mode of every dropout layer is restored afterwards. ``network`` must be a
+    ``torch.nn.Module`` containing at least one dropout layer.
+
+    .. code-block:: python
+
+        inferer = MCDropoutInferer(SlidingWindowInferer(roi_size=(96, 96, 96)), num_samples=10)
+        samples = inferer(image, model)  # [num_samples, B, C, H, W, D]
+        probs = torch.softmax(samples, dim=2)
+        uncertainty = UncertaintyDecompositionMetric(spatial_map=True)(probs[:, 0])  # first image of the batch
+
+    Args:
+        inferer: the inferer used for each stochastic forward pass, defaults to :py:class:`SimpleInferer`.
+        num_samples: number of stochastic forward passes, must be at least 1.
+        return_samples: if True (default), return the stacked samples with a new leading dimension of size
+            ``num_samples``; otherwise return their mean, so the inferer can be used wherever a single prediction is
+            expected (for example as ``inferer`` of an evaluator).
+
+    """
+
+    def __init__(self, inferer: Inferer | None = None, num_samples: int = 10, return_samples: bool = True) -> None:
+        super().__init__()
+        if num_samples < 1:
+            raise ValueError(f"num_samples must be at least 1, got {num_samples}.")
+        self.inferer = SimpleInferer() if inferer is None else inferer
+        self.num_samples = num_samples
+        self.return_samples = return_samples
+
+    def __call__(self, inputs: torch.Tensor, network: nn.Module, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference, a ``torch.nn.Module`` with dropout layers.
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+        dropout_layers = [m for m in network.modules() if isinstance(m, nn.modules.dropout._DropoutNd)]
+        if not dropout_layers:
+            raise ValueError("network has no dropout layers, so all Monte Carlo dropout samples would be identical.")
+        original_modes = [m.training for m in dropout_layers]
+        try:
+            for m in dropout_layers:
+                m.train()
+            samples = torch.stack([self.inferer(inputs, network, *args, **kwargs) for _ in range(self.num_samples)])
+        finally:
+            for m, mode in zip(dropout_layers, original_modes):
+                m.train(mode)
+        return samples if self.return_samples else samples.mean(dim=0)
+
+
 class SlidingWindowInferer(Inferer):
     """
     Sliding window method for model inference,
