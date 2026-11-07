@@ -50,14 +50,16 @@ def _image3_animated_gif(
 
     Args:
         tag: Data identifier
-        image: 3D image tensors expected to be in `HWD` format
+        image: 3D image tensors expected to be in `WHD` format (axis 0 is
+            columns/Width, axis 1 is rows/Height, axis 2 is Depth, matching
+            arrays returned by MONAI's NIfTI/ITK readers).
         writer: the tensorboard writer to plot image
-        frame_dim: the dimension used as frames for GIF image, expect data shape as `HWD`, default to `0`.
+        frame_dim: the dimension used as frames for GIF image, expect data shape as `WHD`, default to `0`.
         scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
     """
     if len(image.shape) != 3:
-        raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
+        raise AssertionError("3D image tensors expected to be in `WHD` format, len(image.shape) != 3")
 
     image_np, *_ = convert_data_type(image, output_type=np.ndarray)
     ims = [(i * scale_factor).astype(np.uint8, copy=False) for i in np.moveaxis(image_np, frame_dim, 0)]
@@ -85,14 +87,15 @@ def make_animated_gif_summary(
     frame_dim: int = -3,
     scale_factor: float = 1.0,
 ) -> Summary:
-    """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
+    """Creates an animated gif out of an image tensor in 'CWHD' format and returns Summary.
 
     Args:
         tag: Data identifier
-        image: The image, expected to be in `CHWD` format
+        image: The image, expected to be in `CWHD` format (channel-first; spatial axes are
+            Width, Height, Depth, matching arrays returned by MONAI's NIfTI/ITK readers).
         writer: the tensorboard writer to plot image
         max_out: maximum number of image channels to animate through
-        frame_dim: the dimension used as frames for GIF image, expect input data shape as `CHWD`,
+        frame_dim: the dimension used as frames for GIF image, expect input data shape as `CWHD`,
             default to `-3` (the first spatial dim)
         scale_factor: amount to multiply values by.
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
@@ -122,14 +125,16 @@ def add_animated_gif(
     scale_factor: float = 1.0,
     global_step: int | None = None,
 ) -> None:
-    """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
+    """Creates an animated gif out of an image tensor in 'CWHD' format and writes it with SummaryWriter.
 
     Args:
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
-        image_tensor: tensor for the image to add, expected to be in `CHWD` format
+        image_tensor: tensor for the image to add, expected to be in `CWHD` format (channel-first;
+            spatial axes are Width, Height, Depth, matching arrays returned by MONAI's
+            NIfTI/ITK readers).
         max_out: maximum number of image channels to animate through
-        frame_dim: the dimension used as frames for GIF image, expect input data shape as `CHWD`,
+        frame_dim: the dimension used as frames for GIF image, expect input data shape as `CWHD`,
             default to `-3` (the first spatial dim)
         scale_factor: amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
@@ -168,7 +173,7 @@ def plot_2d_or_3d_image(
         index: plot which element in the input data batch, default is the first element.
         max_channels: number of channels to plot.
         frame_dim: if plotting 3D image as GIF, specify the dimension used as frames,
-            expect input data shape as `NCHWD`, default to `-3` (the first spatial dim)
+            expect input data shape as `NCWHD`, default to `-3` (the first spatial dim)
         max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         tag: tag of the plotted image on TensorBoard.
     """
