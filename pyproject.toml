@@ -187,6 +187,8 @@ testing = [
 ]
 
 [tool.setuptools]
+# C++/CUDA sources under monai/csrc are compiled into monai._C; they are not Python packages or package data
+include-package-data = false
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]

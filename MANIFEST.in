@@ -6,3 +6,4 @@ include README.md
 include LICENSE
 
 prune tests
+recursive-include monai/csrc *.cpp *.cu *.h *.cuh
