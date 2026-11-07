@@ -1,0 +1,143 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+
+from parameterized import parameterized
+
+from monai.bundle import ConfigParser, export_checkpoint
+from monai.data import load_exported_program
+from monai.networks import save_state
+from tests.test_utils import command_line_tests, skip_if_windows
+
+TESTS_PATH = Path(__file__).parents[1]
+
+# key_in_ckpt
+TEST_CASE_1 = [""]
+TEST_CASE_2 = ["model"]
+
+
+@skip_if_windows
+class TestExportCheckpoint(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_export(self, key_in_ckpt):
+        meta_file = os.path.join(TESTS_PATH, "testing_data", "metadata.json")
+        config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
+        with tempfile.TemporaryDirectory() as tempdir:
+            def_args = {"meta_file": "will be replaced by `meta_file` arg"}
+            def_args_file = os.path.join(tempdir, "def_args.yaml")
+
+            ckpt_file = os.path.join(tempdir, "model.pt")
+            pt2_file = os.path.join(tempdir, "model.pt2")
+
+            parser = ConfigParser()
+            parser.export_config_file(config=def_args, filepath=def_args_file)
+            parser.read_config(config_file)
+            net = parser.get_parsed_content("network_def")
+            save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
+
+            cmd = [
+                "coverage",
+                "run",
+                "-m",
+                "monai.bundle",
+                "export_checkpoint",
+                "network_def",
+                "--filepath",
+                pt2_file,
+                "--meta_file",
+                meta_file,
+                "--config_file",
+                f"['{config_file}','{def_args_file}']",
+                "--ckpt_file",
+                ckpt_file,
+                "--key_in_ckpt",
+                key_in_ckpt,
+                "--args_file",
+                def_args_file,
+                "--input_shape",
+                "[1, 1, 96, 96, 96]",
+            ]
+            command_line_tests(cmd)
+            self.assertTrue(os.path.exists(pt2_file))
+
+            _, _metadata, extra_files = load_exported_program(
+                pt2_file, more_extra_files=["inference.json", "def_args.json"]
+            )
+            self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
+            self.assertIn("network_def", json.loads(extra_files["inference.json"]))
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_default_value(self, key_in_ckpt):
+        config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
+        with tempfile.TemporaryDirectory() as tempdir:
+            def_args = {"meta_file": "will be replaced by `meta_file` arg"}
+            def_args_file = os.path.join(tempdir, "def_args.yaml")
+            ckpt_file = os.path.join(tempdir, "models", "model.pt")
+            pt2_file = os.path.join(tempdir, "models", "model.pt2")
+
+            parser = ConfigParser()
+            parser.export_config_file(config=def_args, filepath=def_args_file)
+            parser.read_config(config_file)
+            net = parser.get_parsed_content("network_def")
+            save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
+
+            # check with default value
+            cmd = [
+                "coverage",
+                "run",
+                "-m",
+                "monai.bundle",
+                "export_checkpoint",
+                "--key_in_ckpt",
+                key_in_ckpt,
+                "--config_file",
+                config_file,
+                "--bundle_root",
+                tempdir,
+                "--input_shape",
+                "[1, 1, 96, 96, 96]",
+            ]
+            command_line_tests(cmd)
+            self.assertTrue(os.path.exists(pt2_file))
+
+    def test_meta_files_are_merged(self):
+        config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
+        with tempfile.TemporaryDirectory() as tempdir:
+            parser = ConfigParser()
+            parser.read_config(config_file)
+            ckpt_file = os.path.join(tempdir, "model.pt")
+            save_state(src=parser.get_parsed_content("network_def"), path=ckpt_file)
+            meta_files = [os.path.join(tempdir, "first.json"), os.path.join(tempdir, "second.json")]
+            for meta_file, value in zip(meta_files, ({"first": 1}, {"second": 2})):
+                parser.export_config_file(config=value, filepath=meta_file)
+            pt2_file = os.path.join(tempdir, "model.pt2")
+
+            export_checkpoint(
+                filepath=pt2_file,
+                ckpt_file=ckpt_file,
+                meta_file=meta_files,
+                config_file=config_file,
+                input_shape=[1, 1, 96, 96, 96],
+            )
+            _, metadata, _ = load_exported_program(pt2_file)
+
+        self.assertEqual(metadata, {"first": 1, "second": 2})
+
+
+if __name__ == "__main__":
+    unittest.main()

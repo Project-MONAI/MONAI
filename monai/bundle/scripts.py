@@ -35,8 +35,9 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import PathLike
-from monai.data import load_net_with_metadata, save_net_with_metadata
+from monai.data import load_net_with_metadata, save_exported_program, save_net_with_metadata
 from monai.networks import (
+    convert_to_export,
     convert_to_onnx,
     convert_to_torchscript,
     convert_to_trt,
@@ -1295,7 +1296,7 @@ def _export(
             (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
         parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        filepath: filepath to export, the `saver` decides the extension of a filename without one.
         ckpt_file: filepath of the model checkpoint to load.
         config_file: filepath of the config file to save in the converted model,the saved key in the converted
             model is the config filename without extension, and the saved config value is always serialized in
@@ -1599,6 +1600,120 @@ def ckpt_export(
     _export(
         convert_to_torchscript,
         save_ts,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
+    )
+
+
+def export_checkpoint(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    input_shape: Sequence[int] | None = None,
+    dynamic_shapes: dict | tuple | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to a ``.pt2`` file using :func:`torch.export.export`, with metadata and
+    config included. Without ``dynamic_shapes`` the saved program only accepts inputs of exactly ``input_shape``,
+    including the batch size. The network is exported on CPU.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle export_checkpoint network --filepath <path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be ``torch.nn.Module``.
+            Default to ``"network_def"``.
+        filepath: filepath to export. If filename has no extension it becomes ``.pt2``.
+            Default to ``"models/model.pt2"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        ckpt_file: filepath of the model checkpoint to load.
+            Default to ``"models/model.pt"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        meta_file: filepath of the metadata file. If it is a list of file paths, contents will be merged.
+            Default to ``"configs/metadata.json"`` under ``"os.getcwd()"`` if ``bundle_root`` is not specified.
+        config_file: filepath of the config file to save in the exported model. The saved key is the
+            config filename without extension; the value is always serialized in JSON format.
+            It can be a single file or a list of files. If ``None``, must be provided in ``args_file``.
+        key_in_ckpt: for nested checkpoints like ``{"model": XXX, "optimizer": XXX, ...}``, specify the
+            key of model weights. If not nested, no need to set.
+        input_shape: a shape used to generate random input for the network, e.g. ``[N, C, H, W]`` or
+            ``[N, C, H, W, D]``. If not given, will try to parse from ``metadata``.
+        dynamic_shapes: dynamic shape specifications passed to :func:`torch.export.export`. These hold
+            ``torch.export.Dim`` objects, so they can only be given when calling this function from Python.
+        args_file: a JSON or YAML file to provide default values for all the parameters.
+        converter_kwargs: extra arguments for :func:`~monai.networks.utils.convert_to_export`,
+            except ones that already exist in the input parameters.
+        override: id-value pairs to override or add the corresponding config content.
+
+    Raises:
+        ValueError: When a config file is named ``metadata``, which is reserved for the metadata in the archive.
+    """
+    _args = update_kwargs(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        input_shape=input_shape,
+        dynamic_shapes=dynamic_shapes,
+        converter_kwargs=converter_kwargs,
+        **override,
+    )
+    _log_input_summary(tag="export_checkpoint", args=_args)
+    (
+        config_file_,
+        filepath_,
+        ckpt_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        input_shape_,
+        dynamic_shapes_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "config_file",
+        filepath=None,
+        ckpt_file=None,
+        net_id=None,
+        meta_file=None,
+        key_in_ckpt="",
+        input_shape=None,
+        dynamic_shapes=None,
+        converter_kwargs={},
+    )
+    parser, filepath_, ckpt_file_, net_id_ = _prepare_ckpt_export(
+        _args, config_file_, meta_file_, filepath_, ckpt_file_, net_id_, default_filename="model.pt2"
+    )
+
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    # export on CPU, whatever device the config uses, so that the saved file can be loaded on any machine
+    parser.get_parsed_content(net_id_).cpu()
+    inputs_: Sequence[Any] = [torch.rand(input_shape_)]
+
+    converter_kwargs_.update({"inputs": inputs_, "dynamic_shapes": dynamic_shapes_})
+
+    save_ep = partial(save_exported_program, include_config_vals=False, append_timestamp=False)
+
+    _export(
+        convert_to_export,
+        save_ep,
         parser,
         net_id=net_id_,
         filepath=filepath_,
