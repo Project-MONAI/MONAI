@@ -35,7 +35,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import PathLike
-from monai.data import load_net_with_metadata, save_exported_program, save_net_with_metadata
+from monai.data import load_exported_program, load_net_with_metadata, save_exported_program, save_net_with_metadata
 from monai.networks import (
     convert_to_export,
     convert_to_onnx,
@@ -648,9 +648,10 @@ def load(
     args_file: str | None = None,
     copy_model_args: dict | None = None,
     net_override: dict | None = None,
+    load_exported_module: bool = False,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
-    Load model weights or TorchScript module of a bundle.
+    Load model weights, TorchScript module or exported program of a bundle.
 
     Security note: if `model` is `None`, building `network_def` requires parsing the bundle's own
     "{workflow_type}.json" config, which can define `"_target_"` components resolved to any importable
@@ -696,12 +697,16 @@ def load(
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
-            see `_extra_files` in `torch.jit.load` for more details.
+        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module
+            or exported program, see `_extra_files` in `torch.jit.load` and `extra_files` in `torch.export.load`.
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
         net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
+        load_exported_module: a flag to specify if loading a `torch.export` `.pt2` file, "models/model.pt2" if
+            `model_file` is `None`. This uses pickle, so only load files from a source you trust. `device` is not
+            applied since `torch.export.load` has no `map_location`, use `exported_program.module().to(device)`.
+            Modules from `exported_program.module()` reject `.eval()` and `.train()`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
@@ -712,8 +717,17 @@ def load(
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
+        4. If `load_exported_module` is `True`, return a triple that include an exported program,
+            the corresponding metadata dict, and extra files dict.
+            please check `monai.data.load_exported_program` for more details.
+
+    Raises:
+        ValueError: When both `load_ts_module` and `load_exported_module` are `True`.
 
     """
+    if load_ts_module and load_exported_module:
+        raise ValueError("`load_ts_module` and `load_exported_module` are mutually exclusive.")
+
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
@@ -721,7 +735,8 @@ def load(
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
-        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+        default_file = "model.pt2" if load_exported_module else "model.ts" if load_ts_module is True else "model.pt"
+        model_file = os.path.join("models", default_file)
     if source == "ngc":
         name = _add_ngc_prefix(name)
         if remove_prefix:
@@ -739,6 +754,9 @@ def load(
             args_file=args_file,
         )
 
+    # loading with `torch.export.load`
+    if load_exported_module:
+        return load_exported_program(full_path, more_extra_files=config_files)
     # loading with `torch.jit.load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
