@@ -211,9 +211,10 @@ class ResNet(nn.Module):
         bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
-        block_norm_act: whether the residual blocks and their downsampling layers also use `act` and `norm`.
-            Defaults to `False`, in which case only the first convolution uses them and the blocks keep
-            ReLU and batch norm, matching previous versions.
+        block_norm_act: whether the residual blocks use `act` and `norm`, and the `'B'` shortcut downsampling
+            layers use `norm`. Defaults to `False`, in which case only the first convolution uses them and
+            the blocks keep ReLU and batch norm, matching previous versions. Norms that need an explicit
+            input shape, such as `LayerNorm`, are not supported when this is `True`.
 
     """
 
