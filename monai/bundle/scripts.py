@@ -1453,6 +1453,49 @@ def onnx_export(
     )
 
 
+def _prepare_ckpt_export(
+    _args: dict,
+    config_file: str | Sequence[str],
+    meta_file: str | Sequence[str] | None,
+    filepath: PathLike | None,
+    ckpt_file: str | None,
+    net_id: str | None,
+    default_filename: str,
+) -> tuple[ConfigParser, PathLike, str, str]:
+    """
+    Shared setup for checkpoint export: parse the config and metadata, apply the remaining ``_args`` as config
+    overrides, resolve the default output/checkpoint paths and network id, and validate that the network
+    definition can be found. Returns ``(parser, filepath, ckpt_file, net_id)``.
+    """
+    bundle_root = _args.get("bundle_root", os.getcwd())
+
+    parser = ConfigParser()
+    parser.read_config(f=config_file)
+    meta_file = os.path.join(bundle_root, "configs", "metadata.json") if meta_file is None else meta_file
+    # a single missing file is skipped since bundles may have no metadata, a missing file in a list is an error
+    if not isinstance(meta_file, (str, os.PathLike)) or os.path.exists(meta_file):
+        parser.read_meta(f=meta_file)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    filepath = os.path.join(bundle_root, "models", default_filename) if filepath is None else filepath
+    ckpt_file = os.path.join(bundle_root, "models", "model.pt") if ckpt_file is None else ckpt_file
+    if not os.path.exists(ckpt_file):
+        raise FileNotFoundError(f'Checkpoint file "{ckpt_file}" not found, please specify it in argument "ckpt_file".')
+
+    net_id = "network_def" if net_id is None else net_id
+    try:
+        parser.get_parsed_content(net_id)
+    except ValueError as e:
+        raise ValueError(
+            f'Network definition "{net_id}" cannot be found in "{config_file}", specify name with argument "net_id".'
+        ) from e
+
+    return parser, filepath, ckpt_file, net_id
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1538,30 +1581,9 @@ def ckpt_export(
         input_shape=None,
         converter_kwargs={},
     )
-    bundle_root = _args.get("bundle_root", os.getcwd())
-
-    parser = ConfigParser()
-    parser.read_config(f=config_file_)
-    meta_file_ = os.path.join(bundle_root, "configs", "metadata.json") if meta_file_ is None else meta_file_
-    if os.path.exists(meta_file_):
-        parser.read_meta(f=meta_file_)
-
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
-
-    filepath_ = os.path.join(bundle_root, "models", "model.ts") if filepath_ is None else filepath_
-    ckpt_file_ = os.path.join(bundle_root, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
-    if not os.path.exists(ckpt_file_):
-        raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
-
-    net_id_ = "network_def" if net_id_ is None else net_id_
-    try:
-        parser.get_parsed_content(net_id_)
-    except ValueError as e:
-        raise ValueError(
-            f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".'
-        ) from e
+    parser, filepath_, ckpt_file_, net_id_ = _prepare_ckpt_export(
+        _args, config_file_, meta_file_, filepath_, ckpt_file_, net_id_, default_filename="model.ts"
+    )
 
     # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
     if (not input_shape_) and use_trace:
