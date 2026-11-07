@@ -22,7 +22,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks.encoder import BaseEncoder
-from monai.networks.layers.factories import Conv, Pool
+from monai.networks.layers.factories import Conv, Pool, split_args
 from monai.networks.layers.utils import get_act_layer, get_norm_layer, get_pool_layer
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option, optional_import
@@ -66,6 +66,13 @@ def get_inplanes():
 
 def get_avgpool():
     return [0, 1, (1, 1), (1, 1, 1)]
+
+
+def _drop_channel_args(norm: str | tuple) -> str | tuple:
+    """Remove channel arguments so each layer can infer them from its own channel count."""
+    norm_name, norm_args = split_args(norm)
+    norm_args = {k: v for k, v in norm_args.items() if k not in ("num_channels", "num_features")}
+    return (norm_name, norm_args) if norm_args else norm_name
 
 
 class ResNetBlock(nn.Module):
@@ -276,7 +283,7 @@ class ResNet(nn.Module):
         self.bn1 = norm_layer
         self.act = get_act_layer(name=act)
         self.maxpool = pool_type(kernel_size=3, stride=2, padding=1)
-        block_kwargs: dict = {"norm": norm, "act": act} if block_norm_act else {}
+        block_kwargs: dict = {"norm": _drop_channel_args(norm), "act": act} if block_norm_act else {}
         self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type, **block_kwargs)
         self.layer2 = self._make_layer(
             block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2, **block_kwargs

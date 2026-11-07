@@ -352,6 +352,16 @@ class TestResNet(unittest.TestCase):
         with eval_mode(net):
             net.forward(torch.randn(1, 1, 32, 32))
 
+    def test_block_norm_act_uses_stage_channels(self):
+        """Explicit channel arguments in `norm` are dropped so each stage uses its own channel count."""
+        norm = ("group", {"num_groups": 8, "num_channels": 8})
+        net = ResNet(**TEST_CASE_NORM_ACT, norm=norm, block_norm_act=True)
+        self.assertEqual(net.bn1.num_channels, 8)
+        self.assertEqual(net.layer2[0].bn1.num_channels, 16)
+        self.assertEqual(net.layer2[0].downsample[1].num_channels, 16)
+        with eval_mode(net):
+            net.forward(torch.randn(1, 1, 32, 32))
+
     def test_non_affine_norm_init(self):
         """Non-affine norms have no weight/bias, the init loop must not choke on them."""
         for block_norm_act in (False, True):
