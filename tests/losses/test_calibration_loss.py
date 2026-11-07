@@ -20,6 +20,7 @@ from monai.losses import HardL1ACELoss, SoftL1ACELoss
 from monai.losses.calibration import _hard_binned_calibration, _soft_binned_calibration
 from monai.metrics import calibration_binning
 from tests.test_utils import skip_if_no_cuda
+from tests.test_utils import test_export_save as check_export_save
 from tests.test_utils import test_script_save as check_script_save
 
 LOSS_TYPES = (HardL1ACELoss, SoftL1ACELoss)
@@ -235,6 +236,13 @@ class TestCalibrationLoss(unittest.TestCase):
         target = torch.nn.functional.one_hot(torch.randint(0, 3, (2, 4, 5, 6)), num_classes=3)
         target = target.movedim(-1, 1).float()
         check_script_save(loss_type(num_bins=5), prediction, target)
+
+    @parameterized.expand([HardL1ACELoss, SoftL1ACELoss])
+    def test_export_save(self, loss_type):
+        prediction = torch.rand(2, 3, 4, 5, 6)
+        target = torch.nn.functional.one_hot(torch.randint(0, 3, (2, 4, 5, 6)), num_classes=3)
+        target = target.movedim(-1, 1).float()
+        check_export_save(loss_type(num_bins=5), prediction, target)
 
     @parameterized.expand([(loss_type, dtype) for loss_type in LOSS_TYPES for dtype in (torch.float32, torch.float64)])
     @skip_if_no_cuda

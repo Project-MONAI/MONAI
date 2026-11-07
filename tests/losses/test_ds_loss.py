@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DeepSupervisionLoss, DiceCELoss, DiceFocalLoss, DiceLoss
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 TEST_CASES_DICECE = [
     [
@@ -155,6 +155,11 @@ class TestDSLossDiceCE(unittest.TestCase):
         loss = DeepSupervisionLoss(DiceCELoss())
         test_input = torch.ones(2, 2, 8, 8)
         test_script_save(loss, test_input, test_input)
+
+    def test_export(self):
+        loss = DeepSupervisionLoss(DiceCELoss())
+        test_input = torch.ones(2, 2, 8, 8)
+        test_export_save(loss, test_input, test_input)
 
 
 class TestDSLossDiceCE2(unittest.TestCase):
