@@ -317,9 +317,26 @@ class ResNet(nn.Module):
         shortcut_type: str,
         stride: int = 1,
         norm: str | tuple = "batch",
-        act: str | tuple = ("relu", {"inplace": True}),
+        act: str | tuple | None = None,
     ) -> nn.Sequential:
+        """
+        Build one ResNet stage.
+
+        Args:
+            block: residual block class to instantiate.
+            planes: number of output channels for each block.
+            blocks: number of residual blocks in the stage.
+            spatial_dims: number of spatial dimensions of the input.
+            shortcut_type: downsampling block to use, `'A'` or `'B'`.
+            stride: stride for the first block.
+            norm: normalization type and arguments.
+            act: activation type and arguments. When `None`, blocks use their own default.
+
+        Returns:
+            The stage as a sequence of residual blocks.
+        """
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        block_kwargs = {"norm": norm} if act is None else {"norm": norm, "act": act}
 
         downsample: nn.Module | partial | None = None
         if stride != 1 or self.in_planes != planes * block.expansion:
@@ -349,14 +366,13 @@ class ResNet(nn.Module):
                 spatial_dims=spatial_dims,
                 stride=stride,
                 downsample=downsample,
-                act=act,
-                norm=norm,
+                **block_kwargs,
             )
         ]
 
         self.in_planes = planes * block.expansion
         for _i in range(1, blocks):
-            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, act=act, norm=norm))
+            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims, **block_kwargs))
 
         return nn.Sequential(*layers)
 

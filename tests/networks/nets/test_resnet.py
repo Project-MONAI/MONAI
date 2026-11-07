@@ -251,6 +251,13 @@ CASE_EXTRACT_FEATURES = [
 ]
 
 
+class _ResNetBlockNoAct(ResNetBlock):
+    """A user block that predates the `act` argument."""
+
+    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm="batch"):
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample, norm=norm)
+
+
 class TestResNet(unittest.TestCase):
     def setUp(self):
         self.tmp_ckpt_filename = os.path.join("tests", "monai_unittest_tmp_ckpt.pth")
@@ -338,6 +345,12 @@ class TestResNet(unittest.TestCase):
                 self.assertIsInstance(block.act, torch.nn.LeakyReLU)
                 if block.downsample is not None:
                     self.assertIsInstance(block.downsample[1], torch.nn.InstanceNorm2d)
+
+    def test_custom_block_without_act_argument(self):
+        """A block subclass that does not accept `act` still builds when `block_norm_act` is off."""
+        net = ResNet(**{**TEST_CASE_NORM_ACT, "block": _ResNetBlockNoAct})
+        with eval_mode(net):
+            net.forward(torch.randn(1, 1, 32, 32))
 
     def test_non_affine_norm_init(self):
         """Non-affine norms have no weight/bias, the init loop must not choke on them."""
