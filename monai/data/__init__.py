@@ -47,6 +47,7 @@ from .decathlon_datalist import (
     load_decathlon_datalist,
     load_decathlon_properties,
 )
+from .export_utils import load_exported_program, save_exported_program
 from .folder_layout import FolderLayout, FolderLayoutBase
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
