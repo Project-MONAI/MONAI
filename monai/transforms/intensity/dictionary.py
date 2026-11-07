@@ -190,6 +190,8 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
         sample_std: If True, sample the spread of the Gaussian distribution uniformly from 0 to std.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
     """
 
     backend = RandGaussianNoise.backend
@@ -203,9 +205,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
         sample_std: bool = True,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype, sample_std=sample_std)
 
     def set_random_state(
@@ -223,17 +227,18 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random noise
         first_key: Hashable = self.first_key(d)
         if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_gaussian_noise.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random noise
+            self.rand_gaussian_noise.randomize(d[first_key])
 
         for key in self.key_iterator(d):
-            d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
+            d[key] = self.rand_gaussian_noise(img=d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -383,6 +388,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         channel_wise: bool = False,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -411,10 +417,13 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             channel_wise: if True, shift intensity on each channel separately. For each channel, a random offset will be chosen.
                 Please ensure that the first dimension represents the channel of the image if True.
             allow_missing_keys: don't raise exception if key is missing.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
 
+        self.randomize_per_key = randomize_per_key
         self.factor_key = ensure_tuple_rep(factor_key, len(self.keys))
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
@@ -444,14 +453,15 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random shift factor
-        self.shifter.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random shift factor
+            self.shifter.randomize(d[first_key])
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             factor: float | None = d[meta_key].get(factor_key) if meta_key in d else None
-            d[key] = self.shifter(d[key], factor=factor, randomize=False)
+            d[key] = self.shifter(d[key], factor=factor, randomize=self.randomize_per_key)
         return d
 
 
@@ -508,6 +518,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -520,9 +531,12 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             channel_wise: if True, calculate on each channel separately.
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.shifter = RandStdShiftIntensity(
             factors=factors, nonzero=nonzero, channel_wise=channel_wise, dtype=dtype, prob=1.0
         )
@@ -542,10 +556,11 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random shift factor
-        self.shifter.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random shift factor
+            self.shifter.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.shifter(d[key], randomize=False)
+            d[key] = self.shifter(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -607,6 +622,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -620,10 +636,13 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0, channel_wise=channel_wise)
 
     def set_random_state(
@@ -648,10 +667,11 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random scale factor
-        self.scaler.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random scale factor
+            self.scaler.randomize(d[first_key])
         for key in self.key_iterator(d):
-            d[key] = self.scaler(d[key], randomize=False)
+            d[key] = self.scaler(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -674,6 +694,7 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
         channel_wise: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -689,10 +710,13 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
                 on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
                 channel of the image if True.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.fixed_mean = fixed_mean
         self.preserve_range = preserve_range
         self.scaler = RandScaleIntensityFixedMean(
@@ -726,10 +750,11 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random scale factor
-        self.scaler.randomize(d[first_key])
+        if not self.randomize_per_key:
+            # all the keys share the same random scale factor
+            self.scaler.randomize(d[first_key])
         for key in self.key_iterator(d):
-            d[key] = self.scaler(d[key], randomize=False)
+            d[key] = self.scaler(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -748,6 +773,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         dtype: DtypeLike = np.float32,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         """
         Args:
@@ -759,11 +785,14 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             dtype: output data type, if None, same as input image. defaults to float32.
             prob: probability to do random bias field.
             allow_missing_keys: don't raise exception if key is missing.
+            randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+                them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
 
+        self.randomize_per_key = randomize_per_key
         self.rand_bias_field = RandBiasField(degree=degree, coeff_range=coeff_range, dtype=dtype, prob=1.0)
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandBiasFieldd:
@@ -779,17 +808,18 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random bias factor
         first_key: Hashable = self.first_key(d)
         if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])
+        if not self.randomize_per_key:
+            # all the keys share the same random bias factor
+            self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])
 
         for key in self.key_iterator(d):
-            d[key] = self.rand_bias_field(d[key], randomize=False)
+            d[key] = self.rand_bias_field(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -1025,6 +1055,8 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
             <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
             function.
         allow_missing_keys: don't raise exception if key is missing.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
     """
 
     backend = RandAdjustContrast.backend
@@ -1037,9 +1069,11 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         invert_image: bool = False,
         retain_stats: bool = False,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0, invert_image=invert_image, retain_stats=retain_stats)
         self.invert_image = invert_image
 
@@ -1058,10 +1092,11 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random gamma value
-        self.adjuster.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random gamma value
+            self.adjuster.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.adjuster(d[key], randomize=False)
+            d[key] = self.adjuster(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -1264,6 +1299,8 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian smooth.
         allow_missing_keys: don't raise exception if key is missing.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
 
     """
 
@@ -1278,9 +1315,11 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         approx: str = "erf",
         prob: float = 0.1,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.rand_smooth = RandGaussianSmooth(
             sigma_x=sigma_x, sigma_y=sigma_y, sigma_z=sigma_z, approx=approx, prob=1.0
         )
@@ -1300,10 +1339,11 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random sigma
-        self.rand_smooth.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random sigma
+            self.rand_smooth.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.rand_smooth(d[key], randomize=False)
+            d[key] = self.rand_smooth(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -1369,6 +1409,8 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian sharpen.
         allow_missing_keys: don't raise exception if key is missing.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
 
     """
 
@@ -1387,9 +1429,11 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         approx: str = "erf",
         prob: float = 0.1,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.rand_sharpen = RandGaussianSharpen(
             sigma1_x=sigma1_x,
             sigma1_y=sigma1_y,
@@ -1417,10 +1461,11 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random sigma1, sigma2, etc.
-        self.rand_sharpen.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random sigma1, sigma2, etc.
+            self.rand_sharpen.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.rand_sharpen(d[key], randomize=False)
+            d[key] = self.rand_sharpen(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -1437,6 +1482,8 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
             control points selecting from range (min_value, max_value).
         prob: probability of histogram shift.
         allow_missing_keys: don't raise exception if key is missing.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
     """
 
     backend = RandHistogramShift.backend
@@ -1447,9 +1494,11 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         num_control_points: tuple[int, int] | int = 10,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.randomize_per_key = randomize_per_key
         self.shifter = RandHistogramShift(num_control_points=num_control_points, prob=1.0)
 
     def set_random_state(
@@ -1467,10 +1516,11 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random shift params
-        self.shifter.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random shift params
+            self.shifter.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.shifter(d[key], randomize=False)
+            d[key] = self.shifter(d[key], randomize=self.randomize_per_key)
         return d
 
 
@@ -1498,6 +1548,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
             uniformly from the interval [a,b].
             If a float is given, then the value of alpha will be sampled uniformly from the interval [0, alpha].
         allow_missing_keys: do not raise exception if key is missing.
+        randomize_per_key: if True, draw independent random parameters for each key instead of sharing
+            them across all keys (e.g. for independent views in self-supervised learning). Defaults to False.
     """
 
     backend = RandGibbsNoise.backend
@@ -1508,9 +1560,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         alpha: float | Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
+        randomize_per_key: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
+        self.randomize_per_key = randomize_per_key
         self.rand_gibbs_noise = RandGibbsNoise(alpha=alpha, prob=1.0)
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGibbsNoised:
@@ -1526,10 +1580,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        # all the keys share the same random noise params
-        self.rand_gibbs_noise.randomize(None)
+        if not self.randomize_per_key:
+            # all the keys share the same random noise params
+            self.rand_gibbs_noise.randomize(None)
         for key in self.key_iterator(d):
-            d[key] = self.rand_gibbs_noise(d[key], randomize=False)
+            d[key] = self.rand_gibbs_noise(d[key], randomize=self.randomize_per_key)
         return d
 
 
