@@ -18,6 +18,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
+from monai.losses.utils import mask_loss_inputs
+from monai.metrics.utils import create_ignore_mask
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -69,19 +71,23 @@ class FocalLoss(_Loss):
         include_background: bool = True,
         to_onehot_y: bool = False,
         gamma: float = 2.0,
-        alpha: float | None = None,
+        alpha: float | Sequence[float] | None = None,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
         use_softmax: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
             include_background: if False, channel index 0 (background category) is excluded from the loss calculation.
-                If False, `alpha` is invalid when using softmax.
+                If False, `alpha` is invalid when using softmax unless `alpha` is a sequence (explicit class weights).
             to_onehot_y: whether to convert the label `y` into the one-hot format. Defaults to False.
             gamma: value of the exponent gamma in the definition of the Focal loss. Defaults to 2.
             alpha: value of the alpha in the definition of the alpha-balanced Focal loss.
-                The value should be in [0, 1]. Defaults to None.
+                The value should be in [0, 1].
+                If a sequence is provided, its length must match the number of classes
+                (excluding the background class if `include_background=False`).
+                Defaults to None.
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
                 of the sequence should be the same as the number of classes. If not ``include_background``,
@@ -96,6 +102,10 @@ class FocalLoss(_Loss):
 
             use_softmax: whether to use softmax to transform the original logits into probabilities.
                 If True, softmax is used. If False, sigmoid is used. Defaults to False.
+            ignore_index: single integer class index (or sentinel value) to ignore from the loss computation.
+                Voxels with this label are excluded from the loss, which is useful for padding, unlabeled regions,
+                or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+                ignore_index to keep loss values comparable.
 
         Example:
             >>> import torch
@@ -109,12 +119,19 @@ class FocalLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.gamma = gamma
-        self.alpha = alpha
         self.weight = weight
         self.use_softmax = use_softmax
+        self.alpha: float | torch.Tensor | None
+        if alpha is None:
+            self.alpha = None
+        elif isinstance(alpha, (float, int)):
+            self.alpha = float(alpha)
+        else:
+            self.alpha = torch.as_tensor(alpha)
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
+        self.ignore_index = ignore_index
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -135,53 +152,75 @@ class FocalLoss(_Loss):
         """
         n_pred_ch = input.shape[1]
 
+        original_target = target
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
+                if self.ignore_index is not None:
+                    if self.ignore_index < 0 or self.ignore_index >= n_pred_ch:
+                        target = torch.where(target == self.ignore_index, torch.zeros_like(target), target)
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
 
+        mask = None
+        if self.ignore_index is not None:
+            mask = create_ignore_mask(original_target, self.ignore_index)
+
         if target.shape != input.shape:
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+
+        input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         loss: torch.Tensor | None = None
         input = input.float()
         target = target.float()
+        alpha_arg = self.alpha
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
-                self.alpha = None
-                warnings.warn("`include_background=False`, `alpha` ignored when using softmax.")
-            loss = softmax_focal_loss(input, target, self.gamma, self.alpha)
-        else:
-            loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
-
-        num_of_classes = target.shape[1]
-        if self.class_weight is not None and num_of_classes != 1:
-            # make sure the lengths of weights are equal to the number of classes
-            if self.class_weight.ndim == 0:
-                self.class_weight = torch.as_tensor([self.class_weight] * num_of_classes)
-            else:
-                if self.class_weight.shape[0] != num_of_classes:
-                    raise ValueError(
-                        """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include
-                        the background category class 0."""
+                if isinstance(self.alpha, (float, int)):
+                    alpha_arg = None
+                    warnings.warn(
+                        "`include_background=False`, scalar `alpha` ignored when using softmax.", stacklevel=2
                     )
-            if self.class_weight.min() < 0:
-                raise ValueError("the value/values of the `weight` should be no less than 0.")
-            # apply class_weight to loss
-            self.class_weight = self.class_weight.to(loss)
-            broadcast_dims = [-1] + [1] * len(target.shape[2:])
-            self.class_weight = self.class_weight.view(broadcast_dims)
-            loss = self.class_weight * loss
+            loss = softmax_focal_loss(input, target, self.gamma, alpha_arg)
+        else:
+            loss = sigmoid_focal_loss(input, target, self.gamma, alpha_arg)
+
+        if mask is not None:
+            loss = loss * mask
+
+        if self.class_weight is not None:
+            cw = torch.as_tensor(self.class_weight, device=loss.device, dtype=loss.dtype)
+            num_classes = loss.shape[1]
+
+            if cw.ndim > 0:
+                if num_classes == 1:
+                    raise ValueError("Per-class class_weight is not supported for single-channel outputs.")
+                if cw.numel() != num_classes:
+                    raise ValueError(
+                        f"The number of class_weight ({cw.numel()}) must match the number of "
+                        f"output channels ({num_classes})."
+                    )
+                if (cw < 0).any():
+                    raise ValueError("class_weight values must be non-negative.")
+            else:
+                if cw < 0:
+                    raise ValueError("class_weight values must be non-negative.")
+
+            if cw.ndim == 0:
+                loss = loss * cw
+            else:
+                broadcast_shape = [1, num_classes] + [1] * (loss.ndim - 2)
+                loss = loss * cw.view(broadcast_shape)
 
         if self.reduction == LossReduction.SUM.value:
             # Previously there was a mean over the last dimension, which did not
@@ -190,19 +229,32 @@ class FocalLoss(_Loss):
             # parameterize if necessary. (Or justify why the mean should be there)
             average_spatial_dims = True
             if average_spatial_dims:
-                loss = loss.mean(dim=list(range(2, len(target.shape))))
+                if mask is not None:
+                    spatial_dims = list(range(2, len(target.shape)))
+                    sum_mask = mask.sum(dim=spatial_dims, keepdim=True)
+                    loss = loss.sum(dim=spatial_dims, keepdim=True) / sum_mask.clamp(min=torch.finfo(mask.dtype).eps)
+                else:
+                    loss = loss.mean(dim=list(range(2, len(target.shape))))
             loss = loss.sum()
+
         elif self.reduction == LossReduction.MEAN.value:
-            loss = loss.mean()
+            if mask is not None:
+                # Sum loss over valid (non-ignored) elements, then divide by mask count
+                loss = loss.sum() / mask.sum().clamp(min=torch.finfo(mask.dtype).eps)
+            else:
+                loss = loss.mean()
+
         elif self.reduction == LossReduction.NONE.value:
             pass
+
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+
         return loss
 
 
 def softmax_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | None = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | torch.Tensor | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
@@ -214,8 +266,22 @@ def softmax_focal_loss(
     loss: torch.Tensor = -(1 - input_ls.exp()).pow(gamma) * input_ls * target
 
     if alpha is not None:
-        # (1-alpha) for the background class and alpha for the other classes
-        alpha_fac = torch.tensor([1 - alpha] + [alpha] * (target.shape[1] - 1)).to(loss)
+        if isinstance(alpha, torch.Tensor):
+            alpha_t = alpha.to(device=input.device, dtype=input.dtype)
+        else:
+            alpha_t = torch.tensor(alpha, device=input.device, dtype=input.dtype)
+
+        if alpha_t.ndim == 0:  # scalar
+            alpha_val = alpha_t.item()
+            # (1-alpha) for the background class and alpha for the other classes
+            alpha_fac = torch.tensor([1 - alpha_val] + [alpha_val] * (target.shape[1] - 1)).to(loss)
+        else:  # tensor (sequence)
+            if alpha_t.shape[0] != target.shape[1]:
+                raise ValueError(
+                    f"The length of alpha ({alpha_t.shape[0]}) must match the number of classes ({target.shape[1]})."
+                )
+            alpha_fac = alpha_t
+
         broadcast_dims = [-1] + [1] * len(target.shape[2:])
         alpha_fac = alpha_fac.view(broadcast_dims)
         loss = alpha_fac * loss
@@ -224,7 +290,7 @@ def softmax_focal_loss(
 
 
 def sigmoid_focal_loss(
-    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | None = None
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: float | torch.Tensor | None = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
@@ -247,8 +313,27 @@ def sigmoid_focal_loss(
     loss = (invprobs * gamma).exp() * loss
 
     if alpha is not None:
-        # alpha if t==1; (1-alpha) if t==0
-        alpha_factor = target * alpha + (1 - target) * (1 - alpha)
+        if isinstance(alpha, torch.Tensor):
+            alpha_t = alpha.to(device=input.device, dtype=input.dtype)
+        else:
+            alpha_t = torch.tensor(alpha, device=input.device, dtype=input.dtype)
+
+        if alpha_t.ndim == 0:  # scalar
+            # alpha if t==1; (1-alpha) if t==0
+            alpha_factor = target * alpha_t + (1 - target) * (1 - alpha_t)
+        else:  # tensor (sequence)
+            if alpha_t.shape[0] != target.shape[1]:
+                raise ValueError(
+                    f"The length of alpha ({alpha_t.shape[0]}) must match the number of classes ({target.shape[1]})."
+                )
+            # Reshape alpha for broadcasting: (1, C, 1, 1...)
+            broadcast_dims = [-1] + [1] * len(target.shape[2:])
+            alpha_t = alpha_t.view(broadcast_dims)
+            # Apply per-class weight only to positive samples
+            # For positive samples (target==1): multiply by alpha[c]
+            # For negative samples (target==0): keep weight as 1.0
+            alpha_factor = torch.where(target == 1, alpha_t, torch.ones_like(alpha_t))
+
         loss = alpha_factor * loss
 
     return loss

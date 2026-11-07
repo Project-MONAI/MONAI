@@ -85,7 +85,6 @@ class ExtraFPNBlock(nn.Module):
             - the extended set of results of the FPN
             - the extended set of names for the results
         """
-        pass
 
 
 class LastLevelMaxPool(ExtraFPNBlock):

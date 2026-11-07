@@ -30,6 +30,7 @@ from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
+from monai.utils.deprecate_utils import warn_deprecated
 
 requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
@@ -42,10 +43,22 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "HashCheckError",
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+
+
+class HashCheckError(ValueError):
+    pass
 
 
 def get_logger(
@@ -154,20 +167,23 @@ def safe_extract_member(member, extract_to):
     return full_path
 
 
-def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
+def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
     """
     Verify hash signature of specified file.
 
     Args:
         filepath: path of source file to verify hash value.
         val: expected hash value of the file.
-        hash_type: type of hash algorithm to use, default is `"md5"`.
+        hash_type: type of hash algorithm to use, default is `"sha256"`.
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
             See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
+    .. versionchanged:: 1.7
+        The default `hash_type` changed from "md5" to "sha256" for stronger integrity verification.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes.
     """
     if val is None:
-        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
+        warnings.warn(f"No hash value provided for {filepath}; file integrity is NOT verified.", stacklevel=2)
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
 
@@ -192,7 +208,7 @@ def download_url(
     url: str,
     filepath: PathLike = "",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str | None = None,
     progress: bool = True,
     **gdown_kwargs: Any,
 ) -> None:
@@ -205,7 +221,8 @@ def download_url(
             If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
+            The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
         progress: whether to display a progress bar.
         gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
             these args will only be used if download from google drive.
@@ -220,18 +237,31 @@ def download_url(
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        RuntimeError: When the hash validation of the ``url`` downloaded file fails.
+        HashCheckError: When the hash validation of the ``url`` downloaded file fails.
 
+    .. versionchanged:: 1.7
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.download_url",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
+            "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
+            'default will be set to "sha256".',
+            stacklevel=3,
+        )
+        hash_type = "sha256"
+
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
         logger.info(f"Default downloading to '{filepath}'")
     filepath = Path(filepath)
     if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
-            raise RuntimeError(
-                f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
-            )
+            raise HashCheckError(f"{hash_type} hash check of existing file failed: {filepath=}, expected {hash_type=}.")
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
     try:
@@ -240,7 +270,7 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-                if "fuzzy" not in gdown_kwargs:
+                if "fuzzy" not in gdown_kwargs and not min_version(gdown, "6.0.0"):  # "fuzzy" dropped in gdown 6.0.0
                     gdown_kwargs["fuzzy"] = True  # default to true for flexible url
                 gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
             elif urlparse(url).netloc == "cloud-api.yandex.net":
@@ -260,6 +290,13 @@ def download_url(
                 raise RuntimeError(
                     f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
                 )
+            if not check_hash(tmp_name, hash_val, hash_type):
+                raise HashCheckError(
+                    f"{hash_type} hash check of downloaded file failed: {url=}, "
+                    f"{filepath=}, expected {hash_type}={hash_val}, "
+                    f"The file may be corrupted or tampered with. "
+                    "Please retry the download or verify the source."
+                )
             file_dir = filepath.parent
             if file_dir:
                 os.makedirs(file_dir, exist_ok=True)
@@ -267,11 +304,6 @@ def download_url(
     except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
         pass
     logger.info(f"Downloaded: {filepath}")
-    if not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of downloaded file failed: URL={url}, "
-            f"filepath={filepath}, expected {hash_type}={hash_val}."
-        )
 
 
 def _extract_zip(filepath, output_dir):
@@ -304,7 +336,7 @@ def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
 ) -> None:
@@ -317,7 +349,7 @@ def extractall(
         output_dir: target directory to save extracted files.
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
@@ -325,10 +357,30 @@ def extractall(
             be False.
 
     Raises:
-        RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
+        HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
+    .. versionchanged:: 1.6.1
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.extractall",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
+            "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
+            'default will be set to "sha256".',
+            stacklevel=3,
+        )
+        hash_type = "sha256"
+
+    filepath = Path(filepath)
+    if hash_val and not check_hash(filepath, hash_val, hash_type):
+        raise HashCheckError(
+            f"{hash_type} hash check of compressed file failed: " f"{filepath=}, expected {hash_type}={hash_val}."
+        )
     if has_base:
         # the extracted files will be in this folder
         cache_dir = Path(output_dir, _basename(filepath).split(".")[0])
@@ -337,11 +389,6 @@ def extractall(
     if cache_dir.exists() and next(cache_dir.iterdir(), None) is not None:
         logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
-    filepath = Path(filepath)
-    if hash_val and not check_hash(filepath, hash_val, hash_type):
-        raise RuntimeError(
-            f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
-        )
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.name.endswith("zip") or _file_type == "zip":
@@ -366,7 +413,7 @@ def get_filename_from_url(data_url: str) -> str:
             filename = re.findall('filename="?([^";]+)"?', content_disposition)
             if filename:
                 return str(filename[0])
-        if "drive.google.com" in data_url:
+        if urlparse(data_url).netloc == "drive.google.com":
             response = requests.get(data_url)
             if "text/html" in response.headers.get("Content-Type", ""):
                 soup = BeautifulSoup(response.text, "html.parser")
@@ -383,7 +430,7 @@ def download_and_extract(
     filepath: PathLike = "",
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "md5",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
     progress: bool = True,
@@ -399,7 +446,7 @@ def download_and_extract(
             default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped

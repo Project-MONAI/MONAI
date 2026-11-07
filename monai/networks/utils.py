@@ -34,9 +34,6 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-onnx, _ = optional_import("onnx")
-onnxreference, _ = optional_import("onnx.reference")
-onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
@@ -372,7 +369,7 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
@@ -443,7 +440,7 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
 
     if any(d % factor != 0 for d in input_size[2:]):
         raise ValueError(
-            f"All spatial dimensions must be divisible by factor {factor}. " f", spatial shape is: {input_size[2:]}"
+            f"All spatial dimensions must be divisible by factor {factor}, spatial shape is: {input_size[2:]}"
         )
     output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
     reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
@@ -601,6 +598,7 @@ def copy_model_state(
             dst_dict[dst_key] = val
             updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
+        # pyrefly: ignore [unsupported-operation]
         dst_key = f"{dst_prefix}{mapping[s]}"
         if dst_key in dst_dict and dst_key not in to_skip:
             if dst_dict[dst_key].shape != src_dict[s].shape:
@@ -708,18 +706,29 @@ def convert_to_onnx(
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
+    onnx, _ = optional_import("onnx")
+
     model.eval()
     with torch.no_grad():
         torch_versioned_kwargs = {}
         if use_trace:
             # let torch.onnx.export to trace the model.
-            mode_to_export = model
+            model_to_export = model
             torch_versioned_kwargs = kwargs
             if "dynamo" in kwargs and kwargs["dynamo"] and verify:
                 torch_versioned_kwargs["verify"] = verify
                 verify = False
         else:
-            mode_to_export = torch.jit.script(model, **kwargs)
+            # The dynamo-based ONNX exporter (torch.export) does not support ScriptModule.
+            # PyTorch 2.6–2.8: dynamo is available but NOT the default; TorchScript exporter
+            #   remains the default, so we must still script the model here.
+            # PyTorch 2.9+: dynamo became the default exporter for torch.onnx.export;
+            #   pass the raw nn.Module directly—the exporter handles it via torch.export.
+            _pt_major_minor = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2])
+            if _pt_major_minor >= (2, 9):
+                model_to_export = model
+            else:
+                model_to_export = torch.jit.script(model, **kwargs)
 
         if torch.is_tensor(inputs) or isinstance(inputs, dict):
             onnx_inputs = (inputs,)
@@ -731,9 +740,8 @@ def convert_to_onnx(
             f = temp_file.name
         else:
             f = filename
-        print(f"torch_versioned_kwargs={torch_versioned_kwargs}")
         torch.onnx.export(
-            mode_to_export,
+            model_to_export,
             onnx_inputs,
             f=f,
             input_names=input_names,
@@ -769,11 +777,13 @@ def convert_to_onnx(
         model_input_names = [i.name for i in onnx_model.graph.input]
         input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
+            onnxruntime, _ = optional_import("onnxruntime")
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
+            onnxreference, _ = optional_import("onnx.reference")
             sess = onnxreference.ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)
@@ -1183,7 +1193,7 @@ def replace_modules_temp(
 
 def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
     """
-    A utilty function to help freeze specific layers.
+    A utility function to help freeze specific layers.
 
     Args:
         model: a source PyTorch model to freeze layer.
@@ -1272,7 +1282,7 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
 class CastToFloat(torch.nn.Module):
     """
     Class used to add autocast protection for ONNX export
-    for forward methods with single return vaue
+    for forward methods with single return value
     """
 
     def __init__(self, mod):

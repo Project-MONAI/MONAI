@@ -12,7 +12,6 @@
 # isort: dont-add-import: from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -33,7 +32,7 @@ class DynUNetSkipLayer(nn.Module):
     forward passes of the network.
     """
 
-    heads: Optional[list[torch.Tensor]]
+    heads: list[torch.Tensor] | None
 
     def __init__(self, index, downsample, upsample, next_layer, heads=None, super_head=None):
         super().__init__()
@@ -60,6 +59,17 @@ class DynUNet(nn.Module):
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
     `Optimized U-Net for Brain Tumor Segmentation <https://arxiv.org/pdf/2110.03352.pdf>`_.
+
+    This is the network architecture only; for the full nnU-Net pipeline (planning, preprocessing, training,
+    ensembling) see :py:mod:`monai.apps.nnunet`.
+
+    Differences from the reference nnU-Net network: deep supervision heads are optional and limited by
+    ``deep_supr_num`` (nnU-Net supervises every decoder stage); by default their low-resolution logits are
+    upsampled with nearest-neighbour interpolation and stacked, whereas nnU-Net keeps each output at its native
+    resolution and downsamples the target instead (``deep_supr_output="list"`` gives that behaviour, to be used
+    with :py:class:`monai.losses.DeepSupervisionLoss`); no per-level loss weighting is built in (nnU-Net uses a
+    normalized ``1/2**level`` schedule with the deepest level dropped; here weighting is left to the loss);
+    convolutions have no bias, which is immaterial before affine instance norm.
 
     This model is more flexible compared with ``monai.networks.nets.UNet`` in three
     places:
@@ -88,7 +98,7 @@ class DynUNet(nn.Module):
     For backwards compatibility with old weights, please set `strict=False` when calling `load_state_dict`.
 
     Usage example with medical segmentation decathlon dataset is available at:
-    https://github.com/Project-MONAI/tutorials/tree/master/modules/dynunet_pipeline.
+    https://github.com/Project-MONAI/tutorials/tree/main/modules/dynunet_pipeline.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -126,6 +136,10 @@ class DynUNet(nn.Module):
         res_block: whether to use residual connection based convolution blocks during the network.
             Defaults to ``False``.
         trans_bias: whether to set the bias parameter in transposed convolution layers. Defaults to ``False``.
+        deep_supr_output: format of the training-mode output when ``deep_supervision=True``. ``"stack"`` (default):
+            heads are upsampled with nearest interpolation to the final output size and stacked along dim 1, as
+            described above. ``"list"``: returns ``[final, head_1, ..., head_k]`` with each head at its native
+            resolution, highest first, as expected by :py:class:`monai.losses.DeepSupervisionLoss`.
     """
 
     def __init__(
@@ -133,17 +147,18 @@ class DynUNet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Sequence[Union[Sequence[int], int]],
-        strides: Sequence[Union[Sequence[int], int]],
-        upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        filters: Optional[Sequence[int]] = None,
-        dropout: Optional[Union[tuple, str, float]] = None,
-        norm_name: Union[tuple, str] = ("INSTANCE", {"affine": True}),
-        act_name: Union[tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        kernel_size: Sequence[Sequence[int] | int],
+        strides: Sequence[Sequence[int] | int],
+        upsample_kernel_size: Sequence[Sequence[int] | int],
+        filters: Sequence[int] | None = None,
+        dropout: tuple | str | float | None = None,
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
         trans_bias: bool = False,
+        deep_supr_output: str = "stack",
     ):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -169,6 +184,9 @@ class DynUNet(nn.Module):
         self.output_block = self.get_output_block(0)
         self.deep_supervision = deep_supervision
         self.deep_supr_num = deep_supr_num
+        if deep_supr_output not in ("stack", "list"):
+            raise ValueError(f"deep_supr_output should be 'stack' or 'list', got {deep_supr_output!r}.")
+        self.deep_supr_output = deep_supr_output
         # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
         self.heads: list[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
         if self.deep_supervision:
@@ -266,10 +284,12 @@ class DynUNet(nn.Module):
         else:
             self.filters = filters[: len(self.strides)]
 
-    def forward(self, x):
-        out = self.skip_layers(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
+        out: torch.Tensor = self.skip_layers(x)
         out = self.output_block(out)
         if self.training and self.deep_supervision:
+            if self.deep_supr_output == "list":
+                return [out] + list(self.heads)
             out_all = [out]
             for feature_map in self.heads:
                 out_all.append(interpolate(feature_map, out.shape[2:]))
@@ -326,10 +346,10 @@ class DynUNet(nn.Module):
         self,
         in_channels: list[int],
         out_channels: list[int],
-        kernel_size: Sequence[Union[Sequence[int], int]],
-        strides: Sequence[Union[Sequence[int], int]],
+        kernel_size: Sequence[Sequence[int] | int],
+        strides: Sequence[Sequence[int] | int],
         conv_block: nn.Module,
-        upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
+        upsample_kernel_size: Sequence[Sequence[int] | int] | None = None,
         trans_bias: bool = False,
     ):
         layers = []

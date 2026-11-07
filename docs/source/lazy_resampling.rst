@@ -253,7 +253,7 @@ so the user must set lazy=True on the transforms that they still wish to execute
 
 .. figure:: ../images/lazy_resampling_none_example.svg
 
-    Figure shwoing the effect of using ``lazy=False`` when ``Compose`` is being executed with ``lazy=None``. Note that
+    Figure showing the effect of using ``lazy=False`` when ``Compose`` is being executed with ``lazy=None``. Note that
     the additional resamples that occur due to ``RandRotate90d`` being executed in a non-lazy fashion.
 
 
@@ -270,4 +270,4 @@ the following transform is a lazy transform, or is configured to execute lazily.
 .. figure:: ../images/lazy_resampling_apply_pending_example.svg
 
     Figure showing the use of :class:`ApplyPendingd<monai.transforms.lazy.dictionary.ApplyPendingd>` to cause
-    resampling to occur in the midele of a chain of lazy transforms.
+    resampling to occur in the middle of a chain of lazy transforms.

@@ -20,7 +20,7 @@ import monai
 from monai.config import NdarrayOrTensor
 from monai.data.utils import AFFINE_TOL
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor, look_up_option
+from monai.utils import LazyAttr, TraceKeys, convert_to_numpy, convert_to_tensor, look_up_option
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -90,7 +90,11 @@ def affine_from_pending(pending_item):
 
 
 def kwargs_from_pending(pending_item):
-    """Extract kwargs from a pending transform item."""
+    """Extract kwargs from a pending transform item.
+
+    When ``pending_item`` is a dict, ``align_corners`` is also extracted from its ``extra_info`` entry
+    (if present and boolean) so the lazy pipeline preserves the original transform's alignment.
+    """
     if not isinstance(pending_item, dict):
         return {}
     ret = {
@@ -101,7 +105,13 @@ def kwargs_from_pending(pending_item):
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
-    return ret  # adding support of pending_item['extra_info']??
+    # Extract align_corners from extra_info if available
+    extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
+    if isinstance(extra_info, dict) and "align_corners" in extra_info:
+        align_corners_val = extra_info["align_corners"]
+        if isinstance(align_corners_val, bool):
+            ret[LazyAttr.ALIGN_CORNERS] = align_corners_val
+    return ret
 
 
 def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
@@ -218,11 +228,13 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             img.affine = call_kwargs["dst_affine"]
             img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
             return img
+        # pyrefly: ignore [bad-argument-type, implicit-import]
         img = monai.transforms.crop_or_pad_nd(img, matrix_np, out_spatial_size, mode=call_kwargs["padding_mode"])
         img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
         img.affine = call_kwargs["dst_affine"]
         return img
 
+    # pyrefly: ignore [bad-argument-type, implicit-import]
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`

@@ -62,8 +62,8 @@ PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 9
 
 version_dict = get_versions()
-__version__: str = version_dict.get("version", "0+unknown")
-__revision_id__: str = version_dict.get("full-revisionid")
+__version__: str = str(version_dict.get("version", "0+unknown"))
+__revision_id__: str = str(version_dict.get("full-revisionid") or "")
 del get_versions, version_dict
 
 __copyright__ = "(c) MONAI Consortium"
@@ -86,6 +86,7 @@ from .utils.module import load_submodules  # noqa: E402
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
 excludes = "|".join(
     [
+        "(.*(nvimgcodec_pydicom_plugin)$)",
         "(^(monai.handlers))",
         "(^(monai.bundle))",
         "(^(monai.fl))",
@@ -131,7 +132,7 @@ try:
     # workaround related to https://github.com/Project-MONAI/MONAI/issues/7575
     if hasattr(torch.cuda.device_count, "cache_clear"):
         torch.cuda.device_count.cache_clear()
-except BaseException:
+except Exception:
     from .utils.misc import MONAIEnvVars
 
     if MONAIEnvVars.debug():

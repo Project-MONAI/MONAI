@@ -57,7 +57,6 @@ TEST_CASES = [
         POINT_3D_WORLD,
     ],
     [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, True, POINT_3D_IMAGE_RAS],
-    [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, True, POINT_3D_IMAGE_RAS],
 ]
 TEST_CASES_SEQUENCE = [
     [

@@ -27,7 +27,7 @@ TEST_CASES = [
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "mask": torch.tensor([[[[0.0, 0.0], [1.0, 1.0]]]]),
         },
-        0.500,
+        0.333333,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -36,7 +36,7 @@ TEST_CASES = [
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
             "mask": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 1.0], [0.0, 0.0]]]]),
         },
-        0.422969,
+        0.301128,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 0, "smooth_dr": 0},
@@ -54,7 +54,7 @@ TEST_CASES = [
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "mask": torch.tensor([[[1.0, 1.0, 0.0]]]),
         },
-        0.47033,
+        0.579184,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {

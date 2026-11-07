@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import unittest
 from tempfile import TemporaryDirectory
@@ -195,11 +196,20 @@ TEST_CASE_12_CHUNKS = [
 ]
 
 # Define zarr v3 codec configurations with proper bytes codec
-ZARR_V3_LZ4_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "lz4"}}]
+ZARR_V3_LZ4_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "lz4"}},
+]
 
-ZARR_V3_PICKLE_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}]
+ZARR_V3_PICKLE_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "zstd"}},
+]
 
-ZARR_V3_LZMA_CODECS = [{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}]
+ZARR_V3_LZMA_CODECS = [
+    {"name": "bytes", "configuration": {"endian": "little"}},
+    {"name": "blosc", "configuration": {"cname": "zlib"}},
+]
 
 # test for LZ4 compressor (zarr v2) or codecs (zarr v3)
 TEST_CASE_13_COMPRESSOR_LZ4 = [
@@ -289,7 +299,10 @@ TEST_CASE_18_CODECS = [
 TEST_CASE_19_VALUE_CODECS = [
     dict(
         merged_shape=TENSOR_4x4.shape,
-        value_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zstd"}}],
+        value_codecs=[
+            {"name": "bytes", "configuration": {"endian": "little"}},
+            {"name": "blosc", "configuration": {"cname": "zstd"}},
+        ],
     ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -304,7 +317,10 @@ TEST_CASE_19_VALUE_CODECS = [
 TEST_CASE_20_COUNT_CODECS = [
     dict(
         merged_shape=TENSOR_4x4.shape,
-        count_codecs=[{"name": "bytes", "configuration": {}}, {"name": "blosc", "configuration": {"cname": "zlib"}}],
+        count_codecs=[
+            {"name": "bytes", "configuration": {"endian": "little"}},
+            {"name": "blosc", "configuration": {"cname": "zlib"}},
+        ],
     ),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -439,6 +455,56 @@ class ZarrAvgMergerTests(unittest.TestCase):
         # check if the result is matching the expectation
         assert_allclose(output[:], expected.numpy())
 
+    @unittest.skipUnless(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v3")
+    def test_temporary_stores_remain_alive(self):
+        """Default stores must retain distinct backing directories after garbage collection."""
+        merger = ZarrAvgMerger(merged_shape=(1, 1, 2, 2), store=self.merged_name)
+        self.assertIsNotNone(merger.value_tmpdir)
+        self.assertIsNotNone(merger.count_tmpdir)
+        self.addCleanup(merger.value_tmpdir.cleanup)
+        self.addCleanup(merger.count_tmpdir.cleanup)
+        gc.collect()
+        self.assertNotEqual(merger.value_tmpdir.name, merger.count_tmpdir.name)
+        self.assertTrue(os.path.isdir(merger.value_tmpdir.name))
+        self.assertTrue(os.path.isdir(merger.count_tmpdir.name))
+
+    @unittest.skipUnless(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v3")
+    def test_temporary_stores_read_write(self):
+        """Both default stores must remain usable through reopening and finalization."""
+        merger = ZarrAvgMerger(merged_shape=(1, 1, 2, 2), store=self.merged_name)
+        for name in ("value_tmpdir", "count_tmpdir"):
+            tmpdir = getattr(merger, name, None)
+            if tmpdir is not None:
+                self.addCleanup(tmpdir.cleanup)
+        gc.collect()
+        values = zarr.open_array(store=merger.value_store, mode="r+")
+        counts = zarr.open_array(store=merger.count_store, mode="r+")
+        values[:] = 6
+        counts[:] = 2
+        assert_allclose(merger.get_values()[:], np.full((1, 1, 2, 2), 6))
+        assert_allclose(merger.get_counts()[:], np.full((1, 1, 2, 2), 2))
+        assert_allclose(merger.finalize()[:], np.full((1, 1, 2, 2), 3))
+
+    @parameterized.expand([("list", []), ("tuple", ())])
+    @unittest.skipIf(version_geq(get_package_version("zarr"), "3.0.0"), "Requires zarr v2")
+    def test_empty_codec_sequences(self, _, empty_codecs):
+        """Explicit empty codec sequences disable compression without indexing errors."""
+        merger = ZarrAvgMerger(
+            merged_shape=(1, 1, 2, 2),
+            store=self.merged_name,
+            value_store=zarr.storage.MemoryStore(),
+            count_store=zarr.storage.MemoryStore(),
+            codecs=empty_codecs,
+            value_codecs=empty_codecs,
+            count_codecs=empty_codecs,
+        )
+        self.assertIsNone(merger.output.compressor)
+        self.assertIsNone(merger.values.compressor)
+        self.assertIsNone(merger.counts.compressor)
+        patch = torch.ones((1, 1, 2, 2))
+        merger.aggregate(patch, (0, 0))
+        assert_allclose(merger.finalize()[:], patch.numpy())
+
     def test_zarr_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):
             merger = ZarrAvgMerger(merged_shape=(1, 3, 2, 3), store=self.merged_name)
@@ -448,6 +514,11 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None, store=self.merged_name)
+
+    def test_zarr_avg_merger_default_chunks_auto(self):
+        """chunks=True must mean auto-chunking, not one whole-shape chunk (zarr 3.3 removed boolean chunks)."""
+        merger = ZarrAvgMerger(merged_shape=(4096, 4096), store=self.merged_name)
+        self.assertNotEqual(merger.output.chunks, (4096, 4096))
 
 
 if __name__ == "__main__":

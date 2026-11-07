@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import numpy as np
 import torch
@@ -65,7 +65,7 @@ def softplus(x: NdarrayOrTensor) -> NdarrayOrTensor:
         Softplus of the input.
     """
     if isinstance(x, np.ndarray):
-        return np.logaddexp(np.zeros_like(x), x)
+        return cast(np.ndarray, np.logaddexp(np.zeros_like(x), x))
     return torch.logaddexp(torch.zeros_like(x), x)
 
 
@@ -478,6 +478,7 @@ def max(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.max(x, int(dim), **kwargs)  # type: ignore
 
+    # pyrefly: ignore [bad-index]
     return ret[0] if isinstance(ret, tuple) else ret
 
 
@@ -544,6 +545,7 @@ def min(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.min(x, int(dim), **kwargs)  # type: ignore
 
+    # pyrefly: ignore [bad-index]
     return ret[0] if isinstance(ret, tuple) else ret
 
 

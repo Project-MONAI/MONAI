@@ -140,7 +140,7 @@ class TestRetinaNet(unittest.TestCase):
     def test_script(self, model, input_param, input_shape):
         try:
             idx = int(self.id().split("test_script_")[-1])
-        except BaseException:
+        except Exception:
             idx = 0
         idx %= 3
         # test whether support torchscript
@@ -174,7 +174,7 @@ class TestRetinaNet(unittest.TestCase):
     def test_onnx(self, model, input_param, input_shape):
         try:
             idx = int(self.id().split("test_onnx_")[-1])
-        except BaseException:
+        except Exception:
             idx = 0
         idx %= 3
         # test whether support torchscript

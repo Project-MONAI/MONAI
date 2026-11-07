@@ -21,10 +21,11 @@ from parameterized import parameterized
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.test_utils import test_script_save
+from tests.test_utils import TEST_DEVICES, test_script_save
 
 TEST_CASES = []
-for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
+for case in TEST_DEVICES:
+    device = case[0]
     input_data = {
         "input": torch.tensor(
             [[[[1.0, 1.0], [0.5, 0.0]], [[1.0, 1.0], [0.5, 0.0]], [[1.0, 1.0], [0.5, 0.0]]]], device=device
@@ -76,6 +77,13 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
     )
     TEST_CASES.append([{"to_onehot_y": True, "use_softmax": True}, input_data, 0.16276])
     TEST_CASES.append([{"to_onehot_y": True, "alpha": 0.8, "use_softmax": True}, input_data, 0.08138])
+
+TEST_ALPHA_BROADCASTING = []
+for case in TEST_DEVICES:
+    device = case[0]
+    for include_background in [True, False]:
+        for use_softmax in [True, False]:
+            TEST_ALPHA_BROADCASTING.append([device, include_background, use_softmax])
 
 
 class TestFocalLoss(unittest.TestCase):
@@ -373,6 +381,40 @@ class TestFocalLoss(unittest.TestCase):
             loss = FocalLoss(use_softmax=use_softmax)
             test_input = torch.ones(2, 2, 8, 8)
             test_script_save(loss, test_input, test_input)
+
+    @parameterized.expand(TEST_ALPHA_BROADCASTING)
+    def test_alpha_sequence_broadcasting(self, device, include_background, use_softmax):
+        """
+        Test FocalLoss with alpha as a sequence for proper broadcasting.
+        """
+        num_classes = 3
+        batch_size = 2
+        spatial_dims = (4, 4)
+
+        logits = torch.randn(batch_size, num_classes, *spatial_dims, device=device)
+        target = torch.randint(0, num_classes, (batch_size, 1, *spatial_dims), device=device)
+
+        if include_background:
+            alpha_seq = [0.1, 0.5, 2.0]
+        else:
+            alpha_seq = [0.5, 2.0]
+
+        loss_func = FocalLoss(
+            to_onehot_y=True,
+            gamma=2.0,
+            alpha=alpha_seq,
+            include_background=include_background,
+            use_softmax=use_softmax,
+            reduction="mean",
+        )
+
+        result = loss_func(logits, target)
+
+        self.assertTrue(torch.is_tensor(result))
+        self.assertEqual(result.ndim, 0)
+        self.assertTrue(
+            result > 0, f"Loss should be positive. params: dev={device}, bg={include_background}, softmax={use_softmax}"
+        )
 
 
 if __name__ == "__main__":

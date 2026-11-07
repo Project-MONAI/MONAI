@@ -1,5 +1,5 @@
 
-# What's new in 1.5.1 🎉🎉
+# What's new in 1.5.1
 
 This is a minor update for MONAI to address security concerns and improve compatibility with the newest PyTorch release.
 

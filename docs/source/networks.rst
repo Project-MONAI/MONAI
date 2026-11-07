@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -127,6 +132,23 @@ Blocks
 `Transformer Block`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TransformerBlock
+    :members:
+
+`Hyena Mixer`
+~~~~~~~~~~~~~
+.. autoclass:: HyenaMixer
+    :members:
+
+`Hyena Transformer Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HyenaTransformerBlock
+    :members:
+
+`Depthwise FFT Convolution`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DepthwiseFFTConv2d
+    :members:
+.. autoclass:: DepthwiseFFTConv3d
     :members:
 
 `UNETR Block`
@@ -326,6 +348,11 @@ Layers
 
 .. currentmodule:: monai.networks.layers
 
+`LayerNormNd`
+~~~~~~~~~~~~~
+.. autoclass:: LayerNormNd
+    :members:
+
 `ChannelPad`
 ~~~~~~~~~~~~
 .. autoclass:: ChannelPad
@@ -449,6 +476,31 @@ Nets
 ~~~~~~~
 .. autoclass:: AHNet
   :members:
+
+`ConvNeXt`
+~~~~~~~~~~
+.. autoclass:: ConvNeXt
+  :members:
+
+`ConvNeXtTiny`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtTiny
+
+`ConvNeXtSmall`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtSmall
+
+`ConvNeXtBase`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtBase
+
+`ConvNeXtLarge`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtLarge
+
+`ConvNeXtXLarge`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtXLarge
 
 `DenseNet`
 ~~~~~~~~~~
@@ -591,6 +643,11 @@ Nets
 .. autoclass:: SwinUNETR
     :members:
 
+`HyenaNDUNETR`
+~~~~~~~~~~~~~~
+.. autoclass:: HyenaNDUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -638,6 +695,11 @@ Nets
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
+  :members:
+
+`NaViT`
+~~~~~~~
+.. autoclass:: NaViT
   :members:
 
 `ViT`
@@ -766,6 +828,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities

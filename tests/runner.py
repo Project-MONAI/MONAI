@@ -15,6 +15,7 @@ import argparse
 import inspect
 import os
 import re
+import signal
 import sys
 import time
 import unittest
@@ -24,9 +25,22 @@ from monai.utils import PerfContext
 
 results: dict = {}
 
+_SIGALRM_AVAILABLE = hasattr(signal, "SIGALRM")
+
+
+class _TestTimeoutError(Exception):
+    """Raised when a single test exceeds the per-test timeout."""
+
+
+def _alarm_handler(signum, frame):
+    raise _TestTimeoutError("Test timed out")
+
 
 class TimeLoggingTestResult(unittest.TextTestResult):
     """Overload the default results so that we can store the results."""
+
+    # Set by the caller before running; 0 means no timeout.
+    timeout: int = 0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,10 +51,15 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         self.start_time = time.time()
         name = self.getDescription(test)
         self.stream.write(f"Starting test: {name}...\n")
+        if _SIGALRM_AVAILABLE and self.timeout > 0:
+            signal.signal(signal.SIGALRM, _alarm_handler)
+            signal.alarm(self.timeout)
         super().startTest(test)
 
     def stopTest(self, test):  # noqa: N802
         """On test end, get time, print, store and do normal behaviour."""
+        if _SIGALRM_AVAILABLE and self.timeout > 0:
+            signal.alarm(0)  # cancel any pending alarm
         elapsed = time.time() - self.start_time
         name = self.getDescription(test)
         self.stream.write(f"Finished test: {name} ({elapsed:.03}s)\n")
@@ -99,6 +118,13 @@ def parse_args():
     parser.add_argument(
         "-f", "--failfast", action="store_true", dest="failfast", default=False, help="Stop testing on first failure"
     )
+    parser.add_argument(
+        "--timeout",
+        dest="timeout",
+        default=0,
+        type=int,
+        help="Per-test timeout in seconds; 0 disables (default: %(default)d). Requires SIGALRM (Linux/macOS only).",
+    )
     args = parser.parse_args()
     print(f"Running tests in folder: '{args.path}'")
     if args.pattern:
@@ -144,6 +170,13 @@ if __name__ == "__main__":
         tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s, total cases: {tests.countTestCases()}.")
+
+    if args.timeout > 0:
+        if _SIGALRM_AVAILABLE:
+            TimeLoggingTestResult.timeout = args.timeout
+            print(f"Per-test timeout enabled: {args.timeout}s")
+        else:
+            print("Warning: --timeout ignored; SIGALRM is not available on this platform.")
 
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast

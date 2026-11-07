@@ -125,6 +125,15 @@ class TestAdaptors(unittest.TestCase):
         dres = adaptor(foo, {"a": "b"}, {"b": "a"})(d)
         self.assertEqual(dres["b"], 4)
 
+    def test_kwargs_with_dict_inputs(self):
+
+        def foo(**kwargs):
+            return {k: v * 2 for k, v in kwargs.items()}
+
+        d = {"x": 3}
+        dres = adaptor(foo, {"out": "out"}, {"x": "out"})(d)
+        self.assertEqual(dres["out"], 6)
+
 
 class TestApplyAlias(unittest.TestCase):
 

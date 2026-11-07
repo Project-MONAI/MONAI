@@ -16,10 +16,10 @@ from typing import Any
 import torch
 from torch.nn.modules.loss import _Loss
 
+from monai.config import TensorOrList
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
-from ..config import TensorOrList
 from .metric import CumulativeIterationMetric
 
 

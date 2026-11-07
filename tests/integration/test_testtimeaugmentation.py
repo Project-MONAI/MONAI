@@ -104,7 +104,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         # output might be different size, so pad so that they match
         train_loader = DataLoader(train_ds, batch_size=2, collate_fn=pad_list_data_collate)
 
-        model = UNet(2, 1, 1, channels=(6, 6), strides=(2, 2)).to(device)
+        model = UNet(2, 1, 1, channels=(6, 6), strides=(2,)).to(device)
         loss_function = DiceLoss(sigmoid=True)
         optimizer = torch.optim.Adam(model.parameters(), 1e-3)
 
@@ -180,6 +180,43 @@ class TestTestTimeAugmentation(unittest.TestCase):
         transforms = RandFlipd(["image"], prob=1.0)
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
+
+    def test_non_spatial_output(self):
+        """
+        Test TTA for non-spatial output (e.g., classification scores).
+        Verifies that setting `apply_inverse_to_pred=False` correctly aggregates
+        predictions without attempting spatial inversion.
+        """
+        input_size = (20, 20)
+        data = {"image": np.random.rand(1, *input_size).astype(np.float32)}
+
+        transforms = Compose(
+            [EnsureChannelFirstd("image", channel_dim="no_channel"), RandFlipd("image", prob=1.0, spatial_axis=0)]
+        )
+
+        def mock_classifier(x):
+            batch_size = x.shape[0]
+            return torch.tensor([[0.2, 0.8]] * batch_size, dtype=torch.float32, device=x.device)
+
+        tt_aug = TestTimeAugmentation(
+            transform=transforms,
+            batch_size=2,
+            num_workers=0,
+            inferrer_fn=mock_classifier,
+            device="cpu",
+            orig_key="image",
+            apply_inverse_to_pred=False,
+            return_full_data=False,
+        )
+        mode, mean, std, vvc = tt_aug(data, num_examples=4)
+
+        self.assertEqual(mean.shape, (2,))
+        np.testing.assert_allclose(mean, [0.2, 0.8], atol=1e-6)
+        np.testing.assert_allclose(std, [0.0, 0.0], atol=1e-6)
+
+        tt_aug.return_full_data = True
+        full_output = tt_aug(data, num_examples=4)
+        self.assertEqual(full_output.shape, (4, 2))
 
 
 if __name__ == "__main__":

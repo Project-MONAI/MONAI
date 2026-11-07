@@ -266,12 +266,13 @@ class ImageWriter:
                 The output data type of this method is always ``np.float32``.
         """
         orig_type = type(data_array)
-        data_array = convert_to_tensor(data_array, track_meta=True)
+        # Add the channel dimension before setting the affine so spatial_ndim is inferred correctly.
+        data_array = convert_to_tensor(data_array, track_meta=True)[None]
         if affine is not None:
             data_array.affine = convert_to_tensor(affine, track_meta=False)  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array = resampler(
-            data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape  # type: ignore
+            data_array, dst_affine=target_affine, spatial_size=output_spatial_shape  # type: ignore
         )
         # convert back at the end
         if isinstance(output_array, MetaTensor):
@@ -324,7 +325,7 @@ class ImageWriter:
                 data = data[..., 0, :]
         # if desired, remove trailing singleton dimensions
         while squeeze_end_dims and data.shape[-1] == 1:
-            data = np.squeeze(data, -1)
+            data = data.squeeze(-1)
         if contiguous:
             data = ascontiguousarray(data)
         return data
@@ -405,7 +406,7 @@ class ITKWriter(ImageWriter):
                 ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
+                currently support ``spatial_ndim`` and ``contiguous``, defaulting to ``3`` and ``False`` respectively.
         """
         n_chns = data_array.shape[channel_dim] if channel_dim is not None else 0
         self.data_obj = self.convert_to_channel_last(
@@ -424,7 +425,7 @@ class ITKWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -575,7 +576,7 @@ class NibabelWriter(ImageWriter):
                 ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim``, defauting to ``3``.
+                currently support ``spatial_ndim``, defaulting to ``3``.
         """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
@@ -586,7 +587,7 @@ class NibabelWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
@@ -726,7 +727,7 @@ class PILWriter(ImageWriter):
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             contiguous: if ``True``, the data array will be converted to a contiguous array. Default is ``False``.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim``, defauting to ``2``.
+                currently support ``spatial_ndim``, defaulting to ``2``.
         """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
@@ -738,7 +739,7 @@ class PILWriter(ImageWriter):
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
-        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+        Resample ``self.data_obj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
