@@ -32,7 +32,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array, soft_clip
+from monai.transforms.utils import Fourier, clahe, equalize_hist, is_positive, rescale_array, soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, nonzero, percentile, ravel, where
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
@@ -77,6 +77,7 @@ __all__ = [
     "RandCoarseDropout",
     "RandCoarseShuffle",
     "HistogramNormalize",
+    "CLAHE",
     "IntensityRemap",
     "RandIntensityRemap",
     "ForegroundMask",
@@ -2689,6 +2690,112 @@ class HistogramNormalize(Transform):
             mask_np, *_ = convert_data_type(mask, np.ndarray)
 
         ret = equalize_hist(img=img_np, mask=mask_np, num_bins=self.num_bins, min=self.min, max=self.max)
+        out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)
+
+        return out
+
+
+class CLAHE(Transform):
+    """
+    Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to an image.
+
+    Backed by `SimpleITK.AdaptiveHistogramEqualization
+    <https://simpleitk.org/doxygen/latest/html/classitk_1_1simple_1_1AdaptiveHistogramEqualizationImageFilter.html>`_,
+    ITK's power-law variant, described in `Adaptive Image Contrast Enhancement using
+    Generalizations of Histogram Equalization <https://ieeexplore.ieee.org/document/841534/>`_.
+    Expects a channel-first 2D or 3D image, equalizes each channel independently, and keeps
+    the intensity range of the input.
+
+    Args:
+        radius: radius of the contextual window in voxels, used for every spatial axis if a
+            single number. default to `5`, ITK's own default, which suits small images: scale
+            it to the image, roughly a sixteenth of the shorter side.
+        alpha: `0` gives classical adaptive histogram equalization, `1` an unsharp mask,
+            in `[0, 1]`. default to `0.3`.
+        beta: `0` gives an unsharp mask, `1` together with `alpha=1` returns the input
+            unchanged, in `[0, 1]`. default to `0.3`.
+        nonzero: whether to leave zero voxels out of the result, keeping their original value.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as the image
+            or its spatial shape, in which case it is shared across channels. voxels at which
+            `mask==False` keep their original value. can also provide the mask along with img
+            at runtime.
+        num_threads: number of threads SimpleITK may use. `None` leaves its default, which
+            is every core and will oversubscribe inside dataloader workers.
+        dtype: data type of the output, if None, same as input image. default to `float32`.
+
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        radius: Sequence[int] | int = 5,
+        alpha: float = 0.3,
+        beta: float = 0.3,
+        nonzero: bool = False,
+        mask: NdarrayOrTensor | None = None,
+        num_threads: int | None = None,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError(f"alpha must be in [0, 1], got {alpha}.")
+        if not 0.0 <= beta <= 1.0:
+            raise ValueError(f"beta must be in [0, 1], got {beta}.")
+        if num_threads is not None and not (isinstance(num_threads, (int, np.integer)) and num_threads >= 1):
+            raise ValueError(f"num_threads must be a whole number of at least 1, got {num_threads}.")
+        self.radius = radius
+        self.alpha = alpha
+        self.beta = beta
+        self.nonzero = nonzero
+        self.mask = mask
+        self.num_threads = num_threads
+        self.dtype = dtype
+
+    @staticmethod
+    def _resolve_channel_mask(mask: NdarrayOrTensor | None, img: np.ndarray) -> np.ndarray | None:
+        """
+        Turn `mask` into a boolean array shaped like the channel-first `img`.
+
+        A mask matching only the spatial shape is broadcast across channels, so one brain mask
+        can serve every modality of a multi-channel volume.
+        """
+        if mask is None:
+            return None
+        converted, *_ = convert_data_type(mask, np.ndarray)
+        mask_np = np.asarray(converted, dtype=bool)
+        if mask_np.shape == img.shape[1:]:
+            return np.broadcast_to(mask_np, img.shape)
+        if mask_np.shape != img.shape:
+            raise ValueError(
+                f"mask shape {mask_np.shape} must match either the image shape {img.shape}"
+                f" or its spatial shape {img.shape[1:]}."
+            )
+        return mask_np
+
+    def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        if img_np.ndim < 3:
+            raise ValueError(
+                "CLAHE expects a channel-first image with at least two spatial"
+                f" dimensions, got shape {img_np.shape}. Use `EnsureChannelFirst` to add the channel dimension."
+            )
+        mask_np = self._resolve_channel_mask(mask if mask is not None else self.mask, img_np)
+
+        ret = np.stack(
+            [
+                clahe(
+                    img=c,
+                    radius=self.radius,
+                    alpha=self.alpha,
+                    beta=self.beta,
+                    nonzero=self.nonzero,
+                    mask=None if mask_np is None else mask_np[i],
+                    num_threads=self.num_threads,
+                )
+                for i, c in enumerate(img_np)
+            ]
+        )
         out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)
 
         return out

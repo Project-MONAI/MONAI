@@ -26,6 +26,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
+    CLAHE,
     AdjustContrast,
     ClipIntensityPercentiles,
     ComputeHoVerMaps,
@@ -99,6 +100,7 @@ __all__ = [
     "RandCoarseDropoutd",
     "RandCoarseShuffled",
     "HistogramNormalized",
+    "CLAHEd",
     "ForegroundMaskd",
     "ComputeHoVerMapsd",
     "RandGaussianNoiseD",
@@ -164,6 +166,8 @@ __all__ = [
     "RandCoarseShuffleDict",
     "HistogramNormalizeD",
     "HistogramNormalizeDict",
+    "CLAHED",
+    "CLAHEDict",
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
     "ForegroundMaskD",
@@ -1906,6 +1910,60 @@ class HistogramNormalized(MapTransform):
         return d
 
 
+class CLAHEd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CLAHE`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        radius: radius of the contextual window in voxels, used for every spatial axis if a
+            single number. default to `5`, ITK's own default, which suits small images: scale
+            it to the image, roughly a sixteenth of the shorter side.
+        alpha: `0` gives classical adaptive histogram equalization, `1` an unsharp mask,
+            in `[0, 1]`. default to `0.3`.
+        beta: `0` gives an unsharp mask, `1` together with `alpha=1` returns the input
+            unchanged, in `[0, 1]`. default to `0.3`.
+        nonzero: whether to leave zero voxels out of the result, keeping their original value.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as the image
+            or its spatial shape. voxels at which `mask==False` keep their original value.
+        mask_key: if mask is None, will try to get the mask with `mask_key`.
+        num_threads: number of threads SimpleITK may use. `None` leaves its default, which
+            is every core and will oversubscribe inside dataloader workers.
+        dtype: output data type, if None, same as input image. defaults to float32.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    backend = CLAHE.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        radius: Sequence[int] | int = 5,
+        alpha: float = 0.3,
+        beta: float = 0.3,
+        nonzero: bool = False,
+        mask: NdarrayOrTensor | None = None,
+        mask_key: str | None = None,
+        num_threads: int | None = None,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = CLAHE(
+            radius=radius, alpha=alpha, beta=beta, nonzero=nonzero, mask=mask, num_threads=num_threads, dtype=dtype
+        )
+        self.mask_key = mask_key if mask is None else None
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key], d[self.mask_key]) if self.mask_key is not None else self.transform(d[key])
+
+        return d
+
+
 class ForegroundMaskd(MapTransform):
     """
     Creates a binary mask that defines the foreground based on thresholds in RGB or HSV color space.
@@ -2016,6 +2074,7 @@ KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
+CLAHED = CLAHEDict = CLAHEd
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
 ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
 ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd
