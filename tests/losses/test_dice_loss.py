@@ -212,6 +212,21 @@ class TestDiceLoss(unittest.TestCase):
             loss = DiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
+    @parameterized.expand([[(1.0, -1.0)], [-1.0]])
+    def test_negative_weight(self, weight):
+        with self.assertRaisesRegex(ValueError, "no less than 0"):
+            DiceLoss(weight=weight)
+
+    def test_empty_weight_keeps_length_error(self):
+        loss = DiceLoss(weight=[])
+        with self.assertRaisesRegex(ValueError, "same as the number of classes"):
+            loss(torch.ones(1, 2, 3, 3), torch.ones(1, 2, 3, 3))
+
+    def test_export_with_weight(self):
+        loss = DiceLoss(weight=(1.0, 2.0))
+        test_input = torch.rand(2, 2, 8, 8)
+        test_export_save(loss, test_input, test_input)
+
     def test_script(self):
         loss = DiceLoss()
         test_input = torch.ones(2, 1, 8, 8)
@@ -219,7 +234,7 @@ class TestDiceLoss(unittest.TestCase):
 
     def test_export(self):
         loss = DiceLoss()
-        test_input = torch.ones(2, 1, 8, 8)
+        test_input = torch.rand(2, 1, 8, 8)
         test_export_save(loss, test_input, test_input)
 
 

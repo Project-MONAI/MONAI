@@ -114,6 +114,9 @@ class FocalLoss(_Loss):
             >>> grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
             >>> fl = FocalLoss(to_onehot_y=True)
             >>> fl(pred, grnd)
+
+        Raises:
+            ValueError: When ``weight`` has negative values.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.include_background = include_background
@@ -129,6 +132,8 @@ class FocalLoss(_Loss):
         else:
             self.alpha = torch.as_tensor(alpha)
         weight = torch.as_tensor(weight) if weight is not None else None
+        if weight is not None and (weight < 0).any():
+            raise ValueError(f"class_weight values must be non-negative, got {weight}.")
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
         self.ignore_index = ignore_index
@@ -210,11 +215,6 @@ class FocalLoss(_Loss):
                         f"The number of class_weight ({cw.numel()}) must match the number of "
                         f"output channels ({num_classes})."
                     )
-                if (cw < 0).any():
-                    raise ValueError("class_weight values must be non-negative.")
-            else:
-                if cw < 0:
-                    raise ValueError("class_weight values must be non-negative.")
 
             if cw.ndim == 0:
                 loss = loss * cw
