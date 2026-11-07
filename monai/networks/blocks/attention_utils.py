@@ -114,13 +114,13 @@ def add_decomposed_rel_pos(
         r_q = q.reshape(batch, q_h, q_w, q_d, dim)
         rel_h = torch.einsum("bhwdc,hkc->bhwdk", r_q, rh)
         rel_w = torch.einsum("bhwdc,wkc->bhwdk", r_q, rw)
-        rel_d = torch.einsum("bhwdc,wkc->bhwdk", r_q, rd)
+        rel_d = torch.einsum("bhwdc,dkc->bhwdk", r_q, rd)
 
         attn = (
             attn.view(batch, q_h, q_w, q_d, k_h, k_w, k_d)
-            + rel_h[:, :, :, :, None, None]
-            + rel_w[:, :, :, None, :, None]
-            + rel_d[:, :, :, None, None, :]
+            + rel_h[:, :, :, :, :, None, None]
+            + rel_w[:, :, :, :, None, :, None]
+            + rel_d[:, :, :, :, None, None, :]
         ).view(batch, q_h * q_w * q_d, k_h * k_w * k_d)
 
     return attn
