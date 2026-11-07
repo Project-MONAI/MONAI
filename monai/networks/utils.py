@@ -15,6 +15,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 from __future__ import annotations
 
 import io
+import itertools
 import re
 import tempfile
 import warnings
@@ -54,6 +55,7 @@ __all__ = [
     "save_state",
     "convert_to_onnx",
     "convert_to_torchscript",
+    "convert_to_export",
     "convert_to_trt",
     "meshgrid_ij",
     "meshgrid_xy",
@@ -863,6 +865,85 @@ def convert_to_torchscript(
                 torch.testing.assert_close(r1, r2, rtol=rtol, atol=atol)  # type: ignore
 
     return script_module
+
+
+def convert_to_export(
+    model: nn.Module,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
+    verify: bool = False,
+    inputs: Sequence[Any] | None = None,
+    dynamic_shapes: dict | tuple | None = None,
+    device: str | torch.device | None = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    **kwargs,
+) -> torch.export.ExportedProgram:
+    """
+    Utility to export a model using :func:`torch.export.export` and optionally save to a ``.pt2`` file,
+    with optional input/output data verification.
+
+    Without ``dynamic_shapes`` the exported program only accepts inputs with the shapes of ``inputs``. Modules from
+    :meth:`torch.export.ExportedProgram.module` reject ``.eval()`` and ``.train()``, the model is exported in eval mode.
+
+    Args:
+        model: source PyTorch model to export.
+        filename_or_obj: if not None, a file path string to save the exported program.
+        extra_files: map from filename to string contents to store in the saved archive.
+        verify: whether to verify that the exported program, reloaded from ``filename_or_obj`` if given,
+            produces the same outputs as ``model``.
+        inputs: input test data for export and verification. Should be a sequence of
+            tensors that map to positional arguments of ``model()``.
+        dynamic_shapes: dynamic shape specifications passed to :func:`torch.export.export`.
+        device: target device to verify the model. If None, uses CUDA if available.
+        rtol: the relative tolerance when comparing outputs.
+        atol: the absolute tolerance when comparing outputs.
+        kwargs: additional keyword arguments for :func:`torch.export.export`.
+
+    Returns:
+        A :class:`torch.export.ExportedProgram` representing the exported model.
+
+    Raises:
+        ValueError: When ``inputs`` is None.
+        AssertionError: When ``verify`` is True and the outputs differ in structure or value.
+    """
+    if inputs is None:
+        raise ValueError("Input data is required for torch.export.export.")
+
+    model.eval()
+    with torch.no_grad():
+        exported = torch.export.export(model, args=tuple(inputs), dynamic_shapes=dynamic_shapes, **kwargs)
+
+        if filename_or_obj is not None:
+            torch.export.save(exported, filename_or_obj, extra_files=extra_files)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        verify_inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        if filename_or_obj is not None:
+            loaded_module = torch.export.load(filename_or_obj).module()
+        else:
+            loaded_module = deepcopy(exported).module()
+        loaded_module.to(device)
+
+        # the model and the returned program share weights, so the model is moved back after the check
+        model_device = next(itertools.chain(model.parameters(), model.buffers()), torch.empty(0)).device
+        model.to(device)
+        try:
+            with torch.no_grad():
+                set_determinism(seed=0)
+                torch_out = model(*verify_inputs)
+                set_determinism(seed=0)
+                export_out = loaded_module(*verify_inputs)
+                set_determinism(seed=None)
+        finally:
+            model.to(model_device)
+
+        torch.testing.assert_close(export_out, torch_out, rtol=rtol, atol=atol)  # type: ignore
+
+    return exported
 
 
 def _onnx_trt_compile(
