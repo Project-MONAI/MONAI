@@ -375,6 +375,7 @@ class TestResNet(unittest.TestCase):
         net = ResNet(**TEST_CASE_NORM_ACT, norm=("instance", {"affine": True}), act=("leakyrelu", {}))
         self.assertIsInstance(net.bn1, torch.nn.InstanceNorm2d)
         self.assertIsInstance(net.layer1[0].bn1, torch.nn.BatchNorm2d)
+        self.assertIsInstance(net.layer2[0].downsample[1], torch.nn.BatchNorm2d)
         self.assertIsInstance(net.layer1[0].act, torch.nn.ReLU)
         with eval_mode(net):
             net.forward(torch.randn(1, 1, 32, 32))
