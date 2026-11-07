@@ -1,0 +1,561 @@
+{
+    "source": "dynamic-network-architectures 0.4.4, PrimusV3(1, 48, (8, 8, 8), 2, eva_depth=2, eva_numheads=2, input_shape=(16, 16, 16), num_register_tokens=2, ch_per_level=(4, 8, 8, 16))",
+    "shapes": {
+        "register_tokens": [
+            1,
+            2,
+            48
+        ],
+        "mask_token": [
+            1,
+            1,
+            48
+        ],
+        "down_projection.stem.blocks.0.conv1.conv.weight": [
+            4,
+            1,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stem.blocks.0.conv1.conv.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv1.norm.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv1.norm.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv1.all_modules.0.weight": [
+            4,
+            1,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stem.blocks.0.conv1.all_modules.0.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv1.all_modules.1.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv1.all_modules.1.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.conv.weight": [
+            4,
+            4,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stem.blocks.0.conv2.conv.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.norm.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.norm.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.all_modules.0.weight": [
+            4,
+            4,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stem.blocks.0.conv2.all_modules.0.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.all_modules.1.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.conv2.all_modules.1.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.skip.0.conv.weight": [
+            4,
+            1,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stem.blocks.0.skip.0.norm.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.skip.0.norm.bias": [
+            4
+        ],
+        "down_projection.stem.blocks.0.skip.0.all_modules.0.weight": [
+            4,
+            1,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stem.blocks.0.skip.0.all_modules.1.weight": [
+            4
+        ],
+        "down_projection.stem.blocks.0.skip.0.all_modules.1.bias": [
+            4
+        ],
+        "down_projection.stages.0.blocks.0.conv1.conv.weight": [
+            8,
+            4,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.0.blocks.0.conv1.norm.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv1.norm.bias": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv1.all_modules.0.weight": [
+            8,
+            4,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.0.blocks.0.conv1.all_modules.1.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv1.all_modules.1.bias": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv2.conv.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.0.blocks.0.conv2.norm.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv2.norm.bias": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv2.all_modules.0.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.0.blocks.0.conv2.all_modules.1.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.conv2.all_modules.1.bias": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.conv.weight": [
+            8,
+            4,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.norm.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.norm.bias": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.all_modules.0.weight": [
+            8,
+            4,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.all_modules.1.weight": [
+            8
+        ],
+        "down_projection.stages.0.blocks.0.skip.1.all_modules.1.bias": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv1.conv.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.1.blocks.0.conv1.norm.weight": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv1.norm.bias": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv1.all_modules.0.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.1.blocks.0.conv1.all_modules.1.weight": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv1.all_modules.1.bias": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv2.conv.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.1.blocks.0.conv2.norm.weight": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv2.norm.bias": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv2.all_modules.0.weight": [
+            8,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.1.blocks.0.conv2.all_modules.1.weight": [
+            8
+        ],
+        "down_projection.stages.1.blocks.0.conv2.all_modules.1.bias": [
+            8
+        ],
+        "down_projection.stages.2.blocks.0.conv1.conv.weight": [
+            16,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.2.blocks.0.conv1.norm.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv1.norm.bias": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv1.all_modules.0.weight": [
+            16,
+            8,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.2.blocks.0.conv1.all_modules.1.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv1.all_modules.1.bias": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv2.conv.weight": [
+            16,
+            16,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.2.blocks.0.conv2.norm.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv2.norm.bias": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv2.all_modules.0.weight": [
+            16,
+            16,
+            3,
+            3,
+            3
+        ],
+        "down_projection.stages.2.blocks.0.conv2.all_modules.1.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.conv2.all_modules.1.bias": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.conv.weight": [
+            16,
+            8,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.norm.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.norm.bias": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.all_modules.0.weight": [
+            16,
+            8,
+            1,
+            1,
+            1
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.all_modules.1.weight": [
+            16
+        ],
+        "down_projection.stages.2.blocks.0.skip.1.all_modules.1.bias": [
+            16
+        ],
+        "down_projection.final_proj.weight": [
+            48,
+            16,
+            1,
+            1,
+            1
+        ],
+        "down_projection.final_proj.bias": [
+            48
+        ],
+        "down_projection.proj_to_tokens.0.weight": [
+            48,
+            4,
+            8,
+            8,
+            8
+        ],
+        "down_projection.proj_to_tokens.0.bias": [
+            48
+        ],
+        "down_projection.proj_to_tokens.1.weight": [
+            48,
+            8,
+            4,
+            4,
+            4
+        ],
+        "down_projection.proj_to_tokens.1.bias": [
+            48
+        ],
+        "down_projection.proj_to_tokens.2.weight": [
+            48,
+            8,
+            2,
+            2,
+            2
+        ],
+        "down_projection.proj_to_tokens.2.bias": [
+            48
+        ],
+        "down_projection.scale_proj_to_tokens.0": [],
+        "down_projection.scale_proj_to_tokens.1": [],
+        "down_projection.scale_proj_to_tokens.2": [],
+        "up_projection.decode.0.0.weight": [
+            48,
+            24,
+            2,
+            2,
+            2
+        ],
+        "up_projection.decode.0.0.bias": [
+            24
+        ],
+        "up_projection.decode.0.1.weight": [
+            24
+        ],
+        "up_projection.decode.0.1.bias": [
+            24
+        ],
+        "up_projection.decode.1.0.weight": [
+            24,
+            8,
+            2,
+            2,
+            2
+        ],
+        "up_projection.decode.1.0.bias": [
+            8
+        ],
+        "up_projection.decode.1.1.weight": [
+            8
+        ],
+        "up_projection.decode.1.1.bias": [
+            8
+        ],
+        "up_projection.decode.2.weight": [
+            8,
+            2,
+            2,
+            2,
+            2
+        ],
+        "up_projection.decode.2.bias": [
+            2
+        ],
+        "eva.pos_embed": [
+            1,
+            10,
+            48
+        ],
+        "eva.blocks.0.gamma_1": [
+            48
+        ],
+        "eva.blocks.0.gamma_2": [
+            48
+        ],
+        "eva.blocks.0.norm1.weight": [
+            48
+        ],
+        "eva.blocks.0.norm1.bias": [
+            48
+        ],
+        "eva.blocks.0.attn.q_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.0.attn.q_proj.bias": [
+            48
+        ],
+        "eva.blocks.0.attn.k_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.0.attn.v_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.0.attn.v_proj.bias": [
+            48
+        ],
+        "eva.blocks.0.attn.norm.weight": [
+            48
+        ],
+        "eva.blocks.0.attn.norm.bias": [
+            48
+        ],
+        "eva.blocks.0.attn.proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.0.attn.proj.bias": [
+            48
+        ],
+        "eva.blocks.0.norm2.weight": [
+            48
+        ],
+        "eva.blocks.0.norm2.bias": [
+            48
+        ],
+        "eva.blocks.0.mlp.fc1_g.weight": [
+            128,
+            48
+        ],
+        "eva.blocks.0.mlp.fc1_g.bias": [
+            128
+        ],
+        "eva.blocks.0.mlp.fc1_x.weight": [
+            128,
+            48
+        ],
+        "eva.blocks.0.mlp.fc1_x.bias": [
+            128
+        ],
+        "eva.blocks.0.mlp.norm.weight": [
+            128
+        ],
+        "eva.blocks.0.mlp.norm.bias": [
+            128
+        ],
+        "eva.blocks.0.mlp.fc2.weight": [
+            48,
+            128
+        ],
+        "eva.blocks.0.mlp.fc2.bias": [
+            48
+        ],
+        "eva.blocks.1.gamma_1": [
+            48
+        ],
+        "eva.blocks.1.gamma_2": [
+            48
+        ],
+        "eva.blocks.1.norm1.weight": [
+            48
+        ],
+        "eva.blocks.1.norm1.bias": [
+            48
+        ],
+        "eva.blocks.1.attn.q_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.1.attn.q_proj.bias": [
+            48
+        ],
+        "eva.blocks.1.attn.k_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.1.attn.v_proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.1.attn.v_proj.bias": [
+            48
+        ],
+        "eva.blocks.1.attn.norm.weight": [
+            48
+        ],
+        "eva.blocks.1.attn.norm.bias": [
+            48
+        ],
+        "eva.blocks.1.attn.proj.weight": [
+            48,
+            48
+        ],
+        "eva.blocks.1.attn.proj.bias": [
+            48
+        ],
+        "eva.blocks.1.norm2.weight": [
+            48
+        ],
+        "eva.blocks.1.norm2.bias": [
+            48
+        ],
+        "eva.blocks.1.mlp.fc1_g.weight": [
+            128,
+            48
+        ],
+        "eva.blocks.1.mlp.fc1_g.bias": [
+            128
+        ],
+        "eva.blocks.1.mlp.fc1_x.weight": [
+            128,
+            48
+        ],
+        "eva.blocks.1.mlp.fc1_x.bias": [
+            128
+        ],
+        "eva.blocks.1.mlp.norm.weight": [
+            128
+        ],
+        "eva.blocks.1.mlp.norm.bias": [
+            128
+        ],
+        "eva.blocks.1.mlp.fc2.weight": [
+            48,
+            128
+        ],
+        "eva.blocks.1.mlp.fc2.bias": [
+            48
+        ],
+        "eva.norm.weight": [
+            48
+        ],
+        "eva.norm.bias": [
+            48
+        ]
+    }
+}
