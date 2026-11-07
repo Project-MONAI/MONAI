@@ -38,10 +38,21 @@ Its ambitions are as follows:
 
 MONAI works with the [currently supported versions of Python](https://devguide.python.org/versions), and depends directly on NumPy and PyTorch with many optional dependencies.
 
+The `dev` branch currently declares these **core package requirements** in [`pyproject.toml`](pyproject.toml):
+
+| Dependency | Declared requirement |
+| --- | --- |
+| Python | `>=3.10` |
+| PyTorch | `>=2.8.0` |
+| NumPy | `>=1.24,<3.0` |
+
+These are package metadata constraints for the **unreleased development branch**, not a guarantee that every possible combination has been tested. The supported versions for a specific MONAI release may differ; check that release's packaging metadata and the compatibility policy below. Additional libraries are optional and are listed under `[project.optional-dependencies]` in `pyproject.toml`.
+
+
 * Major releases of MONAI will have dependency versions stated for them. The current state of the `dev` branch in this repository is the unreleased development version of MONAI which typically will support current versions of dependencies and include updates and bug fixes to do so.
 * PyTorch support covers [the current version](https://github.com/pytorch/pytorch/releases) plus three previous minor versions. If compatibility issues with a PyTorch version and other dependencies arise, support for a version may be delayed until a major release.
 * Our support policy for other dependencies adheres for the most part to [SPEC0](https://scientific-python.org/specs/spec-0000), where dependency versions are supported where possible for up to two years. Discovered vulnerabilities or defects may require certain versions to be explicitly not supported.
-* See the `requirements*.txt` files for dependency version information.
+* See the `pyproject.toml` file for dependency version information.
 
 ## Installation
 
@@ -59,7 +70,15 @@ Please refer to [the installation guide](https://monai.readthedocs.io/en/latest/
 
 Examples and notebook tutorials are located at [Project-MONAI/tutorials](https://github.com/Project-MONAI/tutorials).
 
-Technical documentation is available at [docs.monai.io](https://docs.monai.io).
+Technical documentation is available at [monai.readthedocs.io](https://monai.readthedocs.io).
+
+## Docker
+
+The MONAI Docker image is available from [Dockerhub](https://hub.docker.com/r/projectmonai/monai),
+tagged as `latest` for the latest state of `dev` or with a release version. A slimmed down image can also be built
+locally using `Dockerfile.slim`, see that file for instructions.
+
+To get started with the latest MONAI, use `docker run -ti --rm --gpus all projectmonai/monai:latest /bin/bash`.
 
 ## Citation
 
