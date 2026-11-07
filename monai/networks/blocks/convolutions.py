@@ -269,7 +269,8 @@ class ResidualUnit(nn.Module):
         self.out_channels = out_channels
         self.conv = nn.Sequential()
         self.residual = nn.Identity()
-        if not padding:
+        same_pad = padding is None
+        if padding is None:
             padding = same_padding(kernel_size, dilation)
         schannels = in_channels
         sstrides = strides
@@ -301,16 +302,33 @@ class ResidualUnit(nn.Module):
             sstrides = 1
 
         # apply convolution to input to change number of output channels and size to match that coming from self.conv
-        if np.prod(strides) != 1 or in_channels != out_channels:
-            rkernel_size = kernel_size
-            rpadding = padding
-
-            if np.prod(strides) == 1:  # if only adapting number of channels a 1x1 kernel is used with no padding
-                rkernel_size = 1
-                rpadding = 0
-
+        if np.prod(strides) != 1 or in_channels != out_channels or not same_pad:
             conv_type = Conv[Conv.CONV, self.spatial_dims]
-            self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
+            if not same_pad and subunits > 1:
+                # mirror the subunit chain so the residual shrinks exactly like the main path
+                residual = nn.Sequential()
+                schannels = in_channels
+                sstrides = strides
+                for su in range(subunits):
+                    residual.add_module(
+                        f"unit{su:d}",
+                        conv_type(
+                            schannels, out_channels, kernel_size, sstrides, padding, bias=bias, dilation=dilation
+                        ),
+                    )
+                    schannels = out_channels
+                    sstrides = 1
+                self.residual = residual
+            else:
+                rkernel_size = kernel_size
+                rpadding = padding
+
+                # if only adapting number of channels a 1x1 kernel is used with no padding
+                if np.prod(strides) == 1 and same_pad:
+                    rkernel_size = 1
+                    rpadding = 0
+
+                self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res: torch.Tensor = self.residual(x)  # create the additive residual from x
