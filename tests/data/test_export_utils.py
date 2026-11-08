@@ -45,6 +45,17 @@ class TestExportUtils(unittest.TestCase):
             save_exported_program(ep, f"{tempdir}/test.zip")
             self.assertTrue(os.path.isfile(f"{tempdir}/test.zip"))
 
+    def test_save_with_timestamp_keeps_path(self):
+        """Only the timestamp is formatted, so ``%`` in the path is kept as written."""
+        ep = torch.export.export(TestModule(), args=(torch.tensor(1.0),))
+        with tempfile.TemporaryDirectory() as tempdir:
+            folder = os.path.join(tempdir, "run_%Y")
+            os.makedirs(folder)
+            save_exported_program(ep, os.path.join(folder, "model"), append_timestamp=True)
+            saved = os.listdir(folder)
+            self.assertEqual(len(saved), 1)
+            self.assertRegex(saved[0], r"^model_\d{14}\.pt2$")
+
     def test_save_with_metadata(self):
         """Save an exported program with metadata to a file."""
         ep = torch.export.export(TestModule(), args=(torch.tensor(1.0),))

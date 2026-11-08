@@ -92,7 +92,7 @@ def save_exported_program(
             ext = ".pt2"
 
         if append_timestamp:
-            filename_prefix_or_stream = now.strftime(f"{filename_no_ext}_%Y%m%d%H%M%S{ext}")
+            filename_prefix_or_stream = f"{filename_no_ext}_{now.strftime('%Y%m%d%H%M%S')}{ext}"
         else:
             filename_prefix_or_stream = filename_no_ext + ext
 
