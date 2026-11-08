@@ -13,11 +13,45 @@ from __future__ import annotations
 
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
+from torch.utils.data import IterableDataset as TorchIterableDataset
 
-from monai.data import DataLoader, ShuffleBuffer
+from monai.data import DataLoader, GridPatchDataset, IterableDataset, PatchIter, ShuffleBuffer
+from monai.data import iterable_dataset as iterable_dataset_module
 from monai.utils import convert_data_type
+
+
+class _UnshardedMonaiIterable(IterableDataset):
+    """MONAI iterable subclass that intentionally does not partition itself."""
+
+    def __iter__(self):
+        """Yield every item from the unsharded source.
+
+        Yields:
+            Items from ``self.data``.
+        """
+        yield from self.data
+
+
+class _WorkerShardedTorchIterable(TorchIterableDataset):
+    """PyTorch iterable source that partitions itself across workers."""
+
+    def __init__(self, size):
+        self.size = size
+
+    def __iter__(self):
+        """Yield the integer indices assigned to the current worker.
+
+        Yields:
+            Integer indices from the worker's partition of ``range(self.size)``.
+        """
+        worker_info = iterable_dataset_module.get_worker_info()
+        num_workers = worker_info.num_workers if worker_info is not None else 1
+        worker_id = worker_info.id if worker_info is not None else 0
+        yield from range(worker_id, self.size, num_workers)
 
 
 class TestShuffleBuffer(unittest.TestCase):
@@ -36,6 +70,72 @@ class TestShuffleBuffer(unittest.TestCase):
         else:  # multiprocess shuffle
             np.testing.assert_allclose(output, [[2, 3], [1, 4]], err_msg=f"seed {buffer.seed}")
             np.testing.assert_allclose(output2, [[1, 4], [2, 3]], err_msg=f"seed {buffer.seed}")
+
+    def test_monai_iterable_source_is_detected_as_worker_sharded(self):
+        """Verify MONAI iterable sources avoid a second worker partition by default."""
+        outputs = []
+        for worker_id in range(2):
+            source = IterableDataset(range(40))
+            buffer = ShuffleBuffer(source, buffer_size=8, seed=7)
+            worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+            with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                outputs.extend(buffer)
+
+        self.assertEqual(len(outputs), 40)
+        self.assertEqual(set(outputs), set(range(40)))
+
+    def test_worker_sharded_source_is_not_sharded_twice(self):
+        """Verify an explicitly worker-sharded source is not repartitioned."""
+        sources = [IterableDataset(range(40)), _WorkerShardedTorchIterable(40)]
+        for source in sources:
+            outputs = []
+            for worker_id in range(2):
+                buffer = ShuffleBuffer(
+                    source, transform=lambda item: item + 40, buffer_size=8, seed=7, source_shards_by_worker=True
+                )
+                worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+                with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                    outputs.extend(buffer)
+
+            self.assertEqual(len(outputs), 40)
+            self.assertEqual(set(outputs), set(range(40, 80)))
+
+    def test_grid_patch_dataset_is_not_sharded_twice(self):
+        """Verify every grid patch is yielded exactly once across workers."""
+        images = [np.arange(16).reshape(1, 4, 4), np.arange(16, 32).reshape(1, 4, 4)]
+        expected_patches = [
+            (0, 1, 4, 5),
+            (2, 3, 6, 7),
+            (8, 9, 12, 13),
+            (10, 11, 14, 15),
+            (16, 17, 20, 21),
+            (18, 19, 22, 23),
+            (24, 25, 28, 29),
+            (26, 27, 30, 31),
+        ]
+        outputs = []
+        for worker_id in range(2):
+            source = GridPatchDataset(data=images, patch_iter=PatchIter(patch_size=(2, 2)), with_coordinates=False)
+            buffer = ShuffleBuffer(source, buffer_size=3, seed=7)
+            worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+            with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                outputs.extend(tuple(item.ravel().tolist()) for item in buffer)
+
+        self.assertCountEqual(outputs, expected_patches)
+
+    def test_unsharded_monai_subclass_keeps_outer_worker_partition(self):
+        """Verify default and explicit unsharded modes preserve outer partitioning."""
+        for source_shards_by_worker in (None, False):
+            outputs = []
+            for worker_id in range(2):
+                source = _UnshardedMonaiIterable(range(40))
+                buffer = ShuffleBuffer(source, buffer_size=8, seed=7, source_shards_by_worker=source_shards_by_worker)
+                worker_info = SimpleNamespace(num_workers=2, id=worker_id)
+                with patch("monai.data.iterable_dataset.get_worker_info", return_value=worker_info):
+                    outputs.extend(buffer)
+
+            self.assertEqual(len(outputs), 40)
+            self.assertEqual(set(outputs), set(range(40)))
 
     def test_epochs(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0, epochs=2)
