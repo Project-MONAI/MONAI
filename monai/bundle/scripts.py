@@ -1326,11 +1326,12 @@ def _export(
 
     """
     net = parser.get_parsed_content(net_id)
+    # load onto CPU so that a checkpoint saved on a GPU can be converted on a machine without one
+    ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=True)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt)
     else:
-        ckpt = torch.load(ckpt_file, weights_only=True)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
     # Use the given converter to convert a model and save with metadata, config content

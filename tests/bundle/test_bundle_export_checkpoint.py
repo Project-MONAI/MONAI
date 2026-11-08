@@ -17,6 +17,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 from parameterized import parameterized
@@ -160,6 +161,27 @@ class TestExportCheckpoint(unittest.TestCase):
 
         self.assertEqual(next(module.parameters()).device.type, "cpu")
         self.assertEqual(module(torch.rand(1, 1, 16, 16)).shape, torch.Size([1, 2, 16, 16]))
+
+    @skip_if_no_cuda
+    def test_gpu_checkpoint_exports_without_gpu(self):
+        """A checkpoint saved from a GPU can be exported where no GPU is visible."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_file = os.path.join(tempdir, "inference.json")
+            net_def = {"_target_": "UNet", "spatial_dims": 2, "in_channels": 1, "out_channels": 2}
+            net_def.update({"channels": [4, 8], "strides": [2]})
+            ConfigParser.export_config_file(config={"network_def": net_def}, filepath=config_file)
+            ckpt_file = os.path.join(tempdir, "model.pt")
+            parser = ConfigParser()
+            parser.read_config(config_file)
+            save_state(src=parser.get_parsed_content("network_def").to("cuda:0"), path=ckpt_file)
+            pt2_file = os.path.join(tempdir, "model.pt2")
+
+            cmd = ["coverage", "run", "-m", "monai.bundle", "export_checkpoint", "network_def"]
+            cmd += ["--filepath", pt2_file, "--ckpt_file", ckpt_file, "--config_file", config_file]
+            cmd += ["--input_shape", "[1, 1, 16, 16]"]
+            with patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": ""}):
+                command_line_tests(cmd)
+            self.assertTrue(os.path.exists(pt2_file))
 
     def test_meta_files_are_merged(self):
         config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
