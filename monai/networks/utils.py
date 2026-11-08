@@ -28,10 +28,11 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils._pytree import tree_map_only
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.misc import copy_to_device, ensure_tuple, save_obj, set_determinism
+from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
@@ -925,8 +926,13 @@ def convert_to_export(
         if device is None:
             device = model_device
 
-        verify_inputs = copy_to_device(list(inputs), device, non_blocking=False)
-        verify_kwargs = copy_to_device(dict(kwargs.get("kwargs") or {}), device, non_blocking=False)
+        # torch.export checks inputs against the containers it traced, so move tensors without changing the
+        # container types, e.g. an OrderedDict must stay an OrderedDict
+        def _to_device(x: Any) -> Any:
+            return tree_map_only(torch.Tensor, lambda t: t.to(device), x)
+
+        verify_inputs = _to_device(list(inputs))
+        verify_kwargs = _to_device(dict(kwargs.get("kwargs") or {}))
         if filename_or_obj is not None:
             loaded_module = torch.export.load(filename_or_obj).module()
         else:

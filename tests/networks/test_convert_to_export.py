@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from collections import OrderedDict
 from unittest.mock import patch
 
 import torch
@@ -147,6 +148,10 @@ class TestConvertToExport(unittest.TestCase):
     def test_verify_moves_nested_inputs(self):
         """Tensors inside dict inputs are moved to the verification device."""
         convert_to_export(_TakesDict(), verify=True, inputs=[{"a": torch.randn(2, 3)}], device="cuda:0")
+
+    def test_verify_keeps_input_containers(self):
+        """An OrderedDict input stays an OrderedDict, which the exported program checks against."""
+        convert_to_export(_TakesDict(), verify=True, inputs=[OrderedDict(a=torch.randn(2, 3))], device="cpu")
 
     def test_verify_with_keyword_inputs(self):
         """Keyword inputs passed to export through ``kwargs`` are also used for verification."""
