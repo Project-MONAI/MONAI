@@ -50,6 +50,31 @@ class _KeepsLastOutput(torch.nn.Module):
         return out
 
 
+class _AddsOnInputDevice(torch.nn.Module):
+    """Creates a tensor on the input's device, which the exported graph keeps as the export device."""
+
+    def forward(self, x):
+        return x + torch.ones(x.shape, device=x.device)
+
+
+class _TakesDict(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(3, 3)
+
+    def forward(self, inputs):
+        return self.linear(inputs["a"])
+
+
+class _TakesKeyword(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(3, 3)
+
+    def forward(self, x, y):
+        return self.linear(x) + y
+
+
 def _build_unet():
     return UNet(spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0)
 
@@ -113,6 +138,21 @@ class TestConvertToExport(unittest.TestCase):
         exported = convert_to_export(model, verify=True, inputs=[torch.randn((2, 1, 32, 32))], device="cuda:0")
         self.assertEqual(next(model.parameters()).device.type, "cpu")
         self.assertEqual(next(iter(exported.state_dict.values())).device.type, "cpu")
+
+    def test_verify_default_device_is_model_device(self):
+        """Without ``device``, verification runs where the model is, so a device kept in the graph still matches."""
+        convert_to_export(_AddsOnInputDevice(), verify=True, inputs=[torch.randn(2, 3)])
+
+    @skip_if_no_cuda
+    def test_verify_moves_nested_inputs(self):
+        """Tensors inside dict inputs are moved to the verification device."""
+        convert_to_export(_TakesDict(), verify=True, inputs=[{"a": torch.randn(2, 3)}], device="cuda:0")
+
+    def test_verify_with_keyword_inputs(self):
+        """Keyword inputs passed to export through ``kwargs`` are also used for verification."""
+        convert_to_export(
+            _TakesKeyword(), verify=True, inputs=[torch.randn(2, 3)], kwargs={"y": torch.randn(2, 3)}, device="cpu"
+        )
 
     def test_extra_files(self):
         """Extra files are stored in the saved archive."""

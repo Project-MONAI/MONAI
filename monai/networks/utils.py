@@ -31,7 +31,7 @@ import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.misc import ensure_tuple, save_obj, set_determinism
+from monai.utils.misc import copy_to_device, ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
@@ -893,12 +893,14 @@ def convert_to_export(
         verify: whether to verify that the exported program, reloaded from ``filename_or_obj`` if given,
             produces the same outputs as ``model``.
         inputs: input test data for export and verification. Should be a sequence of
-            tensors that map to positional arguments of ``model()``.
+            tensors, or of tuples, lists or dicts of tensors, that map to positional arguments of ``model()``.
         dynamic_shapes: dynamic shape specifications passed to :func:`torch.export.export`.
-        device: target device to verify the model. If None, uses CUDA if available.
+        device: target device to verify the model. If None, uses the device of the model's parameters, because
+            the exported program can keep the device it was exported on, for example from ``device=x.device``.
         rtol: the relative tolerance when comparing outputs.
         atol: the absolute tolerance when comparing outputs.
-        kwargs: additional keyword arguments for :func:`torch.export.export`.
+        kwargs: additional keyword arguments for :func:`torch.export.export`. Its ``kwargs`` argument, the keyword
+            inputs of ``model()``, is also used for verification.
 
     Returns:
         A :class:`torch.export.ExportedProgram` representing the exported model.
@@ -918,25 +920,26 @@ def convert_to_export(
             torch.export.save(exported, filename_or_obj, extra_files=extra_files)
 
     if verify:
+        # the model and the returned program share weights, so the model is moved back after the check
+        model_device = next(itertools.chain(model.parameters(), model.buffers()), torch.empty(0)).device
         if device is None:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            device = model_device
 
-        verify_inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        verify_inputs = copy_to_device(list(inputs), device, non_blocking=False)
+        verify_kwargs = copy_to_device(dict(kwargs.get("kwargs") or {}), device, non_blocking=False)
         if filename_or_obj is not None:
             loaded_module = torch.export.load(filename_or_obj).module()
         else:
             loaded_module = deepcopy(exported).module()
         loaded_module.to(device)
 
-        # the model and the returned program share weights, so the model is moved back after the check
-        model_device = next(itertools.chain(model.parameters(), model.buffers()), torch.empty(0)).device
         model.to(device)
         try:
             with torch.no_grad():
                 set_determinism(seed=0)
-                torch_out = model(*verify_inputs)
+                torch_out = model(*verify_inputs, **verify_kwargs)
                 set_determinism(seed=0)
-                export_out = loaded_module(*verify_inputs)
+                export_out = loaded_module(*verify_inputs, **verify_kwargs)
                 set_determinism(seed=None)
         finally:
             model.to(model_device)
