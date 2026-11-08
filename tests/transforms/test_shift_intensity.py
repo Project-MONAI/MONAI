@@ -23,12 +23,7 @@ from tests.test_utils import NumpyImageTestCase2D
 class TestShiftIntensity(NumpyImageTestCase2D):
     def test_safe_integer_offset_clamps_unsigned_image(self):
         image = torch.tensor([0, 100, 255], dtype=torch.uint8)
-        for offset, expected in (
-            (1, [1, 101, 255]),
-            (-1, [0, 99, 254]),
-            (1.0, [1, 101, 255]),
-            (-1.0, [0, 99, 254]),
-        ):
+        for offset, expected in ((1, [1, 101, 255]), (-1, [0, 99, 254]), (1.0, [1, 101, 255]), (-1.0, [0, 99, 254])):
             with self.subTest(offset=offset):
                 result = ShiftIntensity(offset=offset, safe=True)(image)
                 torch.testing.assert_close(result, torch.tensor(expected, dtype=torch.uint8))
