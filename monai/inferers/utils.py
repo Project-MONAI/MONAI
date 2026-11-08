@@ -58,6 +58,8 @@ def sliding_window_inference(
     buffer_dim: int = -1,
     with_coord: bool = False,
     *args: Any,
+    streaming_slab: bool = False,
+    slab_dim: int = 0,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
     """
@@ -128,6 +130,14 @@ def sliding_window_inference(
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
         with_coord: whether to pass the window coordinates to ``predictor``. Default is False.
             If True, the signature of ``predictor`` should be ``predictor(patch_data, patch_coord, ...)``.
+        streaming_slab: whether to use active slab streaming for constant O(1) memory along ``slab_dim``.
+            Defaults to False. When True, only an active slab of depth ``roi_size[slab_dim]`` is maintained in
+            ``sw_device`` memory, and finalized slices are continuously normalized and streamed to ``device``.
+            To prevent CUDA memory exhaustion when inferring massive volumes, set ``device="cpu"`` so the
+            full output tensor resides in host RAM while active window computation remains on ``sw_device``.
+            Streaming may group windows differently from ordinary inference, changing results for
+            predictors whose output depends on other windows in the batch.
+        slab_dim: the spatial dimension along which streaming slab progresses (default is 0).
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -161,6 +171,13 @@ def sliding_window_inference(
             raise ValueError(f"buffer_dim must be in [{-num_spatial_dims}, {num_spatial_dims}], got {buffer_dim}.")
         if buffer_dim < 0:
             buffer_dim += num_spatial_dims
+    if streaming_slab:
+        if buffered:
+            raise ValueError("Cannot specify both `buffer_steps` and `streaming_slab=True`.")
+        if slab_dim < -num_spatial_dims or slab_dim >= num_spatial_dims:
+            raise ValueError(f"slab_dim must be in [{-num_spatial_dims}, {num_spatial_dims - 1}], got {slab_dim}.")
+        if slab_dim < 0:
+            slab_dim += num_spatial_dims
     overlap = ensure_tuple_rep(overlap, num_spatial_dims)
     for o in overlap:
         if o < 0 or o >= 1:
@@ -192,6 +209,33 @@ def sliding_window_inference(
         inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
         if condition is not None:
             condition = F.pad(condition, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+
+    if streaming_slab:
+        return _sliding_window_inference_streaming_slab(
+            inputs,
+            roi_size,
+            sw_batch_size,
+            predictor,
+            overlap,
+            mode,
+            sigma_scale,
+            padding_mode,
+            cval,
+            sw_device,
+            device,
+            progress,
+            roi_weight_map,
+            process_fn,
+            slab_dim,
+            with_coord,
+            image_size,
+            image_size_,
+            pad_size,
+            temp_meta,
+            condition,
+            args=args,
+            kwargs=kwargs,
+        )
 
     # Store all slices
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
@@ -439,3 +483,294 @@ def _pack_struct(seg_out, dict_keys=None):
     if isinstance(seg_out, (list, tuple)) and len(seg_out) == 1:
         return seg_out[0]
     return ensure_tuple(seg_out)
+
+
+def _sliding_window_inference_streaming_slab(
+    inputs: torch.Tensor,
+    roi_size: Sequence[int],
+    sw_batch_size: int,
+    predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+    overlap: Sequence[float],
+    mode: BlendMode | str,
+    sigma_scale: Sequence[float] | float,
+    padding_mode: PytorchPadMode | str,
+    cval: float,
+    sw_device: torch.device | str,
+    device: torch.device | str,
+    progress: bool,
+    roi_weight_map: torch.Tensor | None,
+    process_fn: Callable | None,
+    slab_dim: int,
+    with_coord: bool,
+    image_size: Sequence[int],
+    image_size_: Sequence[int],
+    pad_size: list[int],
+    temp_meta: Any,
+    condition: torch.Tensor | None,
+    args: tuple[Any, ...] = (),
+    kwargs: dict[str, Any] | None = None,
+) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+    """Stream sliding window inference with slab-sized accumulation buffers.
+
+    Each output tensor covers the full output volume on ``device``, while only an active
+    slab of size ``roi_size[slab_dim]`` is maintained in ``sw_device`` accumulation memory.
+
+    Args:
+        inputs: model input data for inference.
+        roi_size: the spatial window size of patches.
+        sw_batch_size: the batch size to run window slices.
+        predictor: target model callable to execute inference.
+        overlap: amount of overlap between scans along each spatial dimension.
+        mode: how to blend output of overlapping windows.
+        sigma_scale: standard deviation coefficient of Gaussian window.
+        padding_mode: padding mode when ``roi_size`` is larger than inputs.
+        cval: fill value for constant padding mode.
+        sw_device: device for window computation.
+        device: device for stitched output prediction.
+        progress: whether to print a tqdm progress bar.
+        roi_weight_map: precomputed weight map for ROI patches.
+        process_fn: optional callable to process inference output and adjust importance map per window.
+        slab_dim: spatial dimension along which streaming progresses.
+        with_coord: whether to pass window coordinates to predictor.
+        image_size: input spatial dimensions after optional padding.
+        image_size_: original input spatial dimensions.
+        pad_size: spatial padding amounts.
+        temp_meta: metadata for output conversion.
+        condition: optional condition tensor matching inputs.
+        args: optional positional arguments passed to ``predictor``.
+        kwargs: optional keyword arguments passed to ``predictor``.
+
+    Returns:
+        torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+            stitched prediction covering the full volume on ``device``.
+    """
+    num_spatial_dims = len(image_size)
+    batch_size = inputs.shape[0]
+    compute_dtype = inputs.dtype
+    pred_kwargs = kwargs.copy() if kwargs else {}
+
+    # Store all slices and order along slab_dim
+    scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
+    slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=True)
+    if slab_dim != 0:
+        slices = sorted(
+            slices, key=lambda s: (s[slab_dim].start, *(s[d].start for d in range(num_spatial_dims) if d != slab_dim))
+        )
+
+    # Window importance map
+    valid_patch_size = get_valid_patch_size(image_size, roi_size)
+    if valid_patch_size == roi_size and (roi_weight_map is not None):
+        importance_map_ = roi_weight_map
+    else:
+        try:
+            valid_p_size = ensure_tuple(valid_patch_size)
+            importance_map_ = compute_importance_map(
+                valid_p_size, mode=mode, sigma_scale=sigma_scale, device=sw_device, dtype=compute_dtype
+            )
+            if len(importance_map_.shape) == num_spatial_dims and not process_fn:
+                importance_map_ = importance_map_[None, None]
+        except Exception as e:
+            raise RuntimeError(
+                f"patch size {valid_p_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
+            ) from e
+    importance_map_ = convert_data_type(importance_map_, torch.Tensor, device=sw_device, dtype=compute_dtype)[0]
+    if len(importance_map_.shape) == num_spatial_dims and not process_fn:
+        importance_map_ = importance_map_[None, None]
+
+    # Group slices by start coordinate along slab_dim
+    groups: dict[int, list[tuple[slice, ...]]] = {}
+    for s in slices:
+        z_start = int(s[slab_dim].start)
+        if z_start not in groups:
+            groups[z_start] = []
+        groups[z_start].append(s)
+    unique_starts = sorted(groups.keys())
+
+    p_slab = roi_size[slab_dim]
+    output_image_list: list[torch.Tensor] = []
+    active_val: list[torch.Tensor] = []
+    active_count_list: list[torch.Tensor] = []
+    dict_keys: tuple | list | None = None
+    z_scales: list[list[float] | None] = []
+    scaled_p_slabs: list[int] = []
+    initialized = False
+
+    total_steps = sum((len(groups[z]) + sw_batch_size - 1) // sw_batch_size for z in unique_starts) * batch_size
+    pbar = tqdm(total=total_steps) if progress and tqdm else None
+
+    for b in range(batch_size):
+        for i, z_start in enumerate(unique_starts):
+            grp_slices = groups[z_start]
+            for c_idx in range(0, len(grp_slices), sw_batch_size):
+                chunk = grp_slices[c_idx : c_idx + sw_batch_size]
+                unravel_slice = [[slice(b, b + 1), slice(None)] + list(s) for s in chunk]
+                if len(chunk) > 1:
+                    win_data = torch.cat([inputs[ensure_tuple(s)] for s in unravel_slice]).to(sw_device)
+                    if condition is not None:
+                        pred_kwargs["condition"] = torch.cat([condition[ensure_tuple(s)] for s in unravel_slice]).to(
+                            sw_device
+                        )
+                else:
+                    s0_idx = ensure_tuple(unravel_slice[0])
+                    win_data = inputs[s0_idx].to(sw_device)
+                    if condition is not None:
+                        pred_kwargs["condition"] = condition[s0_idx].to(sw_device)
+
+                if with_coord:
+                    seg_prob_out = predictor(win_data, unravel_slice, *args, **pred_kwargs)
+                else:
+                    seg_prob_out = predictor(win_data, *args, **pred_kwargs)
+
+                dict_keys, seg_tuple = _flatten_struct(seg_prob_out)
+                if process_fn:
+                    seg_tuple, w_t = process_fn(seg_tuple, win_data, importance_map_)
+                else:
+                    w_t = importance_map_
+
+                if len(w_t.shape) == num_spatial_dims:
+                    w_t = w_t[None, None]
+                w_t = w_t.to(dtype=compute_dtype, device=sw_device)
+
+                if not initialized:
+                    initialized = True
+                    if len(seg_tuple) == 0:
+                        output_image_list = []
+                        active_val = []
+                        active_count_list = []
+                    else:
+                        for ss in range(len(seg_tuple)):
+                            b_shape = seg_tuple[ss].shape
+                            seg_chns, seg_shape = b_shape[1], b_shape[2:]
+                            z_s = (
+                                [out_w_i / float(in_w_i) for out_w_i, in_w_i in zip(seg_shape, roi_size)]
+                                if seg_shape != roi_size
+                                else None
+                            )
+                            z_scales.append(z_s)
+                            output_shape = [batch_size, seg_chns]
+                            output_shape += (
+                                [int(_i * _z) for _i, _z in zip(image_size, z_s)] if z_s else list(image_size)
+                            )
+                            output_image_list.append(
+                                torch.full(output_shape, float("nan"), dtype=compute_dtype, device=device)
+                            )
+
+                            active_slab_shape = [1, seg_chns]
+                            active_slab_shape += (
+                                [int(_i * _z) for _i, _z in zip(image_size, z_s)] if z_s else list(image_size)
+                            )
+                            sp_slab = int(p_slab * z_s[slab_dim]) if z_s else p_slab
+                            scaled_p_slabs.append(sp_slab)
+                            active_slab_shape[slab_dim + 2] = sp_slab
+                            active_val.append(torch.zeros(active_slab_shape, dtype=compute_dtype, device=sw_device))
+
+                            count_slab_shape = [1, 1] + [active_slab_shape[2 + d] for d in range(num_spatial_dims)]
+                            active_count_list.append(
+                                torch.zeros(count_slab_shape, dtype=compute_dtype, device=sw_device)
+                            )
+
+                if active_count_list:
+                    for ss in range(len(seg_tuple)):
+                        z_s = z_scales[ss]
+                        sp_slab = scaled_p_slabs[ss]
+                        head_shape = seg_tuple[ss].shape[2:]
+                        if head_shape != w_t.shape[2:]:
+                            head_w_t = F.interpolate(w_t, head_shape, mode=_nearest_mode)
+                        else:
+                            head_w_t = w_t
+
+                        for p_idx, s in enumerate(chunk):
+                            local_val_s = [slice(0, 1), slice(None)] + [slice(None)] * num_spatial_dims
+                            local_count_s = [slice(0, 1), slice(None)] + [slice(None)] * num_spatial_dims
+                            for d in range(num_spatial_dims):
+                                if d == slab_dim:
+                                    local_val_s[d + 2] = slice(0, sp_slab)
+                                    local_count_s[d + 2] = slice(0, sp_slab)
+                                else:
+                                    st = int(s[d].start * z_s[d]) if z_s else s[d].start
+                                    sp = int(s[d].stop * z_s[d]) if z_s else s[d].stop
+                                    local_val_s[d + 2] = slice(st, sp)
+                                    local_count_s[d + 2] = slice(st, sp)
+
+                            window_w = head_w_t if head_w_t.shape[0] == 1 else head_w_t[p_idx : p_idx + 1]
+                            patch_w = window_w.to(device=sw_device, dtype=compute_dtype)
+                            patch_pred = (seg_tuple[ss][p_idx : p_idx + 1] * window_w).to(
+                                device=sw_device, dtype=compute_dtype
+                            )
+                            active_val[ss][ensure_tuple(local_val_s)] += patch_pred
+                            active_count_list[ss][ensure_tuple(local_count_s)] += patch_w
+
+                if pbar is not None:
+                    pbar.update(1)
+
+            if active_count_list:
+                next_z = unique_starts[i + 1] if i + 1 < len(unique_starts) else image_size[slab_dim]
+                for ss in range(len(active_val)):
+                    z_s = z_scales[ss]
+                    sp_slab = scaled_p_slabs[ss]
+                    scaled_z_start = int(z_start * z_s[slab_dim]) if z_s else z_start
+                    scaled_next_z = int(next_z * z_s[slab_dim]) if z_s else next_z
+                    scaled_num_retire = scaled_next_z - scaled_z_start
+
+                    retire_val_slice = [slice(0, 1), slice(None)] + [slice(None)] * num_spatial_dims
+                    retire_val_slice[slab_dim + 2] = slice(0, scaled_num_retire)
+                    retire_count_slice = [slice(0, 1), slice(None)] + [slice(None)] * num_spatial_dims
+                    retire_count_slice[slab_dim + 2] = slice(0, scaled_num_retire)
+
+                    dst_slice = [slice(b, b + 1), slice(None)] + [slice(None)] * num_spatial_dims
+                    dst_slice[slab_dim + 2] = slice(scaled_z_start, scaled_next_z)
+
+                    denom = active_count_list[ss][ensure_tuple(retire_count_slice)].clone()
+                    retire_slice_data = active_val[ss][ensure_tuple(retire_val_slice)] / denom
+                    output_image_list[ss][ensure_tuple(dst_slice)] = retire_slice_data.to(device=device)
+
+                    rem = sp_slab - scaled_num_retire
+                    if rem > 0 and i + 1 < len(unique_starts):
+                        shift_step = scaled_num_retire
+                        src_shift = [slice(None)] * (num_spatial_dims + 2)
+                        src_shift[slab_dim + 2] = slice(shift_step, shift_step + rem)
+
+                        dst_shift = [slice(None)] * (num_spatial_dims + 2)
+                        dst_shift[slab_dim + 2] = slice(0, rem)
+
+                        clear_shift = [slice(None)] * (num_spatial_dims + 2)
+                        clear_shift[slab_dim + 2] = slice(rem, sp_slab)
+
+                        active_val[ss][ensure_tuple(dst_shift)] = active_val[ss][ensure_tuple(src_shift)].clone()
+                        active_val[ss][ensure_tuple(clear_shift)].zero_()
+
+                        active_count_list[ss][ensure_tuple(dst_shift)] = active_count_list[ss][
+                            ensure_tuple(src_shift)
+                        ].clone()
+                        active_count_list[ss][ensure_tuple(clear_shift)].zero_()
+                    else:
+                        active_val[ss].zero_()
+                        active_count_list[ss].zero_()
+
+    if pbar is not None:
+        pbar.close()
+
+    if (torch.device(sw_device).type == "cuda" or torch.device(device).type == "cuda") and torch.cuda.is_available():
+        torch.cuda.current_stream().synchronize()
+
+    if any(pad_size):
+        for ss, output_i in enumerate(output_image_list):
+            zoom_scale = [_shape_d / _roi_size_d for _shape_d, _roi_size_d in zip(output_i.shape[2:], roi_size)]
+            final_slicing: list[slice] = []
+            for sp in range(num_spatial_dims):
+                si = num_spatial_dims - sp - 1
+                slice_dim = slice(
+                    int(round(pad_size[sp * 2] * zoom_scale[si])),
+                    int(round((pad_size[sp * 2] + image_size_[si]) * zoom_scale[si])),
+                )
+                final_slicing.insert(0, slice_dim)
+            output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
+
+    final_output = _pack_struct(output_image_list, dict_keys)
+    if temp_meta is not None:
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]
+    else:
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
+
+    return final_output

@@ -798,5 +798,263 @@ class TestSlidingWindowUtils(unittest.TestCase):
         torch.testing.assert_close(out, expected)
 
 
+class TestSlidingWindowStreamingSlab(unittest.TestCase):
+    """Tests for Streaming Active Slab Sliding Window Inference."""
+
+    def test_streaming_slab_constant_gaussian(self):
+        """Verify identical numerical output between streaming slab and monolithic baseline."""
+        for mode in ("constant", "gaussian"):
+            for shape in ((1, 2, 16, 16, 16), (2, 1, 15, 17, 19)):
+                x = torch.randn(*shape, dtype=torch.float32)
+                roi = (8, 8, 8)
+
+                def compute(p):
+                    return p * 1.5 + 0.25
+
+                out_mono = sliding_window_inference(x, roi, 2, compute, mode=mode, overlap=0.25)
+                out_slab = sliding_window_inference(x, roi, 2, compute, mode=mode, overlap=0.25, streaming_slab=True)
+                diff = torch.max(torch.abs(out_mono - out_slab)).item()
+                self.assertLess(diff, 1e-4)
+
+    def test_streaming_slab_spatial_dims(self):
+        """Verify streaming slab along arbitrary slab dimensions (0, 1, 2)."""
+        x = torch.randn(1, 2, 16, 16, 16, dtype=torch.float32)
+        roi = (8, 8, 8)
+
+        def compute(p):
+            return p * 2.0
+
+        out_mono = sliding_window_inference(x, roi, 2, compute, mode="gaussian", overlap=0.25)
+        for sdim in (0, 1, 2, -1):
+            out_slab = sliding_window_inference(
+                x, roi, 2, compute, mode="gaussian", overlap=0.25, streaming_slab=True, slab_dim=sdim
+            )
+            diff = torch.max(torch.abs(out_mono - out_slab)).item()
+            self.assertLess(diff, 1e-4)
+
+    def test_streaming_slab_multi_output_dict_and_tuple(self):
+        """Verify multi-output dictionary and tuple predictors with streaming slab."""
+        x = torch.randn(1, 2, 16, 16, 16, dtype=torch.float32)
+        roi = (8, 8, 8)
+
+        # Dict output
+        def dict_net(p):
+            return {"seg": p * 2.0, "prob": p.sigmoid()}
+
+        out_mono_d = sliding_window_inference(x, roi, 2, dict_net, mode="gaussian")
+        out_slab_d = sliding_window_inference(x, roi, 2, dict_net, mode="gaussian", streaming_slab=True)
+        self.assertLess(torch.max(torch.abs(out_mono_d["seg"] - out_slab_d["seg"])).item(), 1e-4)
+        self.assertLess(torch.max(torch.abs(out_mono_d["prob"] - out_slab_d["prob"])).item(), 1e-4)
+
+        # Tuple output
+        def tuple_net(p):
+            return (p * 2.0, p.sigmoid())
+
+        out_mono_t = sliding_window_inference(x, roi, 2, tuple_net, mode="gaussian")
+        out_slab_t = sliding_window_inference(x, roi, 2, tuple_net, mode="gaussian", streaming_slab=True)
+        self.assertLess(torch.max(torch.abs(out_mono_t[0] - out_slab_t[0])).item(), 1e-4)
+        self.assertLess(torch.max(torch.abs(out_mono_t[1] - out_slab_t[1])).item(), 1e-4)
+
+    def test_streaming_slab_inferer_class(self):
+        """Verify SlidingWindowInferer class forwards streaming_slab and slab_dim."""
+        x = torch.randn(1, 2, 16, 16, 16, dtype=torch.float32)
+        roi = (8, 8, 8)
+
+        def compute(p):
+            return p * 2.0
+
+        out_mono = sliding_window_inference(x, roi, 2, compute, mode="gaussian", overlap=0.25)
+        inferer = SlidingWindowInferer(roi, sw_batch_size=2, overlap=0.25, mode="gaussian", streaming_slab=True)
+        out_inferer = inferer(x, compute)
+        diff = torch.max(torch.abs(out_mono - out_inferer)).item()
+        self.assertLess(diff, 1e-4)
+
+    def test_streaming_slab_validation_errors(self):
+        """Verify fail-early parameter checks for streaming slab."""
+        x = torch.randn(1, 1, 16, 16, 16)
+
+        def compute(p):
+            return p
+
+        # Invalid slab_dim
+        with self.assertRaises(ValueError):
+            sliding_window_inference(x, (8, 8, 8), 1, compute, streaming_slab=True, slab_dim=5)
+
+        # Conflicting buffer_steps and streaming_slab
+        with self.assertRaises(ValueError):
+            sliding_window_inference(x, (8, 8, 8), 1, compute, buffer_steps=2, streaming_slab=True)
+
+    def test_streaming_slab_empty_outputs(self):
+        """Verify empty predictor outputs (tuple or dict) do not raise IndexError."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        def empty_tuple(p):
+            return ()
+
+        def empty_dict(p):
+            return {}
+
+        out_tuple = sliding_window_inference(x, roi, 2, empty_tuple, streaming_slab=True)
+        self.assertEqual(out_tuple, ())
+
+        out_dict = sliding_window_inference(x, roi, 2, empty_dict, streaming_slab=True)
+        self.assertEqual(out_dict, {})
+
+    def test_streaming_slab_adapt_class(self):
+        """Verify SlidingWindowInfererAdapt works seamlessly with streaming_slab."""
+        from monai.inferers import SlidingWindowInfererAdapt
+
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        def compute(p):
+            return p * 2.0
+
+        inferer = SlidingWindowInfererAdapt(roi, sw_batch_size=2, streaming_slab=True)
+        out = inferer(x, compute)
+        self.assertEqual(out.shape, x.shape)
+
+        # Test call-time device override
+        out_dev = inferer(x, compute, device="cpu")
+        self.assertEqual(out_dev.shape, x.shape)
+
+        # Test buffer_steps + streaming_slab raises ValueError on both adaptive (device=None) and explicit device paths
+        adapt_err = SlidingWindowInfererAdapt(roi, sw_batch_size=2, streaming_slab=True, buffer_steps=2)
+        with self.assertRaises(ValueError):
+            adapt_err(x, compute)
+        adapt_dev_err = SlidingWindowInfererAdapt(
+            roi, sw_batch_size=2, streaming_slab=True, buffer_steps=2, device="cpu"
+        )
+        with self.assertRaises(ValueError):
+            adapt_dev_err(x, compute)
+
+    def test_streaming_slab_process_fn_spatial_shape(self):
+        """Verify process_fn receives spatial-only shape (roi_size) in streaming mode, matching ordinary inference."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+        shapes_received = []
+
+        def my_process_fn(seg_tuple, win_data, imp_map):
+            shapes_received.append(imp_map.shape)
+            return seg_tuple, imp_map
+
+        def compute(p):
+            return p
+
+        out_mono = sliding_window_inference(x, roi, 2, compute, process_fn=my_process_fn, mode="gaussian")
+        shapes_mono = list(shapes_received)
+        shapes_received.clear()
+
+        out_slab = sliding_window_inference(
+            x, roi, 2, compute, process_fn=my_process_fn, mode="gaussian", streaming_slab=True
+        )
+        shapes_slab = list(shapes_received)
+
+        # In both modes, every importance map passed to process_fn must have spatial-only shape (8, 8, 8), not 5D
+        self.assertTrue(all(s == torch.Size(roi) for s in shapes_mono))
+        self.assertTrue(all(s == torch.Size(roi) for s in shapes_slab))
+        self.assertLess(torch.max(torch.abs(out_mono - out_slab)).item(), 1e-4)
+
+    def test_streaming_slab_positional_and_kwargs(self):
+        """Verify predictor extra positional args and kwargs are forwarded correctly."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        def my_predictor(p, scale_factor, bias=0.0):
+            return p * scale_factor + bias
+
+        inferer_mono = SlidingWindowInferer(roi, sw_batch_size=2)
+        out_mono = inferer_mono(x, my_predictor, 3.0, bias=5.0)
+
+        inferer_slab = SlidingWindowInferer(roi, sw_batch_size=2, streaming_slab=True)
+        out_slab = inferer_slab(x, my_predictor, 3.0, bias=5.0)
+
+        self.assertLess(torch.max(torch.abs(out_mono - out_slab)).item(), 1e-4)
+
+    def test_streaming_slab_mixed_resolution_heads(self):
+        """Verify multi-head outputs with differing spatial resolutions accumulate correctly."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        def multi_res_net(p):
+            h0 = p * 2.0
+            h1 = torch.nn.functional.interpolate(p, size=(4, 4, 4), mode="nearest")
+            return {"full": h0, "half": h1}
+
+        out_mono = sliding_window_inference(x, roi, 2, multi_res_net, mode="gaussian")
+        out_slab = sliding_window_inference(x, roi, 2, multi_res_net, mode="gaussian", streaming_slab=True)
+
+        self.assertEqual(out_slab["full"].shape, (1, 1, 16, 16, 16))
+        self.assertEqual(out_slab["half"].shape, (1, 1, 8, 8, 8))
+        self.assertLess(torch.max(torch.abs(out_mono["full"] - out_slab["full"])).item(), 1e-4)
+        self.assertLess(torch.max(torch.abs(out_mono["half"] - out_slab["half"])).item(), 1e-4)
+
+    def test_streaming_slab_uncovered_nan(self):
+        """Verify uncovered voxels produce NaN consistently with ordinary inference."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        imp = torch.zeros(roi)
+        imp[2:6, 2:6, 2:6] = 1.0
+
+        def compute(p):
+            return p
+
+        out_mono = sliding_window_inference(x, roi, 2, compute, roi_weight_map=imp, mode="constant")
+        out_slab = sliding_window_inference(
+            x, roi, 2, compute, roi_weight_map=imp, mode="constant", streaming_slab=True
+        )
+
+        nan_mono = torch.isnan(out_mono)
+        nan_slab = torch.isnan(out_slab)
+        self.assertTrue(torch.equal(nan_mono, nan_slab))
+        self.assertLess(torch.max(torch.abs(out_mono[~nan_mono] - out_slab[~nan_slab])).item(), 1e-4)
+
+    def test_streaming_slab_backward(self):
+        """Verify autograd backward works through streaming slab without in-place modification errors."""
+        x = torch.randn(1, 1, 16, 16, 16, requires_grad=True)
+        roi = (8, 8, 8)
+
+        def compute(p):
+            return p * 2.0
+
+        out = sliding_window_inference(x, roi, 2, compute, streaming_slab=True)
+        loss = out.sum()
+        loss.backward()
+        self.assertIsNotNone(x.grad)
+        self.assertEqual(x.grad.shape, x.shape)
+
+    def test_streaming_slab_batch_indexed_weights(self):
+        """Verify process_fn returning per-window weight maps in multi-window chunks."""
+        x = torch.randn(1, 1, 16, 16, 16)
+        roi = (8, 8, 8)
+
+        def my_process_fn(seg_tuple, win_data, imp_map):
+            b_size = win_data.shape[0]
+            weights = imp_map.expand(b_size, 1, *roi).clone()
+            return seg_tuple, weights
+
+        def compute(p):
+            return p * 2.0
+
+        out_slab = sliding_window_inference(x, roi, 2, compute, process_fn=my_process_fn, streaming_slab=True)
+        self.assertEqual(out_slab.shape, x.shape)
+        self.assertFalse(torch.isnan(out_slab).any())
+
+    def test_streaming_slab_batch_sensitive_predictor(self):
+        """Verify window grouping differences for batch-sensitive predictors."""
+        x = torch.ones(1, 1, 8)
+        roi = (4,)
+
+        def compute(p):
+            return p + p.sum()
+
+        out_mono = sliding_window_inference(x, roi, 2, compute, overlap=0.0)
+        out_slab = sliding_window_inference(x, roi, 2, compute, overlap=0.0, streaming_slab=True)
+        self.assertEqual(out_slab[0, 0, 0].item(), 5.0)
+        self.assertEqual(out_mono[0, 0, 0].item(), 9.0)
+
+
 if __name__ == "__main__":
     unittest.main()
