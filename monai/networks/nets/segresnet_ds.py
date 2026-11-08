@@ -250,9 +250,28 @@ class SegResNetDS(nn.Module):
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
+        upsample_mode: upsampling method used in the decoder path. Defaults to ``"deconv"``.
+            Supported values: ``"deconv"`` (transposed convolution), ``"deconvgroup"``
+            (group transposed convolution), ``"nontrainable"`` (interpolation-based, e.g.
+            :py:class:`torch.nn.Upsample`), and ``"pixelshuffle"``.
+            See also: :py:class:`monai.utils.enums.UpsampleMode`.
         resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.
+
+                    **Spatial shape constraints**: If ``resolution`` is ``None`` (isotropic mode),
+                    each spatial dimension must be divisible by ``2 ** (len(blocks_down) - 1)``.
+                    With the default ``blocks_down=(1, 2, 2, 4)``, each dimension must be
+                    divisible by 8. If ``resolution`` is provided (anisotropic mode),
+                    divisibility can differ per dimension; use :py:meth:`shape_factor` for
+                    the exact required factors and :py:meth:`is_valid_shape` to verify a shape.
+
+                    Example::
+
+                        model = SegResNetDS(spatial_dims=3, blocks_down=(1, 2, 2, 4))
+                        print(model.shape_factor())  # [8, 8, 8]
+                        print(model.is_valid_shape((1, 1, 128, 128, 128)))  # True
+                        print(model.is_valid_shape((1, 1, 100, 100, 100)))  # False
 
     """
 
@@ -444,6 +463,11 @@ class SegResNetDS2(SegResNetDS):
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
+        upsample_mode: upsampling method used in the decoder path. Defaults to ``"deconv"``.
+            Supported values: ``"deconv"`` (transposed convolution), ``"deconvgroup"``
+            (group transposed convolution), ``"nontrainable"`` (interpolation-based, e.g.
+            :py:class:`torch.nn.Upsample`), and ``"pixelshuffle"``.
+            See also: :py:class:`monai.utils.enums.UpsampleMode`.
         resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.

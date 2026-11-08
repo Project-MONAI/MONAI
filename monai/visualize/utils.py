@@ -211,7 +211,7 @@ def blend_images(
         _cmap = plt.colormaps.get_cmap(cmap)
         label_np, *_ = convert_data_type(label, np.ndarray)
         label_rgb_np = _cmap(label_np[0])
-        label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]
+        label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]  # pyrefly: ignore [bad-specialization]
         label_rgb, *_ = convert_to_dst_type(label_rgb_np, label)
         return label_rgb
 

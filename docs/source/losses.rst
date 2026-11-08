@@ -22,6 +22,16 @@ Segmentation Losses
 .. autoclass:: dice
     :members:
 
+`HardL1ACELoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: HardL1ACELoss
+    :members:
+
+`SoftL1ACELoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SoftL1ACELoss
+    :members:
+
 `MaskedDiceLoss`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: MaskedDiceLoss
@@ -78,6 +88,11 @@ Segmentation Losses
 .. autoclass:: BarlowTwinsLoss
     :members:
 
+`BoundaryLoss`
+~~~~~~~~~~~~~~
+.. autoclass:: BoundaryLoss
+    :members:
+
 `HausdorffDTLoss`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: HausdorffDTLoss
@@ -96,6 +111,11 @@ Segmentation Losses
 `NACLLoss`
 ~~~~~~~~~~
 .. autoclass:: NACLLoss
+    :members:
+
+`MCCLoss`
+~~~~~~~~~
+.. autoclass:: MCCLoss
     :members:
 
 Registration Losses

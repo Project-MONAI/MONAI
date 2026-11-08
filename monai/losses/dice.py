@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
 import torch
@@ -23,7 +22,8 @@ from torch.nn.modules.loss import _Loss
 
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
-from monai.losses.utils import compute_tp_fp_fn
+from monai.losses.utils import compute_tp_fp_fn, mask_loss_inputs
+from monai.metrics.utils import create_ignore_mask
 from monai.networks import one_hot
 from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option
 
@@ -68,6 +68,7 @@ class DiceLoss(_Loss):
         batch: bool = False,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         soft_label: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
@@ -101,6 +102,10 @@ class DiceLoss(_Loss):
                 The value/values should be no less than 0. Defaults to None.
             soft_label: whether the target contains non-binary values (soft labels) or not.
                 If True a soft label formulation of the loss will be used.
+            ignore_index: single integer class index (or sentinel value) to ignore from the loss computation.
+                Voxels with this label are excluded from the loss, which is useful for padding, unlabeled regions,
+                or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+                ignore_index to keep loss values comparable.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -123,6 +128,7 @@ class DiceLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.ignore_index = ignore_index
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
@@ -157,29 +163,38 @@ class DiceLoss(_Loss):
         n_pred_ch = input.shape[1]
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, 1)
 
         if self.other_act is not None:
             input = self.other_act(input)
 
+        original_target = target
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
+                if self.ignore_index is not None:
+                    if self.ignore_index < 0 or self.ignore_index >= n_pred_ch:
+                        target = torch.where(target == self.ignore_index, torch.zeros_like(target), target)
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
 
+        mask = create_ignore_mask(original_target, self.ignore_index)
+
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+
+        input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
@@ -205,9 +220,8 @@ class DiceLoss(_Loss):
             else:
                 if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
-                        """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include
-                        the background category class 0."""
+                        "The length of the `weight` sequence should be the same as the number of classes. "
+                        "If `include_background=False`, the weight should not include the background category class 0."
                     )
             if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
@@ -239,11 +253,52 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        other_act: Callable | None = None,
+        squared_pred: bool = False,
+        jaccard: bool = False,
+        reduction: LossReduction | str = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        soft_label: bool = False,
+    ) -> None:
         """
         Args follow :py:class:`monai.losses.DiceLoss`.
         """
-        super().__init__(*args, **kwargs)
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if sigmoid and softmax:
+            raise ValueError("Incompatible values: sigmoid=True and softmax=True.")
+        if other_act is not None and (sigmoid or softmax):
+            raise ValueError("Incompatible values: other_act is not None and sigmoid=True or softmax=True.")
+
+        self.pre_sigmoid = sigmoid
+        self.pre_softmax = softmax
+        self.pre_other_act = other_act
+
+        super().__init__(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            sigmoid=False,
+            softmax=False,
+            other_act=None,
+            squared_pred=squared_pred,
+            jaccard=jaccard,
+            reduction=reduction,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
+            batch=batch,
+            weight=weight,
+            soft_label=soft_label,
+        )
+
         self.spatial_weighted = MaskedLoss(loss=super().forward)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -253,6 +308,19 @@ class MaskedDiceLoss(DiceLoss):
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
+
+        if self.pre_sigmoid:
+            input = torch.sigmoid(input)
+
+        n_pred_ch = input.shape[1]
+        if self.pre_softmax:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
+            else:
+                input = torch.softmax(input, 1)
+
+        if self.pre_other_act is not None:
+            input = self.pre_other_act(input)
         return self.spatial_weighted(input=input, target=target, mask=mask)  # type: ignore[no-any-return]
 
 
@@ -353,7 +421,7 @@ class GeneralizedDiceLoss(_Loss):
         n_pred_ch = input.shape[1]
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, 1)
 
@@ -362,13 +430,13 @@ class GeneralizedDiceLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
@@ -548,10 +616,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         elif self.reduction == LossReduction.SUM.value:
             wass_dice_loss = torch.sum(wass_dice_loss)  # sum over the batch and channel dims
         elif self.reduction == LossReduction.NONE.value:
-            # If we are not computing voxelwise loss components at least
-            # make sure a none reduction maintains a broadcastable shape
-            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
-            wass_dice_loss = wass_dice_loss.view(broadcast_shape)
+            # GWDL aggregates over classes internally, so wass_dice_loss has shape (B,)
+            pass
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
@@ -609,8 +675,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = alpha_extended.expand((flat_target.size(0), self.num_classes, flat_target.size(1)))
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
+        alpha_extended = torch.squeeze(alpha_extended, dim=1)
 
-        return torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2])
+        return torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=1)
 
     def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
@@ -626,8 +693,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = alpha_extended.expand((flat_target.size(0), self.num_classes, flat_target.size(1)))
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
+        alpha_extended = torch.squeeze(alpha_extended, dim=1)
 
-        return torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=[1, 2])
+        return torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=1)
 
     def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
@@ -935,7 +1003,7 @@ class DiceFocalLoss(_Loss):
         if self.to_onehot_y:
             n_pred_ch = input.shape[1]
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
         dice_loss = self.dice(input, target)

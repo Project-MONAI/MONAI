@@ -236,7 +236,6 @@ class IntegrationClassification2D(DistTestCase):
             os.remove(os.path.join(self.data_dir, "best_metric_model.pth"))
         except FileNotFoundError:
             warnings.warn("not found best_metric_model.pth, training skipped?")
-            pass
 
     def train_and_infer(self, idx=0):
         results = []

@@ -197,5 +197,6 @@ class RankFilter(Filter):
                 )
             self.rank = 0
 
+    # pyrefly: ignore [bad-override]
     def filter(self, *_args):
         return self.filter_fn(self.rank)

@@ -68,6 +68,12 @@ class PatchEmbeddingBlock(nn.Module):
             spatial_dims: number of spatial dimensions.
             pos_embed_kwargs: additional arguments for position embedding. For `sincos`, it can contain
                               `temperature` and for fourier it can contain `scales`.
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if any dimension of ``patch_size`` is larger than the corresponding ``img_size`` dimension.
+            ValueError: if ``proj_type`` is ``"perceptron"`` and ``patch_size`` does not evenly divide ``img_size``.
         """
 
         super().__init__()
@@ -101,7 +107,7 @@ class PatchEmbeddingBlock(nn.Module):
             chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
             from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
             to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
-            axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
+            axes_len = {f"p{i + 1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
                 Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
             )

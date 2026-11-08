@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -54,6 +54,7 @@ class HausdorffDTLoss(_Loss):
     ) -> None:
         """
         Args:
+            alpha: the exponent to transform the distance when computing the loss. Defaults to 2.0.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
@@ -82,7 +83,7 @@ class HausdorffDTLoss(_Loss):
         super().__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        if int(sigmoid) + int(softmax) > 1:
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
 
         self.alpha = alpha
@@ -153,7 +154,7 @@ class HausdorffDTLoss(_Loss):
         n_pred_ch = input.shape[1]
         if self.softmax:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `softmax=True` ignored.")
+                warnings.warn("single channel prediction, `softmax=True` ignored.", stacklevel=2)
             else:
                 input = torch.softmax(input, 1)
 
@@ -162,13 +163,13 @@ class HausdorffDTLoss(_Loss):
 
         if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `include_background=False` ignored.", stacklevel=2)
             else:
                 # If skipping background, removing first channel
                 target = target[:, 1:]

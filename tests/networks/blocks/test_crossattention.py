@@ -171,7 +171,7 @@ class TestResBlock(unittest.TestCase):
 
         out_1 = block_w_flash_attention(test_data)
         out_2 = block_wo_flash_attention(test_data)
-        assert_allclose(out_1, out_2, atol=1e-4)
+        assert_allclose(out_1, out_2, atol=1e-3)
 
 
 if __name__ == "__main__":

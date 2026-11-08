@@ -83,6 +83,12 @@ Panoptic Quality metrics handler
     :members:
 
 
+Calibration Error metrics handler
+---------------------------------
+.. autoclass:: CalibrationError
+    :members:
+
+
 Mean squared error metrics handler
 ----------------------------------
 .. autoclass:: MeanSquaredError

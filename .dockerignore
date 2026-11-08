@@ -3,11 +3,15 @@
 __pycache__/
 docs/
 
+.vscode
+.git
+.mypy_cache
+.ruff_cache
+.pytype
 .coverage
 .coverage.*
 .coverage/
 coverage.xml
 .readthedocs.yml
-*.toml
 
 !README.md

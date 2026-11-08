@@ -127,6 +127,11 @@ class DownSample(nn.Sequential):
                 Only used in the "maxpool", "avgpool" or "pixelunshuffle" modes.
             post_conv: a conv block applied after downsampling. Defaults to None. Only used in the "maxpool" and "avgpool" modes.
             bias: whether to have a bias term in the default preconv and conv layers. Defaults to True.
+
+        Raises:
+            ValueError: if ``mode`` is ``"conv"`` or ``"convgroup"`` and ``in_channels`` is not specified.
+            ValueError: if ``mode`` is ``"maxpool"`` or ``"avgpool"``, ``pre_conv`` is ``"default"``,
+                ``out_channels != in_channels``, and ``in_channels`` is not specified.
         """
         super().__init__()
 
@@ -232,7 +237,7 @@ class SubpixelDownsample(nn.Module):
     Example: (1, 1, 4, 4) with r=2 becomes (1, 4, 2, 2).
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
 
     The pixel unshuffle mechanism is the inverse operation of:
     https://github.com/Project-MONAI/MONAI/blob/dev/monai/networks/blocks/upsample.py
@@ -261,6 +266,10 @@ class SubpixelDownsample(nn.Module):
                 When ``conv_block`` is an ``nn.module``,
                 please ensure the input number of channels matches requirements.
             bias: whether to have a bias term in the default conv_block. Defaults to True.
+
+        Raises:
+            ValueError: if ``scale_factor`` is not greater than 0.
+            ValueError: if ``conv_block`` is ``"default"`` and ``in_channels`` is not specified.
         """
         super().__init__()
 

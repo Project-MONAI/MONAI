@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch.utils.data import DataLoader
@@ -489,11 +489,13 @@ class EnsembleEvaluator(Evaluator):
                 if engine.amp:
                     with torch.autocast("cuda", **engine.amp_kwargs):
                         if isinstance(engine.state.output, dict):
+                            # pyrefly: ignore [no-matching-overload]
                             engine.state.output.update(
                                 {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                             )
                 else:
                     if isinstance(engine.state.output, dict):
+                        # pyrefly: ignore [no-matching-overload]
                         engine.state.output.update(
                             {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                         )

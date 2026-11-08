@@ -11,11 +11,14 @@
 
 from __future__ import annotations
 
+import threading
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data.meta_obj import get_track_meta
 from monai.transforms import RandSimulateLowResolution
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
@@ -77,6 +80,48 @@ class TestRandGaussianSmooth(unittest.TestCase):
         randsimlowres.set_random_state(seed=0)
         result = randsimlowres(image)
         assert_allclose(result, expected_data, rtol=1e-4, type_test="tensor")
+
+    def test_track_meta_global_state_unchanged(self):
+        # Verify that calling RandSimulateLowResolution does not modify the global
+        # set_track_meta flag (regression test for GitHub issue #8409).
+        img = torch.ones(1, 4, 4, 4)
+        tfm = RandSimulateLowResolution(prob=1.0, zoom_range=(0.5, 0.6))
+        tfm.set_random_state(seed=0)
+
+        original_track_meta = get_track_meta()
+        tfm(img)
+        self.assertEqual(get_track_meta(), original_track_meta, "set_track_meta global state was unexpectedly modified")
+
+    def test_thread_safety(self):
+        # Verify that concurrent calls do not corrupt each other's track_meta state
+        # (regression test for GitHub issue #8409).
+        # expected_track_meta is captured before threads start so every worker
+        # checks against the same baseline rather than its own (possibly already
+        # corrupted) snapshot.
+        errors = []
+        expected_track_meta = get_track_meta()
+        start_barrier = threading.Barrier(8)
+
+        def run_transform():
+            img = torch.ones(1, 4, 4, 4)
+            tfm = RandSimulateLowResolution(prob=1.0, zoom_range=(0.5, 0.6))
+            start_barrier.wait()  # synchronise so all threads hammer the transform at once
+            try:
+                for _ in range(50):
+                    tfm(img)
+                    if get_track_meta() != expected_track_meta:
+                        errors.append(RuntimeError("track_meta state changed in thread"))
+                        break
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=run_transform) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(errors, [], f"Thread safety errors: {errors}")
 
 
 if __name__ == "__main__":

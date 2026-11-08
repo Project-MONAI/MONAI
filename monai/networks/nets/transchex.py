@@ -23,6 +23,7 @@ from monai.utils import optional_import
 transformers = optional_import("transformers")
 load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")[0]
 cached_file = optional_import("transformers.utils", name="cached_file")[0]
+BertConfig = optional_import("transformers", name="BertConfig")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
 
@@ -74,6 +75,7 @@ class BertPreTrainedModel(nn.Module):
             return load_tf_weights_in_bert(model, weights_path)
         old_keys = []
         new_keys = []
+        # pyrefly: ignore [missing-attribute]
         for key in state_dict.keys():
             new_key = None
             if "gamma" in key:
@@ -84,11 +86,13 @@ class BertPreTrainedModel(nn.Module):
                 old_keys.append(key)
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
+            # pyrefly: ignore [missing-attribute, unsupported-operation]
             state_dict[new_key] = state_dict.pop(old_key)
         missing_keys: list = []
         unexpected_keys: list = []
         error_msgs: list = []
         metadata = getattr(state_dict, "_metadata", None)
+        # pyrefly: ignore [missing-attribute]
         state_dict = state_dict.copy()
         if metadata is not None:
             state_dict._metadata = metadata
@@ -219,19 +223,34 @@ class MultiModal(BertPreTrainedModel):
 
         """
         super().__init__()
-        self.config = type("obj", (object,), bert_config)
+        self.config = BertConfig(**bert_config)
+        # explicitly select the eager attention path: transformers>=4.48 dispatches attention
+        # implementations via `config._attn_implementation`, which is otherwise left unset since
+        # `bert_config` above does not come from a `from_pretrained` call.
+        self.config._attn_implementation = "eager"
         self.embeddings = BertEmbeddings(self.config)
         self.language_encoder = nn.ModuleList([BertLayer(self.config) for _ in range(num_language_layers)])
         self.vision_encoder = nn.ModuleList([BertLayer(self.config) for _ in range(num_vision_layers)])
         self.mixed_encoder = nn.ModuleList([BertMixedLayer(self.config) for _ in range(num_mixed_layers)])
         self.apply(self.init_bert_weights)
 
+    @staticmethod
+    def _get_hidden_states(layer_output):
+        """Extract hidden states from BertLayer output.
+
+        Compatible with both older transformers (returns a tuple) and
+        newer transformers >=5.0 (may return a tensor directly).
+        """
+        if isinstance(layer_output, torch.Tensor):
+            return layer_output
+        return layer_output[0]
+
     def forward(self, input_ids, token_type_ids=None, vision_feats=None, attention_mask=None):
         language_features = self.embeddings(input_ids, token_type_ids)
         for layer in self.vision_encoder:
-            vision_feats = layer(vision_feats, None)[0]
+            vision_feats = self._get_hidden_states(layer(vision_feats, None))
         for layer in self.language_encoder:
-            language_features = layer(language_features, attention_mask)[0]
+            language_features = self._get_hidden_states(layer(language_features, attention_mask))
         for layer in self.mixed_encoder:
             language_features, vision_feats = layer(language_features, vision_feats)
         return language_features, vision_feats

@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import os
+import shlex
+import sys
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Any, cast
@@ -19,7 +21,7 @@ from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
-from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
+from monai.auto3dseg import Algo, AlgoGen, algo_from_json, algo_to_json
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import optional_import
@@ -32,11 +34,89 @@ logger = get_logger(module_name=__name__)
 __all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 
+# cmd.exe expands or ends a quoted argument at these characters even inside double quotes
+_CMD_UNSAFE_CHARS = frozenset('"%!\r\n\x00')
+
+
+def _quote_trial_arg(arg: Any, windows: bool | None = None) -> str:
+    """
+    Quote one argument of an NNI ``trialCommand`` as a literal for the shell NNI uses.
+
+    NNI's local training service runs ``trialCommand`` with bash on Linux and macOS and with ``cmd.exe`` on
+    Windows. For ``cmd.exe`` the argument is wrapped in double quotes, which make ``&``, ``|``, ``<``, ``>``,
+    ``^`` and parentheses literal, and backslashes before the closing quote are doubled so the program receives
+    the argument unchanged. Characters that ``cmd.exe`` interprets even inside double quotes are rejected.
+
+    Args:
+        arg: the argument value.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
+
+    Returns:
+        the quoted argument.
+
+    Raises:
+        ValueError: on Windows, if the argument contains ``"``, ``%``, ``!`` or a line break or NUL character.
+    """
+    text = str(arg)
+    if sys.platform == "win32" if windows is None else windows:
+        unsafe = sorted(_CMD_UNSAFE_CHARS.intersection(text))
+        if unsafe:
+            raise ValueError(f"Cannot pass {text!r} to an NNI trial on Windows: it contains {unsafe}.")
+        trailing = len(text) - len(text.rstrip("\\"))
+        return '"' + text + "\\" * trailing + '"'
+    return shlex.quote(text)
+
+
+def _nni_trial_command(obj_filename: Any, work_dir: Any, windows: bool | None = None) -> str:
+    """
+    Build the NNI ``trialCommand`` that runs one algo trial.
+
+    The fixed part of the command is plain text; the two paths are quoted with ``_quote_trial_arg`` so they
+    are passed to ``NNIGen run_algo`` unchanged. On a POSIX shell any path is accepted; ``cmd.exe`` cannot
+    carry a few characters even inside double quotes, see ``_quote_trial_arg``.
+
+    Args:
+        obj_filename: the serialized algo object file.
+        work_dir: the Auto3DSeg working directory.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
+
+    Returns:
+        the command string to store as ``trialCommand``.
+
+    Raises:
+        ValueError: on Windows, if ``obj_filename`` or ``work_dir`` contains ``"``, ``%``, ``!``, a line
+            break or a NUL character.
+    """
+    paths = " ".join(_quote_trial_arg(p, windows) for p in (obj_filename, work_dir))
+    return f"python -m monai.apps.auto3dseg NNIGen run_algo {paths}"
+
+
+def _quote_or_raw(arg: Any, windows: bool | None = None) -> str:
+    """
+    Quote one argument of the printed trialCommand instruction, falling back to the unquoted text.
+
+    ``print_bundle_algo_instruction`` only reports how to write the command, so a path its shell cannot
+    quote must not stop the instructions from printing: warn and print the path as it is.
+
+    Args:
+        arg: the argument value.
+        windows: quote for ``cmd.exe`` instead of a POSIX shell. Defaults to ``sys.platform == "win32"``.
+
+    Returns:
+        the quoted argument, or ``str(arg)`` if the shell cannot quote it.
+    """
+    try:
+        return _quote_trial_arg(arg, windows)
+    except ValueError as error:
+        logger.warning(f"Leaving {str(arg)!r} unquoted in the printed trialCommand: {error}")
+        return str(arg)
+
+
 class HPOGen(AlgoGen):
     """
     The base class for hyperparameter optimization (HPO) interfaces to generate algos in the Auto3Dseg pipeline.
     The auto-generated algos are saved at their ``output_path`` on the disk. The files in the ``output_path``
-    may contain scripts that define the algo, configuration files, and pickle files that save the internal states
+    may contain scripts that define the algo, configuration files, and JSON files that save the internal states
     of the algo before/after the training. Compared to the BundleGen class, HPOGen generates Algo on-the-fly, so
     training and algo generation may be executed alternatively and take a long time to finish the generation process.
 
@@ -72,7 +152,7 @@ class NNIGen(HPOGen):
 
     Args:
         algo: an Algo object (e.g. BundleAlgo) with defined methods: ``get_output_path`` and train
-            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+            and supports saving to and loading via ``algo_from_json`` and ``algo_to_json``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Examples::
@@ -81,16 +161,16 @@ class NNIGen(HPOGen):
         ├── algorithm_templates
         │   └── unet
         ├── unet_0
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   └── scripts
         ├── unet_0_learning_rate_0.01
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   ├── model_fold0
         │   └── scripts
         └── unet_0_learning_rate_0.1
-            ├── algo_object.pkl
+            ├── algo_object.json
             ├── configs
             ├── model_fold0
             └── scripts
@@ -129,10 +209,10 @@ class NNIGen(HPOGen):
             else:
                 self.algo = algo
 
-            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+            self.obj_filename = algo_to_json(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
-        """Return the filename of the dumped pickle algo object."""
+        """Return the filename of the dumped algo object."""
         return self.obj_filename
 
     def print_bundle_algo_instruction(self):
@@ -143,7 +223,7 @@ class NNIGen(HPOGen):
         logger.info("=" * 140)
         logger.info("If NNI will run in your local env: ")
         logger.info("1. Add the following line to the trialCommand in your NNI config: ")
-        logger.info(f"{hint} {self.obj_filename} {{result_dir}}")
+        logger.info(f"{hint} {_quote_or_raw(self.obj_filename)} {{result_dir}}")
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(
@@ -190,7 +270,7 @@ class NNIGen(HPOGen):
         task_id = self.get_task_id()
         task_prefix = os.path.basename(self.algo.get_output_path())
         write_path = os.path.join(output_folder, task_prefix + task_id)
-        self.obj_filename = os.path.join(write_path, "algo_object.pkl")
+        self.obj_filename = os.path.join(write_path, "algo_object.json")
 
         if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(
@@ -214,7 +294,7 @@ class NNIGen(HPOGen):
         The python interface for NNI to run.
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -222,7 +302,7 @@ class NNIGen(HPOGen):
         if not os.path.isfile(obj_filename):
             raise ValueError(f"{obj_filename} is not found")
 
-        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+        self.algo, algo_meta_data = algo_from_json(obj_filename, template_path=template_path)
 
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
@@ -235,7 +315,7 @@ class NNIGen(HPOGen):
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
 
-        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
+        algo_to_json(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)
 
 
@@ -250,7 +330,7 @@ class OptunaGen(HPOGen):
 
     Args:
         algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
-            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+            and supports saving to and loading via ``algo_from_json`` and ``algo_to_json``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Examples::
@@ -259,16 +339,16 @@ class OptunaGen(HPOGen):
         ├── algorithm_templates
         │   └── unet
         ├── unet_0
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   └── scripts
         ├── unet_0_learning_rate_0.01
-        │   ├── algo_object.pkl
+        │   ├── algo_object.json
         │   ├── configs
         │   ├── model_fold0
         │   └── scripts
         └── unet_0_learning_rate_0.1
-            ├── algo_object.pkl
+            ├── algo_object.json
             ├── configs
             ├── model_fold0
             └── scripts
@@ -296,10 +376,10 @@ class OptunaGen(HPOGen):
             else:
                 self.algo = algo
 
-            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+            self.obj_filename = algo_to_json(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
-        """Return the dumped pickle object of algo."""
+        """Return the dumped object of algo."""
         return self.obj_filename
 
     def get_hyperparameters(self):
@@ -329,7 +409,7 @@ class OptunaGen(HPOGen):
         Callable that Optuna will use to optimize the hyper-parameters
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -364,7 +444,7 @@ class OptunaGen(HPOGen):
         task_id = self.get_task_id()
         task_prefix = os.path.basename(self.algo.get_output_path())
         write_path = os.path.join(output_folder, task_prefix + task_id)
-        self.obj_filename = os.path.join(write_path, "algo_object.pkl")
+        self.obj_filename = os.path.join(write_path, "algo_object.json")
 
         if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
@@ -377,7 +457,7 @@ class OptunaGen(HPOGen):
         The python interface for NNI to run.
 
         Args:
-            obj_filename: the pickle-exported Algo object.
+            obj_filename: the serialized Algo object.
             output_folder: the root path of the algorithms templates.
             template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
@@ -385,7 +465,7 @@ class OptunaGen(HPOGen):
         if not os.path.isfile(obj_filename):
             raise ValueError(f"{obj_filename} is not found")
 
-        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+        self.algo, algo_meta_data = algo_from_json(obj_filename, template_path=template_path)
 
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
@@ -397,5 +477,5 @@ class OptunaGen(HPOGen):
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
-        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
+        algo_to_json(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)

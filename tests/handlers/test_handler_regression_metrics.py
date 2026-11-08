@@ -70,7 +70,7 @@ class TestHandlerRegressionMetrics(unittest.TestCase):
             for batch in batch_dims:
                 for spatial in spatial_dims:
                     for base in base_dims:
-                        mt_fn_obj = mt_fn(**{"save_details": False})
+                        mt_fn_obj = mt_fn(save_details=False)
 
                         # create random tensor
                         in_tensor_a1 = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)

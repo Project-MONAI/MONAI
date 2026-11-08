@@ -80,3 +80,13 @@ Ordering
 --------
 .. automodule:: monai.utils.ordering
   :members:
+
+Safe Evaluation
+---------------
+.. automodule:: monai.utils.safeeval
+  :members:
+
+Compare Sources
+---------------
+.. automodule:: monai.utils.compare_sources
+  :members:

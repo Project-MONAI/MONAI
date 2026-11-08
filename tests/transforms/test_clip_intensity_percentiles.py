@@ -192,5 +192,29 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
             assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
 
+class TestClipIntensityPercentilesClippingValues(unittest.TestCase):
+    def test_clipping_values_repeated_channel_wise_calls(self):
+        clipper = ClipIntensityPercentiles(lower=0, upper=100, channel_wise=True, return_clipping_values=True)
+        first = clipper(torch.tensor([[[0.0, 1.0]], [[10.0, 20.0]]]))
+        first_clipping_values = list(first.meta["clipping_values"])
+
+        second = clipper(torch.tensor([[[100.0, 200.0]], [[1000.0, 2000.0]]]))
+
+        self.assertEqual(first_clipping_values, [(0.0, 1.0), (10.0, 20.0)])
+        self.assertEqual(first.meta["clipping_values"], first_clipping_values)
+        self.assertEqual(second.meta["clipping_values"], [(100.0, 200.0), (1000.0, 2000.0)])
+
+    def test_clipping_values_repeated_non_channel_wise_calls(self):
+        clipper = ClipIntensityPercentiles(lower=0, upper=100, return_clipping_values=True)
+        first = clipper(torch.tensor([[[0.0, 1.0]]]))
+        first_clipping_values = list(first.meta["clipping_values"])
+
+        second = clipper(torch.tensor([[[100.0, 200.0]]]))
+
+        self.assertEqual(first_clipping_values, [(0.0, 1.0)])
+        self.assertEqual(first.meta["clipping_values"], first_clipping_values)
+        self.assertEqual(second.meta["clipping_values"], [(100.0, 200.0)])
+
+
 if __name__ == "__main__":
     unittest.main()

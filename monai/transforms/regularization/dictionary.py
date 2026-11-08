@@ -18,10 +18,10 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import convert_to_tensor
 from monai.utils.misc import ensure_tuple
 
-from ..transform import MapTransform, RandomizableTransform
 from .array import CutMix, CutOut, MixUp
 
 __all__ = ["MixUpd", "MixUpD", "MixUpDict", "CutMixd", "CutMixD", "CutMixDict", "CutOutd", "CutOutD", "CutOutDict"]

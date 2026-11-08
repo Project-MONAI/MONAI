@@ -34,7 +34,6 @@ class BaseClient:
         Args:
             extra: optional extra information, e.g. dict of `ExtraItems.CLIENT_NAME` and/or `ExtraItems.APP_ROOT`.
         """
-        pass
 
     def finalize(self, extra: dict | None = None) -> None:
         """
@@ -43,7 +42,6 @@ class BaseClient:
         Args:
             extra: Dict with additional information that can be provided by the FL system.
         """
-        pass
 
     def abort(self, extra: dict | None = None) -> None:
         """
@@ -52,8 +50,6 @@ class BaseClient:
         Args:
             extra: Dict with additional information that can be provided by the FL system.
         """
-
-        pass
 
 
 class ClientAlgoStats(BaseClient):
