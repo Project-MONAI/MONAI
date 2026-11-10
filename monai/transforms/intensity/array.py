@@ -254,7 +254,10 @@ class ShiftIntensity(Transform):
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
-        out = img + offset
+        # Promote integer inputs before addition when safe=True. Otherwise integer
+        # offsets can overflow in the input dtype before safe conversion clamps.
+        computation_img = img.to(torch.float64) if self.safe and not img.is_floating_point() else img
+        out = computation_img + offset
         out, *_ = convert_data_type(data=out, dtype=img.dtype, safe=self.safe)
 
         return out
