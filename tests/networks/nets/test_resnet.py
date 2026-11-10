@@ -232,6 +232,16 @@ TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
 
+# small 2D net used by the norm/act threading tests
+TEST_CASE_NORM_ACT = {
+    "block": "basic",
+    "layers": [1, 1, 1, 1],
+    "block_inplanes": [8, 16, 32, 64],
+    "spatial_dims": 2,
+    "n_input_channels": 1,
+    "num_classes": 2,
+}
+
 CASE_EXTRACT_FEATURES = [
     (
         {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
@@ -239,6 +249,13 @@ CASE_EXTRACT_FEATURES = [
         ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
     )
 ]
+
+
+class _ResNetBlockNoAct(ResNetBlock):
+    """A user block that predates the `act` argument."""
+
+    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm="batch"):
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample, norm=norm)
 
 
 class TestResNet(unittest.TestCase):
@@ -315,6 +332,66 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_norm_act_reach_blocks(self):
+        """With `block_norm_act=True`, `norm`/`act` are used by the residual blocks and downsamples."""
+        net = ResNet(
+            **TEST_CASE_NORM_ACT, norm=("instance", {"affine": True}), act=("leakyrelu", {}), block_norm_act=True
+        )
+        for layer in (net.layer1, net.layer2, net.layer3, net.layer4):
+            for block in layer:
+                self.assertIsInstance(block.bn1, torch.nn.InstanceNorm2d)
+                self.assertIsInstance(block.bn2, torch.nn.InstanceNorm2d)
+                self.assertIsInstance(block.act, torch.nn.LeakyReLU)
+                if block.downsample is not None:
+                    self.assertIsInstance(block.downsample[1], torch.nn.InstanceNorm2d)
+
+    def test_custom_block_without_act_argument(self):
+        """A block subclass that does not accept `act` still builds when `block_norm_act` is off."""
+        net = ResNet(**{**TEST_CASE_NORM_ACT, "block": _ResNetBlockNoAct})
+        with eval_mode(net):
+            net.forward(torch.randn(1, 1, 32, 32))
+
+    def test_block_norm_act_uses_stage_channels(self):
+        """Explicit channel arguments in `norm` are dropped so each stage uses its own channel count."""
+        norm = ("group", {"num_groups": 8, "num_channels": 8})
+        net = ResNet(**TEST_CASE_NORM_ACT, norm=norm, block_norm_act=True)
+        self.assertEqual(net.bn1.num_channels, 8)
+        self.assertEqual(net.layer2[0].bn1.num_channels, 16)
+        self.assertEqual(net.layer2[0].downsample[1].num_channels, 16)
+        with eval_mode(net):
+            net.forward(torch.randn(1, 1, 32, 32))
+
+    def test_non_affine_norm_init(self):
+        """Non-affine norms have no weight/bias, the init loop must not choke on them."""
+        for block_norm_act in (False, True):
+            net = ResNet(**TEST_CASE_NORM_ACT, norm="instance", block_norm_act=block_norm_act)
+            self.assertIsInstance(net.bn1, torch.nn.InstanceNorm2d)
+            with eval_mode(net):
+                net.forward(torch.randn(1, 1, 32, 32))
+
+    def test_block_norm_act_off_by_default(self):
+        """Without `block_norm_act`, `norm`/`act` only reach the stem, as in previous versions."""
+        net = ResNet(**TEST_CASE_NORM_ACT, norm=("instance", {"affine": True}), act=("leakyrelu", {}))
+        self.assertIsInstance(net.bn1, torch.nn.InstanceNorm2d)
+        self.assertIsInstance(net.layer1[0].bn1, torch.nn.BatchNorm2d)
+        self.assertIsInstance(net.layer2[0].downsample[1], torch.nn.BatchNorm2d)
+        self.assertIsInstance(net.layer1[0].act, torch.nn.ReLU)
+        with eval_mode(net):
+            net.forward(torch.randn(1, 1, 32, 32))
+
+    def test_default_norm_act_unchanged(self):
+        """Default construction must keep the same module tree as before the norm/act threading."""
+        net = ResNet(**TEST_CASE_NORM_ACT)
+        for layer in (net.layer1, net.layer2, net.layer3, net.layer4):
+            for block in layer:
+                self.assertIsInstance(block.bn1, torch.nn.BatchNorm2d)
+                self.assertIsInstance(block.bn2, torch.nn.BatchNorm2d)
+                self.assertIsInstance(block.act, torch.nn.ReLU)
+                self.assertTrue(block.act.inplace)
+        # BatchNorm weights/biases are still initialised to 1/0 by the guarded init loop
+        self.assertTrue(torch.equal(net.layer1[0].bn1.weight, torch.ones_like(net.layer1[0].bn1.weight)))
+        self.assertTrue(torch.equal(net.layer1[0].bn1.bias, torch.zeros_like(net.layer1[0].bn1.bias)))
 
 
 @SkipIfNoModule("hf_hub_download")

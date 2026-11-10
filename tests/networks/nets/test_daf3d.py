@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DAF3D
+from monai.networks.nets.daf3d import Daf3dResNetBottleneck, Daf3dResNetDilatedBottleneck
 from monai.utils import optional_import
 from tests.test_utils import test_script_save
 
@@ -56,6 +57,13 @@ class TestDAF3D(unittest.TestCase):
         net = DAF3D(in_channels=1, out_channels=1)
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
+
+
+class TestDaf3dResNetBottleneckAct(unittest.TestCase):
+    @parameterized.expand([Daf3dResNetBottleneck, Daf3dResNetDilatedBottleneck])
+    def test_act_forwarded(self, block_cls):
+        block = block_cls(64, 32, spatial_dims=3, act=("leakyrelu", {}))
+        self.assertIsInstance(block.act, torch.nn.LeakyReLU)
 
 
 if __name__ == "__main__":
