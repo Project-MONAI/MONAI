@@ -16,6 +16,7 @@ from monai.bundle.scripts import (
     download,
     download_large_files,
     init_bundle,
+    inspect_ckpt,
     onnx_export,
     run,
     run_workflow,
