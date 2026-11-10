@@ -28,7 +28,7 @@ env:
   PYTHON_VER2: '3.12'
   PYTHON_VER3: '3.13'
   PYTHON_VER4: '3.14'
-  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  # PYTHON_VER5: '3.15'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
   # supported versions of PyTorch
   PYTORCH_VER1: '2.12.1'
   PYTORCH_VER2: '2.13.0'
@@ -156,6 +156,11 @@ jobs:
           pytorch-version: '2.14.1'
         - os: ubuntu-latest
           python-version: '3.11'
+          pytorch-version: '2.15.0'
+
+        # Test newer Python with latest PyTorch under Ubuntu
+        - os: ubuntu-latest
+          python-version: '3.12'
           pytorch-version: '2.15.0'
 
     timeout-minutes: 40
