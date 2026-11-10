@@ -591,6 +591,25 @@ class PostFilterLabeld(MapTransform):
         return d
 
     def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30, do_reconstruction=False, nuc_points=None):
+        """
+        Threshold the predictions and clean up each mask.
+
+        Args:
+            preds: predicted probabilities, shape (N, H, W).
+            thresh: threshold applied to ``preds`` to obtain binary masks.
+            min_size: objects smaller than this are removed.
+            min_hole: holes smaller than this are filled.
+            do_reconstruction: if True, keep only the parts of each mask connected to its click point in
+                ``nuc_points``. A patch whose click is outside the mask is left unchanged, with a warning.
+            nuc_points: click points, one per patch (``nuc_points[i]`` is reshaped to the mask shape).
+                Required when ``do_reconstruction`` is True.
+
+        Returns:
+            Boolean masks with the same shape as ``preds``.
+
+        Raises:
+            TypeError: if ``do_reconstruction`` is True and ``nuc_points`` is None.
+        """
         masks = preds > thresh
         for i in range(preds.shape[0]):
             masks[i] = morphology.remove_small_objects(masks[i], min_size=min_size)
