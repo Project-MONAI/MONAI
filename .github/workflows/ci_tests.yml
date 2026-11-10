@@ -32,16 +32,15 @@ env:
   # supported versions of PyTorch
   PYTORCH_VER1: '2.12.1'
   PYTORCH_VER2: '2.13.0'
-  PYTORCH_VER3: '2.14.0'
-  PYTORCH_VER4: '2.14.1'
+  PYTORCH_VER3: '2.14.1'
+  PYTORCH_VER4: '2.15.0'
   TORCHVISION_VER1: '0.27.1'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
 
-  # versions of PyTorch/Torchvision to use for full-dep Windows tests, needed to get around a gloo bug
-  WIN_FULLDEP_VER: '2.12.1'
-  WIN_FULLDEP_VISION_VER: '0.27.1'
   TQDM_DISABLE: 1  # squelch TQDM output to reduce log file size
 
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
+
+  PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
 
 # These jobs run the CI tests, type checking, and testing packaging. These use the minimum supported versions of
 # Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
@@ -151,13 +150,13 @@ jobs:
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
           python-version: '3.11'
-          pytorch-version: '2.13.1'
-        - os: ubuntu-latest
-          python-version: '3.11'
-          pytorch-version: '2.14.0'
+          pytorch-version: '2.13.0'
         - os: ubuntu-latest
           python-version: '3.11'
           pytorch-version: '2.14.1'
+        - os: ubuntu-latest
+          python-version: '3.11'
+          pytorch-version: '2.15.0'
 
     timeout-minutes: 40
     steps:
@@ -243,13 +242,8 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
-    - if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch cpu from pytorch.org (Windows only)
-      run: |
-        python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
-      shell: bash
-    - if: runner.os != 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch gpu
+    - if: needs.test_skip.outputs.skip == 0
+      name: Install PyTorch
       run: |
         # install the lowest version of PyTorch supported
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
