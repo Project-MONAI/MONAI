@@ -1,0 +1,2 @@
+recursive-include monai/csrc *.cpp *.cu *.h *.cuh
+prune tests
