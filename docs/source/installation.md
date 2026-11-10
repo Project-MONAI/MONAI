@@ -20,7 +20,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.10) and only requires [Numpy](https://numpy.org/) and [PyTorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.11) and only requires [Numpy](https://numpy.org/) and [PyTorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
@@ -343,6 +343,6 @@ this will install PyTorch as well as `pytorch-cuda`, please follow https://pytor
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-conda create -n <name> python=<ver>  # eg 3.10
+conda create -n <name> python=<ver>  # eg 3.11
 conda env update -n <name> -f environment-dev.yml
 ```

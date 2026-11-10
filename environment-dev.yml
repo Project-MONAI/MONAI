@@ -2,7 +2,7 @@ name: monai
 channels:
   - defaults
 dependencies:
-  - python>=3.10
+  - python>=3.11
   - pip
   - pip:
     - -e .[all,testing]

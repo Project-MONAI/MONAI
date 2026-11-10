@@ -24,25 +24,25 @@ concurrency:
 # Supported versions of Python and PyTorch are listed here for use below and as documentation
 env:
   # supported versions of Python
-  PYTHON_VER1: '3.10'
-  PYTHON_VER2: '3.11'
-  PYTHON_VER3: '3.12'
-  PYTHON_VER4: '3.13'
-  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  PYTHON_VER1: '3.11'
+  PYTHON_VER2: '3.12'
+  PYTHON_VER3: '3.13'
+  PYTHON_VER4: '3.14'
+  # PYTHON_VER5: '3.15'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
   # supported versions of PyTorch
-  PYTORCH_VER1: '2.8.0'
-  PYTORCH_VER2: '2.9.1'
-  PYTORCH_VER3: '2.10.0'
-  PYTORCH_VER4: '2.11.0'
-  TORCHVISION_VER1: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
+  PYTORCH_VER1: '2.12.1'
+  PYTORCH_VER2: '2.13.0'
+  PYTORCH_VER3: '2.14.1'
+  PYTORCH_VER4: '2.15.0'
+  TORCHVISION_VER1: '0.27.1'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
 
-  # versions of PyTorch/Torchvision to use for full-dep Windows tests, needed to get around a gloo bug
-  WIN_FULLDEP_VER: '2.11.0'
-  WIN_FULLDEP_VISION_VER: '0.26.0'
+  TQDM_DISABLE: 1  # squelch TQDM output to reduce log file size
 
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
-# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
+  PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
+
+# These jobs run the CI tests, type checking, and testing packaging. These use the minimum supported versions of
 # Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
 # When support is dropped for a version it is important to update these as appropriate.
 
@@ -133,33 +133,35 @@ jobs:
         # Base test cases are to test on all three OSes with the lowest versions of Python and PyTorch, other cases are
         # added below as special cases to cover other Python and PyTorch versions under Ubuntu
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ['3.10']
-        pytorch-version: ['2.8.0']
+        python-version: ['3.11']
+        pytorch-version: ['2.12.1']
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
-          pytorch-version: '2.8.0'
-          python-version: '3.11'
-        - os: ubuntu-latest
-          pytorch-version: '2.8.0'
+          pytorch-version: '2.12.1'
           python-version: '3.12'
         - os: ubuntu-latest
-          pytorch-version: '2.8.0'
+          pytorch-version: '2.12.1'
           python-version: '3.13'
-        # - os: ubuntu-latest
-        #   pytorch-version: '2.9.1'
-        #   python-version: '3.14'
+        - os: ubuntu-latest
+          pytorch-version: '2.12.1'
+          python-version: '3.14'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.9.1'
+          python-version: '3.11'
+          pytorch-version: '2.13.0'
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.10.0'
+          python-version: '3.11'
+          pytorch-version: '2.14.1'
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.11.0'
+          python-version: '3.11'
+          pytorch-version: '2.15.0'
+
+        # Test newer Python with latest PyTorch under Ubuntu
+        - os: ubuntu-latest
+          python-version: '3.12'
+          pytorch-version: '2.15.0'
 
     timeout-minutes: 40
     steps:
@@ -245,13 +247,8 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
-    - if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch cpu from pytorch.org (Windows only)
-      run: |
-        python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
-      shell: bash
-    - if: runner.os != 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch gpu
+    - if: needs.test_skip.outputs.skip == 0
+      name: Install PyTorch
       run: |
         # install the lowest version of PyTorch supported
         python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
@@ -324,7 +321,7 @@ jobs:
         python -m pip install --upgrade pip wheel tomli pytest
         # need a specific version of torch for nvsubquadratic
         python monai/config/print_dependencies.py build-system | \
-          xargs -d '\n' pip install --no-build-isolation torch==2.10.0 torchvision==0.25.0
+          xargs -d '\n' pip install --no-build-isolation
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
         python -m pip install --no-build-isolation omegaconf
