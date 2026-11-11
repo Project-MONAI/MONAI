@@ -277,6 +277,29 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         self.assertFalse(torch.isinf(result).any(), f"expected a finite distance, got {result}")
         self.assertGreater(result.item(), 0.0, "an imperfect prediction must not score as perfect (0)")
 
+    def test_ignore_index_two_channel_exclude_background_still_excludes_channel(self):
+        # Regression test: n_class is computed AFTER ignore_background strips the
+        # background channel (for include_background=False), so a genuinely two-channel
+        # one-hot input (background + foreground) collapses to n_class == 1 post-strip.
+        # Guarding the early-exit on that post-strip count wrongly treated this as the
+        # single-channel/label-encoded case and skipped it, letting the ignored
+        # (masked-to-empty) foreground channel's ground truth leak `inf` into the
+        # aggregate again whenever the prediction had a false positive outside the true
+        # foreground region. The guard must use the channel count from BEFORE stripping.
+        y = torch.zeros((2, 2, 16, 16))
+        y_pred = torch.zeros((2, 2, 16, 16))
+        y[:, 1, 4:8, 4:8] = 1
+        y[:, 0] = 1 - y[:, 1]
+        y_pred[:, 1, 10:14, 10:14] = 1  # false positive entirely outside the true foreground
+        y_pred[:, 0] = 1 - y_pred[:, 1]
+
+        sd_metric = SurfaceDistanceMetric(include_background=False, ignore_index=1, reduction="mean")
+        sd_metric(y_pred, y)
+        sd_buffer = sd_metric.get_buffer()
+        self.assertTrue(torch.isnan(sd_buffer).all(), f"ignored channel should be nan, got {sd_buffer}")
+        result = sd_metric.aggregate()
+        self.assertTrue(torch.isfinite(result).all(), f"aggregate should not be inf, got {result}")
+
     def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
             SurfaceDistanceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
