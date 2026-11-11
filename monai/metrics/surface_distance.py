@@ -225,6 +225,14 @@ def compute_average_surface_distance(
     class_offset = 0 if include_background else 1
 
     for b, c in np.ndindex(batch_size, n_class):
+        absolute_c = c + class_offset
+        if ignore_index is not None and absolute_c == ignore_index:
+            # ponytail: mirror compute_hausdorff_distance's early-exit for the ignored
+            # channel instead of letting get_edge_surface_distance run on a ground truth
+            # that create_ignore_mask has zeroed out (which produced `inf`, not `nan`,
+            # and was silently included by do_metric_reduction).
+            asd[b, c] = torch.tensor(float("nan"), device=asd.device)
+            continue
         yp = y_pred[b, c]
         yt = y[b, c]
         if per_component:
@@ -267,7 +275,6 @@ def compute_average_surface_distance(
                 )
             asd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
         else:
-            absolute_c = c + class_offset
             warn_empty = ignore_index is None or absolute_c != ignore_index
             _, distances, _ = get_edge_surface_distance(
                 yp,

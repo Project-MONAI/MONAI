@@ -235,6 +235,28 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         result = sd_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
+    def test_ignore_index_excludes_channel_like_hausdorff(self):
+        # Regression test: SurfaceDistanceMetric used to leave the ignored channel as `inf`
+        # (included by do_metric_reduction, poisoning the aggregate) instead of `nan` like
+        # HausdorffDistanceMetric, because compute_average_surface_distance was missing the
+        # early-exit that compute_hausdorff_distance has for `absolute_c == ignore_index`.
+        y = torch.zeros((2, 3, 16, 16))
+        y_pred = torch.zeros((2, 3, 16, 16))
+        y[:, 1, 4:8, 4:8] = 1
+        y[:, 2, 8:12, 8:12] = 1
+        y[:, 0] = 1 - y[:, 1:].sum(dim=1)
+        y_pred[:, 1, 5:9, 5:9] = 1
+        y_pred[:, 2, 8:12, 8:12] = 1
+        y_pred[:, 0] = 1 - y_pred[:, 1:].sum(dim=1)
+
+        sd_metric = SurfaceDistanceMetric(include_background=True, ignore_index=1, reduction="mean")
+        sd_metric(y_pred, y)
+
+        sd_buffer = sd_metric.get_buffer()
+        self.assertTrue(torch.isnan(sd_buffer[:, 1]).all(), f"ignored channel should be nan, got {sd_buffer[:, 1]}")
+        sd_result = sd_metric.aggregate()
+        self.assertTrue(torch.isfinite(sd_result).all(), f"aggregate should not be inf/nan, got {sd_result}")
+
     def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
             SurfaceDistanceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
