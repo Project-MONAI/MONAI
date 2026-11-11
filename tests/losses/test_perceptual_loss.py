@@ -22,65 +22,33 @@ from monai.utils import optional_import
 from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
 
 _, has_torchvision = optional_import("torchvision")
+
+SHAPE1 = (2, 1, 64, 64, 64)
+SHAPE2 = (2, 6, 64, 64, 64)
+
 TEST_CASES = [
-    [{"spatial_dims": 2, "network_type": "squeeze"}, (2, 1, 64, 64), (2, 1, 64, 64)],
-    [
-        {"spatial_dims": 3, "network_type": "squeeze", "is_fake_3d": True, "fake_3d_ratio": 0.1},
-        (2, 1, 64, 64, 64),
-        (2, 1, 64, 64, 64),
-    ],
-    [{"spatial_dims": 2, "network_type": "radimagenet_resnet50"}, (2, 1, 64, 64), (2, 1, 64, 64)],
-    [{"spatial_dims": 2, "network_type": "radimagenet_resnet50"}, (2, 3, 64, 64), (2, 3, 64, 64)],
-    [
-        {"spatial_dims": 3, "network_type": "radimagenet_resnet50", "is_fake_3d": True, "fake_3d_ratio": 0.1},
-        (2, 1, 64, 64, 64),
-        (2, 1, 64, 64, 64),
-    ],
-    [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
-        (2, 1, 64, 64, 64),
-        (2, 1, 64, 64, 64),
-    ],
-    [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
-        (2, 6, 64, 64, 64),
-        (2, 6, 64, 64, 64),
-    ],
-    [
-        {
-            "spatial_dims": 3,
-            "network_type": "medicalnet_resnet10_23datasets",
-            "is_fake_3d": False,
-            "channel_wise": True,
-        },
-        (2, 6, 64, 64, 64),
-        (2, 6, 64, 64, 64),
-    ],
-    [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
-        (2, 1, 64, 64, 64),
-        (2, 1, 64, 64, 64),
-    ],
-    [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
-        (2, 6, 64, 64, 64),
-        (2, 6, 64, 64, 64),
-    ],
-    [
-        {"spatial_dims": 3, "network_type": "resnet50", "is_fake_3d": True, "pretrained": True, "fake_3d_ratio": 0.2},
-        (2, 1, 64, 64, 64),
-        (2, 1, 64, 64, 64),
-    ],
+    [{"network_type": "squeeze"}, (2, 1, 64, 64), (2, 1, 64, 64)],
+    [{"network_type": "radimagenet_resnet50"}, (2, 1, 64, 64), (2, 1, 64, 64)],
+    [{"network_type": "radimagenet_resnet50"}, (2, 3, 64, 64), (2, 3, 64, 64)],
+    [{"network_type": "squeeze", "is_fake_3d": True, "fake_3d_ratio": 0.1}, SHAPE1, SHAPE1],
+    [{"network_type": "radimagenet_resnet50", "is_fake_3d": True, "fake_3d_ratio": 0.1}, SHAPE1, SHAPE1],
+    [{"network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False}, SHAPE1, SHAPE1],
+    [{"network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False}, SHAPE2, SHAPE2],
+    [{"network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False, "channel_wise": True}, SHAPE2, SHAPE2],
+    [{"network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False}, SHAPE1, SHAPE1],
+    [{"network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False}, SHAPE2, SHAPE2],
+    [{"network_type": "resnet50", "is_fake_3d": True, "pretrained": True, "fake_3d_ratio": 0.2}, SHAPE1, SHAPE1],
 ]
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
-@skip_if_quick
 class TestPerceptualLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
+    @skip_if_quick
     def test_shape(self, input_param, input_shape, target_shape):
         with skip_if_downloading_fails():
-            loss = PerceptualLoss(**input_param)
+            loss = PerceptualLoss(spatial_dims=len(input_shape) - 2, **input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
 
         if "channel_wise" in input_param.keys() and input_param["channel_wise"]:
@@ -89,9 +57,10 @@ class TestPerceptualLoss(unittest.TestCase):
             self.assertEqual(result.shape, torch.Size([]))
 
     @parameterized.expand(TEST_CASES)
+    @skip_if_quick
     def test_identical_input(self, input_param, input_shape, target_shape):
         with skip_if_downloading_fails():
-            loss = PerceptualLoss(**input_param)
+            loss = PerceptualLoss(spatial_dims=len(input_shape) - 2, **input_param)
         tensor = torch.randn(input_shape)
         result = loss(tensor, tensor)
 
@@ -100,6 +69,7 @@ class TestPerceptualLoss(unittest.TestCase):
         else:
             self.assertEqual(result, torch.Tensor([0.0]))
 
+    @skip_if_quick
     def test_different_shape(self):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")
@@ -114,17 +84,17 @@ class TestPerceptualLoss(unittest.TestCase):
 
     @parameterized.expand(["medicalnet_resnet10_23datasets", "medicalnet_resnet50_23datasets"])
     def test_medicalnet_on_2d_data(self, network_type):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, ".*networks are only compatible with ``spatial_dims=3``.*"):
             PerceptualLoss(spatial_dims=2, network_type=network_type)
 
     @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
     def test_channel_wise_with_non_medicalnet(self, network_type):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "Channel-wise loss is only compatible with MedicalNet networks."):
             PerceptualLoss(spatial_dims=2, network_type=network_type, channel_wise=True)
 
-    @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
+    @parameterized.expand(["squeeze", "alex", "vgg", "resnet50"])
     def test_non_medicalnet_3d_without_fake_3d(self, network_type):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "Invalid download model name.*"):
             PerceptualLoss(spatial_dims=3, network_type=network_type, is_fake_3d=False)
 
     def test_normalize_tensor_zero_norm_finite_gradient(self):

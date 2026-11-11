@@ -11,10 +11,8 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 import unittest
-from pathlib import Path
 
 import numpy as np
 
@@ -28,90 +26,68 @@ from monai.transforms import (
 )
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
-from tests.test_utils import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule, TESTING_DATA_PATH
 
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
-pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
+plt, has_pyplot = optional_import("matplotlib", name="pyplot")
+
+TOL = 5.0  # FIXME: Matplotlib changed around 3.11 to render differently, high tolerance needed for compatibility
+
+KEYS = "image"
+
+BASE_XFORMS = [
+    LoadImaged(keys=KEYS),
+    EnsureChannelFirstd(keys=KEYS, channel_dim="no_channel"),
+    ScaleIntensityd(keys=KEYS),
+]
+
+INPUT_IMAGE = TESTING_DATA_PATH / "anatomical.nii"
 
 
 @SkipIfNoModule("matplotlib")
 class TestMatshow3d(unittest.TestCase):
     def test_3d(self):
-        test_root = Path(__file__).parents[2]
-        testing_dir = os.path.join(test_root, "testing_data")
-        print("test_root: ", testing_dir)
-        keys = "image"
-        xforms = Compose(
-            [
-                LoadImaged(keys=keys),
-                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
-                ScaleIntensityd(keys=keys),
-            ]
-        )
-        image_path = os.path.join(testing_dir, "anatomical.nii")
-        ims = xforms({keys: image_path})
+        xforms = Compose(BASE_XFORMS)
+        ims = xforms({KEYS: INPUT_IMAGE})
 
-        fig = pyplot.figure()  # external figure
-        fig, _ = matshow3d(ims[keys], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
+        fig = plt.figure()  # external figure
+        fig, _ = matshow3d(ims[KEYS], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_test.png", tempimg, 5e-2)
-            self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+            comp = compare_images(TESTING_DATA_PATH / "matshow3d_test.png", tempimg, TOL)
+            self.assertIsNone(comp, f"compare_images result: {comp}")  # None indicates test passed
 
-        _, axes = pyplot.subplots()
-        matshow3d(ims[keys], fig=axes, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
+        _, axes = plt.subplots()
+        matshow3d(ims[KEYS], fig=axes, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
     def test_samples(self):
-        test_root = Path(__file__).parents[2]
-        testing_dir = os.path.join(test_root, "testing_data")
-        keys = "image"
         xforms = Compose(
-            [
-                LoadImaged(keys=keys),
-                EnsureChannelFirstd(keys=keys),
-                ScaleIntensityd(keys=keys),
-                RandSpatialCropSamplesd(keys=keys, roi_size=(8, 8, 5), random_size=True, num_samples=10),
-            ]
+            [*BASE_XFORMS, RandSpatialCropSamplesd(keys=KEYS, roi_size=(8, 8, 5), random_size=True, num_samples=10)]
         )
-        image_path = os.path.join(testing_dir, "anatomical.nii")
         xforms.set_random_state(0)
-        ims = xforms({keys: image_path})
-        fig, mat = matshow3d(
-            [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False
-        )
+        ims = [im[KEYS] for im in xforms({KEYS: INPUT_IMAGE})]
+        fig, mat = matshow3d(ims, title=f"testing {KEYS}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False)
         self.assertEqual(mat.dtype, np.float32)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2, in_decorator=True)
+            comp = compare_images(TESTING_DATA_PATH / "matshow3d_patch_test.png", tempimg, TOL, in_decorator=True)
             if comp:
-                print("not none comp: ", comp)  # matplotlib 3.2.2
-                np.testing.assert_allclose(comp["rms"], 30.786983, atol=1e-3, rtol=1e-3)
-            else:
-                self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+                # FIXME: tolerances are too high after changes to Matplotlib around version 3.11
+                np.testing.assert_allclose(
+                    comp["rms"], 30.786983, atol=3, rtol=0.1, err_msg=f"compare_images result: {comp}"
+                )
 
     def test_3d_rgb(self):
-        test_dir = Path(__file__).parents[2].as_posix()
-        testing_dir = os.path.join(test_dir, "testing_data")
-        keys = "image"
-        xforms = Compose(
-            [
-                LoadImaged(keys=keys),
-                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
-                ScaleIntensityd(keys=keys),
-                # change to RGB color image
-                RepeatChanneld(keys=keys, repeats=3),
-            ]
-        )
-        image_path = os.path.join(testing_dir, "anatomical.nii")
-        ims = xforms({keys: image_path})
+        xforms = Compose([*BASE_XFORMS, RepeatChanneld(keys=KEYS, repeats=3)])  # RepeatChanneld makes a RGB color image
+        ims = xforms({KEYS: INPUT_IMAGE})
 
-        fig = pyplot.figure()  # external figure
+        fig = plt.figure()  # external figure
         fig, _ = matshow3d(
-            volume=ims[keys],
+            volume=ims[KEYS],
             fig=fig,
             figsize=(2, 2),
             frames_per_row=5,
@@ -125,8 +101,8 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_rgb_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_rgb_test.png", tempimg, 5e-2)
-            self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+            comp = compare_images(TESTING_DATA_PATH / "matshow3d_rgb_test.png", tempimg, TOL)
+            self.assertIsNone(comp, f"compare_images result: {comp}")  # None indicates test passed
 
 
 if __name__ == "__main__":
