@@ -69,7 +69,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
             Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
             or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
-            ignore_index to keep score values comparable.
+            ignore_index to keep score values comparable. For multi-channel (one-hot) input, when
+            ``ignore_index`` names an existing channel that channel's per-image result is ``nan``.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
@@ -203,7 +204,8 @@ def compute_average_surface_distance(
             for all images in batch. Defaults to ``None``.
         ignore_index: optional class index used to suppress empty-mask warnings when that class is ignored.
             For federated or aggregated settings, ensure all clients use the same ignore_index to keep score
-            values comparable.
+            values comparable. For multi-channel (one-hot) input, when ``ignore_index`` names an existing
+            channel that channel's per-image result is ``nan``.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
@@ -226,11 +228,15 @@ def compute_average_surface_distance(
 
     for b, c in np.ndindex(batch_size, n_class):
         absolute_c = c + class_offset
-        if ignore_index is not None and absolute_c == ignore_index:
+        if ignore_index is not None and absolute_c == ignore_index and n_class > 1:
             # ponytail: mirror compute_hausdorff_distance's early-exit for the ignored
             # channel instead of letting get_edge_surface_distance run on a ground truth
             # that create_ignore_mask has zeroed out (which produced `inf`, not `nan`,
-            # and was silently included by do_metric_reduction).
+            # and was silently included by do_metric_reduction). Only for multi-channel
+            # (one-hot) input does `ignore_index` name a specific channel to drop entirely;
+            # for single-channel (label-encoded) input it is a value-based spatial mask
+            # already applied via create_ignore_mask, and the lone channel is still the
+            # score being requested, so it must not be forced to nan.
             asd[b, c] = torch.tensor(float("nan"), device=asd.device)
             continue
         yp = y_pred[b, c]

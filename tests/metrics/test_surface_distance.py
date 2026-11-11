@@ -257,6 +257,26 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         sd_result = sd_metric.aggregate()
         self.assertTrue(torch.isfinite(sd_result).all(), f"aggregate should not be inf/nan, got {sd_result}")
 
+    def test_ignore_index_single_channel_does_not_blank_the_only_score(self):
+        # Regression test: for single-channel (label-encoded) binary input, `ignore_index`
+        # is a value-based spatial mask (handled by create_ignore_mask before this loop
+        # runs), not a request to drop an entire one-hot channel. With include_background=
+        # True and ignore_index=0, `absolute_c == ignore_index` was true for the only
+        # channel (c=0), so the unconditional early-exit forced that channel to nan for
+        # every image, which do_metric_reduction's all-nan convention then silently
+        # reduces to 0 -- reporting a perfect score regardless of the actual prediction.
+        y = torch.zeros((2, 1, 16, 16))
+        y_pred = torch.zeros((2, 1, 16, 16))
+        y[:, 0, 4:8, 4:8] = 1
+        y_pred[:, 0, 5:9, 5:9] = 1  # off by one voxel, partially overlapping the ground truth
+
+        sd_metric = SurfaceDistanceMetric(include_background=True, ignore_index=0, reduction="mean")
+        sd_metric(y_pred, y)
+        result = sd_metric.aggregate()
+        self.assertFalse(torch.isnan(result).any(), f"expected a real distance, got {result}")
+        self.assertFalse(torch.isinf(result).any(), f"expected a finite distance, got {result}")
+        self.assertGreater(result.item(), 0.0, "an imperfect prediction must not score as perfect (0)")
+
     def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
             SurfaceDistanceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
