@@ -209,6 +209,15 @@ def compute_average_surface_distance(
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
+    # ponytail: capture the channel count before any background-stripping. n_class below
+    # is recomputed post-strip and, for include_background=False, undercounts how many
+    # channels the caller actually passed in (e.g. a true 2-channel one-hot input becomes
+    # n_class==1 after dropping the background channel) -- using the post-strip count to
+    # decide whether ignore_index names a real one-hot channel wrongly treated a genuinely
+    # multi-channel ignore_index as the single-channel/label-encoded case, letting the
+    # ignored channel's (masked-to-empty) ground truth leak `inf` into the aggregate again.
+    orig_n_channels = y_pred.shape[1]
+
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
@@ -228,7 +237,7 @@ def compute_average_surface_distance(
 
     for b, c in np.ndindex(batch_size, n_class):
         absolute_c = c + class_offset
-        if ignore_index is not None and absolute_c == ignore_index and n_class > 1:
+        if ignore_index is not None and absolute_c == ignore_index and orig_n_channels > 1:
             # ponytail: mirror compute_hausdorff_distance's early-exit for the ignored
             # channel instead of letting get_edge_surface_distance run on a ground truth
             # that create_ignore_mask has zeroed out (which produced `inf`, not `nan`,
