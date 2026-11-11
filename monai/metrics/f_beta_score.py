@@ -15,7 +15,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import _exact_sum, do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -76,15 +76,17 @@ def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: 
     tp = (y_pred + y) == 2
     tn = (y_pred + y) == 0
 
-    tp = tp.sum(dim=[2]).float()
-    tn = tn.sum(dim=[2]).float()
-    p = y.sum(dim=[2]).float()
+    # Count exactly and cast only the result to float32, as in `get_confusion_matrix`: float32 subtractions
+    # lose false positives and negatives above 2**24 voxels.
+    tp = tp.sum(dim=[2])
+    tn = tn.sum(dim=[2])
+    p = _exact_sum(y)
     n = y.shape[-1] - p
 
     fn = p - tp
     fp = n - tn
 
-    return torch.stack([tp, fp, tn, fn], dim=-1)
+    return torch.stack([tp, fp, tn, fn], dim=-1).float()
 
 
 def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float) -> torch.Tensor:
