@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import glob
+import importlib.util
 import os
 import re
 import sys
@@ -20,6 +21,7 @@ from typing import Any, cast
 
 from packaging import version
 from setuptools import find_packages, setup
+from setuptools.dist import Distribution
 
 import versioneer
 
@@ -151,6 +153,46 @@ def get_cmds():
     return cmds
 
 
+def load_vendor_deps():
+    """Import ``monai/config/vendor_deps.py`` by path, without importing the ``monai`` package."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "monai", "config", "vendor_deps.py")
+    spec = importlib.util.spec_from_file_location("monai_vendor_deps", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses resolves a class's module through sys.modules
+    spec.loader.exec_module(module)
+    return module
+
+
+def vendor_distclass():
+    """``Distribution`` subclass rewriting the dependency metadata for the detected accelerator
+    vendor, or None when there is none so the build keeps stock setuptools behaviour.
+    """
+    try:
+        vendor_deps = load_vendor_deps()
+        vendor = vendor_deps.active_vendor()
+    except Exception as e:
+        # A vendor that was detected but could not be loaded is fatal: emitting another vendor's
+        # packages in this vendor's wheel is worse than failing the build.
+        if os.environ.get("MONAI_VENDOR") or type(e).__name__ == "VendorPluginError":
+            raise
+        warnings.warn(f"accelerator vendor detection skipped: {e}")
+        return None
+    if vendor is None:
+        return None
+
+    class VendorDistribution(Distribution):
+        # pyproject.toml wins over anything passed to setup(), so the lists can only be adjusted once
+        # setuptools has applied them, and _finalize_requires() has to be re-run to propagate the
+        # result into the wheel metadata.
+        def parse_config_files(self, *args, **kwargs):
+            super().parse_config_files(*args, **kwargs)
+            self.install_requires = vendor.apply_to_dependencies(list(self.install_requires or []))
+            self.extras_require = vendor.apply_to_optional_dependencies(dict(self.extras_require or {}))
+            self._finalize_requires()
+
+    return VendorDistribution
+
+
 # Gathering source used for JIT extensions to include in package_data.
 jit_extension_source = []
 
@@ -160,9 +202,12 @@ for ext in ["cpp", "cu", "h", "cuh"]:
 
 jit_extension_source = [os.path.join("..", path) for path in jit_extension_source]
 
+_distclass = vendor_distclass()
+
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
+    **({"distclass": _distclass} if _distclass is not None else {}),
     packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
     package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
