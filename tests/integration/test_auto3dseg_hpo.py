@@ -71,7 +71,11 @@ fake_datalist: dict[str, list[dict]] = {
 }
 
 
-@unittest.skipIf(not has_tb, "no tensorboard summary writer")
+# @unittest.skipIf(not has_tb, "no tensorboard summary writer")
+@unittest.skip(
+    "Skipping until issues related to mlflow and Invertd are addressed in the templates and MONAI_ALGO_HASH updated. "
+    "See: https://github.com/Project-MONAI/research-contributions/pull/433"
+)
 class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
