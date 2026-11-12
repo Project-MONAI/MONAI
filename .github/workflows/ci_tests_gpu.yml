@@ -86,7 +86,7 @@ jobs:
     - name: Install the complete dependencies
       run: |
         python -m pip install --pre -U itk
-        python -m pip install --user --upgrade pip wheel tomli
+        python -m pip install --user --upgrade pip wheel tomli wheel_stub
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
         python -m pip install --no-build-isolation -e .[all,testing,hyena,nvimgcodec]
