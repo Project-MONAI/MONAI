@@ -18,6 +18,7 @@ name = "monai"
 description = "AI Toolkit for Healthcare Imaging"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
 classifiers = [
@@ -185,6 +186,10 @@ testing = [
   "types-PyYAML",
   "types-setuptools"
 ]
+
+[tool.setuptools]
+# C++/CUDA sources under monai/csrc are compiled into monai._C; they are not Python packages or package data
+include-package-data = false
 
 [tool.setuptools.dynamic]
 version = {attr = "monai.__version__"}
