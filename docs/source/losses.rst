@@ -73,6 +73,11 @@ Segmentation Losses
 .. autoclass:: FocalLoss
     :members:
 
+`AsymmetricUnifiedFocalLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AsymmetricUnifiedFocalLoss
+    :members:
+
 `TverskyLoss`
 ~~~~~~~~~~~~~
 .. autoclass:: TverskyLoss
@@ -98,6 +103,11 @@ Segmentation Losses
 .. autoclass:: HausdorffDTLoss
     :members:
 
+`LogHausdorffDTLoss`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LogHausdorffDTLoss
+    :members:
+
 `SoftclDiceLoss`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: SoftclDiceLoss
@@ -116,6 +126,23 @@ Segmentation Losses
 `MCCLoss`
 ~~~~~~~~~
 .. autoclass:: MCCLoss
+    :members:
+
+Classification Losses
+---------------------
+
+`AUCMLoss`
+~~~~~~~~~~
+.. autoclass:: AUCMLoss
+    :members:
+
+
+Detection Losses
+----------------
+
+`BoxGIoULoss`
+~~~~~~~~~~~~~
+.. autoclass:: BoxGIoULoss
     :members:
 
 Registration Losses
