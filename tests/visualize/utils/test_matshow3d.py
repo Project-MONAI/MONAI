@@ -26,7 +26,7 @@ from monai.transforms import (
 )
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
-from tests.test_utils import SkipIfNoModule, TESTING_DATA_PATH
+from tests.test_utils import TESTING_DATA_PATH, SkipIfNoModule
 
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 plt, has_pyplot = optional_import("matplotlib", name="pyplot")
