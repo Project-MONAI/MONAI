@@ -343,28 +343,28 @@ class ITKReader(ImageReader):
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
 
-    def _get_affine(self, img, lps_to_ras: bool = True):
-        """
-        Get or construct the affine matrix of the image, it can be used to correct
-        spacing, orientation or execute spatial transforms.
+    def _get_affine(self, sitk_img: Any, user_affine_lps_to_ras: bool = True) -> np.ndarray:
+        spacing = np.array(sitk_img.GetSpacing())
+        direction = np.array(sitk_img.GetDirection()).reshape(len(spacing), len(spacing))
+        origin = np.array(sitk_img.GetOrigin())
 
-        Args:
-            img: an ITK image object loaded from an image file.
-            lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
+        # ---> INSERT THE 2ND PART HERE <---
+        if sitk_img.HasKey("ITK_SpacingBetweenSlices"):
+            try:
+                s_slice = float(sitk_img.GetMetaData("ITK_SpacingBetweenSlices"))
+                if len(spacing) >= 3 and s_slice < 0:
+                    spacing[2] = abs(s_slice)
+                    direction[:, 2] = -direction[:, 2]
+            except ValueError:
+                pass
 
-        """
-        direction = itk.array_from_matrix(img.GetDirection())
-        spacing = np.asarray(img.GetSpacing())
-        origin = np.asarray(img.GetOrigin())
+        affine = np.eye(len(spacing) + 1)
+        affine[: len(spacing), : len(spacing)] = direction * spacing
+        affine[: len(spacing), len(spacing)] = origin
 
-        direction = np.asarray(direction)
-        sr = min(max(direction.shape[0], 1), 3)
-        affine: np.ndarray = np.eye(sr + 1)
-        affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
-        affine[:sr, -1] = origin[:sr]
+        if user_affine_lps_to_ras and len(spacing) >= 3:
+            affine = self._lps_to_ras(affine)
 
-        if lps_to_ras:
-            affine = orientation_ras_lps(affine)
         return affine
 
     def _get_spatial_shape(self, img):
