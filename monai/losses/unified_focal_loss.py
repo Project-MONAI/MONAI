@@ -234,16 +234,16 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         Args:
             y_pred : the shape should be BNH[WD], where N is the number of classes.
                 It only supports binary segmentation.
-                The input should be the original logits since it will be transformed by
-                    a sigmoid in the forward function.
+                The input should contain probability values in the range [0, 1],
+                not raw logits. The forward function does not apply a sigmoid.
             y_true : the shape should be BNH[WD], where N is the number of classes.
                 It only supports binary segmentation.
 
         Raises:
-            ValueError: When input and target are different shape
-            ValueError: When len(y_pred.shape) != 4 and len(y_pred.shape) != 5
-            ValueError: When num_classes
-            ValueError: When the number of classes entered does not match the expected number
+            ValueError: If the input and target have incompatible shapes.
+            ValueError: If the input has neither 4 nor 5 dimensions.
+            ValueError: If the maximum target class index exceeds num_classes - 1 when ignore_index is None.
+            ValueError: If an unsupported reduction method is specified.
         """
         if len(y_pred.shape) != 4 and len(y_pred.shape) != 5:
             raise ValueError(f"input shape must be 4 or 5, but got {y_pred.shape}")
