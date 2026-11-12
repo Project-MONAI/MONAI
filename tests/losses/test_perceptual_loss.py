@@ -100,6 +100,14 @@ class TestPerceptualLoss(unittest.TestCase):
         else:
             self.assertEqual(result, torch.Tensor([0.0]))
 
+    @parameterized.expand(TEST_CASES)
+    def test_use_compile(self, input_param, input_shape, target_shape):
+        with skip_if_downloading_fails():
+            loss = PerceptualLoss(**input_param, use_compile=False)
+            compiled_loss = PerceptualLoss(**input_param, use_compile=True)
+        x, y = torch.randn(input_shape), torch.randn(target_shape)
+        assert_allclose(compiled_loss(x, y), loss(x, y), rtol=1e-4)
+
     def test_different_shape(self):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")

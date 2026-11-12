@@ -77,6 +77,8 @@ class PerceptualLoss(nn.Module):
             Defaults to `None`.
         channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
             Defaults to ``False``.
+        use_compile: if True, the perceptual network is compiled with `torch.compile`.
+            Defaults to ``False``.
 
     Raises:
         NotImplementedError: if ``spatial_dims`` is not 2 or 3.
