@@ -22,10 +22,6 @@ from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
-from monai.utils import optional_import
-
-# Lazy import to avoid dependency
-se1, flag = optional_import("squeeze_and_excitation")
 
 __all__ = ["Quicknat"]
 
@@ -434,19 +430,14 @@ class Quicknat(nn.Module):
         Args:
             n_filters: encoding half of the layer
             se_block_type: defaults to None. Valid options are None, CSE, SSE, CSSE
-        Returns: Appropriate SEBlock. SSE and CSSE not implemented in Monai yet.
+        Returns: Appropriate SEBlock, or None when ``se_block_type`` is None or "None".
         """
         if se_block_type == "CSE":
             return se.ChannelSELayer(2, n_filters)
-        # not implemented in squeeze_and_excitation in monai use other squeeze_and_excitation import:
-        elif se_block_type == "SSE" or se_block_type == "CSSE":
-            # Throw error if squeeze_and_excitation is not installed
-            if not flag:
-                raise ImportError("Please install squeeze_and_excitation locally to use SpatialSELayer")
-            if se_block_type == "SSE":
-                return se1.SpatialSELayer(n_filters)
-            else:
-                return se1.ChannelSpatialSELayer(n_filters)
+        elif se_block_type == "SSE":
+            return se.SpatialSELayer(2, n_filters)
+        elif se_block_type == "CSSE":
+            return se.ChannelSpatialSELayer(2, n_filters)
         else:
             return None
 

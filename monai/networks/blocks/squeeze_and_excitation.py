@@ -58,7 +58,7 @@ class ChannelSELayer(nn.Module):
         pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
         self.avg_pool = pool_type(1)  # spatial size (1, 1, ...)
 
-        channels = int(in_channels // r)
+        channels = int(in_channels // r) if r > 0 else 0
         if channels <= 0:
             raise ValueError(f"r must be positive and smaller than in_channels, got r={r} in_channels={in_channels}.")
 
@@ -125,6 +125,73 @@ class ResidualSELayer(ChannelSELayer):
             acti_type_2=acti_type_2,
             add_residual=True,
         )
+
+
+class SpatialSELayer(nn.Module):
+    """
+    Spatial squeeze and channel excitation (sSE) block based on:
+    "Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks,
+    https://arxiv.org/abs/1803.02579".
+
+    A 1x1 convolution squeezes the channels into one map, which is passed through a sigmoid and used to
+    recalibrate every spatial location of the input.
+    """
+
+    def __init__(self, spatial_dims: int, in_channels: int) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
+            in_channels: number of input channels.
+        """
+        super().__init__()
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        self.conv = conv_type(in_channels, 1, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
+
+        Returns:
+            The input recalibrated per spatial location, with the same shape as ``x``.
+        """
+        return x * self.sigmoid(self.conv(x))
+
+
+class ChannelSpatialSELayer(nn.Module):
+    """
+    Concurrent spatial and channel squeeze and excitation (scSE) block based on:
+    "Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks,
+    https://arxiv.org/abs/1803.02579".
+
+    The outputs of :py:class:`ChannelSELayer` and :py:class:`SpatialSELayer` are combined with an
+    element-wise maximum.
+    """
+
+    def __init__(self, spatial_dims: int, in_channels: int, r: int = 2) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
+            in_channels: number of input channels.
+            r: the reduction ratio of the channel squeeze. Defaults to 2.
+
+        Raises:
+            ValueError: When ``r`` is nonpositive or larger than ``in_channels``.
+        """
+        super().__init__()
+        self.cse = ChannelSELayer(spatial_dims=spatial_dims, in_channels=in_channels, r=r)
+        self.sse = SpatialSELayer(spatial_dims=spatial_dims, in_channels=in_channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
+
+        Returns:
+            The element-wise maximum of the channel and spatial SE outputs, with the same shape as ``x``.
+        """
+        return torch.max(self.cse(x), self.sse(x))
 
 
 class SEBlock(nn.Module):
