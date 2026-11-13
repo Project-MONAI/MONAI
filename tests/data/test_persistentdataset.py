@@ -203,6 +203,95 @@ class TestDataset(unittest.TestCase):
                 im = test_dataset[0]["image"]
                 self.assertIsInstance(im, expected_type)
 
+    def test_in_memory_cache(self):
+        """`in_memory=True` caches to RAM on top of the disk cache, and rebuilds that RAM cache after a restart."""
+        items = [[list(range(i))] for i in range(5)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            # first "session": every accessed item is written to disk and kept in RAM
+            ds1 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=True)
+            self.assertEqual(ds1.memory_cache_size, 0)
+
+            _ = ds1[0]
+            self.assertEqual(ds1.memory_cache_size, 1)
+
+            _ = list(ds1)
+            self.assertEqual(ds1.memory_cache_size, 5)
+            self.assertEqual(len(list(Path(tempdir).glob("*.pt"))), 5)
+
+            # simulate a restart: the disk cache survives, the RAM cache is rebuilt from it
+            ds2 = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, in_memory=True)
+            self.assertEqual(ds2.memory_cache_size, 0)
+
+            results = [ds2[i] for i in range(len(items))]
+            self.assertEqual(ds2.memory_cache_size, 5)
+            for i, result in enumerate(results):
+                # data[0] = 0 + np.pi, except for the empty item which gets 1 appended
+                expected = [[1]] if i == 0 else [[np.pi] + list(range(1, i))]
+                self.assertEqual(result, expected)
+
+            # repeated access is served from RAM without adding entries
+            self.assertEqual(ds2[0], results[0])
+            self.assertEqual(ds2.memory_cache_size, 5)
+
+            # set_data clears the in-memory cache
+            ds2.set_data(items[:3])
+            self.assertEqual(ds2.memory_cache_size, 0)
+
+    def test_in_memory_mutation_isolation(self):
+        """Mutating a returned item must not corrupt the RAM-cached copy used by later reads."""
+        items = [[list(range(i))] for i in range(3)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            for cache_dir in (None, tempdir):
+                with self.subTest(cache_dir=cache_dir):
+                    ds = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=cache_dir, in_memory=True)
+                    first = ds[2]
+                    self.assertEqual(first, [[np.pi, 1]])
+
+                    first[0].append(999)  # caller mutates the item it was handed
+                    self.assertEqual(ds[2], [[np.pi, 1]])
+
+    def test_in_memory_without_cache_dir(self):
+        """Test in_memory caching works even without a cache_dir (pure RAM cache)."""
+        items = [[list(range(i))] for i in range(3)]
+
+        ds = PersistentDataset(data=items, transform=_InplaceXform(), cache_dir=None, in_memory=True)
+
+        # Memory cache should be empty initially
+        self.assertEqual(ds.memory_cache_size, 0)
+
+        # Access items - they should be cached in memory
+        _ = ds[0]
+        self.assertEqual(ds.memory_cache_size, 1)
+
+        _ = list(ds)
+        self.assertEqual(ds.memory_cache_size, 3)
+
+    def test_in_memory_type_consistency(self):
+        """The RAM cache applies the same convert_to_tensor(..., track_meta=...) normalization as the disk
+        round-trip, so repeated reads of the same index return a tensor type regardless of `in_memory`."""
+
+        class _ToNumpyXform(Transform):
+            def __call__(self, data):
+                data["image"] = np.zeros((2, 2), dtype=np.float32)
+                return data
+
+        data = [dict() for _ in range(2)]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            cache_dirs = {"memory": None, "disk": tempdir}
+            for label, cache_dir in cache_dirs.items():
+                with self.subTest(cache_dir=label):
+                    ds = PersistentDataset(
+                        data=data, transform=_ToNumpyXform(), cache_dir=cache_dir, in_memory=True, track_meta=True
+                    )
+                    # the pre-random transform only ever produces numpy arrays; with in_memory enabled the
+                    # normalized type must match the disk-cache round-trip on every read (not just the first)
+                    types = [type(ds[0]["image"]) for _ in range(3)]
+                    self.assertTrue(all(t is types[0] for t in types), types)
+                    self.assertIsInstance(ds[0]["image"], torch.Tensor, types)
+
     def test_metatensor_loading(self):
         """
         Thorough test of metadata loading correctly with MetaTensor. This will store a MetaTensor with safe object types
