@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks import ChannelSELayer, ResidualSELayer
+from monai.networks.blocks import ChannelSELayer, ChannelSpatialSELayer, ResidualSELayer, SpatialSELayer
 from tests.test_utils import test_script_save
 
 TEST_CASES = [  # single channel 3D, batch 16
@@ -72,6 +72,64 @@ class TestResidualSELayer(unittest.TestCase):
         net = ResidualSELayer(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+
+TEST_CASES_SPATIAL = [
+    [{"spatial_dims": 1, "in_channels": 4}, (16, 4, 63), (16, 4, 63)],
+    [{"spatial_dims": 2, "in_channels": 4}, (7, 4, 64, 48), (7, 4, 64, 48)],
+    [{"spatial_dims": 3, "in_channels": 10}, (2, 10, 32, 24, 48), (2, 10, 32, 24, 48)],
+]
+
+
+class TestSpatialSELayer(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_SPATIAL)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = SpatialSELayer(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    def test_value(self):
+        """The input is scaled by the sigmoid of a single-channel 1x1 convolution."""
+        net = SpatialSELayer(spatial_dims=2, in_channels=3)
+        x = torch.randn(2, 3, 8, 8)
+        with eval_mode(net):
+            result = net(x)
+        expected = x * torch.sigmoid(net.conv(x))
+        self.assertEqual(net.conv.out_channels, 1)
+        self.assertTrue(torch.allclose(result, expected))
+
+    def test_script(self):
+        input_param, input_shape, _ = TEST_CASES_SPATIAL[1]
+        net = SpatialSELayer(**input_param)
+        test_script_save(net, torch.randn(input_shape))
+
+
+class TestChannelSpatialSELayer(unittest.TestCase):
+    @parameterized.expand([[{**p, "r": 2}, i, o] for p, i, o in TEST_CASES_SPATIAL])
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = ChannelSpatialSELayer(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    def test_value(self):
+        """The output is the element-wise maximum of the channel and spatial SE outputs."""
+        net = ChannelSpatialSELayer(spatial_dims=2, in_channels=4)
+        x = torch.randn(2, 4, 8, 8)
+        with eval_mode(net):
+            result = net(x)
+            expected = torch.max(net.cse(x), net.sse(x))
+        self.assertTrue(torch.allclose(result, expected))
+
+    def test_script(self):
+        input_param, input_shape, _ = TEST_CASES_SPATIAL[1]
+        net = ChannelSpatialSELayer(**input_param)
+        test_script_save(net, torch.randn(input_shape))
+
+    def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            ChannelSpatialSELayer(spatial_dims=2, in_channels=4, r=100)
 
 
 if __name__ == "__main__":

@@ -44,11 +44,13 @@ from .spade_norm import SPADE
 from .spatialattention import SpatialAttentionBlock
 from .squeeze_and_excitation import (
     ChannelSELayer,
+    ChannelSpatialSELayer,
     ResidualSELayer,
     SEBlock,
     SEBottleneck,
     SEResNetBottleneck,
     SEResNeXtBottleneck,
+    SpatialSELayer,
 )
 from .transformerblock import TransformerBlock
 from .unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
