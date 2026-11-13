@@ -69,7 +69,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
             Voxels with this label are excluded from the score, which is useful for padding, unlabeled regions,
             or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
-            ignore_index to keep score values comparable.
+            ignore_index to keep score values comparable. For multi-channel (one-hot) input, when
+            ``ignore_index`` names an existing channel that channel's per-image result is ``nan``.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
 
@@ -203,9 +204,19 @@ def compute_average_surface_distance(
             for all images in batch. Defaults to ``None``.
         ignore_index: optional class index used to suppress empty-mask warnings when that class is ignored.
             For federated or aggregated settings, ensure all clients use the same ignore_index to keep score
-            values comparable.
+            values comparable. For multi-channel (one-hot) input, when ``ignore_index`` names an existing
+            channel that channel's per-image result is ``nan``.
         per_component: whether to compute the Surface Distance on a per-connected component basis. Defaults to ``False``.
     """
+
+    # ponytail: capture the channel count before any background-stripping. n_class below
+    # is recomputed post-strip and, for include_background=False, undercounts how many
+    # channels the caller actually passed in (e.g. a true 2-channel one-hot input becomes
+    # n_class==1 after dropping the background channel) -- using the post-strip count to
+    # decide whether ignore_index names a real one-hot channel wrongly treated a genuinely
+    # multi-channel ignore_index as the single-channel/label-encoded case, letting the
+    # ignored channel's (masked-to-empty) ground truth leak `inf` into the aggregate again.
+    orig_n_channels = y_pred.shape[1]
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
@@ -225,6 +236,18 @@ def compute_average_surface_distance(
     class_offset = 0 if include_background else 1
 
     for b, c in np.ndindex(batch_size, n_class):
+        absolute_c = c + class_offset
+        if ignore_index is not None and absolute_c == ignore_index and orig_n_channels > 1:
+            # ponytail: mirror compute_hausdorff_distance's early-exit for the ignored
+            # channel instead of letting get_edge_surface_distance run on a ground truth
+            # that create_ignore_mask has zeroed out (which produced `inf`, not `nan`,
+            # and was silently included by do_metric_reduction). Only for multi-channel
+            # (one-hot) input does `ignore_index` name a specific channel to drop entirely;
+            # for single-channel (label-encoded) input it is a value-based spatial mask
+            # already applied via create_ignore_mask, and the lone channel is still the
+            # score being requested, so it must not be forced to nan.
+            asd[b, c] = torch.tensor(float("nan"), device=asd.device)
+            continue
         yp = y_pred[b, c]
         yt = y[b, c]
         if per_component:
@@ -267,7 +290,6 @@ def compute_average_surface_distance(
                 )
             asd[b, c] = torch.nanmean(torch.stack(component_scores)) if component_scores else 0.0
         else:
-            absolute_c = c + class_offset
             warn_empty = ignore_index is None or absolute_c != ignore_index
             _, distances, _ = get_edge_surface_distance(
                 yp,

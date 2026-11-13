@@ -235,6 +235,71 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         result = sd_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
+    def test_ignore_index_excludes_channel_like_hausdorff(self):
+        # Regression test: SurfaceDistanceMetric used to leave the ignored channel as `inf`
+        # (included by do_metric_reduction, poisoning the aggregate) instead of `nan` like
+        # HausdorffDistanceMetric, because compute_average_surface_distance was missing the
+        # early-exit that compute_hausdorff_distance has for `absolute_c == ignore_index`.
+        y = torch.zeros((2, 3, 16, 16))
+        y_pred = torch.zeros((2, 3, 16, 16))
+        y[:, 1, 4:8, 4:8] = 1
+        y[:, 2, 8:12, 8:12] = 1
+        y[:, 0] = 1 - y[:, 1:].sum(dim=1)
+        y_pred[:, 1, 5:9, 5:9] = 1
+        y_pred[:, 2, 8:12, 8:12] = 1
+        y_pred[:, 0] = 1 - y_pred[:, 1:].sum(dim=1)
+
+        sd_metric = SurfaceDistanceMetric(include_background=True, ignore_index=1, reduction="mean")
+        sd_metric(y_pred, y)
+
+        sd_buffer = sd_metric.get_buffer()
+        self.assertTrue(torch.isnan(sd_buffer[:, 1]).all(), f"ignored channel should be nan, got {sd_buffer[:, 1]}")
+        sd_result = sd_metric.aggregate()
+        self.assertTrue(torch.isfinite(sd_result).all(), f"aggregate should not be inf/nan, got {sd_result}")
+
+    def test_ignore_index_single_channel_does_not_blank_the_only_score(self):
+        # Regression test: for single-channel (label-encoded) binary input, `ignore_index`
+        # is a value-based spatial mask (handled by create_ignore_mask before this loop
+        # runs), not a request to drop an entire one-hot channel. With include_background=
+        # True and ignore_index=0, `absolute_c == ignore_index` was true for the only
+        # channel (c=0), so the unconditional early-exit forced that channel to nan for
+        # every image, which do_metric_reduction's all-nan convention then silently
+        # reduces to 0 -- reporting a perfect score regardless of the actual prediction.
+        y = torch.zeros((2, 1, 16, 16))
+        y_pred = torch.zeros((2, 1, 16, 16))
+        y[:, 0, 4:8, 4:8] = 1
+        y_pred[:, 0, 5:9, 5:9] = 1  # off by one voxel, partially overlapping the ground truth
+
+        sd_metric = SurfaceDistanceMetric(include_background=True, ignore_index=0, reduction="mean")
+        sd_metric(y_pred, y)
+        result = sd_metric.aggregate()
+        self.assertFalse(torch.isnan(result).any(), f"expected a real distance, got {result}")
+        self.assertFalse(torch.isinf(result).any(), f"expected a finite distance, got {result}")
+        self.assertGreater(result.item(), 0.0, "an imperfect prediction must not score as perfect (0)")
+
+    def test_ignore_index_two_channel_exclude_background_still_excludes_channel(self):
+        # Regression test: n_class is computed AFTER ignore_background strips the
+        # background channel (for include_background=False), so a genuinely two-channel
+        # one-hot input (background + foreground) collapses to n_class == 1 post-strip.
+        # Guarding the early-exit on that post-strip count wrongly treated this as the
+        # single-channel/label-encoded case and skipped it, letting the ignored
+        # (masked-to-empty) foreground channel's ground truth leak `inf` into the
+        # aggregate again whenever the prediction had a false positive outside the true
+        # foreground region. The guard must use the channel count from BEFORE stripping.
+        y = torch.zeros((2, 2, 16, 16))
+        y_pred = torch.zeros((2, 2, 16, 16))
+        y[:, 1, 4:8, 4:8] = 1
+        y[:, 0] = 1 - y[:, 1]
+        y_pred[:, 1, 10:14, 10:14] = 1  # false positive entirely outside the true foreground
+        y_pred[:, 0] = 1 - y_pred[:, 1]
+
+        sd_metric = SurfaceDistanceMetric(include_background=False, ignore_index=1, reduction="mean")
+        sd_metric(y_pred, y)
+        sd_buffer = sd_metric.get_buffer()
+        self.assertTrue(torch.isnan(sd_buffer).all(), f"ignored channel should be nan, got {sd_buffer}")
+        result = sd_metric.aggregate()
+        self.assertTrue(torch.isfinite(result).all(), f"aggregate should not be inf, got {result}")
+
     def test_channel_dimensions(self):
         with self.assertRaises(ValueError):
             SurfaceDistanceMetric(per_component=True)(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 144, 144]))
