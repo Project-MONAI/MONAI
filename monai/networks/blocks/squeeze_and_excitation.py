@@ -152,6 +152,9 @@ class SpatialSELayer(nn.Module):
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
+
+        Returns:
+            The input recalibrated per spatial location, with the same shape as ``x``.
         """
         return x * self.sigmoid(self.conv(x))
 
@@ -172,6 +175,9 @@ class ChannelSpatialSELayer(nn.Module):
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
             in_channels: number of input channels.
             r: the reduction ratio of the channel squeeze. Defaults to 2.
+
+        Raises:
+            ValueError: When ``r`` is nonpositive or larger than ``in_channels``.
         """
         super().__init__()
         self.cse = ChannelSELayer(spatial_dims=spatial_dims, in_channels=in_channels, r=r)
@@ -181,6 +187,9 @@ class ChannelSpatialSELayer(nn.Module):
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
+
+        Returns:
+            The element-wise maximum of the channel and spatial SE outputs, with the same shape as ``x``.
         """
         return torch.max(self.cse(x), self.sse(x))
 

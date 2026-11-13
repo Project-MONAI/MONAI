@@ -82,8 +82,17 @@ TEST_CASES_SPATIAL = [
 
 
 class TestSpatialSELayer(unittest.TestCase):
+    """Test the spatial squeeze and channel excitation layer."""
+
     @parameterized.expand(TEST_CASES_SPATIAL)
     def test_shape(self, input_param, input_shape, expected_shape):
+        """Verify the output keeps the input shape.
+
+        Args:
+            input_param: constructor arguments for the layer.
+            input_shape: shape of the random input tensor.
+            expected_shape: expected shape of the output.
+        """
         net = SpatialSELayer(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
@@ -100,14 +109,24 @@ class TestSpatialSELayer(unittest.TestCase):
         self.assertTrue(torch.allclose(result, expected))
 
     def test_script(self):
+        """Verify the layer can be saved with TorchScript."""
         input_param, input_shape, _ = TEST_CASES_SPATIAL[1]
         net = SpatialSELayer(**input_param)
         test_script_save(net, torch.randn(input_shape))
 
 
 class TestChannelSpatialSELayer(unittest.TestCase):
+    """Test the concurrent spatial and channel squeeze and excitation layer."""
+
     @parameterized.expand([[{**p, "r": 2}, i, o] for p, i, o in TEST_CASES_SPATIAL])
     def test_shape(self, input_param, input_shape, expected_shape):
+        """Verify the output keeps the input shape.
+
+        Args:
+            input_param: constructor arguments for the layer.
+            input_shape: shape of the random input tensor.
+            expected_shape: expected shape of the output.
+        """
         net = ChannelSpatialSELayer(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
@@ -123,11 +142,13 @@ class TestChannelSpatialSELayer(unittest.TestCase):
         self.assertTrue(torch.allclose(result, expected))
 
     def test_script(self):
+        """Verify the layer can be saved with TorchScript."""
         input_param, input_shape, _ = TEST_CASES_SPATIAL[1]
         net = ChannelSpatialSELayer(**input_param)
         test_script_save(net, torch.randn(input_shape))
 
     def test_ill_arg(self):
+        """Verify a reduction ratio larger than the channel count is rejected."""
         with self.assertRaises(ValueError):
             ChannelSpatialSELayer(spatial_dims=2, in_channels=4, r=100)
 
