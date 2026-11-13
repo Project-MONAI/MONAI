@@ -37,7 +37,7 @@ from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Any
-from urllib.error import ContentTooShortError, HTTPError
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
@@ -75,7 +75,7 @@ TESTS_PATH = MODULE_PATH / "tests"
 
 TESTING_DATA_PATH = TESTS_PATH / "testing_data"
 
-DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, HTTPError, ConnectionError)
+DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, URLError, HTTPError, ConnectionError)
 if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
 if has_gdown:

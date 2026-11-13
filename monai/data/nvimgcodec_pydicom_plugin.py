@@ -67,10 +67,14 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     """Register the nvImageCodec pydicom decoder plugin."""
     if not is_nvimgcodec_available():
         _logger.debug("nvImageCodec is not available; skipping pydicom decoder plugin registration.")
-        return False
-    if not has_pydicom_plugin:
-        return False
-    return bool(pydicom_plugin.register(module_path))
+    elif not has_pydicom_plugin:
+        _logger.debug("nvImageCodec does not have pydicom_plugin; skipping pydicom decoder plugin registration.")
+    elif not bool(pydicom_plugin.register(module_path)):
+        _logger.debug("nvImageCodec pydicom_plugin failed to register; skipping pydicom decoder plugin registration.")
+    else:
+        return True  # every check and register() succeeded
+
+    return False 
 
 
 def unregister_as_decoder_plugin() -> bool:

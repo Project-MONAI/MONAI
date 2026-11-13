@@ -71,7 +71,7 @@ jobs:
         python -m pip install --pre -U itk  # TODO: needed?
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
-        python -m pip install --no-build-isolation -e .[all,testing]
+        python -m pip install --no-build-isolation torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1} -e .[all,testing,nvimgcodec]
       shell: bash
     - name: Run (almost) all tests
       run: |
