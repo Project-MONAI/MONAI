@@ -37,7 +37,7 @@ from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Any
-from urllib.error import ContentTooShortError, HTTPError
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
@@ -71,7 +71,11 @@ warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 
-DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, HTTPError, ConnectionError)
+TESTS_PATH = MODULE_PATH / "tests"
+
+TESTING_DATA_PATH = TESTS_PATH / "testing_data"
+
+DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, URLError, HTTPError, ConnectionError)
 if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
 if has_gdown:
@@ -94,7 +98,7 @@ DOWNLOAD_FAIL_MSGS = (
 def testing_data_config(*keys):
     """get _test_data_config[keys0][keys1]...[keysN]"""
     if not _test_data_config:
-        with open(f"{MODULE_PATH}/tests/testing_data/data_config.json") as c:
+        with open(f"{TESTING_DATA_PATH}/data_config.json") as c:
             _config = json.load(c)
             for k, v in _config.items():
                 _test_data_config[k] = v

@@ -51,7 +51,7 @@ class Trainer(Workflow):
         If call this function multiple times, it will continuously run from the previous state.
 
         """
-        self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
+        self.scaler = torch.amp.GradScaler() if self.amp else None
         super().run()
 
     def get_stats(self, *vars):
@@ -613,8 +613,8 @@ class AdversarialTrainer(Trainer):
         self.g_inferer = SimpleInferer() if g_inferer is None else g_inferer
         self.d_inferer = SimpleInferer() if d_inferer is None else d_inferer
 
-        self.state.g_scaler = torch.cuda.amp.GradScaler() if self.amp else None
-        self.state.d_scaler = torch.cuda.amp.GradScaler() if self.amp else None
+        self.state.g_scaler = torch.amp.GradScaler() if self.amp else None
+        self.state.d_scaler = torch.amp.GradScaler() if self.amp else None
 
         self.optim_set_to_none = optim_set_to_none
         self._complete_state_dict_user_keys()

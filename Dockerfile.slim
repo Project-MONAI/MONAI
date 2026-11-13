@@ -62,7 +62,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
 
 RUN apt update && apt upgrade -y && \
-    ${APT_INSTALL} ca-certificates  python-is-python3 git libopenslide0 && \
+    ${APT_INSTALL} ca-certificates python-is-python3 python3-dev git libopenslide0 build-essential && \
     apt clean && \
     rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/*
 
@@ -87,3 +87,5 @@ ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 ENV CUDA_HOME=/usr/local/cuda
 ENV BUILD_MONAI=1
+# new Triton default to use now?
+ENV TRITON_DEFAULT_FP_FUSION=0

@@ -96,8 +96,8 @@ class TestNvImgCodecPydicomPlugin(unittest.TestCase):
         self.assertEqual(set(DICOM_READER_ENV_MAP.keys()), {"itk", "pydicom", "nvimgcodec"})
 
 
+@SkipIfNoModule("pydicom")
 class TestNvImgCodecPydicomReader(unittest.TestCase):
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     def test_reader_registers_plugin_lazily(self, _mock_available, mock_register):
@@ -112,7 +112,6 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
 
         mock_register.assert_called_once()
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     def test_reader_does_not_register_plugin_for_non_dicom(self, _mock_available, mock_register):
@@ -122,7 +121,6 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
         self.assertFalse(reader.verify_suffix("x.png"))
         mock_register.assert_not_called()
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_verify_suffix_without_nvimgcodec(self, _mock_available):
         from monai.data import NvImgCodecPydicomReader
@@ -130,7 +128,6 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
         reader = NvImgCodecPydicomReader()
         self.assertFalse(reader.verify_suffix("tests/testing_data/CT_DICOM"))
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     def test_verify_suffix_with_nvimgcodec(self, _mock_available):
         from monai.data import NvImgCodecPydicomReader
@@ -139,7 +136,6 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
         self.assertTrue(reader.verify_suffix("tests/testing_data/CT_DICOM"))
         self.assertFalse(reader.verify_suffix("tests/testing_data/test_image.nii.gz"))
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     def test_to_gpu_ignored(self, _mock_available, _mock_register):
@@ -154,8 +150,8 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
         self.assertFalse(reader.to_gpu)
 
 
+@SkipIfNoModule("pydicom")
 class TestLoadImageDicomReaderEnv(unittest.TestCase):
-    @SkipIfNoModule("pydicom")
     def test_load_image_respects_dicom_reader_env(self):
         with patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"}):
             loader = LoadImage(image_only=True)
@@ -164,7 +160,6 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             # Other DICOM readers from SUPPORTED_READERS remain when their deps are available.
             self.assertTrue(any(name != "PydicomReader" for name in reader_types))
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
     def test_load_image_nvimgcodec_env(self, _mock_register, _mock_available):
@@ -173,7 +168,6 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             reader_types = [type(r).__name__ for r in loader.readers]
             self.assertEqual(reader_types[-1], "NvImgCodecPydicomReader")
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=False)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_load_image_nvimgcodec_env_unavailable_auto_select(self, _mock_available, _mock_register):
@@ -195,8 +189,8 @@ class TestLoadImageDicomReaderEnv(unittest.TestCase):
             self.assertIsNotNone(img)
 
 
+@SkipIfNoModule("pydicom")
 class TestNvImgCodecPluginRegistration(unittest.TestCase):
-    @SkipIfNoModule("pydicom")
     @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
     def test_register_as_decoder_plugin(self, _mock_available):
@@ -213,14 +207,12 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
         self.assertTrue(unregister_as_decoder_plugin())
         self.assertNotIn(NVIMGCODEC_PLUGIN_LABEL, JPEGBaseline8BitDecoder.available_plugins)
 
-    @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_register_without_nvimgcodec(self, _mock_available):
         from monai.data.nvimgcodec_pydicom_plugin import register_as_decoder_plugin
 
         self.assertFalse(register_as_decoder_plugin())
 
-    @SkipIfNoModule("pydicom")
     @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     def test_is_nvimgcodec_available_with_cuda(self):
         from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available
@@ -232,13 +224,13 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
             self.assertTrue(is_available(SUPPORTED_TRANSFER_SYNTAXES[0]))
 
 
+@SkipIfNoModule("pydicom")
+@SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
-    @SkipIfNoModule("pydicom")
-    @SkipIfNoModule("pylibjpeg")
-    @SkipIfNoModule("openjpeg")  # pylibjpeg-openjpeg
-    @SkipIfNoModule("jpeg_ls")  # pyjpegls
-    @SkipIfNoModule("gdcm")  # python-gdcm
-    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
+    # @SkipIfNoModule("pylibjpeg")
+    # @SkipIfNoModule("openjpeg")  # pylibjpeg-openjpeg
+    # @SkipIfNoModule("jpeg_ls")  # pyjpegls
+    # @SkipIfNoModule("gdcm")  # python-gdcm
     def test_pixels_match_pydicom_reader(self):
         from pydicom import dcmread
         from pydicom.data import get_testdata_file
@@ -254,6 +246,8 @@ class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
 
         if not is_nvimgcodec_available():
             self.skipTest("nvImageCodec with CUDA support is not available.")
+
+        self.assertGreater(len(SUPPORTED_DECODER_CLASSES), 0, f"{SUPPORTED_DECODER_CLASSES=} is empty.")
 
         # One bundled pydicom decoder test file for each nvImageCodec-supported
         # transfer syntax for which pydicom ships a local sample.
@@ -293,6 +287,8 @@ class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
                         decoder._available = {}
 
                     nvimgcodec_reader = NvImgCodecPydicomReader()
+                    nvimgcodec_reader._ensure_setup()  # called in a lazy way, forced here for the following tests
+
                     decoder = next(
                         decoder for decoder in SUPPORTED_DECODER_CLASSES if str(decoder.UID) == transfer_syntax
                     )
@@ -314,15 +310,11 @@ class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
                 f" Failures: {failure_details}"
             )
 
-    @SkipIfNoModule("pydicom")
-    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
+    @patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"})
     def test_load_dicom_with_pydicom_env(self):
-        with patch.dict(os.environ, {"MONAI_DICOM_READER": "pydicom"}):
-            result = LoadImage(image_only=True)("tests/testing_data/CT_DICOM")
-            self.assertEqual(tuple(result.shape), (16, 16, 4))
+        result = LoadImage(image_only=True)("tests/testing_data/CT_DICOM")
+        self.assertEqual(tuple(result.shape), (16, 16, 4))
 
-    @SkipIfNoModule("pydicom")
-    @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=False)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)
     def test_load_dicom_with_nvimgcodec_reader_fallback(self, _mock_available, _mock_register):
