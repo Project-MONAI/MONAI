@@ -62,15 +62,6 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VER1 }}
         cache: 'pip'
-    - name: Install CUDA
-      run: |
-        sudo apt update
-        sudo apt upgrade -y
-        sudo apt install --no-install-recommends -y ca-certificates git wget
-        wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
-        sudo dpkg -i cuda-keyring_1.1-1_all.deb
-        sudo apt update
-        sudo apt install --no-install-recommends -y cuda-toolkit-13-3
       env:
         DEBIAN_FRONTEND: 'noninteractive'
     - name: Install the complete dependencies
@@ -105,15 +96,6 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VER1 }}
         cache: 'pip'
-    - name: Install CUDA
-      run: |
-        sudo apt update
-        sudo apt upgrade -y
-        sudo apt install --no-install-recommends -y ca-certificates git wget
-        wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
-        sudo dpkg -i cuda-keyring_1.1-1_all.deb
-        sudo apt update
-        sudo apt install --no-install-recommends -y cuda-toolkit-13-3
       env:
         DEBIAN_FRONTEND: 'noninteractive'
     - name: Install the complete dependencies
