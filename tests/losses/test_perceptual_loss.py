@@ -106,7 +106,10 @@ class TestPerceptualLoss(unittest.TestCase):
             loss = PerceptualLoss(**input_param, use_compile=False)
             compiled_loss = PerceptualLoss(**input_param, use_compile=True)
         x, y = torch.randn(input_shape), torch.randn(target_shape)
-        assert_allclose(compiled_loss(x, y), loss(x, y), rtol=1e-4)
+        torch.manual_seed(0)
+        compiled_output = compiled_loss(x, y)
+        torch.manual_seed(0)
+        assert_allclose(compiled_output, loss(x, y), rtol=1e-4)
 
     def test_different_shape(self):
         with skip_if_downloading_fails():
