@@ -25,6 +25,6 @@ from .inferer import (
     SlidingWindowInfererAdapt,
     VQVAETransformerInferer,
 )
-from .merger import AvgMerger, Merger, ZarrAvgMerger
+from .merger import AvgMerger, Merger, StreamingSlabAvgMerger, ZarrAvgMerger
 from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
 from .utils import sliding_window_inference
