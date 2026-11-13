@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import FBetaScore
+from monai.metrics.f_beta_score import get_f_beta_score
 from tests.test_utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -74,6 +75,23 @@ class TestFBetaScore(unittest.TestCase):
         metric = FBetaScore()
         with self.assertRaises(ValueError):
             metric(y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1]]), y=torch.Tensor([1, 1, 1]))
+
+
+class TestFBetaScoreLargeVolume(unittest.TestCase):
+    def test_counts_are_exact_above_float32_integer_range(self):
+        """False positives and negatives are not lost when a sample has more than 2**24 voxels."""
+        # uint8 keeps the test light; the counting path is the same for float inputs.
+        y_pred = torch.zeros(1, 1, 4096, 4098, dtype=torch.uint8)
+        y = torch.zeros_like(y_pred)
+        y_pred[0, 0, 0, :100] = 1
+        y[0, 0, 0, :101] = 1
+        y_pred[0, 0, 1, 0] = 1
+        self.assertGreater(y[0, 0].numel(), 2**24)
+
+        result = get_f_beta_score(y_pred, y)
+
+        # [tp, fp, tn, fn]
+        self.assertEqual(result[0, 0, [0, 1, 3]].tolist(), [100, 1, 1])
 
 
 if __name__ == "__main__":

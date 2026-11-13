@@ -86,6 +86,28 @@ def ignore_background(
     return y_pred, y
 
 
+def _exact_sum(x: torch.Tensor) -> torch.Tensor:
+    """
+    Sum the last dimension of ``x`` so that integer counts stay exact in large volumes.
+
+    float32 holds integers exactly only up to 2**24, so one float32 sum over a large volume can lose counts.
+    This function sums chunks of at most 2**24 values (exact for 0/1 values, and as fast as one sum) and adds
+    the chunk sums in float64. NaN and non-binary values give the same result as a plain sum.
+    MPS has no float64, so there the chunk sums are added in float32, which is exact only up to 2**24.
+
+    Args:
+        x: tensor with the values to sum in the last dimension, for example [B, C, S].
+
+    Returns:
+        The sums, in float64 (float32 on MPS).
+    """
+    # Sum in at least float32: float16 holds integers exactly only up to 2048 and overflows above 65504.
+    sum_dtype = torch.promote_types(x.dtype, torch.float32) if x.is_floating_point() else None
+    chunk_sums = torch.stack([chunk.sum(dim=-1, dtype=sum_dtype) for chunk in x.split(2**24, dim=-1)], dim=-1)
+    total_dtype = torch.float32 if x.device.type == "mps" else torch.float64
+    return chunk_sums.to(total_dtype).sum(dim=-1)
+
+
 def create_ignore_mask(y: torch.Tensor, ignore_index: int | None) -> torch.Tensor | None:
     """
     Create a spatial mask for ignore_index functionality.
