@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
@@ -59,8 +60,10 @@ def import_bundle_algo_history(
         if best_metric is None:
             try:
                 best_metric = algo.get_score()
-            except Exception:
-                pass
+            except Exception as e:
+                # a missing score is normal for an untrained algo; anything else means the directory
+                # could not be read as one, which is worth surfacing rather than swallowing
+                logging.warning(f"Could not read the validation score of {name!r} in {output_folder}: {e}")
 
         is_trained = best_metric is not None
 
