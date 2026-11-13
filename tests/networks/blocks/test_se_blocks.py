@@ -54,9 +54,15 @@ class TestChannelSELayer(unittest.TestCase):
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
 
-    def test_ill_arg(self):
+    @parameterized.expand([[100], [0], [-1]])
+    def test_ill_arg(self, r):
+        """Verify a nonpositive reduction ratio, or one larger than the channel count, is rejected.
+
+        Args:
+            r: the invalid reduction ratio.
+        """
         with self.assertRaises(ValueError):
-            ChannelSELayer(spatial_dims=1, in_channels=4, r=100)
+            ChannelSELayer(spatial_dims=1, in_channels=4, r=r)
 
 
 class TestResidualSELayer(unittest.TestCase):
@@ -147,10 +153,15 @@ class TestChannelSpatialSELayer(unittest.TestCase):
         net = ChannelSpatialSELayer(**input_param)
         test_script_save(net, torch.randn(input_shape))
 
-    def test_ill_arg(self):
-        """Verify a reduction ratio larger than the channel count is rejected."""
+    @parameterized.expand([[100], [0]])
+    def test_ill_arg(self, r):
+        """Verify an invalid reduction ratio is rejected.
+
+        Args:
+            r: the invalid reduction ratio.
+        """
         with self.assertRaises(ValueError):
-            ChannelSpatialSELayer(spatial_dims=2, in_channels=4, r=100)
+            ChannelSpatialSELayer(spatial_dims=2, in_channels=4, r=r)
 
 
 if __name__ == "__main__":

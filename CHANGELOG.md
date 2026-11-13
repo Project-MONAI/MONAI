@@ -4,6 +4,11 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+* `SpatialSELayer` and `ChannelSpatialSELayer` in `monai.networks.blocks`: spatial (sSE) and concurrent spatial and channel (scSE) squeeze-and-excitation layers for 1D, 2D and 3D inputs, based on ["Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks"](https://arxiv.org/abs/1803.02579). (#9278)
+### Fixed
+* `Quicknat` no longer depends on the unpublished `squeeze_and_excitation` package for `se_block="SSE"` and `"CSSE"`. Checkpoints saved with that package for these two options use different `state_dict` keys and will not load strictly. (#9276)
+* `ChannelSELayer` raises `ValueError` instead of `ZeroDivisionError` when `r=0`.
 
 
 ## [1.6.1] - 2026-09-25
