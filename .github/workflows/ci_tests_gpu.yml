@@ -50,8 +50,8 @@ env:
 
 jobs:
 
-  full-dep-gpu:  # Test with full dependencies installed for different OS runners
-    runs-on: [self-hosted, linux, gpu] #ubuntu-24.04-gpu]
+  full-dep-gpu: 
+    runs-on: [self-hosted, linux, gpu]
     strategy:
       fail-fast: false
     timeout-minutes: 360
@@ -62,10 +62,6 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VER1 }}
         cache: 'pip'
-    - name: Prepare pip wheel
-      run: |
-        which python
-        python -m pip install --upgrade pip wheel
     - name: Install CUDA
       run: |
         sudo apt update
@@ -77,16 +73,11 @@ jobs:
         sudo apt install --no-install-recommends -y cuda-toolkit-13-3
       env:
         DEBIAN_FRONTEND: 'noninteractive'
-
-    - name: Install torch gpu
-      run: |
-        # install the lowest version of PyTorch supported
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
-      shell: bash
     - name: Install the complete dependencies
       run: |
-        python -m pip install --pre -U itk
-        python -m pip install --user --upgrade pip wheel tomli wheel_stub
+        python -m pip install --upgrade pip wheel wheel_stub
+        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        python -m pip install --pre -U itk  # TODO: needed?
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
         python -m pip install --no-build-isolation -e .[all,testing,hyena,nvimgcodec]
@@ -101,6 +92,38 @@ jobs:
       #   NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       #   NGC_ORG: ${{ secrets.NGC_ORG }}
       #   NGC_TEAM: ${{ secrets.NGC_TEAM }}
+
+  full-dep-gpu-hyena: 
+    runs-on: [self-hosted, linux, gpu] 
+    strategy:
+      fail-fast: false
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python ${{ env.PYTHON_VER1 }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VER1 }}
+        cache: 'pip'
+    - name: Install CUDA
+      run: |
+        sudo apt update
+        sudo apt upgrade -y
+        sudo apt install --no-install-recommends -y ca-certificates git wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
+        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+        sudo apt update
+        sudo apt install --no-install-recommends -y cuda-toolkit-13-3
+      env:
+        DEBIAN_FRONTEND: 'noninteractive'
+    - name: Install the complete dependencies
+      run: |
+        python -m pip install --upgrade pip wheel wheel_stub
+        python -m pip install torch==${PYTORCH_VER3} torchvision
+        python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
+        # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
+        python -m pip install --no-build-isolation -e .[testing,hyena]
+      shell: bash
     - name: Run Hyena tests
       run: |
         python -c "from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
