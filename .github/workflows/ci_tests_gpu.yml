@@ -80,7 +80,7 @@ jobs:
         python -m pip install --pre -U itk  # TODO: needed?
         python monai/config/print_dependencies.py build-system | xargs pip install --no-build-isolation
         # tests below use the MONAI in the current directory, -e ensures the compiled code stays there and is found
-        python -m pip install --no-build-isolation -e .[all,testing,nvimgcodec]
+        python -m pip install --no-build-isolation -e .[all,testing]
       shell: bash
     - name: Run (almost) all tests
       run: |
