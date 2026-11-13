@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import warnings
 from copy import deepcopy
@@ -804,22 +805,21 @@ class AutoRunner:
 
             # pyrefly: ignore [redundant-cast]
             max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
-            cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+            cmd = ["nnictl", "create", "--config", nni_config_filename, "--port", "8088"]
 
             if mode_dry_run:
-                logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {shlex.join(cmd)}")
                 continue
 
-            run_cmd(cmd.split(), check=True)
+            run_cmd(cmd, check=True)
 
             n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
             while n_trainings - last_total_tasks < max_trial:
                 sleep(1)
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
-            cmd = "nnictl stop --all"
             # pyrefly: ignore [bad-argument-type]
-            run_cmd(cmd.split(), check=True)
+            run_cmd(["nnictl", "stop", "--all"], check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings
 

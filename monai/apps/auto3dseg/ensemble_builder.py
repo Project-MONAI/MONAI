@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
@@ -628,16 +629,19 @@ class EnsembleRunner:
             return
 
         # define base cmd for subprocess
-        base_cmd = f"monai.apps.auto3dseg EnsembleRunner ensemble \
-                --data_src_cfg_name {self.data_src_cfg_name} \
-                --work_dir {self.work_dir} \
-                --num_fold {self.num_fold} \
-                --ensemble_method_name {self.ensemble_method_name} \
-                --mgpu True"
+        # every value is shell-quoted so it stays a single argument when the command is split
+        base_cmd = (
+            "monai.apps.auto3dseg EnsembleRunner ensemble"
+            f" --data_src_cfg_name {shlex.quote(str(self.data_src_cfg_name))}"
+            f" --work_dir {shlex.quote(str(self.work_dir))}"
+            f" --num_fold {shlex.quote(str(self.num_fold))}"
+            f" --ensemble_method_name {shlex.quote(str(self.ensemble_method_name))}"
+            " --mgpu True"
+        )
 
         if self.kwargs and isinstance(self.kwargs, Mapping):
             for k, v in self.kwargs.items():
-                base_cmd += f" --{k}={v}"
+                base_cmd += " " + shlex.quote(f"--{k}={v}")
         # define env for subprocess
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
