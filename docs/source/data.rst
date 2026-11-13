@@ -227,6 +227,11 @@ Utilities
 .. automodule:: monai.data.utils
   :members:
 
+Exported programs
+~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.save_exported_program
+.. autofunction:: monai.data.load_exported_program
+
 Partition Dataset
 ~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.partition_dataset
