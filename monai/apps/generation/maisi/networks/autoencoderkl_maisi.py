@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import gc
 import logging
+import warnings
 from collections.abc import Sequence
 
 import torch
@@ -34,6 +34,52 @@ def _empty_cuda_cache(save_mem: bool) -> None:
     return
 
 
+def _validate_concat_memory_margin(concat_memory_margin: int | None) -> None:
+    if concat_memory_margin is not None and (
+        isinstance(concat_memory_margin, bool) or not isinstance(concat_memory_margin, int) or concat_memory_margin < 0
+    ):
+        raise ValueError("concat_memory_margin must be a nonnegative integer number of bytes or None.")
+
+
+def _concatenate_with_cpu_fallback(
+    tensors: list[torch.Tensor], dim: int, save_mem: bool = True, concat_memory_margin: int | None = None
+) -> torch.Tensor:
+    """Concatenate on the input device, offloading CUDA tensors when necessary.
+
+    The optional margin compares the output allocation plus the margin with a snapshot of free CUDA memory.
+    CPU offloading replaces the input list entries to release their CUDA storage where possible.
+    """
+    target_device = tensors[0].device
+    if target_device.type != "cuda":
+        return torch.cat(tensors, dim=dim)
+
+    offload = False
+    if concat_memory_margin is not None:
+        output_dtype = tensors[0].dtype
+        for index in range(1, len(tensors)):
+            output_dtype = torch.promote_types(output_dtype, tensors[index].dtype)
+        element_size = torch.empty((), dtype=output_dtype, device="cpu").element_size()
+        output_bytes = sum(tensor.numel() for tensor in tensors) * element_size
+        free_bytes, _ = torch.cuda.mem_get_info(target_device)
+        offload = output_bytes + concat_memory_margin > free_bytes
+
+    if not offload:
+        try:
+            return torch.cat(tensors, dim=dim)
+        except torch.cuda.OutOfMemoryError:
+            warnings.warn(
+                "CUDA concatenation ran out of memory; falling back to CPU. This may reduce performance.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+
+    # Leave the exception handler before releasing CUDA tensors so its traceback cannot keep them alive.
+    for index in range(len(tensors)):
+        tensors[index] = tensors[index].to("cpu")
+    _empty_cuda_cache(save_mem)
+    return torch.cat(tensors, dim=dim).to(target_device)
+
+
 class MaisiGroupNorm3D(nn.GroupNorm):
     """
     Custom 3D Group Normalization with optional print_info output.
@@ -46,6 +92,8 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -57,11 +105,15 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         norm_float16: bool = False,
         print_info: bool = False,
         save_mem: bool = True,
+        *,
+        concat_memory_margin: int | None = None,
     ):
+        _validate_concat_memory_margin(concat_memory_margin)
         super().__init__(num_groups, num_channels, eps, affine)
         self.norm_float16 = norm_float16
         self.print_info = print_info
         self.save_mem = save_mem
+        self.concat_memory_margin = concat_memory_margin
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.print_info:
@@ -86,7 +138,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         del input
         _empty_cuda_cache(self.save_mem)
 
-        input = torch.cat(inputs, dim=1) if max(inputs[0].size()) < 500 else self._cat_inputs(inputs)
+        input = self._cat_inputs(inputs)
 
         input = input.view(param_n, param_c, param_d, param_h, param_w)
         if self.affine:
@@ -97,22 +149,8 @@ class MaisiGroupNorm3D(nn.GroupNorm):
 
         return input
 
-    def _cat_inputs(self, inputs):
-        input_type = inputs[0].device.type
-        input = inputs[0].clone().to("cpu", non_blocking=True) if input_type == "cuda" else inputs[0].clone()
-        inputs[0] = 0
-        _empty_cuda_cache(self.save_mem)
-
-        for k in range(len(inputs) - 1):
-            input = torch.cat((input, inputs[k + 1].cpu()), dim=1)
-            inputs[k + 1] = 0
-            _empty_cuda_cache(self.save_mem)
-            gc.collect()
-
-            if self.print_info:
-                logger.info(f"MaisiGroupNorm3D concat progress: {k + 1}/{len(inputs) - 1}.")
-
-        return input.to("cuda", non_blocking=True) if input_type == "cuda" else input
+    def _cat_inputs(self, inputs: list[torch.Tensor]) -> torch.Tensor:
+        return _concatenate_with_cpu_fallback(inputs, 1, self.save_mem, self.concat_memory_margin)
 
 
 class MaisiConvolution(nn.Module):
@@ -127,6 +165,8 @@ class MaisiConvolution(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
         Additional arguments for the convolution operation.
         https://monai.readthedocs.io/en/stable/networks.html#convolution
     """
@@ -154,7 +194,10 @@ class MaisiConvolution(nn.Module):
         is_transposed: bool = False,
         padding: Sequence[int] | int | None = None,
         output_padding: Sequence[int] | int | None = None,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
+        _validate_concat_memory_margin(concat_memory_margin)
         super().__init__()
         self.conv = Convolution(
             spatial_dims=spatial_dims,
@@ -181,6 +224,7 @@ class MaisiConvolution(nn.Module):
         self.num_splits = num_splits
         self.print_info = print_info
         self.save_mem = save_mem
+        self.concat_memory_margin = concat_memory_margin
 
     def _split_tensor(self, x: torch.Tensor, split_size: int, padding: int) -> list[torch.Tensor]:
         overlaps = [0] + [padding] * (self.num_splits - 1)
@@ -211,26 +255,7 @@ class MaisiConvolution(nn.Module):
             for i in range(self.num_splits):
                 logger.info(f"Output {i + 1}/{len(outputs)} size after: {outputs[i].size()}")
 
-        if max(outputs[0].size()) < 500:
-            x = torch.cat(outputs, dim=self.dim_split + 2)
-        else:
-            target_device = outputs[0].device
-
-            x = outputs[0].clone().to("cpu", non_blocking=True)
-            outputs[0] = torch.Tensor(0)
-            _empty_cuda_cache(self.save_mem)
-            for k in range(len(outputs) - 1):
-                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
-                outputs[k + 1] = torch.Tensor(0)
-                _empty_cuda_cache(self.save_mem)
-                gc.collect()
-                if self.print_info:
-                    logger.info(f"MaisiConvolution concat progress: {k + 1}/{len(outputs) - 1}.")
-
-            if target_device.type != "cpu":
-                x = x.to(target_device, non_blocking=True)
-
-        return x
+        return _concatenate_with_cpu_fallback(outputs, self.dim_split + 2, self.save_mem, self.concat_memory_margin)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.print_info:
@@ -297,6 +322,8 @@ class MaisiUpsample(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -308,6 +335,8 @@ class MaisiUpsample(nn.Module):
         dim_split: int,
         print_info: bool,
         save_mem: bool = True,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
         super().__init__()
         self.conv = MaisiConvolution(
@@ -323,6 +352,7 @@ class MaisiUpsample(nn.Module):
             dim_split=dim_split,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
         self.use_convtranspose = use_convtranspose
         self.save_mem = save_mem
@@ -353,6 +383,8 @@ class MaisiDownsample(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -363,6 +395,8 @@ class MaisiDownsample(nn.Module):
         dim_split: int,
         print_info: bool,
         save_mem: bool = True,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
@@ -378,6 +412,7 @@ class MaisiDownsample(nn.Module):
             dim_split=dim_split,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -402,6 +437,8 @@ class MaisiResBlock(nn.Module):
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -416,6 +453,8 @@ class MaisiResBlock(nn.Module):
         norm_float16: bool = False,
         print_info: bool = False,
         save_mem: bool = True,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -430,6 +469,7 @@ class MaisiResBlock(nn.Module):
             norm_float16=norm_float16,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
         self.conv1 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -443,6 +483,7 @@ class MaisiResBlock(nn.Module):
             dim_split=dim_split,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
         self.norm2 = MaisiGroupNorm3D(
             num_groups=norm_num_groups,
@@ -452,6 +493,7 @@ class MaisiResBlock(nn.Module):
             norm_float16=norm_float16,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
         self.conv2 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -465,6 +507,7 @@ class MaisiResBlock(nn.Module):
             dim_split=dim_split,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
 
         self.nin_shortcut = (
@@ -480,6 +523,7 @@ class MaisiResBlock(nn.Module):
                 dim_split=dim_split,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
             if self.in_channels != self.out_channels
             else nn.Identity()
@@ -533,6 +577,8 @@ class MaisiEncoder(nn.Module):
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -554,6 +600,8 @@ class MaisiEncoder(nn.Module):
         include_fc: bool = False,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -582,6 +630,7 @@ class MaisiEncoder(nn.Module):
                 dim_split=dim_split,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
 
@@ -604,6 +653,7 @@ class MaisiEncoder(nn.Module):
                         norm_float16=norm_float16,
                         print_info=print_info,
                         save_mem=save_mem,
+                        concat_memory_margin=concat_memory_margin,
                     )
                 )
                 input_channel = output_channel
@@ -629,6 +679,7 @@ class MaisiEncoder(nn.Module):
                         dim_split=dim_split,
                         print_info=print_info,
                         save_mem=save_mem,
+                        concat_memory_margin=concat_memory_margin,
                     )
                 )
 
@@ -673,6 +724,7 @@ class MaisiEncoder(nn.Module):
                 norm_float16=norm_float16,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
         blocks.append(
@@ -688,6 +740,7 @@ class MaisiEncoder(nn.Module):
                 dim_split=dim_split,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
 
@@ -723,6 +776,8 @@ class MaisiDecoder(nn.Module):
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -745,6 +800,8 @@ class MaisiDecoder(nn.Module):
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
         super().__init__()
         self.print_info = print_info
@@ -767,6 +824,7 @@ class MaisiDecoder(nn.Module):
                 dim_split=dim_split,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
 
@@ -822,6 +880,7 @@ class MaisiDecoder(nn.Module):
                         norm_float16=norm_float16,
                         print_info=print_info,
                         save_mem=save_mem,
+                        concat_memory_margin=concat_memory_margin,
                     )
                 )
                 block_in_ch = block_out_ch
@@ -849,6 +908,7 @@ class MaisiDecoder(nn.Module):
                         dim_split=dim_split,
                         print_info=print_info,
                         save_mem=save_mem,
+                        concat_memory_margin=concat_memory_margin,
                     )
                 )
 
@@ -861,6 +921,7 @@ class MaisiDecoder(nn.Module):
                 norm_float16=norm_float16,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
         blocks.append(
@@ -876,6 +937,7 @@ class MaisiDecoder(nn.Module):
                 dim_split=dim_split,
                 print_info=print_info,
                 save_mem=save_mem,
+                concat_memory_margin=concat_memory_margin,
             )
         )
 
@@ -914,6 +976,8 @@ class AutoencoderKlMaisi(AutoencoderKL):
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
+        concat_memory_margin: Optional free CUDA memory margin in bytes for concatenation. Defaults to `None`,
+            which attempts CUDA concatenation without a memory estimate. CUDA out-of-memory errors fall back to CPU.
     """
 
     def __init__(
@@ -939,7 +1003,10 @@ class AutoencoderKlMaisi(AutoencoderKL):
         norm_float16: bool = False,
         print_info: bool = False,
         save_mem: bool = True,
+        *,
+        concat_memory_margin: int | None = None,
     ) -> None:
+        _validate_concat_memory_margin(concat_memory_margin)
         super().__init__(
             spatial_dims,
             in_channels,
@@ -977,6 +1044,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             norm_float16=norm_float16,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
 
         self.decoder: nn.Module = MaisiDecoder(
@@ -998,4 +1066,5 @@ class AutoencoderKlMaisi(AutoencoderKL):
             norm_float16=norm_float16,
             print_info=print_info,
             save_mem=save_mem,
+            concat_memory_margin=concat_memory_margin,
         )
