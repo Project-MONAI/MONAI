@@ -42,13 +42,43 @@ class _AutoGradActivation(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, x, module):
-        ctx.save_for_backward(x)
+        """Run the wrapped activation ``module`` on ``x``.
+
+        The forward pass is delegated to ``module`` unchanged so the original model outputs are preserved.
+        For in-place activation modules (e.g. ``LeakyReLU(inplace=True)``) the module is called on ``x``
+        directly so that aliasing is preserved for downstream users of the input. The pre-activation value
+        is saved (cloned) because an in-place call would otherwise overwrite ``x`` before the backward pass
+        recomputes the local derivative from the saved input.
+
+        Args:
+            ctx: autograd context used to save tensors for the backward pass.
+            x: input tensor to the activation module.
+            module: activation module to call.
+
+        Returns:
+            The output of ``module(x)``.
+        """
+        ctx.save_for_backward(x.clone())
         ctx.module = module
         with torch.no_grad():
-            return module(x.clone())
+            return module(x)
 
     @staticmethod
     def backward(ctx, grad_output):
+        """Apply the generalized guided backpropagation rule to the incoming gradient.
+
+        The local derivative of the activation is recomputed from the saved pre-activation input, and the
+        incoming gradient is kept only where it is positive and only where the activation is increasing
+        (local derivative positive). For ``torch.nn.ReLU`` this reduces to the original guided backprop
+        gradient rule.
+
+        Args:
+            ctx: autograd context with the saved pre-activation input and the wrapped module.
+            grad_output: incoming gradient with respect to the module output.
+
+        Returns:
+            The gradient with respect to the module input, and ``None`` for the module argument.
+        """
         (x,) = ctx.saved_tensors
         with torch.enable_grad():
             x_grad = x.detach().clone().requires_grad_(True)
@@ -67,10 +97,27 @@ class _GuidedActivation(torch.nn.Module):
     """
 
     def __init__(self, activation: torch.nn.Module) -> None:
+        """Create a guided wrapper around an activation module.
+
+        The wrapped module's forward pass is left unchanged, while its backward pass follows the
+        generalized guided backpropagation rule (see ``_AutoGradActivation``).
+
+        Args:
+            activation: activation module to wrap.
+        """
         super().__init__()
         self.activation = activation
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run the wrapped activation with the guided backpropagation backward rule.
+
+        Args:
+            x: input tensor.
+
+        Returns:
+            The activation output. The forward pass is unchanged; the backward pass applies the guided
+            rule (see ``_AutoGradActivation``).
+        """
         out: torch.Tensor = _AutoGradActivation.apply(x, self.activation)
         return out
 
@@ -84,12 +131,26 @@ class _GuidedActivationsTemp:
     def __init__(
         self, model: torch.nn.Module, activation_types: tuple[type[torch.nn.Module], ...] = _GUIDED_ACTIVATIONS
     ) -> None:
+        """Create the temporary activation wrapper context manager.
+
+        Args:
+            model: model whose supported activation modules are temporarily wrapped.
+            activation_types: activation module types to wrap.
+        """
         self.model = model
         self.activation_types = tuple(activation_types)
         self._replaced: list[tuple[torch.nn.Module, str, torch.nn.Module]] = []
 
     def __enter__(self) -> _GuidedActivationsTemp:
-        for name, module in list(self.model.named_modules()):
+        """Wrap every matching activation binding of the model with ``_GuidedActivation``.
+
+        ``named_modules(remove_duplicate=False)`` is used so that shared module instances bound to
+        multiple names are each wrapped and restored independently.
+
+        Returns:
+            The context manager instance.
+        """
+        for name, module in list(self.model.named_modules(remove_duplicate=False)):
             if not name or not isinstance(module, self.activation_types):
                 continue
             parent_name, _, child_name = name.rpartition(".")
@@ -101,6 +162,7 @@ class _GuidedActivationsTemp:
     def __exit__(
         self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
     ) -> None:
+        """Restore the original activation modules and clear the replacement bindings."""
         for parent, child_name, module in self._replaced:
             setattr(parent, child_name, module)
         self._replaced.clear()
