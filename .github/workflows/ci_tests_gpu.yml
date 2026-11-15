@@ -1,20 +1,10 @@
 name: tests
 
 on:
-  push:
-    branches:
-      - dev
-      - main
-      - releasing/*
-  pull_request:
-    branches:
-      - dev
-      - main
-      - releasing/*
-  # schedule:
-  #   - cron: "0 2 * * 3"  # at 02:00 UTC Wednesday
-  # Allows you to run this workflow manually from the Actions tab
-  # workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 3"  # at 02:00 UTC Wednesday
+  Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 permissions:
   contents: read
