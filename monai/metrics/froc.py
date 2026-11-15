@@ -145,13 +145,27 @@ def compute_froc_curve_data(
     if isinstance(tp_probs, torch.Tensor):
         tp_probs = tp_probs.detach().cpu().numpy()
 
-    total_fps, total_tps = [], []
-    all_probs = sorted(set(list(fp_probs) + list(tp_probs)))
-    for thresh in all_probs[1:]:
-        total_fps.append((fp_probs >= thresh).sum())
-        total_tps.append((tp_probs >= thresh).sum())
-    total_fps.append(0)
-    total_tps.append(0)
+    fp_flat = np.asarray(fp_probs).ravel()
+    tp_flat = np.asarray(tp_probs).ravel()
+
+    fp_flat = fp_flat[~np.isnan(fp_flat)]
+    tp_flat = tp_flat[~np.isnan(tp_flat)]
+
+    if fp_flat.size == 0 and tp_flat.size == 0:
+        total_fps = np.array([0.0])
+        total_tps = np.array([0.0])
+    else:
+        all_probs = np.unique(np.concatenate([fp_flat, tp_flat]))
+        if len(all_probs) > 1:
+            thresholds = all_probs[1:]
+            fp_sorted = np.sort(fp_flat)
+            tp_sorted = np.sort(tp_flat)
+            total_fps = np.append(len(fp_sorted) - np.searchsorted(fp_sorted, thresholds, side="left"), 0)
+            total_tps = np.append(len(tp_sorted) - np.searchsorted(tp_sorted, thresholds, side="left"), 0)
+        else:
+            total_fps = np.array([0])
+            total_tps = np.array([0])
+
     fps_per_image = np.asarray(total_fps) / float(num_images)
     total_sensitivity = np.asarray(total_tps) / float(num_targets)
     return fps_per_image, total_sensitivity
