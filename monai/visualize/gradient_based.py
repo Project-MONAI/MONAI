@@ -18,7 +18,6 @@ from typing import Any
 
 import torch
 
-from monai.networks.utils import replace_modules_temp
 from monai.utils.module import optional_import
 from monai.visualize.class_activation_maps import ModelWithHooks
 
@@ -257,5 +256,5 @@ class GuidedBackpropSmoothGrad(SmoothGrad):
     """
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
-        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with _GuidedActivationsTemp(self.model):
             return super().__call__(x, index, **kwargs)
