@@ -178,6 +178,12 @@ def get_confusion_matrix(
         ValueError: when `y_pred` and `y` have different shapes.
     """
 
+    # bool + bool is a logical OR, so the `(y_pred + y) == 2` test below never matches and loses every true positive.
+    if y_pred.dtype == torch.bool:
+        y_pred = y_pred.float()
+    if y.dtype == torch.bool:
+        y = y.float()
+
     original_y = y
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
