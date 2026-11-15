@@ -233,7 +233,12 @@ class SmoothGrad(VanillaGrad):
 class GuidedBackpropGrad(VanillaGrad):
     """
     Based on Springenberg and Dosovitskiy et al. https://arxiv.org/abs/1412.6806,
-    compute gradient-based saliency maps by backpropagating positive gradients and inputs (see ``_AutoGradReLU``).
+    compute gradient-based saliency maps by backpropagating positive gradients and inputs.
+
+    The forward pass of the model is left unchanged. During the backward pass, supported activation modules
+    (``torch.nn.ReLU``, ``torch.nn.LeakyReLU``, ``torch.nn.SiLU`` and ``torch.nn.GELU``) are temporarily wrapped
+    so that only positive incoming gradients are propagated through regions where the activation's local
+    derivative is positive. For ``torch.nn.ReLU`` this reproduces the original guided backpropagation rule.
 
     See also:
 
@@ -242,7 +247,7 @@ class GuidedBackpropGrad(VanillaGrad):
     """
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
-        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with _GuidedActivationsTemp(self.model):
             return super().__call__(x, index, **kwargs)
 
 
