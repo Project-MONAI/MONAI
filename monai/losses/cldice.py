@@ -79,13 +79,30 @@ def soft_open(img: torch.Tensor) -> torch.Tensor:
 
 
 def _soft_skel_first(img: torch.Tensor) -> torch.Tensor:
-    """First step of ``soft_skel``: the part of ``img`` that a soft opening removes."""
+    """
+    First step of ``soft_skel``: the part of ``img`` that a soft opening removes.
+
+    Args:
+        img: the shape should be BCH(WD)
+
+    Returns:
+        the initial skeleton, with the same shape as ``img``
+    """
     img1 = soft_open(img)
     return F.relu(img - img1)
 
 
 def _soft_skel_step(img: torch.Tensor, skel: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """One iteration of ``soft_skel``: erode ``img`` and add what a soft opening removes from it to ``skel``."""
+    """
+    One iteration of ``soft_skel``: erode ``img`` and add what a soft opening removes from it to ``skel``.
+
+    Args:
+        img: the image left by the previous iteration, the shape should be BCH(WD)
+        skel: the skeleton accumulated so far, with the same shape as ``img``
+
+    Returns:
+        the eroded image and the updated skeleton, in that order
+    """
     img = soft_erode(img)
     img1 = soft_open(img)
     delta = F.relu(img - img1)
