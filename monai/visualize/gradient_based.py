@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import partial
+from types import TracebackType
 from typing import Any
 
 import torch
@@ -73,6 +74,37 @@ class _GuidedActivation(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out: torch.Tensor = _AutoGradActivation.apply(x, self.activation)
         return out
+
+
+class _GuidedActivationsTemp:
+    """
+    Context manager that temporarily wraps the activation modules of ``model`` with ``_GuidedActivation``.
+    The original modules are restored when the context exits.
+    """
+
+    def __init__(
+        self, model: torch.nn.Module, activation_types: tuple[type[torch.nn.Module], ...] = _GUIDED_ACTIVATIONS
+    ) -> None:
+        self.model = model
+        self.activation_types = tuple(activation_types)
+        self._replaced: list[tuple[torch.nn.Module, str, torch.nn.Module]] = []
+
+    def __enter__(self) -> _GuidedActivationsTemp:
+        for name, module in list(self.model.named_modules()):
+            if not name or not isinstance(module, self.activation_types):
+                continue
+            parent_name, _, child_name = name.rpartition(".")
+            parent = self.model.get_submodule(parent_name) if parent_name else self.model
+            setattr(parent, child_name, _GuidedActivation(module))
+            self._replaced.append((parent, child_name, module))
+        return self
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        for parent, child_name, module in self._replaced:
+            setattr(parent, child_name, module)
+        self._replaced.clear()
 
 
 class _AutoGradReLU(torch.autograd.Function):
