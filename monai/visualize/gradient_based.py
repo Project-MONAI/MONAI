@@ -25,6 +25,55 @@ trange, has_trange = optional_import("tqdm", name="trange")
 
 __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmoothGrad"]
 
+# activation modules for which a generalized guided backpropagation backward pass is defined.
+_GUIDED_ACTIVATIONS = (torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.SiLU, torch.nn.GELU)
+
+
+class _AutoGradActivation(torch.autograd.Function):
+    """
+    Autograd function implementing a generalized guided backpropagation rule (https://arxiv.org/abs/1412.6806)
+    for an arbitrary activation module.
+
+    The forward pass is delegated to ``module`` unchanged, so the original model outputs are preserved.
+    During the backward pass the incoming gradient is kept only where it is positive, and only where the
+    activation's local derivative is positive (i.e. where the activation is increasing). For ``torch.nn.ReLU``
+    this reduces to the original guided backpropagation gradient rule.
+    """
+
+    @staticmethod
+    def forward(ctx, x, module):
+        ctx.save_for_backward(x)
+        ctx.module = module
+        with torch.no_grad():
+            return module(x.clone())
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        (x,) = ctx.saved_tensors
+        with torch.enable_grad():
+            x_grad = x.detach().clone().requires_grad_(True)
+            y = ctx.module(x_grad.clone())
+            (local_derivative,) = torch.autograd.grad(y, x_grad, grad_outputs=torch.ones_like(y))
+        positive_grad = (grad_output > 0).type_as(grad_output)
+        positive_slope = (local_derivative > 0).type_as(local_derivative)
+        grad_input = grad_output * positive_grad * positive_slope
+        return grad_input, None
+
+
+class _GuidedActivation(torch.nn.Module):
+    """
+    Wraps an activation module so that its forward pass is unchanged while its backward pass follows the
+    generalized guided backpropagation rule (see ``_AutoGradActivation``).
+    """
+
+    def __init__(self, activation: torch.nn.Module) -> None:
+        super().__init__()
+        self.activation = activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out: torch.Tensor = _AutoGradActivation.apply(x, self.activation)
+        return out
+
 
 class _AutoGradReLU(torch.autograd.Function):
 
