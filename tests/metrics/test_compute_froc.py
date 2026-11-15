@@ -174,8 +174,7 @@ class TestComputeFrocScore(unittest.TestCase):
         fps, sens = compute_froc_curve_data(fp_2d, tp_2d, num_targets=4, num_images=2)
         # Compare against 1-D reference (TEST_CASE_4 fixture)
         fps_ref, sens_ref = compute_froc_curve_data(
-            np.array([0.8, 0.6]), np.array([1, 1, 0, 0, 0.8, 0.8, 0]),
-            num_targets=4, num_images=2,
+            np.array([0.8, 0.6]), np.array([1, 1, 0, 0, 0.8, 0.8, 0]), num_targets=4, num_images=2
         )
         np.testing.assert_allclose(fps, fps_ref, rtol=1e-5)
         np.testing.assert_allclose(sens, sens_ref, rtol=1e-5)
@@ -200,7 +199,7 @@ class TestComputeFrocScore(unittest.TestCase):
         self.assertTrue(np.all(np.diff(sens) <= 0))
         # Scalar-reference cross-check at sampled thresholds
         all_probs = np.unique(np.concatenate([fp, tp]))
-        for t in all_probs[1::max(1, len(all_probs) // 5)]:
+        for t in all_probs[1 :: max(1, len(all_probs) // 5)]:
             expected_fp = np.sum(fp >= t) / 10.0
             expected_tp = np.sum(tp >= t) / 100.0
             idx = np.searchsorted(all_probs[1:], t)
