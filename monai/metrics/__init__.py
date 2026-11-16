@@ -12,7 +12,14 @@
 from __future__ import annotations
 
 from .absolute_volume_difference import AbsoluteVolumeDifferenceMetric, compute_absolute_volume_difference
-from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
+from .active_learning_metrics import (
+    LabelQualityScore,
+    UncertaintyDecompositionMetric,
+    VarianceMetric,
+    compute_uncertainty_decomposition,
+    compute_variance,
+    label_quality_score,
+)
 from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
