@@ -12,25 +12,29 @@
 from __future__ import annotations
 
 import numbers
+from typing import Any
 
 import numpy as np
 
-from monai.transforms.transform import Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.utils import optional_import
 
 color, _ = optional_import("skimage", name="color")
 
+__all__ = ["HEDJitter", "ExtractHEStains", "NormalizeHEStains"]
 
-class HEDJitter(Transform):
-    """Randomly perturbe the HED color space value an RGB image.
-    First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix.
-    Second, it perturbed the hematoxylin, eosin and DAB stains independently.
-    Third, it transformed the resulting stains into regular RGB color space.
+
+class HEDJitter(Randomizable, Transform):
+    """Randomly perturb the HED stain concentrations of a channel-last RGB image.
+
+    Deconvolve the image into hematoxylin, eosin and DAB stains, perturb each stain
+    independently, then convert back to RGB. Sample new factors on each call using
+    MONAI's random state, which can be controlled with ``set_random_state``.
+
     Args:
-        theta (float): How much to jitter HED color space,
-         alpha is chosen from a uniform distribution [1-theta, 1+theta]
-         betti is chosen from a uniform distribution [-theta, theta]
-         the jitter formula is **s' = \alpha * s + \betti**
+        theta: jitter range. For each stain, sample ``alpha`` uniformly from
+            ``[1 - theta, 1 + theta]`` and ``betti`` from ``[-theta, theta]``,
+            then apply ``s_new = alpha * s + betti``. Defaults to 0.0.
 
     Note:
         For more information refer to:
@@ -45,32 +49,36 @@ class HEDJitter(Transform):
     def __init__(self, theta: float = 0.0) -> None:
         assert isinstance(theta, numbers.Number), "theta should be a single number."
         self.theta = theta
-        self.alpha = np.random.uniform(1 - theta, 1 + theta, (1, 3))
-        self.betti = np.random.uniform(-theta, theta, (1, 3))
+        self.alpha = np.ones((1, 3))
+        self.betti = np.zeros((1, 3))
 
-    def adjust_hed(self, img, alpha, betti):
-        # img = np.array(img)
+    def randomize(self, data: Any = None) -> None:
+        self.alpha = self.R.uniform(1 - self.theta, 1 + self.theta, (1, 3))
+        self.betti = self.R.uniform(-self.theta, self.theta, (1, 3))
 
+    def adjust_hed(self, img: np.ndarray, alpha: np.ndarray, betti: np.ndarray) -> np.ndarray:
         s = np.reshape(color.rgb2hed(img), (-1, 3))
         ns = alpha * s + betti  # perturbations on HED color space
         nimg = color.hed2rgb(np.reshape(ns, img.shape))
 
-        imin = nimg.min()
-        imax = nimg.max()
-        rsimg = (255 * (nimg - imin) / (imax - imin)).astype("uint8")  # rescale to [0,255]
-        # transfer to PIL image
-        return rsimg
+        # hed2rgb returns values in [0, 1]; preserve this absolute intensity range,
+        # including constant white or black patches, when converting back to uint8.
+        return np.rint(255 * nimg).astype(np.uint8)
 
-    def __call__(self, image: np.ndarray) -> np.ndarray:
+    def __call__(self, image: np.ndarray, randomize: bool = True) -> np.ndarray:
         """
         Args:
-            image: uint8 RGB image to perform HEDJitter on.
+            image: uint8 RGB image with the color channels in the last dimension.
+            randomize: whether to sample new stain factors. Set to False to reuse
+                the factors from the most recent ``randomize`` call.
 
         Returns:
-            perturbed_image: uint8 RGB image HED preturbed image.
+            The perturbed uint8 RGB image.
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
+        if randomize:
+            self.randomize()
         perturbed_image = self.adjust_hed(image, self.alpha, self.betti)
         return perturbed_image
 

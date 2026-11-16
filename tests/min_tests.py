@@ -115,6 +115,7 @@ def run_testsuit():
         "test_hyena_block",
         "test_hyena_nd_unetr",
         "test_hovernet_loss",
+        "test_pathology_hedjitter",
         "test_image_dataset",
         "test_image_rw",
         "test_img2tensorboard",

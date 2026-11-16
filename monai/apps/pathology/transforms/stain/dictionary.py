@@ -17,40 +17,58 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-import numbers
 from collections.abc import Hashable, Mapping
+from typing import Any
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Randomizable
 
 from .array import ExtractHEStains, HEDJitter, NormalizeHEStains
 
+__all__ = [
+    "HEDJitterd",
+    "HEDJitterD",
+    "HEDJitterDict",
+    "ExtractHEStainsd",
+    "ExtractHEStainsD",
+    "ExtractHEStainsDict",
+    "NormalizeHEStainsd",
+    "NormalizeHEStainsD",
+    "NormalizeHEStainsDict",
+]
 
-class HEDJitterd(MapTransform):
 
+class HEDJitterd(Randomizable, MapTransform):
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.HEDJitter`.
-    Class to randomly perturbe HED color space values of image using stain deconvolution.
+    Sample new stain factors on each call and share them across all specified keys.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        theta: jitter range factor
-
+        theta: jitter range factor. Defaults to 0.0.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
 
     def __init__(self, keys: KeysCollection, theta: float = 0.0, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, allow_missing_keys)
-        assert isinstance(theta, numbers.Number), "theta should be a single number."
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.hedjitter = HEDJitter(theta=theta)
+
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> HEDJitterd:
+        super().set_random_state(seed, state)
+        self.hedjitter.set_random_state(seed, state)
+        return self
+
+    def randomize(self, data: Any = None) -> None:
+        self.hedjitter.randomize()
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d = dict(data)
+        self.randomize()
         for key in self.key_iterator(d):
-            d[key] = self.hedjitter(d[key])
+            d[key] = self.hedjitter(d[key], randomize=False)
         return d
 
 
