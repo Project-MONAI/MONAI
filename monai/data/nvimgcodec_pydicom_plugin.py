@@ -74,7 +74,7 @@ def register_as_decoder_plugin(module_path: str | None = None) -> bool:
     else:
         return True  # every check and register() succeeded
 
-    return False 
+    return False
 
 
 def unregister_as_decoder_plugin() -> bool:

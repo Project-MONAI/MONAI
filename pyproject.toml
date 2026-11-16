@@ -139,7 +139,8 @@ nni = [
 # required for GPU accelerated decoding of compressed DICOM images
 nvimgcodec = [
   "pydicom",
-  "cucim-cu13>=26.02.01; platform_system == 'Linux'",
+  # tighter requirements than just the "cucim" optional dependency to get around a bug with cupy
+  "cucim-cu13>=26.02.01; platform_system == 'Linux' and python_version >= '3.11'", 
   "cupy-cuda13x[ctk]!=14.1.0; platform_system == 'Linux'",
   "nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == 'Linux'"
 ]

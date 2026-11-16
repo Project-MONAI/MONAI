@@ -3,7 +3,6 @@ name: tests
 on:
   schedule:
     - cron: "0 2 * * 3"  # at 02:00 UTC Wednesday
-  Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 permissions:
@@ -40,7 +39,7 @@ env:
 
 jobs:
 
-  full-dep-gpu: 
+  full-dep-gpu:
     runs-on: [self-hosted, linux, gpu]
     strategy:
       fail-fast: false
@@ -74,8 +73,8 @@ jobs:
       #   NGC_ORG: ${{ secrets.NGC_ORG }}
       #   NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
-  full-dep-gpu-hyena: 
-    runs-on: [self-hosted, linux, gpu] 
+  full-dep-gpu-hyena:
+    runs-on: [self-hosted, linux, gpu]
     strategy:
       fail-fast: false
     timeout-minutes: 30
