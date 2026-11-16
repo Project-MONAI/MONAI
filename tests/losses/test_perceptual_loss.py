@@ -97,13 +97,11 @@ class TestPerceptualLoss(unittest.TestCase):
 
     @parameterized.expand(["squeeze", "alex", "vgg", "radimagenet_resnet50", "resnet50"])
     def test_channel_wise_with_non_medicalnet(self, network_type):
-        _skip_if_no_lpips(network_type)
         with self.assertRaisesRegex(ValueError, "Channel-wise loss is only compatible with MedicalNet networks."):
             PerceptualLoss(spatial_dims=2, network_type=network_type, channel_wise=True)
 
     @parameterized.expand(["squeeze", "alex", "vgg", "resnet50"])
     def test_non_medicalnet_3d_without_fake_3d(self, network_type):
-        _skip_if_no_lpips(network_type)
         with self.assertRaisesRegex(ValueError, "Invalid download model name.*"):
             PerceptualLoss(spatial_dims=3, network_type=network_type, is_fake_3d=False)
 
