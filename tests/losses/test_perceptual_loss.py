@@ -44,7 +44,7 @@ TEST_CASES = [
 
 def _skip_if_no_lpips(network_type):
     if not has_lpips and network_type.lower() in {"vgg", "alex", "squeeze"}:
-        raise unittest.skipTest(f"LPIPS needed for this test when using {network_type=}.")
+        raise unittest.SkipTest(f"LPIPS needed for this test when using {network_type=}.")
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")

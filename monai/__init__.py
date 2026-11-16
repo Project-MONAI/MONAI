@@ -18,9 +18,6 @@ import warnings
 
 from ._version import get_versions
 
-# suppress TensorRT warning in the Docker container about plugins not being compatible with CUDA 13, see PR #9112
-logging.getLogger("torch_tensorrt._utils").setLevel(logging.CRITICAL)
-
 old_showwarning = warnings.showwarning
 
 
