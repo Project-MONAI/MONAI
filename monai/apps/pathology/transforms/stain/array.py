@@ -30,6 +30,7 @@ class HEDJitter(Randomizable, Transform):
     Deconvolve the image into hematoxylin, eosin and DAB stains, perturb each stain
     independently, then convert back to RGB. Sample new factors on each call using
     MONAI's random state, which can be controlled with ``set_random_state``.
+    Neutral factors (including ``theta=0``) return an unchanged copy of the RGB image.
 
     Args:
         theta: jitter range. For each stain, sample ``alpha`` uniformly from
@@ -47,16 +48,43 @@ class HEDJitter(Randomizable, Transform):
     """
 
     def __init__(self, theta: float = 0.0) -> None:
+        """Initialize the jitter range and neutral stain factors.
+
+        Args:
+            theta: half-width of the uniform scale and offset sampling intervals.
+
+        Raises:
+            AssertionError: if ``theta`` is not a number.
+        """
         assert isinstance(theta, numbers.Number), "theta should be a single number."
         self.theta = theta
         self.alpha = np.ones((1, 3))
         self.betti = np.zeros((1, 3))
 
     def randomize(self, data: Any = None) -> None:
+        """Sample independent scale and offset factors for the H, E, and D stains.
+
+        Args:
+            data: unused; accepted for compatibility with ``Randomizable``.
+        """
         self.alpha = self.R.uniform(1 - self.theta, 1 + self.theta, (1, 3))
         self.betti = self.R.uniform(-self.theta, self.theta, (1, 3))
 
     def adjust_hed(self, img: np.ndarray, alpha: np.ndarray, betti: np.ndarray) -> np.ndarray:
+        """Apply fixed affine factors to the image's HED stain concentrations.
+
+        Args:
+            img: uint8 RGB image with three color channels in the last dimension.
+            alpha: multiplicative factors of shape ``(1, 3)``, in H, E, D order.
+            betti: additive factors of shape ``(1, 3)``, in H, E, D order.
+
+        Returns:
+            A uint8 RGB image with the same shape as ``img``. Neutral factors
+            return a copy without a potentially lossy HED conversion.
+        """
+        if np.all(alpha == 1) and np.all(betti == 0):
+            return img.copy()
+
         s = np.reshape(color.rgb2hed(img), (-1, 3))
         ns = alpha * s + betti  # perturbations on HED color space
         nimg = color.hed2rgb(np.reshape(ns, img.shape))
@@ -66,7 +94,8 @@ class HEDJitter(Randomizable, Transform):
         return np.rint(255 * nimg).astype(np.uint8)
 
     def __call__(self, image: np.ndarray, randomize: bool = True) -> np.ndarray:
-        """
+        """Apply stain jitter to an RGB image.
+
         Args:
             image: uint8 RGB image with the color channels in the last dimension.
             randomize: whether to sample new stain factors. Set to False to reuse
@@ -74,6 +103,9 @@ class HEDJitter(Randomizable, Transform):
 
         Returns:
             The perturbed uint8 RGB image.
+
+        Raises:
+            TypeError: if ``image`` is not a NumPy array.
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
@@ -82,12 +114,17 @@ class HEDJitter(Randomizable, Transform):
         perturbed_image = self.adjust_hed(image, self.alpha, self.betti)
         return perturbed_image
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Describe the configured jitter range and current stain factors.
+
+        Returns:
+            A string containing the transform name, range, and sampled factors.
+        """
         format_string = self.__class__.__name__ + "("
         format_string += f"theta={self.theta}"
         format_string += f",alpha={self.alpha}"
         format_string += f",betti={self.betti}"
-        return format_string
+        return format_string + ")"
 
 
 class ExtractHEStains(Transform):
