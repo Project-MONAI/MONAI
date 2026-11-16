@@ -170,7 +170,7 @@ class Pad(InvertibleTransform, LazyTransform):
         padded = transform[TraceKeys.EXTRA_INFO]["padded"]
         if padded[0][0] > 0 or padded[0][1] > 0:  # slicing the channel dimension
             s = padded[0][0]
-            e = min(max(padded[0][1], s + 1), len(data))
+            e = min(padded[0][1], len(data) - s)
             data = data[s : len(data) - e]  # type: ignore
         roi_start = [i[0] for i in padded[1:]]
         roi_end = [i - j[1] for i, j in zip(data.shape[1:], padded[1:])]
