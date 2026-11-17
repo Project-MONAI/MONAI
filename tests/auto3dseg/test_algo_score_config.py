@@ -11,13 +11,107 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import tempfile
 import unittest
 
-from monai.apps.auto3dseg.bundle_gen import BundleAlgo
+from monai.apps.auto3dseg.bundle_gen import BundleAlgo, _path_expression, _resolve_path_reference, _resolve_path_value
 from monai.apps.auto3dseg.utils import import_bundle_algo_history
+from monai.bundle.config_parser import ConfigParser
+
+
+class TestPathValueHelpers(unittest.TestCase):
+    """Direct tests for the helpers that resolve ``ckpt_path`` as data instead of evaluating it."""
+
+    def setUp(self):
+        self.parser = ConfigParser(globals=False)
+        self.parser.update(
+            {
+                "bundle_root": "/work/bundle",
+                "fold": 0,
+                "model_folds_dir": "$@bundle_root + '/model_folds'",
+                "flag": True,
+            }
+        )
+
+    def test_plain_string_is_returned_unchanged(self):
+        self.assertEqual(_resolve_path_value("/work/ckpt", self.parser, "ckpt_path"), "/work/ckpt")
+
+    def test_concatenation_of_literals(self):
+        self.assertEqual(_resolve_path_value("$'/work' + '/ckpt'", self.parser, "ckpt_path"), "/work/ckpt")
+
+    def test_shipped_template_expression(self):
+        """The form used by the shipped templates, with an integer entry through ``str()``."""
+        self.assertEqual(
+            _resolve_path_value("$@bundle_root + '/model_fold' + str(@fold)", self.parser, "ckpt_path"),
+            "/work/bundle/model_fold0",
+        )
+
+    def test_whole_value_reference(self):
+        self.assertEqual(_resolve_path_value("@bundle_root", self.parser, "ckpt_path"), "/work/bundle")
+
+    def test_integer_reference_needs_str(self):
+        """An integer entry is not a path fragment, so it is only accepted inside ``str()``."""
+        with self.assertRaisesRegex(ValueError, "does not resolve to a string"):
+            _resolve_path_value("$@fold", self.parser, "ckpt_path")
+        with self.assertRaisesRegex(ValueError, "only strings can be concatenated"):
+            _resolve_path_value("$@bundle_root + @fold", self.parser, "ckpt_path")
+
+    def test_reference_to_another_expression_is_refused(self):
+        """References are resolved one level deep, so chaining an expression through a reference is refused."""
+        with self.assertRaisesRegex(ValueError, "not a plain value"):
+            _resolve_path_value("$@model_folds_dir + '/fold_0'", self.parser, "ckpt_path")
+        with self.assertRaisesRegex(ValueError, "not a plain value"):
+            _resolve_path_value("@model_folds_dir", self.parser, "ckpt_path")
+
+    def test_boolean_reference_is_refused(self):
+        """``bool`` is a subclass of ``int`` in Python but is never a path fragment."""
+        with self.assertRaisesRegex(ValueError, "not a plain value"):
+            _resolve_path_value("$str(@flag)", self.parser, "ckpt_path")
+
+    def test_non_string_value_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "expected a string"):
+            _resolve_path_value({"_target_": "os.system"}, self.parser, "ckpt_path")
+        with self.assertRaisesRegex(ValueError, "expected a string"):
+            _resolve_path_value(1, self.parser, "ckpt_path")
+
+    def test_missing_reference_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            _resolve_path_value("$@no_such_entry + '/x'", self.parser, "ckpt_path")
+
+    def test_unknown_subscript_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "only string literals"):
+            _resolve_path_value("$__local_refs['missing']", self.parser, "ckpt_path")
+
+    def test_call_and_attribute_access_are_refused(self):
+        for value in ("$os.path.join(@bundle_root, 'model')", "$str(@fold).upper()", "$@bundle_root.strip()"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                _resolve_path_value(value, self.parser, "ckpt_path")
+
+    def test_unparseable_expression_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "expression"):
+            _resolve_path_value("$@bundle_root +", self.parser, "ckpt_path")
+
+    def test_reference_helper_allows_integers_only_on_request(self):
+        self.assertEqual(_resolve_path_reference("fold", self.parser, "ckpt_path", allow_integer=True), 0)
+        with self.assertRaisesRegex(ValueError, "not a plain value"):
+            _resolve_path_reference("fold", self.parser, "ckpt_path")
+
+    def test_path_expression_returns_int_for_a_bare_reference(self):
+        """A bare reference is the only non-string result, so that a surrounding ``str()`` can format it."""
+        node = ast.parse("__local_refs['fold']", mode="eval").body
+        self.assertEqual(_path_expression(node, {"fold": 0}, "ckpt_path"), 0)
+        node = ast.parse("str(__local_refs['fold'])", mode="eval").body
+        self.assertEqual(_path_expression(node, {"fold": 3}, "ckpt_path"), "3")
+        node = ast.parse("'a' + 'b'", mode="eval").body
+        self.assertEqual(_path_expression(node, {}, "ckpt_path"), "ab")
+
+    def test_path_expression_refuses_other_nodes(self):
+        for source in ("len('a')", "1 + 2", "[1, 2]", "'abc'[0]"):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, "Invalid ckpt_path"):
+                _path_expression(ast.parse(source, mode="eval").body, {}, "ckpt_path")
 
 
 class TestAlgoScoreConfig(unittest.TestCase):

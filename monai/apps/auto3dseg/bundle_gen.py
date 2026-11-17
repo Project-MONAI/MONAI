@@ -102,13 +102,27 @@ def _confined_join(root: str, name: str) -> str:
 
 def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
     """
-    Resolve a config value that must be a plain path string, without evaluating it with ``eval``.
+    Resolve a config value that must be a path string, without evaluating it with ``eval``.
 
-    The value can come from a work directory this process did not write, so only the shapes the bundle
-    templates use are accepted: a plain string, or a ``$`` expression made of string literals, ``+`` concatenation, ``str(...)`` of a reference, and references to other
-    entries, for example ``$@bundle_root + '/model_fold' + str(@fold)``. Calls other than ``str`` with one
-    positional argument, attribute access, subscripts to anything but the reference table, comprehensions
-    and ``_target_`` mappings are refused.
+    The config is read from an algorithm output directory, and ``import_bundle_algo_history`` can read one from
+    a work directory this process did not write. The value is therefore treated as data, and only these shapes
+    are accepted:
+
+    - a plain string, which is returned unchanged;
+    - a whole-value reference, ``@name``, where that entry holds a plain string;
+    - a ``$`` expression built only from string literals, ``+`` concatenation, ``str()`` with one argument, and
+      ``@name`` references to other entries, for example the ``$@bundle_root + '/model_fold' + str(@fold)``
+      used by the shipped templates.
+
+    Everything else raises ``ValueError``: any other call, attribute access, a subscript other than the internal
+    reference table, a comprehension, a ``_target_`` mapping, and a value that is not a string at all.
+
+    Three consequences are deliberate. A config that relied on a wider expression, for example
+    ``$os.path.join(@bundle_root, 'model')`` or an f-string, is now refused, so such a path has to be written out
+    in full. References are resolved one level deep only: if ``model_folds_dir`` is itself
+    ``$@bundle_root + '/model_folds'`` then ``$@model_folds_dir + '/fold_0'`` is refused, because the referenced
+    entry holds an expression rather than a plain value. An integer entry is accepted only inside ``str()``, as
+    in ``str(@fold)``, because a path fragment has to be a string.
 
     Args:
         value: the config value, as stored in the file.
@@ -149,7 +163,8 @@ def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
 def _resolve_path_reference(ref: str, parser: ConfigParser, what: str, allow_integer: bool = False) -> str | int:
     """Return the value of ``@ref``, refusing anything that would need evaluation itself.
 
-    A string is returned as is. An integer is only returned when ``allow_integer`` is set, because the
+    A string is returned as is. A reference whose own value starts with ``$`` or ``@`` is refused, so references
+    are never resolved transitively. An integer is only returned when ``allow_integer`` is set, because the
     templates use it through ``str()``, as in ``str(@fold)``; it is never concatenated directly.
     """
     try:
@@ -166,7 +181,13 @@ def _resolve_path_reference(ref: str, parser: ConfigParser, what: str, allow_int
 
 
 def _path_expression(node: ast.AST, refs: dict[str, str | int], what: str) -> str | int:
-    """Evaluate the small expression grammar accepted by :func:`_resolve_path_value`."""
+    """Evaluate the small expression grammar accepted by :func:`_resolve_path_value`.
+
+    The result is a string for every accepted path fragment. The single exception is a bare reference such as
+    ``@fold``, which returns the integer held in the config so that a surrounding ``str(...)`` can format it:
+    an expression like ``$@bundle_root + '/model_fold' + str(@fold)`` visits ``@fold`` here and turns it into
+    ``'0'``. :func:`_resolve_path_value` rejects a non-string result, so an integer never becomes the path.
+    """
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
@@ -216,6 +237,15 @@ class BundleAlgo(Algo):
     This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
     ``export_to_disk``. Then created bundle keeps the same file structure as the template.
+
+    Note:
+        ``get_score`` reads ``ckpt_path`` from ``configs/hyper_parameters.yaml`` in the algorithm output directory
+        as data rather than evaluating it, because that directory can come from a work directory this process did
+        not write. Only a plain string, a reference to a plain entry, or a ``$`` expression made of string
+        literals, ``+``, ``str()`` and ``@references`` are accepted, as in
+        ``$@bundle_root + '/model_fold' + str(@fold)``. A saved config that needs anything else, for example a
+        call to ``os.path.join`` or a reference to another expression, raises ``ValueError`` instead of being
+        evaluated, so a score written by a template that builds its path that way cannot be read back.
 
     """
 
@@ -461,11 +491,10 @@ class BundleAlgo(Algo):
         """
         Returns validation scores of the model trained by the current Algo.
 
-        The configuration is read from the algorithm output directory, which may belong to a work
-        directory this process did not create (``import_bundle_algo_history`` reads any work dir).
-        ``ckpt_path`` is therefore resolved as data rather than evaluated: string literals,
-        ``+`` concatenation and ``@references`` such as ``$@bundle_root + '/model_fold' + str(@fold)``
-        work, while any other call, an attribute, a comprehension or a ``_target_`` mapping is refused.
+        The configuration is read from the algorithm output directory, which may belong to a work directory this
+        process did not create (``import_bundle_algo_history`` reads any work dir), so ``ckpt_path`` is resolved
+        as data rather than evaluated. See the class docstring for the syntax that is accepted, which is a
+        narrower set than ``eval`` would allow.
 
         Args:
             *args: unused, kept for compatibility with the ``Algo`` interface.
