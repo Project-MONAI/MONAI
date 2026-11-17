@@ -133,7 +133,15 @@ class TestSoftclDiceLoss(unittest.TestCase):
             storages = {}
 
             def pack(t):
-                """Record the storage of the tensor ``t`` saved for backward and return ``t`` unchanged."""
+                """
+                Record the storage of a tensor that autograd saves for the backward pass.
+
+                Args:
+                    t: the saved tensor.
+
+                Returns:
+                    ``t`` unchanged.
+                """
                 storages[t.untyped_storage().data_ptr()] = t.untyped_storage().nbytes()
                 return t
 
