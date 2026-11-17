@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import torch
@@ -27,17 +29,35 @@ torchvision, has_torchvision = optional_import("torchvision")
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestPerceptualLPIPS(unittest.TestCase):
-    @parameterized.expand([("alex", "alexnet"), ("vgg", "vgg16"), ("squeeze", "squeezenet1_1")])
-    def test_distance_and_gradient_without_lpips(self, net, factory_name):
+    @parameterized.expand(
+        [
+            (net, factory, weights, pretrained)
+            for net, factory, weights in (
+                ("alex", "alexnet", "AlexNet_Weights"),
+                ("vgg", "vgg16", "VGG16_Weights"),
+                ("squeeze", "squeezenet1_1", "SqueezeNet1_1_Weights"),
+            )
+            for pretrained in (True, False)
+        ]
+    )
+    def test_distance_and_gradient_without_lpips(self, net, factory_name, weights_name, pretrained):
         # Only replace external weight downloading; use the actual Torchvision networks.
         factory = getattr(torchvision.models, factory_name)
-        with patch.object(torchvision.models, factory_name, side_effect=lambda **kwargs: factory(weights=None)):
-            loss = PerceptualLoss(spatial_dims=2, network_type=net)
+        torch.manual_seed(9284)
+        with patch.object(
+            torchvision.models, factory_name, side_effect=lambda **kwargs: factory(weights=None)
+        ) as create_backbone:
+            loss = PerceptualLoss(spatial_dims=2, network_type=net, pretrained=pretrained)
+        create_backbone.assert_called_once_with(weights=getattr(torchvision.models, weights_name).IMAGENET1K_V1)
 
         model = loss.perceptual_function
         self.assertFalse(model.training)
         self.assertTrue(all(not p.requires_grad for p in model.net.parameters()))
         self.assertTrue(all(p.requires_grad for p in model.lins.parameters()))
+        calibration_path = Path(__file__).parents[2] / "monai" / "losses" / "weights" / f"{net}.pth"
+        calibrated_state = torch.load(calibration_path, map_location="cpu", weights_only=True)
+        for key, value in calibrated_state.items():
+            self.assertEqual(torch.equal(model.state_dict()[key], value), pretrained)
         for channels in (1, 3):
             with self.subTest(channels=channels):
                 source = torch.rand(2, channels, 64, 64, requires_grad=True)
@@ -45,7 +65,12 @@ class TestPerceptualLPIPS(unittest.TestCase):
                 self.assertEqual(loss(source, source).item(), 0.0)
                 distance = model(source, target)
                 self.assertEqual(distance.shape, (2, 1, 1, 1))
-                self.assertTrue(torch.all(distance > 0))
+                self.assertTrue(torch.isfinite(distance).all())
+                if pretrained:
+                    self.assertTrue(torch.all(distance > 0))
+                else:
+                    # Random calibration layers need not define a nonnegative metric.
+                    self.assertTrue(torch.all(distance != 0))
                 torch.testing.assert_close(distance, model(target, source))
                 torch.testing.assert_close(loss(source, target), distance.mean())
                 distance.mean().backward()
@@ -57,6 +82,22 @@ class TestPerceptualLPIPS(unittest.TestCase):
         self.assertIn("net.slice1.0.weight", state)
         torch.testing.assert_close(state["lin0.model.1.weight"], state["lins.0.model.1.weight"])
         self.assertTrue(all(torch.isfinite(value).all() for value in state.values()))
+
+    @parameterized.expand([("alex", "alexnet"), ("vgg", "vgg16"), ("squeeze", "squeezenet1_1")])
+    def test_load_legacy_state_dict(self, net, factory_name):
+        # Captured from unmodified LPIPS v0.1, independent of MONAI's module registration.
+        manifest_path = Path(__file__).parents[1] / "testing_data" / "lpips_v0_1_state_dict.json"
+        manifest = json.loads(manifest_path.read_text())["networks"][net]
+        factory = getattr(torchvision.models, factory_name)
+        with patch.object(torchvision.models, factory_name, side_effect=lambda **kwargs: factory(weights=None)):
+            loss = PerceptualLoss(spatial_dims=2, network_type=net)
+        legacy_state = {f"perceptual_function.{key}": torch.full(shape, 0.125) for key, shape in manifest.items()}
+        loss.load_state_dict(legacy_state, strict=True)
+        self.assertEqual(set(loss.state_dict()), set(legacy_state))
+        for key, value in loss.state_dict().items():
+            with self.subTest(key=key):
+                self.assertEqual(tuple(value.shape), tuple(manifest[key.removeprefix("perceptual_function.")]))
+                torch.testing.assert_close(value, legacy_state[key], rtol=0, atol=0)
 
     def test_fake_3d_matches_three_axes(self):
         factory = torchvision.models.squeezenet1_1
