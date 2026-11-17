@@ -36,17 +36,46 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from pathlib import Path
 
 import torch
 from torch import nn
 
+from monai.apps.utils import download_url
 from monai.utils import optional_import
 
 torchvision, _ = optional_import("torchvision")
 
+__all__ = ["LPIPS", "LPIPSFeatures", "NetLinLayer", "ScalingLayer"]
 
-class _ScalingLayer(nn.Module):
+LPIPS_WEIGHTS_URL = "https://huggingface.co/MONAI/checkpoints/resolve/main"
+LPIPS_NETWORKS = {
+    "alex": (
+        "alexnet",
+        "AlexNet_Weights",
+        (2, 5, 8, 10, 12),
+        (64, 192, 384, 256, 256),
+        "df73285e35b22355a2df87cdb6b70b343713b667eddbda73e1977e0c860835c0",
+    ),
+    "vgg": (
+        "vgg16",
+        "VGG16_Weights",
+        (4, 9, 16, 23, 30),
+        (64, 128, 256, 512, 512),
+        "a78928a0af1e5f0fcb1f3b9e8f8c3a2a5a3de244d830ad5c1feddc79b8432868",
+    ),
+    "squeeze": (
+        "squeezenet1_1",
+        "SqueezeNet1_1_Weights",
+        (2, 5, 8, 10, 11, 12, 13),
+        (64, 128, 256, 384, 384, 512, 512),
+        "4a5350f23600cb79923ce65bb07cbf57dca461329894153e05a1346bd531cf76",
+    ),
+}
+
+
+class ScalingLayer(nn.Module):
     """Apply the fixed RGB shift and scale used by LPIPS v0.1."""
 
     def __init__(self) -> None:
@@ -67,7 +96,7 @@ class _ScalingLayer(nn.Module):
         return (input - self.shift) / self.scale
 
 
-class _LPIPSFeatures(nn.Module):
+class LPIPSFeatures(nn.Sequential):
     """Extract frozen Torchvision features using legacy LPIPS slice names.
 
     Args:
@@ -82,16 +111,16 @@ class _LPIPSFeatures(nn.Module):
             features: Ordered feature layers from a Torchvision backbone.
             endpoints: Exclusive layer indices at which each successive slice ends.
         """
-        super().__init__()
-        self.num_slices = len(endpoints)
+        slices: OrderedDict[str, nn.Module] = OrderedDict()
         start = 0
         for index, end in enumerate(endpoints, 1):
             # Keep the original names so existing PerceptualLoss checkpoints can be loaded.
             block = nn.Sequential()
             for layer in range(start, end):
                 block.add_module(str(layer), features[layer])
-            self.add_module(f"slice{index}", block)
+            slices[f"slice{index}"] = block
             start = end
+        super().__init__(slices)
         self.requires_grad_(False)
 
     def forward(self, input: torch.Tensor) -> tuple[torch.Tensor, ...]:
@@ -104,13 +133,14 @@ class _LPIPSFeatures(nn.Module):
             Feature tensors in slice order, each with shape ``(B, C_i, H_i, W_i)``.
         """
         outputs = []
-        for index in range(1, self.num_slices + 1):
-            input = getattr(self, f"slice{index}")(input)
+        for layer in self:
+            # Each slice consumes the preceding features, not the original RGB input.
+            input = layer(input)
             outputs.append(input)
         return tuple(outputs)
 
 
-class _NetLinLayer(nn.Module):
+class NetLinLayer(nn.Sequential):
     """Calibrate feature differences with Dropout and a bias-free 1x1 convolution.
 
     Args:
@@ -123,27 +153,18 @@ class _NetLinLayer(nn.Module):
         Args:
             channels: Number of input feature channels.
         """
-        super().__init__()
-        self.model = nn.Sequential(nn.Dropout(), nn.Conv2d(channels, 1, 1, bias=False))
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        """Compute the calibrated spatial difference map.
-
-        Args:
-            input: Squared normalized feature differences of shape ``(B, C, H, W)``.
-
-        Returns:
-            Calibrated difference map of shape ``(B, 1, H, W)``.
-        """
-        return self.model(input)
+        # The named child retains the model.1.weight keys in upstream calibration files
+        # and saved PerceptualLoss checkpoints while Sequential supplies forward().
+        super().__init__(OrderedDict(model=nn.Sequential(nn.Dropout(), nn.Conv2d(channels, 1, 1, bias=False))))
 
 
 class LPIPS(nn.Module):
-    """Internal LPIPS v0.1 implementation for :class:`monai.losses.PerceptualLoss`.
+    """LPIPS v0.1 network used by :class:`monai.losses.PerceptualLoss`.
 
     ImageNet feature weights come from Torchvision. ``pretrained`` controls only the
     learned linear calibration, matching the original LPIPS constructor. The v0.1
-    calibration weights and their license are distributed in the adjacent weights directory.
+    calibration weights are downloaded from the official ``MONAI/checkpoints`` repository
+    on Hugging Face, verified with SHA-256, and cached in the Torch Hub checkpoints directory.
 
     Args:
         pretrained: Whether to load pretrained linear calibration weights. The feature
@@ -152,46 +173,45 @@ class LPIPS(nn.Module):
 
     Raises:
         ValueError: If ``net`` is not a supported feature backbone name.
+        monai.apps.HashCheckError: If the calibration checkpoint fails integrity verification.
+        RuntimeError: If downloading the calibration checkpoint fails.
+        OSError: If the calibration checkpoint cannot be downloaded or read.
     """
 
     def __init__(self, pretrained: bool = True, net: str = "alex") -> None:
         """Initialize the ImageNet feature backbone and LPIPS calibration layers.
 
         Args:
-            pretrained: Whether to load the bundled linear calibration weights.
+            pretrained: Whether to download and load pretrained linear calibration weights.
                 This does not change the ImageNet weights used by the feature backbone.
             net: Feature backbone name: ``"alex"``, ``"vgg"``, or ``"squeeze"``.
 
         Raises:
             ValueError: If ``net`` is not a supported feature backbone name.
+            monai.apps.HashCheckError: If the calibration checkpoint fails integrity verification.
+            RuntimeError: If downloading the calibration checkpoint fails.
+            OSError: If the calibration checkpoint cannot be downloaded or read.
         """
         super().__init__()
-        networks = {
-            "alex": ("alexnet", "AlexNet_Weights", (2, 5, 8, 10, 12), (64, 192, 384, 256, 256)),
-            "vgg": ("vgg16", "VGG16_Weights", (4, 9, 16, 23, 30), (64, 128, 256, 512, 512)),
-            "squeeze": (
-                "squeezenet1_1",
-                "SqueezeNet1_1_Weights",
-                (2, 5, 8, 10, 11, 12, 13),
-                (64, 128, 256, 384, 384, 512, 512),
-            ),
-        }
-        if net not in networks:
+        if net not in LPIPS_NETWORKS:
             raise ValueError(f"Unsupported LPIPS network: {net}.")
-        factory, weights, endpoints, channels = networks[net]
-        self.scaling_layer = _ScalingLayer()
+        factory, weights, endpoints, channels, hash_val = LPIPS_NETWORKS[net]
+        self.scaling_layer = ScalingLayer()
         backbone = getattr(torchvision.models, factory)(weights=getattr(torchvision.models, weights).IMAGENET1K_V1)
-        self.net = _LPIPSFeatures(backbone.features, endpoints)
+        self.net = LPIPSFeatures(backbone.features, endpoints)
         # Legacy checkpoints contain both lin{index} and lins.{index} keys, so register
         # each calibration layer under both names while sharing the same parameters.
         layers = []
         for index, channel_count in enumerate(channels):
-            layer = _NetLinLayer(channel_count)
+            layer = NetLinLayer(channel_count)
             self.add_module(f"lin{index}", layer)
             layers.append(layer)
         self.lins = nn.ModuleList(layers)
         if pretrained:
-            path = Path(__file__).with_name("weights") / f"{net}.pth"
+            path = Path(torch.hub.get_dir()) / "checkpoints" / f"lpips_v0.1_{net}.pth"
+            download_url(
+                f"{LPIPS_WEIGHTS_URL}/{net}.pth", filepath=path, hash_val=hash_val, hash_type="sha256", progress=False
+            )
             self.load_state_dict(torch.load(path, map_location="cpu", weights_only=True), strict=False)
         self.eval()
 

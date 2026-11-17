@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,8 +21,9 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
-from monai.losses._perceptual import LPIPS
+from monai.networks.nets import LPIPS
 from monai.utils import optional_import
+from tests.lpips_test_utils import lpips_test_cache
 from tests.test_utils import skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
@@ -39,6 +41,12 @@ class TestPerceptualLPIPSValidation(unittest.TestCase):
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestPerceptualLPIPS(unittest.TestCase):
+    def setUp(self):
+        """Use local calibration fixtures without replacing cache/hash/load logic."""
+        stack = ExitStack()
+        self.addCleanup(stack.close)
+        _, self.calibrations, _ = stack.enter_context(lpips_test_cache())
+
     @parameterized.expand(
         [
             (net, factory, weights, pretrained)
@@ -64,8 +72,7 @@ class TestPerceptualLPIPS(unittest.TestCase):
         self.assertFalse(model.training)
         self.assertTrue(all(not p.requires_grad for p in model.net.parameters()))
         self.assertTrue(all(p.requires_grad for p in model.lins.parameters()))
-        calibration_path = Path(__file__).parents[2] / "monai" / "losses" / "weights" / f"{net}.pth"
-        calibrated_state = torch.load(calibration_path, map_location="cpu", weights_only=True)
+        calibrated_state = self.calibrations[net]
         for key, value in calibrated_state.items():
             self.assertEqual(torch.equal(model.state_dict()[key], value), pretrained)
         for channels in (1, 3):

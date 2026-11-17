@@ -83,9 +83,13 @@ clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite,
 which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `nvidia-nvimgcodec-cu13`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
 
 The AlexNet, VGG, and SqueezeNet options in `PerceptualLoss` require `torchvision`
-(`pip install "monai[torchvision]"`). MONAI includes the LPIPS calibration weights;
-the external `lpips` package is no longer required. ImageNet feature weights are
-downloaded by Torchvision on first use.
+(`pip install "monai[torchvision]"`). The external `lpips` package is no longer required.
+ImageNet feature weights are downloaded by Torchvision. LPIPS calibration weights are
+downloaded from the official [MONAI Hugging Face repository](https://huggingface.co/MONAI/checkpoints),
+verified with SHA-256, and cached under the Torch Hub `checkpoints` directory on first use.
+`PerceptualLoss(cache_dir=...)` selects the Torch Hub cache location for both sets of weights.
+With `pretrained=False`, calibration weights are not downloaded; ImageNet feature weights
+are still required.
 The existing `monai[lpips]` extra is retained as an alias for `monai[torchvision]`.
 
 Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy and `nvimgcodec` are omitted from `all` since the choice between

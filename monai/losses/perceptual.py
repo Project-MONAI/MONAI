@@ -16,7 +16,7 @@ import warnings
 import torch
 import torch.nn as nn
 
-from monai.losses._perceptual import LPIPS
+from monai.networks.nets import LPIPS
 from monai.utils import optional_import
 from monai.utils.enums import StrEnum
 

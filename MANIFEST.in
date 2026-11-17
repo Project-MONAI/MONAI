@@ -1,3 +1,2 @@
 recursive-include monai/csrc *.cpp *.cu *.h *.cuh
-recursive-include monai/losses/weights *.pth LICENSE.LPIPS README.md
 prune tests
