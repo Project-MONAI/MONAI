@@ -3567,7 +3567,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         else:
             min_offset = ensure_tuple_rep(self.min_offset, len(self.patch_size))
         if self.max_offset is None:
-            max_offset = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
+            max_offset = tuple(s % p if p else 0 for s, p in zip(array.shape[1:], self.patch_size))
         else:
             max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
 
