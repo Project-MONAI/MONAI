@@ -481,7 +481,7 @@ class BundleAlgo(Algo):
                 if "n_devices" in restored:
                     if merged["n_devices"] > visible:
                         raise ValueError(
-                            f"device_setting asks for {merged['n_devices']} devices but "
+                            f'Value in `state["device_setting"]` asks for {merged["n_devices"]} devices but '
                             f"CUDA_VISIBLE_DEVICES={restored['CUDA_VISIBLE_DEVICES']!r} exposes {visible}."
                         )
                 else:
