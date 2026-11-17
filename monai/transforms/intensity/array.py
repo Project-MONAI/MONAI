@@ -1055,7 +1055,7 @@ class NormalizeIntensity(InvertibleTransform):
                 div, *_ = convert_to_dst_type(div, x)
                 return x * div + sub
             # nonzero=True: the forward mask is the output's non-zero voxels plus the recorded zeroed ones
-            mask = x != 0
+            mask = (x != 0).contiguous()
             zeroed_idx, *_ = convert_to_dst_type(zeroed_idx, mask, dtype=torch.long)
             mask.view(-1)[zeroed_idx] = True
             vals = x[mask]
