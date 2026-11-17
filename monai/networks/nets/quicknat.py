@@ -343,6 +343,10 @@ class Quicknat(nn.Module):
         pool: kernel size of the pooling layer,
         stride_pool: stride for the pooling layer.
         se_block: Squeeze and Excite block type to include. Use ``None`` or ``"None"`` to disable it; valid enabled values are ``"CSE"``, ``"SSE"``, and ``"CSSE"``.
+            ``"SSE"`` and ``"CSSE"`` now use :py:class:`monai.networks.blocks.SpatialSELayer` and
+            :py:class:`monai.networks.blocks.ChannelSpatialSELayer` instead of the external
+            ``squeeze_and_excitation`` package, so weights saved with that package for these two options
+            have different ``state_dict`` keys and will not load with ``strict=True``.
         drop_out: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.

@@ -88,7 +88,7 @@ TEST_CASES_SPATIAL = [
 
 
 class TestSpatialSELayer(unittest.TestCase):
-    """Test the spatial squeeze and channel excitation layer."""
+    """Test the channel squeeze and spatial excitation layer."""
 
     @parameterized.expand(TEST_CASES_SPATIAL)
     def test_shape(self, input_param, input_shape, expected_shape):
