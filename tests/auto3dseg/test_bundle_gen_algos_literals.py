@@ -114,11 +114,17 @@ class TestBundleGenAlgosLiterals(unittest.TestCase):
         self.assertEqual(gen.algos[0].template_path, self.root)
 
     def test_expression_as_template_path_is_not_evaluated(self):
-        """A ``$`` expression used as ``template_path`` is not evaluated, even though the module then fails."""
+        """A ``$`` expression used as ``template_path`` is not evaluated, and is rejected as a path."""
         payload = self._payload()
-        with self.assertRaises(ModuleNotFoundError):
+        with self.assertRaisesRegex(ValueError, "not a directory"):
             BundleGen(algos={"algo1": {"_target_": self.target, "template_path": payload}})
         self.assertFalse(os.path.exists(self.marker), "the template_path payload was evaluated")
+
+    def test_non_directory_template_path_is_rejected(self):
+        """A missing directory is reported against ``template_path`` instead of surfacing as an import error."""
+        missing = os.path.join(self.root, "no_such_template")
+        with self.assertRaisesRegex(ValueError, "not a directory"):
+            BundleGen(algos={"algo1": {"_target_": self.target, "template_path": missing}})
 
     def test_non_algo_target_is_rejected(self):
         """``_target_`` must name an ``Algo`` subclass, not an arbitrary callable."""

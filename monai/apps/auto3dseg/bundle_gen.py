@@ -542,6 +542,8 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
 
     The class named by ``_target_`` is still imported, from ``template_path`` if the module is not installed,
     so ``template_path`` must point to a directory you trust: importing a module runs its top-level code.
+    The directory is validated and added to ``sys.path`` here, and left there afterwards, because the
+    instantiated ``Algo`` may import further modules from its template when it is trained or exported.
 
     Args:
         algo_name: the key of the entry, used in error messages.
@@ -552,8 +554,8 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
         the instantiated ``Algo``.
 
     Raises:
-        ValueError: if the entry is not a mapping, has no ``_target_``, or the target is not an ``Algo``
-            subclass.
+        ValueError: if the entry is not a mapping, has no ``_target_``, the target is not an ``Algo``
+            subclass, or ``template_path`` is not a directory.
     """
     if not isinstance(algo_params, dict):
         raise ValueError(
@@ -572,6 +574,10 @@ def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
             f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: expected a string, "
             f"got {type(template_path).__name__}."
         )
+    # check the directory here: a bad sys.path entry only surfaces later, as a ModuleNotFoundError for the
+    # target class that says nothing about the path being wrong
+    if template_path and not os.path.isdir(template_path):
+        raise ValueError(f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: not a directory.")
     if template_path and template_path not in sys.path:
         sys.path.append(template_path)
 
