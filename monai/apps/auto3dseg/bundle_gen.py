@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
 import ntpath
 import os
@@ -41,7 +42,9 @@ from monai.auto3dseg.utils import (
     _run_cmd_torchrun,
     algo_to_json,
 )
+from monai.bundle.config_item import ConfigExpression
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.reference_resolver import ReferenceResolver
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
@@ -99,6 +102,124 @@ def _confined_join(root: str, name: str) -> str:
     return path
 
 
+def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
+    """
+    Resolve a config value that must be a path string, without evaluating it with ``eval``.
+
+    The config is read from an algorithm output directory, and ``import_bundle_algo_history`` can read one from
+    a work directory this process did not write. The value is therefore treated as data, and only these shapes
+    are accepted:
+
+    - a plain string, which is returned unchanged;
+    - a whole-value reference, ``@name``, where that entry holds a plain string;
+    - a ``$`` expression built only from string literals, ``+`` concatenation, ``str()`` with one argument, and
+      ``@name`` references to other entries, for example the ``$@bundle_root + '/model_fold' + str(@fold)``
+      used by the shipped templates.
+
+    Everything else raises ``ValueError``: any other call, attribute access, a subscript other than the internal
+    reference table, a comprehension, a ``_target_`` mapping, and a value that is not a string at all.
+
+    Three consequences are deliberate. A config that relied on a wider expression, for example
+    ``$os.path.join(@bundle_root, 'model')`` or an f-string, is now refused, so such a path has to be written out
+    in full. References are resolved one level deep only: if ``model_folds_dir`` is itself
+    ``$@bundle_root + '/model_folds'`` then ``$@model_folds_dir + '/fold_0'`` is refused, because the referenced
+    entry holds an expression rather than a plain value. An integer entry is accepted only inside ``str()``, as
+    in ``str(@fold)``, because a path fragment has to be a string.
+
+    Args:
+        value: the config value, as stored in the file.
+        parser: the parser that holds the other entries referenced with ``@``.
+        what: a description of the value, used in the error messages.
+
+    Returns:
+        the resolved path string.
+
+    Raises:
+        ValueError: if ``value`` is not a string, or is not one of the accepted shapes.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {what}: expected a string, got {type(value).__name__}.")
+    if value.startswith("@"):
+        resolved = _resolve_path_reference(value[1:], parser, what)
+        if not isinstance(resolved, str):
+            raise ValueError(f"Invalid {what}: reference {value!r} is not a plain string.")
+        return resolved
+    if not value.startswith(ConfigExpression.prefix):
+        return value
+
+    refs = {
+        ref: _resolve_path_reference(ref, parser, what, allow_integer=True)
+        for ref in ReferenceResolver.match_refs_pattern(value)
+    }
+    expression = ReferenceResolver.update_refs_pattern(value, refs)
+    try:
+        node = ast.parse(expression[len(ConfigExpression.prefix) :], mode="eval").body
+    except SyntaxError as e:
+        raise ValueError(f"Invalid {what} expression: {value!r}.") from e
+    resolved = _path_expression(node, refs, what)
+    if not isinstance(resolved, str):
+        raise ValueError(f"Invalid {what}: the expression does not resolve to a string.")
+    return resolved
+
+
+def _resolve_path_reference(ref: str, parser: ConfigParser, what: str, allow_integer: bool = False) -> str | int:
+    """Return the value of ``@ref``, refusing anything that would need evaluation itself.
+
+    A string is returned as is. A reference whose own value starts with ``$`` or ``@`` is refused, so references
+    are never resolved transitively. An integer is only returned when ``allow_integer`` is set, because the
+    templates use it through ``str()``, as in ``str(@fold)``; it is never concatenated directly.
+    """
+    try:
+        ref_value = parser[ref]
+    except (KeyError, IndexError) as e:
+        raise ValueError(f"Invalid {what}: reference @{ref} does not exist.") from e
+    if isinstance(ref_value, str):
+        if ref_value.startswith(("@", "$")):
+            raise ValueError(f"Invalid {what}: reference @{ref} is not a plain value.")
+        return ref_value
+    if allow_integer and isinstance(ref_value, int) and not isinstance(ref_value, bool):
+        return ref_value
+    raise ValueError(f"Invalid {what}: reference @{ref} is not a plain value.")
+
+
+def _path_expression(node: ast.AST, refs: dict[str, str | int], what: str) -> str | int:
+    """Evaluate the small expression grammar accepted by :func:`_resolve_path_value`.
+
+    The result is a string for every accepted path fragment. The single exception is a bare reference such as
+    ``@fold``, which returns the integer held in the config so that a surrounding ``str(...)`` can format it:
+    an expression like ``$@bundle_root + '/model_fold' + str(@fold)`` visits ``@fold`` here and turns it into
+    ``'0'``. :func:`_resolve_path_value` rejects a non-string result, so an integer never becomes the path.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _path_expression(node.left, refs, what)
+        right = _path_expression(node.right, refs, what)
+        if isinstance(left, str) and isinstance(right, str):
+            return left + right
+        raise ValueError(f"Invalid {what}: only strings can be concatenated.")
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "str"
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return str(_path_expression(node.args[0], refs, what))
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == ReferenceResolver._vars
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(node.slice.value, str)
+        and node.slice.value in refs
+    ):
+        return refs[node.slice.value]
+    raise ValueError(
+        f"Invalid {what}: only string literals, + concatenation, str() of a reference and @references are allowed."
+    )
+
+
 class BundleAlgo(Algo):
     """
     An algorithm represented by a set of bundle configurations and scripts.
@@ -118,6 +239,15 @@ class BundleAlgo(Algo):
     This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
     ``export_to_disk``. Then created bundle keeps the same file structure as the template.
+
+    Note:
+        ``get_score`` reads ``ckpt_path`` from ``configs/hyper_parameters.yaml`` in the algorithm output directory
+        as data rather than evaluating it, because that directory can come from a work directory this process did
+        not write. Only a plain string, a reference to a plain entry, or a ``$`` expression made of string
+        literals, ``+``, ``str()`` and ``@references`` are accepted, as in
+        ``$@bundle_root + '/model_fold' + str(@fold)``. A saved config that needs anything else, for example a
+        call to ``os.path.join`` or a reference to another expression, raises ``ValueError`` instead of being
+        evaluated, so a score written by a template that builds its path that way cannot be read back.
 
     """
 
@@ -377,11 +507,28 @@ class BundleAlgo(Algo):
     def get_score(self, *args, **kwargs):
         """
         Returns validation scores of the model trained by the current Algo.
+
+        The configuration is read from the algorithm output directory, which may belong to a work directory this
+        process did not create (``import_bundle_algo_history`` reads any work dir), so ``ckpt_path`` is resolved
+        as data rather than evaluated. See the class docstring for the syntax that is accepted, which is a
+        narrower set than ``eval`` would allow.
+
+        Args:
+            *args: unused, kept for compatibility with the ``Algo`` interface.
+            **kwargs: unused, kept for compatibility with the ``Algo`` interface.
+
+        Returns:
+            the best average Dice score recorded in ``progress.yaml``.
+
+        Raises:
+            ValueError: if ``ckpt_path`` in the saved configuration is not a plain path string.
         """
         config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
-        parser = ConfigParser()
+        parser = ConfigParser(globals=False)
         parser.read_config(config_yaml)
-        ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
+        # resolved as data, never with eval(): the file can come from a work directory this process
+        # did not write, and a `$` expression there must not be able to call or import anything
+        ckpt_path = _resolve_path_value(parser.get("ckpt_path", default=self.output_path), parser, "ckpt_path")
 
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
         # dict_file: a list of scores saved in the form of dict in progress.yaml
