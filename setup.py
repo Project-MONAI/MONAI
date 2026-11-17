@@ -165,6 +165,6 @@ setup(
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests", "tests.*")),
     zip_safe=False,
-    package_data=cast(Any, {"monai": ["py.typed", *jit_extension_source]}),
+    package_data=cast(Any, {"monai": ["py.typed", "losses/weights/*", *jit_extension_source]}),
     ext_modules=get_extensions(),
 )

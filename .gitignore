@@ -168,5 +168,6 @@ runs
 *.gz
 
 *.pth
+!monai/losses/weights/*.pth
 
 *zarr/*
