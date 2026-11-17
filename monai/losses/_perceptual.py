@@ -47,17 +47,41 @@ torchvision, _ = optional_import("torchvision")
 
 
 class _ScalingLayer(nn.Module):
+    """Apply the fixed RGB shift and scale used by LPIPS v0.1."""
+
     def __init__(self) -> None:
+        """Register the channel-wise shift and scale as buffers."""
         super().__init__()
         self.register_buffer("shift", torch.tensor([-0.030, -0.088, -0.188])[None, :, None, None])
         self.register_buffer("scale", torch.tensor([0.458, 0.448, 0.450])[None, :, None, None])
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Scale an image batch, broadcasting grayscale inputs to RGB.
+
+        Args:
+            input: Image tensor of shape ``(B, C, H, W)``, with one or three channels.
+
+        Returns:
+            Scaled image tensor of shape ``(B, 3, H, W)``.
+        """
         return (input - self.shift) / self.scale
 
 
 class _LPIPSFeatures(nn.Module):
+    """Extract frozen Torchvision features using legacy LPIPS slice names.
+
+    Args:
+        features: Ordered feature layers from a Torchvision backbone.
+        endpoints: Exclusive layer indices at which each successive slice ends.
+    """
+
     def __init__(self, features: nn.Sequential, endpoints: tuple[int, ...]) -> None:
+        """Build successive feature slices and freeze their parameters.
+
+        Args:
+            features: Ordered feature layers from a Torchvision backbone.
+            endpoints: Exclusive layer indices at which each successive slice ends.
+        """
         super().__init__()
         self.num_slices = len(endpoints)
         start = 0
@@ -71,6 +95,14 @@ class _LPIPSFeatures(nn.Module):
         self.requires_grad_(False)
 
     def forward(self, input: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Collect the output of each feature slice.
+
+        Args:
+            input: Scaled RGB image tensor of shape ``(B, 3, H, W)``.
+
+        Returns:
+            Feature tensors in slice order, each with shape ``(B, C_i, H_i, W_i)``.
+        """
         outputs = []
         for index in range(1, self.num_slices + 1):
             input = getattr(self, f"slice{index}")(input)
@@ -79,11 +111,30 @@ class _LPIPSFeatures(nn.Module):
 
 
 class _NetLinLayer(nn.Module):
+    """Calibrate feature differences with Dropout and a bias-free 1x1 convolution.
+
+    Args:
+        channels: Number of input feature channels.
+    """
+
     def __init__(self, channels: int) -> None:
+        """Initialize a calibration layer.
+
+        Args:
+            channels: Number of input feature channels.
+        """
         super().__init__()
         self.model = nn.Sequential(nn.Dropout(), nn.Conv2d(channels, 1, 1, bias=False))
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Compute the calibrated spatial difference map.
+
+        Args:
+            input: Squared normalized feature differences of shape ``(B, C, H, W)``.
+
+        Returns:
+            Calibrated difference map of shape ``(B, 1, H, W)``.
+        """
         return self.model(input)
 
 
@@ -93,9 +144,27 @@ class LPIPS(nn.Module):
     ImageNet feature weights come from Torchvision. ``pretrained`` controls only the
     learned linear calibration, matching the original LPIPS constructor. The v0.1
     calibration weights and their license are distributed in the adjacent weights directory.
+
+    Args:
+        pretrained: Whether to load pretrained linear calibration weights. The feature
+            backbone always uses ImageNet weights, including when this is ``False``.
+        net: Feature backbone name: ``"alex"``, ``"vgg"``, or ``"squeeze"``.
+
+    Raises:
+        ValueError: If ``net`` is not a supported feature backbone name.
     """
 
     def __init__(self, pretrained: bool = True, net: str = "alex") -> None:
+        """Initialize the ImageNet feature backbone and LPIPS calibration layers.
+
+        Args:
+            pretrained: Whether to load the bundled linear calibration weights.
+                This does not change the ImageNet weights used by the feature backbone.
+            net: Feature backbone name: ``"alex"``, ``"vgg"``, or ``"squeeze"``.
+
+        Raises:
+            ValueError: If ``net`` is not a supported feature backbone name.
+        """
         super().__init__()
         networks = {
             "alex": ("alexnet", "AlexNet_Weights", (2, 5, 8, 10, 12), (64, 192, 384, 256, 256)),
@@ -113,6 +182,8 @@ class LPIPS(nn.Module):
         self.scaling_layer = _ScalingLayer()
         backbone = getattr(torchvision.models, factory)(weights=getattr(torchvision.models, weights).IMAGENET1K_V1)
         self.net = _LPIPSFeatures(backbone.features, endpoints)
+        # Legacy checkpoints contain both lin{index} and lins.{index} keys, so register
+        # each calibration layer under both names while sharing the same parameters.
         layers = []
         for index, channel_count in enumerate(channels):
             layer = _NetLinLayer(channel_count)
@@ -125,6 +196,16 @@ class LPIPS(nn.Module):
         self.eval()
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Compute one LPIPS distance for each image pair.
+
+        Args:
+            input: Image tensor of shape ``(B, C, H, W)``, with one or three channels.
+            target: Reference image tensor with the same shape as ``input``.
+
+        Returns:
+            Per-image distances of shape ``(B, 1, 1, 1)``, before the outer
+            ``PerceptualLoss`` reduction.
+        """
         features_input = self.net(self.scaling_layer(input))
         features_target = self.net(self.scaling_layer(target))
         results = []

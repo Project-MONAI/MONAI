@@ -20,10 +20,20 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
+from monai.losses._perceptual import LPIPS
 from monai.utils import optional_import
 from tests.test_utils import skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
+
+
+class TestPerceptualLPIPSValidation(unittest.TestCase):
+    """Check argument validation before any optional backbone is constructed."""
+
+    def test_unsupported_network(self):
+        """Reject unsupported names before constructing a Torchvision backbone."""
+        with self.assertRaisesRegex(ValueError, "Unsupported LPIPS network"):
+            LPIPS(net="unsupported")
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
