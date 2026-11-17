@@ -49,6 +49,8 @@ torchvision, _ = optional_import("torchvision")
 
 __all__ = ["LPIPS", "LPIPSFeatures", "NetLinLayer", "ScalingLayer"]
 
+# Resolve the default at construction time so torch.hub.set_dir() remains effective.
+LPIPS_CHECKPOINTS_DIR: Path | None = None
 LPIPS_WEIGHTS_URL = "https://huggingface.co/MONAI/checkpoints/resolve/main"
 LPIPS_NETWORKS = {
     "alex": (
@@ -79,7 +81,6 @@ class ScalingLayer(nn.Module):
     """Apply the fixed RGB shift and scale used by LPIPS v0.1."""
 
     def __init__(self) -> None:
-        """Register the channel-wise shift and scale as buffers."""
         super().__init__()
         self.register_buffer("shift", torch.tensor([-0.030, -0.088, -0.188])[None, :, None, None])
         self.register_buffer("scale", torch.tensor([0.458, 0.448, 0.450])[None, :, None, None])
@@ -105,12 +106,6 @@ class LPIPSFeatures(nn.Sequential):
     """
 
     def __init__(self, features: nn.Sequential, endpoints: tuple[int, ...]) -> None:
-        """Build successive feature slices and freeze their parameters.
-
-        Args:
-            features: Ordered feature layers from a Torchvision backbone.
-            endpoints: Exclusive layer indices at which each successive slice ends.
-        """
         slices: OrderedDict[str, nn.Module] = OrderedDict()
         start = 0
         for index, end in enumerate(endpoints, 1):
@@ -148,11 +143,6 @@ class NetLinLayer(nn.Sequential):
     """
 
     def __init__(self, channels: int) -> None:
-        """Initialize a calibration layer.
-
-        Args:
-            channels: Number of input feature channels.
-        """
         # The named child retains the model.1.weight keys in upstream calibration files
         # and saved PerceptualLoss checkpoints while Sequential supplies forward().
         super().__init__(OrderedDict(model=nn.Sequential(nn.Dropout(), nn.Conv2d(channels, 1, 1, bias=False))))
@@ -179,19 +169,6 @@ class LPIPS(nn.Module):
     """
 
     def __init__(self, pretrained: bool = True, net: str = "alex") -> None:
-        """Initialize the ImageNet feature backbone and LPIPS calibration layers.
-
-        Args:
-            pretrained: Whether to download and load pretrained linear calibration weights.
-                This does not change the ImageNet weights used by the feature backbone.
-            net: Feature backbone name: ``"alex"``, ``"vgg"``, or ``"squeeze"``.
-
-        Raises:
-            ValueError: If ``net`` is not a supported feature backbone name.
-            monai.apps.HashCheckError: If the calibration checkpoint fails integrity verification.
-            RuntimeError: If downloading the calibration checkpoint fails.
-            OSError: If the calibration checkpoint cannot be downloaded or read.
-        """
         super().__init__()
         if net not in LPIPS_NETWORKS:
             raise ValueError(f"Unsupported LPIPS network: {net}.")
@@ -208,7 +185,10 @@ class LPIPS(nn.Module):
             layers.append(layer)
         self.lins = nn.ModuleList(layers)
         if pretrained:
-            path = Path(torch.hub.get_dir()) / "checkpoints" / f"lpips_v0.1_{net}.pth"
+            directory = (
+                LPIPS_CHECKPOINTS_DIR if LPIPS_CHECKPOINTS_DIR is not None else Path(torch.hub.get_dir(), "checkpoints")
+            )
+            path = directory / f"lpips_v0.1_{net}.pth"
             download_url(
                 f"{LPIPS_WEIGHTS_URL}/{net}.pth", filepath=path, hash_val=hash_val, hash_type="sha256", progress=False
             )

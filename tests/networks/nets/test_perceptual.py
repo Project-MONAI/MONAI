@@ -12,20 +12,24 @@
 from __future__ import annotations
 
 import unittest
-from contextlib import ExitStack
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
-from urllib.error import URLError
 
 import torch
+from parameterized import parameterized
 from torch import nn
 
-from monai.apps import HashCheckError
+from monai.losses import PerceptualLoss
 from monai.networks.nets import LPIPS, LPIPSFeatures, NetLinLayer, ScalingLayer
 from monai.utils import optional_import
-from tests.lpips_test_utils import lpips_test_cache
+from tests.test_utils import dict_product, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
+
+
+TEST_NETWORKS = [("alex", "alexnet"), ("vgg", "vgg16"), ("squeeze", "squeezenet1_1")]
+TEST_PRETRAINED = [(params,) for params in dict_product(network=TEST_NETWORKS, pretrained=[True, False])]
 
 
 class TestLPIPSHelpers(unittest.TestCase):
@@ -62,69 +66,55 @@ class TestLPIPSHelpers(unittest.TestCase):
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
-class TestLPIPSDownloads(unittest.TestCase):
-    """Exercise real download, integrity and cache logic with a local transport."""
+@skip_if_quick
+class TestLPIPSPretrained(unittest.TestCase):
+    @parameterized.expand(TEST_PRETRAINED)
+    def test_calibration_checkpoint(self, params):
+        net, factory_name = params["network"]
+        factory = getattr(torchvision.models, factory_name)
+        expected = {"lin0.model.1.weight": torch.full((1, 64, 1, 1), 0.125)}
+        with TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / f"lpips_v0.1_{net}.pth"
 
-    def setUp(self):
-        """Isolate the cache and replace only ImageNet and HTTP downloads."""
-        stack = ExitStack()
-        self.addCleanup(stack.close)
-        self.cache, self.expected, self.transfer = stack.enter_context(lpips_test_cache(preload=False))
+            def save_checkpoint(url, filepath, **kwargs):
+                self.assertEqual(filepath, checkpoint)
+                torch.save(expected, filepath)
+
+            with (
+                patch("monai.networks.nets.perceptual.LPIPS_CHECKPOINTS_DIR", Path(directory)),
+                patch("monai.networks.nets.perceptual.download_url", side_effect=save_checkpoint),
+                patch.object(torchvision.models, factory_name, side_effect=lambda **kwargs: factory(weights=None)),
+            ):
+                model = LPIPS(net=net, pretrained=params["pretrained"])
+            self.assertEqual(checkpoint.is_file(), params["pretrained"])
+            self.assertEqual(
+                torch.equal(model.state_dict()["lin0.model.1.weight"], expected["lin0.model.1.weight"]),
+                params["pretrained"],
+            )
+
+    def test_perceptual_loss_cache_dir(self):
         factory = torchvision.models.squeezenet1_1
-        stack.enter_context(
-            patch.object(torchvision.models, "squeezenet1_1", side_effect=lambda **kwargs: factory(weights=None))
-        )
-        self.checkpoint = self.cache / "checkpoints" / "lpips_v0.1_squeeze.pth"
+        previous_cache = torch.hub.get_dir()
+        self.addCleanup(torch.hub.set_dir, previous_cache)
+        expected = {"lin0.model.1.weight": torch.full((1, 64, 1, 1), 0.125)}
+        with TemporaryDirectory() as directory:
+            checkpoint = Path(directory, "checkpoints", "lpips_v0.1_squeeze.pth")
 
-    def assert_calibration_loaded(self, model):
-        """Check every calibrated layer against the independent fixture tensors.
+            def save_checkpoint(url, filepath, **kwargs):
+                self.assertEqual(filepath, checkpoint)
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(expected, filepath)
 
-        Args:
-            model: LPIPS network whose pretrained calibration has been loaded.
-        """
-        for key, value in self.expected["squeeze"].items():
-            torch.testing.assert_close(model.state_dict()[key], value, rtol=0, atol=0)
-
-    def test_download_and_offline_cache_reuse(self):
-        """A cold cache downloads once; a warm cache loads without HTTP access."""
-        self.assert_calibration_loaded(LPIPS(net="squeeze"))
-        self.assertTrue(self.checkpoint.exists())
-        self.transfer.assert_called_once()
-        self.assertEqual(
-            self.transfer.call_args.args[0], "https://huggingface.co/MONAI/checkpoints/resolve/main/squeeze.pth"
-        )
-        self.transfer.side_effect = AssertionError("A valid cached checkpoint must not be downloaded again")
-        self.assert_calibration_loaded(LPIPS(net="squeeze"))
-
-    def test_random_calibration_does_not_download(self):
-        """pretrained=False leaves calibration random and does not access its URL."""
-        self.transfer.side_effect = AssertionError("Random calibration must not download weights")
-        model = LPIPS(net="squeeze", pretrained=False)
-        self.assertFalse(self.checkpoint.exists())
-        for key, value in self.expected["squeeze"].items():
-            self.assertFalse(torch.equal(model.state_dict()[key], value))
-
-    def test_corrupt_download_is_rejected(self):
-        """Failed integrity validation must not silently use random calibration."""
-        self.transfer.side_effect = lambda url, filepath, progress: Path(filepath).write_bytes(b"invalid checkpoint")
-        with self.assertRaises(HashCheckError):
-            LPIPS(net="squeeze")
-        self.assertFalse(self.checkpoint.exists())
-
-    def test_corrupt_cache_is_rejected(self):
-        """Cached weights are validated before being passed to torch.load."""
-        LPIPS(net="squeeze")
-        self.checkpoint.write_bytes(b"corrupt cache")
-        self.transfer.side_effect = AssertionError("Corrupt existing cache must be reported")
-        with self.assertRaises(HashCheckError):
-            LPIPS(net="squeeze")
-
-    def test_network_failure_is_reported(self):
-        """An unavailable server must fail instead of returning an uncalibrated model."""
-        self.transfer.side_effect = URLError("offline")
-        with self.assertRaises(URLError):
-            LPIPS(net="squeeze")
-        self.assertFalse(self.checkpoint.exists())
+            with (
+                patch("monai.networks.nets.perceptual.download_url", side_effect=save_checkpoint),
+                patch.object(torchvision.models, "squeezenet1_1", side_effect=lambda **kwargs: factory(weights=None)),
+                self.assertWarnsRegex(UserWarning, "Setting cache_dir"),
+            ):
+                loss = PerceptualLoss(spatial_dims=2, network_type="squeeze", cache_dir=directory)
+            self.assertTrue(checkpoint.is_file())
+            torch.testing.assert_close(
+                loss.perceptual_function.state_dict()["lin0.model.1.weight"], expected["lin0.model.1.weight"]
+            )
 
 
 if __name__ == "__main__":

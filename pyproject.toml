@@ -19,7 +19,7 @@ description = "AI Toolkit for Healthcare Imaging"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = "Apache-2.0"
-license-files = ["LICENSE", "monai/networks/nets/LICENSE.LPIPS"]
+license-files = ["LICENSE"]
 authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
 classifiers = [
   "Intended Audience :: Developers",
