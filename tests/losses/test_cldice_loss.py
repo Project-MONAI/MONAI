@@ -71,6 +71,27 @@ COMBINED_CASES = [
     [{"alpha": 1.0, "smooth_nr": 1e-5, "smooth_dr": 1e-5}, PARTIAL_OVERLAP, 0.999990],  # pure clDice
 ]
 
+# Test cases for use_checkpoint: [input shape, iter_]
+CHECKPOINT_CASES = [[(2, 3, 16, 16), 3], [(2, 2, 12, 12, 12), 5]]
+
+
+def _loss_and_grad(loss_fn, logits, target):
+    """
+    Compute a loss and its gradient with respect to the logits.
+
+    Args:
+        loss_fn: the loss to call as ``loss_fn(input, target)``.
+        logits: the prediction; a copy of it is made to require a gradient.
+        target: the ground truth.
+
+    Returns:
+        the detached loss and its gradient with respect to ``logits``.
+    """
+    x = logits.clone().requires_grad_(True)
+    loss = loss_fn(x, target)
+    (grad,) = torch.autograd.grad(loss, x)
+    return loss.detach(), grad
+
 
 class TestSoftclDiceLoss(unittest.TestCase):
     @parameterized.expand(CLDICE_CASES)
@@ -78,6 +99,57 @@ class TestSoftclDiceLoss(unittest.TestCase):
         loss = SoftclDiceLoss(**loss_params)
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
+
+    @parameterized.expand(CHECKPOINT_CASES)
+    def test_use_checkpoint_same_loss_and_grad(self, shape, iter_):
+        """``use_checkpoint=True`` gives the same loss and gradient, also under ``torch.no_grad()``."""
+        torch.manual_seed(0)
+        logits = torch.randn(shape)
+        target = (torch.rand(shape) > 0.5).float()
+        expected = _loss_and_grad(SoftclDiceLoss(iter_=iter_, sigmoid=True), logits, target)
+        loss = SoftclDiceLoss(iter_=iter_, sigmoid=True, use_checkpoint=True)
+        for result, expected_val in zip(_loss_and_grad(loss, logits, target), expected):
+            np.testing.assert_allclose(result.numpy(), expected_val.numpy(), rtol=1e-5, atol=1e-7)
+        with torch.no_grad():  # no gradient needed: falls back to the plain computation
+            np.testing.assert_allclose(loss(logits, target).numpy(), expected[0].numpy(), rtol=1e-5, atol=1e-7)
+
+    def test_use_checkpoint_saves_memory(self):
+        """``use_checkpoint=True`` keeps far fewer bytes for the backward pass."""
+        logits = torch.randn((1, 1, 16, 16, 16), requires_grad=True)
+        target = (torch.rand((1, 1, 16, 16, 16)) > 0.5).float()
+
+        def saved_bytes(use_checkpoint):
+            """
+            Count the bytes that autograd keeps for the backward pass of one forward call.
+
+            This is the total size of the distinct storages saved for backward, not the peak memory.
+
+            Args:
+                use_checkpoint: passed to ``SoftclDiceLoss``.
+
+            Returns:
+                the number of bytes.
+            """
+            storages = {}
+
+            def pack(t):
+                """
+                Record the storage of a tensor that autograd saves for the backward pass.
+
+                Args:
+                    t: the saved tensor.
+
+                Returns:
+                    ``t`` unchanged.
+                """
+                storages[t.untyped_storage().data_ptr()] = t.untyped_storage().nbytes()
+                return t
+
+            with torch.autograd.graph.saved_tensors_hooks(pack, lambda t: t):
+                SoftclDiceLoss(iter_=5, sigmoid=True, use_checkpoint=use_checkpoint)(logits, target)
+            return sum(storages.values())
+
+        self.assertLess(saved_bytes(True), saved_bytes(False) / 4)
 
     @skip_if_no_cuda
     def test_cuda(self):
@@ -144,6 +216,16 @@ class TestSoftDiceclDiceLoss(unittest.TestCase):
         loss = SoftDiceclDiceLoss(**loss_params)
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
+
+    def test_use_checkpoint_same_loss_and_grad(self):
+        """``use_checkpoint=True`` gives the same combined loss and gradient."""
+        torch.manual_seed(0)
+        logits = torch.randn((2, 2, 12, 12, 12))
+        target = (torch.rand((2, 2, 12, 12, 12)) > 0.5).float()
+        expected = _loss_and_grad(SoftDiceclDiceLoss(sigmoid=True), logits, target)
+        result = _loss_and_grad(SoftDiceclDiceLoss(sigmoid=True, use_checkpoint=True), logits, target)
+        for result_val, expected_val in zip(result, expected):
+            np.testing.assert_allclose(result_val.numpy(), expected_val.numpy(), rtol=1e-5, atol=1e-7)
 
     @skip_if_no_cuda
     def test_cuda(self):

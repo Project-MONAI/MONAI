@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
+from typing import cast
 
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
+from torch.utils.checkpoint import checkpoint
 
 from monai.losses.dice import DiceLoss
 from monai.networks import one_hot
@@ -76,7 +78,38 @@ def soft_open(img: torch.Tensor) -> torch.Tensor:
     return dilated_image
 
 
-def soft_skel(img: torch.Tensor, iter_: int) -> torch.Tensor:
+def _soft_skel_first(img: torch.Tensor) -> torch.Tensor:
+    """
+    First step of ``soft_skel``: the part of ``img`` that a soft opening removes.
+
+    Args:
+        img: the shape should be BCH(WD)
+
+    Returns:
+        the initial skeleton, with the same shape as ``img``
+    """
+    img1 = soft_open(img)
+    return F.relu(img - img1)
+
+
+def _soft_skel_step(img: torch.Tensor, skel: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    One iteration of ``soft_skel``: erode ``img`` and add what a soft opening removes from it to ``skel``.
+
+    Args:
+        img: the image left by the previous iteration, the shape should be BCH(WD)
+        skel: the skeleton accumulated so far, with the same shape as ``img``
+
+    Returns:
+        the eroded image and the updated skeleton, in that order
+    """
+    img = soft_erode(img)
+    img1 = soft_open(img)
+    delta = F.relu(img - img1)
+    return img, skel + F.relu(delta - skel * delta)
+
+
+def soft_skel(img: torch.Tensor, iter_: int, use_checkpoint: bool = False) -> torch.Tensor:
     """
     Perform soft skeletonization on the input image
 
@@ -86,17 +119,23 @@ def soft_skel(img: torch.Tensor, iter_: int) -> torch.Tensor:
     Args:
         img: the shape should be BCH(WD)
         iter_: number of iterations for skeletonization
+        use_checkpoint: if True and a gradient is being computed for ``img``, recompute each iteration in
+            the backward pass instead of keeping its intermediate tensors (gradient checkpointing). The result
+            is the same; memory use drops and the backward pass takes longer. Defaults to False.
 
     Returns:
         skeletonized image
     """
-    img1 = soft_open(img)
-    skel = F.relu(img - img1)
+    if use_checkpoint and torch.is_grad_enabled() and img.requires_grad:
+        skel = cast(torch.Tensor, checkpoint(_soft_skel_first, img, use_reentrant=False))
+        for _ in range(iter_):
+            img, skel = cast(
+                tuple[torch.Tensor, torch.Tensor], checkpoint(_soft_skel_step, img, skel, use_reentrant=False)
+            )
+        return skel
+    skel = _soft_skel_first(img)
     for _ in range(iter_):
-        img = soft_erode(img)
-        img1 = soft_open(img)
-        delta = F.relu(img - img1)
-        skel = skel + F.relu(delta - skel * delta)
+        img, skel = _soft_skel_step(img, skel)
     return skel
 
 
@@ -129,6 +168,7 @@ class SoftclDiceLoss(_Loss):
         softmax: bool = False,
         other_act: Callable | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
+        use_checkpoint: bool = False,
     ) -> None:
         """
         Args:
@@ -152,6 +192,11 @@ class SoftclDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+
+            use_checkpoint: if True, use gradient checkpointing for the soft skeleton of ``input``: each
+                skeletonization iteration is recomputed in the backward pass instead of keeping its intermediate
+                tensors in memory. The loss and its gradient are unchanged; memory use drops (most for 3D inputs
+                and a larger ``iter_``) and the backward pass takes longer. Defaults to False.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -182,6 +227,7 @@ class SoftclDiceLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
+        self.use_checkpoint = use_checkpoint
 
     @deprecated_arg("y_pred", since="1.5", removed="1.8", new_name="input", msg_suffix="please use `input` instead.")
     @deprecated_arg("y_true", since="1.5", removed="1.8", new_name="target", msg_suffix="please use `target` instead.")
@@ -226,8 +272,8 @@ class SoftclDiceLoss(_Loss):
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
-        skel_pred = soft_skel(input, self.iter)
-        skel_true = soft_skel(target, self.iter)
+        skel_pred = soft_skel(input, self.iter, use_checkpoint=self.use_checkpoint)
+        skel_true = soft_skel(target, self.iter, use_checkpoint=self.use_checkpoint)
 
         # Compute per-batch clDice by reducing over channel and spatial dimensions
         # reduce_axis includes all dimensions except batch (dim 0)
@@ -280,6 +326,7 @@ class SoftDiceclDiceLoss(_Loss):
         softmax: bool = False,
         other_act: Callable | None = None,
         reduction: LossReduction | str = LossReduction.MEAN,
+        use_checkpoint: bool = False,
     ) -> None:
         """
         Args:
@@ -305,6 +352,9 @@ class SoftDiceclDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+
+            use_checkpoint: if True, use gradient checkpointing in the clDice part to save memory,
+                see ``monai.losses.SoftclDiceLoss``. Defaults to False.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -337,6 +387,7 @@ class SoftDiceclDiceLoss(_Loss):
             softmax=softmax,
             other_act=other_act,
             reduction=reduction,
+            use_checkpoint=use_checkpoint,
         )
         self.alpha = alpha
         self.to_onehot_y = to_onehot_y
