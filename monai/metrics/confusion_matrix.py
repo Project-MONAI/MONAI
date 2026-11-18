@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import create_ignore_mask, do_metric_reduction, ignore_background
+from monai.metrics.utils import _exact_sum, create_ignore_mask, do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -222,20 +222,22 @@ def get_confusion_matrix(
         # When masking, TN must only count locations where the mask is 1
         tn = tn * mask.bool()
 
-    tp = tp.sum(dim=[2]).float()
-    tn = tn.sum(dim=[2]).float()
-    p = y.sum(dim=[2]).float()
+    # float32 holds integers exactly only up to 2**24, so `n - tn` and `p - tp` in float32 lose false positives
+    # and negatives in large volumes. Count exactly and cast only the result to float32.
+    tp = tp.sum(dim=[2])
+    tn = tn.sum(dim=[2])
+    p = _exact_sum(y)
 
     if mask is not None:
         # n is total valid pixels (per sample) minus the positives for that class
-        n = mask.reshape(batch_size, -1).sum(dim=1, keepdim=True) - p
+        n = _exact_sum(mask.reshape(batch_size, 1, -1)) - p
     else:
         n = y.shape[-1] - p
 
     fn = p - tp
     fp = n - tn
 
-    return torch.stack([tp, fp, tn, fn], dim=-1)
+    return torch.stack([tp, fp, tn, fn], dim=-1).float()
 
 
 def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Tensor) -> torch.Tensor:
