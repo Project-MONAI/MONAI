@@ -43,6 +43,7 @@ from tests.test_utils import (
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
+    test_export_save,
     test_script_save,
 )
 
@@ -315,6 +316,12 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    @parameterized.expand(TEST_SCRIPT_CASES)
+    def test_export(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
 
 @SkipIfNoModule("hf_hub_download")

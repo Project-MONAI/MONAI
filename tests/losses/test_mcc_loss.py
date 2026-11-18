@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import MCCLoss
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2), sigmoid
@@ -148,6 +148,11 @@ class TestMCCLoss(unittest.TestCase):
         loss = MCCLoss()
         test_input = torch.ones(2, 1, 8, 8)
         test_script_save(loss, test_input, test_input)
+
+    def test_export(self):
+        loss = MCCLoss()
+        test_input = torch.rand(2, 1, 8, 8)
+        test_export_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.test_utils import skip_if_quick, test_script_save
+from tests.test_utils import skip_if_quick, test_export_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -196,6 +196,20 @@ class TestRetinaNetDetector(unittest.TestCase):
         with eval_mode(detector):
             input_data = torch.randn(input_shape)
             test_script_save(detector.network, input_data)
+
+    @parameterized.expand(TEST_CASES_TS)
+    def test_export(self, input_param, input_shape):
+        # test whether support export
+        returned_layers = [1]
+        anchor_generator = AnchorGeneratorWithAnchorShape(
+            feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
+        )
+        detector = retinanet_resnet50_fpn_detector(
+            **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
+        )
+        with eval_mode(detector):
+            input_data = torch.randn(input_shape)
+            test_export_save(detector.network, input_data)
 
 
 if __name__ == "__main__":

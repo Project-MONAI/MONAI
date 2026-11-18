@@ -20,7 +20,7 @@ from monai.apps.reconstruction.networks.nets.coil_sensitivity_model import CoilS
 from monai.apps.reconstruction.networks.nets.complex_unet import ComplexUnet
 from monai.apps.reconstruction.networks.nets.varnet import VariationalNetworkModel
 from monai.networks import eval_mode
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 coil_sens_model = CoilSensitivityModel(spatial_dims=2, features=[8, 16, 32, 64, 128, 8])
@@ -56,6 +56,19 @@ class TestVarNet(unittest.TestCase):
         test_data = torch.randn(input_shape)
 
         test_script_save(net, test_data, mask.bool())
+
+    @parameterized.expand(TESTS)
+    def test_export(self, coil_sens_model, refinement_model, num_cascades, input_shape, expected_shape):
+        net = VariationalNetworkModel(coil_sens_model, refinement_model, num_cascades)
+
+        mask_shape = [1 for _ in input_shape]
+        mask_shape[-2] = input_shape[-2]
+        mask = torch.zeros(mask_shape)
+        mask[..., mask_shape[-2] // 2 - 5 : mask_shape[-2] // 2 + 5, :] = 1
+
+        test_data = torch.randn(input_shape)
+
+        test_export_save(net, test_data, mask.bool())
 
 
 if __name__ == "__main__":

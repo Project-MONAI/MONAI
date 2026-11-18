@@ -21,7 +21,14 @@ from monai.losses import DeepSupervisionLoss, DiceCELoss
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
 from monai.utils import optional_import
-from tests.test_utils import assert_allclose, dict_product, skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.test_utils import (
+    assert_allclose,
+    dict_product,
+    skip_if_no_cuda,
+    skip_if_windows,
+    test_export_save,
+    test_script_save,
+)
 
 InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
@@ -174,6 +181,12 @@ class TestDynUNet(unittest.TestCase):
         net = DynUNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
+        net = DynUNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_export_save(net, test_data)
 
 
 @skip_if_no_cuda

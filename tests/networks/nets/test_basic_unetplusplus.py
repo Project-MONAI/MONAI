@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import BasicUNetPlusPlus
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 CASES_1D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
@@ -103,6 +103,11 @@ class TestBasicUNETPlusPlus(unittest.TestCase):
         net = BasicUNetPlusPlus(spatial_dims=2, deep_supervision=True, in_channels=1, out_channels=3)
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        net = BasicUNetPlusPlus(spatial_dims=2, deep_supervision=True, in_channels=1, out_channels=3)
+        test_data = torch.randn(16, 1, 32, 32)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

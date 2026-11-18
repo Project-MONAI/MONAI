@@ -49,7 +49,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
-from monai.networks import convert_to_onnx, convert_to_torchscript
+from monai.networks import convert_to_export, convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import compute_capabilities_after, pytorch_after
@@ -776,6 +776,25 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             verify=True,
             inputs=inputs,
             device=device,
+            rtol=rtol,
+            atol=atol,
+        )
+
+
+def test_export_save(net, *inputs, dynamic_shapes=None, rtol=1e-4, atol=0.0):
+    """
+    Test the ability to save `net` with `torch.export`, reload it, and apply inference. The value `inputs` is
+    forward-passed through the original and loaded copy of the network and their results compared.
+    The forward pass for both is done without gradient accumulation, on CPU as with `test_script_save`.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_export(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.pt2"),
+            verify=True,
+            inputs=[i.to("cpu") if isinstance(i, torch.Tensor) else i for i in inputs],
+            dynamic_shapes=dynamic_shapes,
+            device="cpu",
             rtol=rtol,
             atol=atol,
         )
