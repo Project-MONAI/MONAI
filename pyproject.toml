@@ -69,7 +69,7 @@ all = [
   "itk>=5.2",
   "jsonschema",
   "lmdb",
-  "matplotlib>=3.6.3",
+  "matplotlib>=3.11.2",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
   "mlflow>=3.15.2",
   "nibabel",
@@ -124,7 +124,7 @@ itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
 lpips = ["torchvision"]  # compatibility extra; LPIPS is implemented within MONAI
-matplotlib = ["matplotlib>=3.6.3"]
+matplotlib = ["matplotlib>=3.11.2"]
 # per #5882 this requirement must be on one line to get removed by sed in weekly-preview.yml
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=3.15.2"]
@@ -138,6 +138,9 @@ nni = [
 # required for GPU accelerated decoding of compressed DICOM images
 nvimgcodec = [
   "pydicom",
+  # Tighter requirements than just the "cucim" optional dependency to get around a bug with cupy, also cucim>26.8 will
+  # require Numpy 2.x.
+  "cucim-cu13>=26.6.0; platform_system == 'Linux' and python_version >= '3.11'",
   "cupy-cuda13x[ctk]!=14.1.0; platform_system == 'Linux'",
   "nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == 'Linux'"
 ]

@@ -78,7 +78,10 @@ class TestInitLoadImage(unittest.TestCase):
         if nvimgcodec_spec is None:
             self.skipTest("nvidia.nvimgcodec is not installed")
 
-        code = "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
+        code = (
+            "import warnings;warnings.filterwarnings('ignore'); "
+            "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
+        )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -96,6 +99,7 @@ class TestInitLoadImage(unittest.TestCase):
             self.skipTest("nvidia.nvimgcodec is not installed")
 
         code = (
+            "import warnings;warnings.filterwarnings('ignore');"
             "import monai, sys; "
             "from monai.transforms import LoadImage; "
             "LoadImage(); "
