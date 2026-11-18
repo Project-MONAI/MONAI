@@ -228,6 +228,8 @@ class nnUNetV2Runner:  # noqa: N801
             "nnunet_results", os.path.join(self.work_dir, "nnUNet_trained_models")
         )
 
+        self.preprocessing_skip_invalid_files = self.input_info.pop("preprocessing_skip_invalid_files", False)
+
         if not os.path.exists(self.nnunet_raw):
             os.makedirs(self.nnunet_raw)
 
@@ -1122,6 +1124,7 @@ class nnUNetV2Runner:  # noqa: N801
         num_input_channels: int | None = None,
         work_dir: str = "work_dir",
         folds: tuple[int, ...] | None = None,
+        skip_invalid_files: bool = False,
     ):
         """Method to run inference on a datalist using a model trained by this runner.
         Handles all nnUNet boilerplate, instantiation of the runner, etc.
@@ -1176,6 +1179,7 @@ class nnUNetV2Runner:  # noqa: N801
             "nnunet_results": nnunet_trained_models,
             "num_input_channels": num_input_channels,
             "num_foreground_classes": num_foreground_classes,
+            "preprocessing_skip_invalid_files": skip_invalid_files,
         }
 
         # call preprocessing
@@ -1210,6 +1214,7 @@ class nnUNetV2Runner:  # noqa: N801
         output_dir: str,
         work_dir: str = "work_dir",
         modality: str = "CT",
+        skip_invalid_files: bool = False,
     ):
         """Method to run inference on a glob of files using a model trained by this runner.
 
@@ -1235,6 +1240,7 @@ class nnUNetV2Runner:  # noqa: N801
                 work_dir=work_dir,
                 output_dir=output_dir,
                 modality=modality,
+                skip_invalid_files=skip_invalid_files
             )
         finally:
             if temp_json_path is not None and os.path.exists(temp_json_path):

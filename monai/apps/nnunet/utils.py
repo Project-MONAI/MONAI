@@ -64,7 +64,7 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
 
 
 def create_new_data_copy(
-    test_key: str, datalist_json: dict, data_dir: str, num_input_channels: int, output_datafolder: str
+    test_key: str, datalist_json: dict, data_dir: str, num_input_channels: int, output_datafolder: str, skip_invalid_files: bool = False
 ) -> None:
     """
     Create and organize a new copy of data to meet the requirements of nnU-Net V2
@@ -100,9 +100,17 @@ def create_new_data_copy(
             _index += 1
 
             # copy image
-            nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
-                os.path.join(data_dir, orig_img_name)
-            )
+            try:
+                nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                    os.path.join(data_dir, orig_img_name)
+                )
+            except Exception as e:
+                if skip_invalid_files:
+                    logger.error(f"Error loading image: {orig_img_name}. Error: {e}")
+                    continue
+                else:
+                    logger.error(f"Error loading image: {orig_img_name}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}")
+                    raise
             affine = nda.meta["original_affine"]
             nda = nda.numpy()
             for _l in range(num_input_channels):
@@ -112,9 +120,17 @@ def create_new_data_copy(
 
             # copy label
             if isinstance(datalist_json[_key][_k], dict) and "label" in datalist_json[_key][_k]:
-                nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
-                    os.path.join(data_dir, datalist_json[_key][_k]["label"])
-                )
+                try:
+                    nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                        os.path.join(data_dir, datalist_json[_key][_k]["label"])
+                    )
+                except Exception as e:
+                    if skip_invalid_files:
+                        logger.error(f"Error loading label: {datalist_json[_key][_k]['label']}. Error: {e}")
+                        continue
+                    else:
+                        logger.error(f"Error loading label: {datalist_json[_key][_k]['label']}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}")
+                        raise
                 affine = nda.meta["original_affine"]
                 nda = nda.numpy().astype(np.uint8)
                 nda = nda[0, ...] if nda.ndim == 4 and nda.shape[0] == 1 else nda
