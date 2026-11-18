@@ -64,7 +64,12 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
 
 
 def create_new_data_copy(
-    test_key: str, datalist_json: dict, data_dir: str, num_input_channels: int, output_datafolder: str, skip_invalid_files: bool = False
+    test_key: str,
+    datalist_json: dict,
+    data_dir: str,
+    num_input_channels: int,
+    output_datafolder: str,
+    skip_invalid_files: bool = False,
 ) -> None:
     """
     Create and organize a new copy of data to meet the requirements of nnU-Net V2
@@ -109,7 +114,9 @@ def create_new_data_copy(
                     logger.error(f"Error loading image: {orig_img_name}. Error: {e}")
                     continue
                 else:
-                    logger.error(f"Error loading image: {orig_img_name}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}")
+                    logger.error(
+                        f"Error loading image: {orig_img_name}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}"
+                    )
                     raise
             affine = nda.meta["original_affine"]
             nda = nda.numpy()
@@ -129,7 +136,9 @@ def create_new_data_copy(
                         logger.error(f"Error loading label: {datalist_json[_key][_k]['label']}. Error: {e}")
                         continue
                     else:
-                        logger.error(f"Error loading label: {datalist_json[_key][_k]['label']}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}")
+                        logger.error(
+                            f"Error loading label: {datalist_json[_key][_k]['label']}. See the 'preprocessing_skip_invalid_files' or 'skip_invalid_files' arguments. Error: {e}"
+                        )
                         raise
                 affine = nda.meta["original_affine"]
                 nda = nda.numpy().astype(np.uint8)

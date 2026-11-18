@@ -1240,7 +1240,7 @@ class nnUNetV2Runner:  # noqa: N801
                 work_dir=work_dir,
                 output_dir=output_dir,
                 modality=modality,
-                skip_invalid_files=skip_invalid_files
+                skip_invalid_files=skip_invalid_files,
             )
         finally:
             if temp_json_path is not None and os.path.exists(temp_json_path):
