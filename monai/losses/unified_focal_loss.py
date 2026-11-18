@@ -186,7 +186,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     Reimplementation of the Asymmetric Unified Focal Tversky Loss described in:
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
-    Michael Yeung, Computerized Medical Imaging and Graphics
+      Michael Yeung, Computerized Medical Imaging and Graphics
     """
 
     def __init__(
