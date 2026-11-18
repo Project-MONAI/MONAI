@@ -5,7 +5,7 @@ This is primarily a security release with fixes for vulnerabilities identified t
 
 ## Security Fixes
 
-A number of recent security alerts are addressed in this release: 
+A number of recent security alerts are addressed in this release:
 
 * GHSA-f45g-w7qf-g6cv: Do not evaluate imports when reading an algorithm score (#9254)
 * GHSA-987m-fcvp-pfxm: Treat BundleGen algos mapping values as literal data (#9253)
