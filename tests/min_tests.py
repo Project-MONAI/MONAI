@@ -214,6 +214,8 @@ def run_testsuit():
         "test_bundle_workflow",
         "test_zarr_avg_merger",
         "test_perceptual_loss",
+        "test_perceptual",
+        "test_perceptual_lpips",
         "test_ultrasound_confidence_map_transform",
         "test_vista3d_utils",
         "test_vista3d_transforms",

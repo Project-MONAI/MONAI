@@ -18,7 +18,8 @@ name = "monai"
 description = "AI Toolkit for Healthcare Imaging"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
-license = { text = "Apache License 2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
 classifiers = [
   "Intended Audience :: Developers",
@@ -68,7 +69,6 @@ all = [
   "itk>=5.2",
   "jsonschema",
   "lmdb",
-  "lpips==0.1.4",
   "matplotlib>=3.6.3",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
   "mlflow>=3.15.2",
@@ -123,7 +123,7 @@ imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'D
 itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
-lpips = ["lpips==0.1.4"]
+lpips = ["torchvision"]  # compatibility extra; LPIPS is implemented within MONAI
 matplotlib = ["matplotlib>=3.6.3"]
 # per #5882 this requirement must be on one line to get removed by sed in weekly-preview.yml
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
@@ -187,7 +187,8 @@ testing = [
 ]
 
 [tool.setuptools]
-license-files = ["LICENSE"]
+# C++/CUDA sources under monai/csrc are compiled into monai._C; they are not Python packages or package data
+include-package-data = false
 
 [tool.setuptools.dynamic]
 version = {attr = "monai.__version__"}

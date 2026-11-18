@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import warnings
 from copy import deepcopy
@@ -23,7 +24,7 @@ import torch
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.auto3dseg.ensemble_builder import EnsembleRunner
-from monai.apps.auto3dseg.hpo_gen import NNIGen
+from monai.apps.auto3dseg.hpo_gen import NNIGen, _nni_trial_command
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_json
@@ -797,29 +798,28 @@ class AutoRunner:
                     nni_config[key] = self.hpo_params[key]
             nni_config.update({"experimentName": name})
             nni_config.update({"search_space": self.search_space})
-            trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
+            trial_cmd = _nni_trial_command(obj_filename, self.work_dir)
             nni_config.update({"trialCommand": trial_cmd})
             nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
             ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
             # pyrefly: ignore [redundant-cast]
             max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
-            cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+            cmd = ["nnictl", "create", "--config", nni_config_filename, "--port", "8088"]
 
             if mode_dry_run:
-                logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {shlex.join(cmd)}")
                 continue
 
-            run_cmd(cmd.split(), check=True)
+            run_cmd(cmd, check=True)
 
             n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
             while n_trainings - last_total_tasks < max_trial:
                 sleep(1)
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
-            cmd = "nnictl stop --all"
             # pyrefly: ignore [bad-argument-type]
-            run_cmd(cmd.split(), check=True)
+            run_cmd(["nnictl", "stop", "--all"], check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings
 
