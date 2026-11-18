@@ -33,10 +33,12 @@ from monai.transforms import (
     RandRotate,
     RandRotate90,
     RandZoom,
+    Resize,
     ResizeWithPadOrCrop,
     Spacing,
+    convert_applied_interp_mode,
 )
-from monai.utils import set_determinism
+from monai.utils import optional_import, set_determinism
 from tests.test_utils import assert_allclose, make_nifti_image
 
 
@@ -99,6 +101,114 @@ class TestInvert(unittest.TestCase):
         )
         output = transform([im_fname for _ in range(2)])
         transform.inverse(output)
+
+
+class TestInvertInterp(unittest.TestCase):
+    """Tests for the optional `interp` argument of `Invert` (issue #7836)."""
+
+    def _make_edge_soft_seg(self, shape):
+        axes = [torch.arange(float(s)) for s in shape]
+        grids = torch.meshgrid(*axes, indexing="ij")
+        center = tuple(s / 2.0 for s in shape)
+        r = torch.sqrt(sum((g - c) ** 2 for g, c in zip(grids, center)))
+        field = torch.sigmoid((min(shape) * 0.3 - r) * 1.8).clamp(0.0, 1.0)
+        return MetaTensor(field.unsqueeze(0), affine=torch.eye(len(shape) + 1))
+
+    def test_positional_arguments_unchanged(self):
+        set_determinism(seed=0)
+        fwd = Compose([Spacing(pixdim=1.4, mode="bilinear")])
+        # legacy positional order: transform, nearest_interp, device, post_func, to_tensor
+        inverter = Invert(fwd, False, None, None, True)
+        self.assertFalse(inverter.nearest_interp)
+        self.assertIsNone(inverter.device)
+        self.assertIsNone(inverter.post_func)
+        self.assertTrue(inverter.to_tensor)
+        # the appended parameter defaults to None and does not shift any positional argument
+        self.assertIsNone(inverter.interp)
+
+    def test_invalid_interp_rejected(self):
+        set_determinism(seed=0)
+        fwd = Compose([Spacing(pixdim=1.4, mode="bilinear")])
+        with self.assertRaises(ValueError):
+            Invert(transform=fwd, interp="banana")
+        with self.assertRaises(ValueError):
+            Invert(transform=fwd, interp=9)
+        with self.assertRaises((TypeError, ValueError)):
+            Invert(transform=fwd, interp=True)
+
+    def test_interp(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Spacing(pixdim=1.4, mode="bilinear")])
+        resampled = fwd(data)
+        out_default = Invert(transform=fwd, to_tensor=False)(resampled.clone())
+        out_interp = Invert(transform=fwd, interp="bilinear", to_tensor=False)(resampled.clone())
+        # an explicitly supplied `interp` takes precedence over the `nearest_interp=True` default
+        self.assertFalse(torch.allclose(out_default, out_interp))
+        # for this saturated, in-range input the bilinear inversion stays inside [0, 1]
+        # (a convex combination of in-range values -- data-specific, not a general guarantee)
+        self.assertGreaterEqual(float(out_interp.min()), -1e-6)
+        self.assertLessEqual(float(out_interp.max()), 1.0 + 1e-6)
+        # and matches the manual recorded-mode rewrite mechanism
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(
+            sim.applied_operations, mode="bilinear", preserve_align_corners=True
+        )
+        expected = fwd.inverse(sim)
+        assert_allclose(out_interp, expected, type_test=False)
+        # transformation metadata is preserved: the affine is restored and the trace fully consumed
+        self.assertIsInstance(out_interp, MetaTensor)
+        assert_allclose(out_interp.affine, data.affine, type_test=False)
+        self.assertEqual(out_interp.applied_operations, [])
+
+    def test_interp_preserves_recorded_align_corners(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Resize(spatial_size=(24, 24, 24), mode="bilinear", align_corners=True)])
+        resampled = fwd(data)
+        out_recorded = Invert(transform=fwd, nearest_interp=False, to_tensor=False)(resampled.clone())
+        out_interp = Invert(transform=fwd, interp="bilinear", to_tensor=False)(resampled.clone())
+        # "bilinear" supports align_corners: the recorded alignment is preserved, matching the
+        # verbatim recorded-mode reuse (this fails if the override resets the recorded alignment)
+        assert_allclose(out_interp, out_recorded, type_test=False)
+        # the forced-nearest default resets the alignment and resamples differently
+        out_default = Invert(transform=fwd, to_tensor=False)(resampled.clone())
+        self.assertFalse(torch.allclose(out_interp, out_default))
+
+    def test_legacy_default_unchanged(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Spacing(pixdim=1.4, mode="bilinear")])
+        resampled = fwd(data)
+        out_default = Invert(transform=fwd, to_tensor=False)(resampled.clone())
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode="nearest", align_corners=None)
+        expected = fwd.inverse(sim)
+        assert_allclose(out_default, expected, type_test=False)
+
+    @unittest.skipUnless(optional_import("scipy")[1], "Requires SciPy.")
+    def test_recorded_spline_reuse(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Spacing(pixdim=1.4, mode=2)])
+        resampled = fwd(data)
+        out_recorded = Invert(transform=fwd, nearest_interp=False, to_tensor=False)(resampled.clone())
+        expected = fwd.inverse(resampled.clone())
+        assert_allclose(out_recorded, expected, type_test=False)
+        out_nearest = Invert(transform=fwd, to_tensor=False)(resampled.clone())
+        self.assertFalse(torch.allclose(out_recorded, out_nearest))
+
+    @unittest.skipUnless(optional_import("scipy")[1], "Requires SciPy.")
+    def test_interp_spline_order(self):
+        set_determinism(seed=0)
+        data = self._make_edge_soft_seg((16, 20, 20))
+        fwd = Compose([Spacing(pixdim=1.4, mode="bilinear")])
+        resampled = fwd(data)
+        sim = resampled.clone()
+        sim.applied_operations = convert_applied_interp_mode(sim.applied_operations, mode=2)
+        expected = fwd.inverse(sim)
+        out = Invert(transform=fwd, interp=2, to_tensor=False)(resampled.clone())
+        assert_allclose(out, expected, type_test=False)
 
 
 if __name__ == "__main__":
