@@ -11,18 +11,16 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 import time
 import unittest
-from pathlib import Path
 
 import torch
 
 from monai.data import DataLoader
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import CommonKeys
-from tests.test_utils import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule, get_matplotlib_baseline
 
 try:
     _, has_ignite = optional_import("ignite")
@@ -70,9 +68,6 @@ class TestThreadContainer(unittest.TestCase):
     @SkipIfNoModule("matplotlib")
     def test_plot(self):
         set_determinism(0)
-        test_dir = Path(__file__).parents[1]
-        testing_dir = os.path.join(test_dir, "testing_data")
-
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
 
         opt = torch.optim.Adam(net.parameters())
@@ -105,7 +100,7 @@ class TestThreadContainer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/threadcontainer_plot_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 5e-2)
+            comp = compare_images(get_matplotlib_baseline("threadcontainer_plot_test.png"), tempimg, 5e-2)
 
             self.assertIsNone(comp, comp)  # None indicates test passed
 

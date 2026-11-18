@@ -50,7 +50,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
-from monai.utils import optional_import
+from monai.utils import optional_import, version_geq
 from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import compute_capabilities_after, pytorch_after
 from monai.utils.tf32 import detect_default_tf32
@@ -99,6 +99,15 @@ def testing_data_config(*keys):
             for k, v in _config.items():
                 _test_data_config[k] = v
     return reduce(operator.getitem, keys, _test_data_config)
+
+
+def get_matplotlib_baseline(filename: str) -> Path:
+    """Select the reference for the pre-3.11 or 3.11+ text renderer."""
+    matplotlib_version, _ = optional_import("matplotlib", name="__version__")
+    directory = MODULE_PATH / "tests" / "testing_data"
+    if version_geq(matplotlib_version, "3.11.0.dev0"):
+        directory /= "matplotlib_3_11"
+    return directory / filename
 
 
 def get_testing_algo_template_path():
