@@ -31,7 +31,7 @@ from tests.test_utils import TESTING_DATA_PATH, SkipIfNoModule
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 plt, has_pyplot = optional_import("matplotlib", name="pyplot")
 
-TOL = 5.0  # FIXME: Matplotlib changed around 3.11 to render differently, high tolerance needed for compatibility
+TOL = 5e-2
 
 KEYS = "image"
 

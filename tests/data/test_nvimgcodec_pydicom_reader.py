@@ -23,6 +23,10 @@ from monai.transforms.io.array import SUPPORTED_READERS, get_default_reader_regi
 from tests.test_utils import SkipIfNoModule
 
 
+# If nvidia-nvjpeg2k-cu13 isn't present then the optional dependency nvimgcodec probably wasn't installed. This is
+# needed for JPEG2000 decoding as well.
+skip_if_no_jpeg2000 = SkipIfNoModule("nvidia-nvjpeg2k-cu13")
+
 class TestNvImgCodecPydicomPlugin(unittest.TestCase):
     @SkipIfNoModule("pydicom")
     def test_is_dicom_path(self):
@@ -227,10 +231,12 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
 @SkipIfNoModule("pydicom")
 @SkipIfNoModule("nvidia.nvimgcodec.tools.dicom.pydicom_plugin")
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
-    # @SkipIfNoModule("pylibjpeg")
-    # @SkipIfNoModule("openjpeg")  # pylibjpeg-openjpeg
-    # @SkipIfNoModule("jpeg_ls")  # pyjpegls
-    # @SkipIfNoModule("gdcm")  # python-gdcm
+    # Skip this test if the optional dependency `nvimgcodec`` wasn't installed. It seems nvidia.nvimgcodec is installed
+    # by cucim so it's absence won't indicate `nvimgcodec` wasn't installed. `nvimgcodec` installs 
+    # `nvidia-nvimgcodec-cu13[all]` which will include `nvidia-nvjpeg2k-cu13` and which is looked for here. 
+    # Previously this test was skipped if pylibjpeg, openjpeg, jpeg_ls, and gdcm were absent. None of these are 
+    # dependencies anywhere so were never installed.
+    @skip_if_no_jpeg2000
     def test_pixels_match_pydicom_reader(self):
         from pydicom import dcmread
         from pydicom.data import get_testdata_file
