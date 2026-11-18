@@ -116,6 +116,12 @@ TEST_CASE_8 = [
     [[2, 4, 5], [1, 3]],
 ]
 
+# rounding each partition size on its own leaves one item over in these cases
+TEST_CASES_ROUNDING = [
+    [{"data": list(range(1, 11)), "ratios": [1, 1, 1]}, [[1, 2, 3, 4], [5, 6, 7], [8, 9, 10]]],
+    [{"data": list(range(1, 14)), "ratios": [0.8, 0.1, 0.1]}, [list(range(1, 12)), [12], [13]]],
+]
+
 
 class TestPartitionDataset(unittest.TestCase):
 
@@ -124,6 +130,28 @@ class TestPartitionDataset(unittest.TestCase):
     )
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset(**input_param), result)
+
+    @parameterized.expand(TEST_CASES_ROUNDING)
+    def test_ratios_rounding(self, input_param, result):
+        """Items left over after rounding go to the partitions that were rounded down the most.
+
+        Args:
+            input_param: keyword arguments for ``partition_dataset``.
+            result: the expected partitions.
+        """
+        self.assertListEqual(partition_dataset(**input_param), result)
+
+    @parameterized.expand([(63, [0.8, 0.1, 0.1]), (303, [0.7, 0.15, 0.15]), (32, [1, 1, 1, 1, 1])])
+    def test_ratios_assign_every_item(self, data_len, ratios):
+        """Every item lands in exactly one partition when the data is shuffled.
+
+        Args:
+            data_len: number of items to partition.
+            ratios: the partition ratios.
+        """
+        data = list(range(data_len))
+        partitions = partition_dataset(data, ratios=ratios, shuffle=True, seed=0)
+        self.assertListEqual(sorted(i for part in partitions for i in part), data)
 
 
 if __name__ == "__main__":
