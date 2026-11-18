@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 else:
     zarr, _ = optional_import("zarr")
 
-__all__ = ["Merger", "AvgMerger", "ZarrAvgMerger"]
+__all__ = ["Merger", "AvgMerger", "StreamingSlabAvgMerger", "ZarrAvgMerger"]
 
 
 class Merger(ABC):
@@ -201,6 +201,163 @@ class AvgMerger(Merger):
             torch.Tensor: number of accumulated samples at each location.
         """
         return self.counts
+
+
+class StreamingSlabAvgMerger(Merger):
+    """Merge patches by maintaining an active slab in memory, streaming finalized slices
+    into a destination tensor along ``slab_dim``.
+
+    Args:
+        merged_shape: the shape of the tensor required to merge the patches (BCHW[D]).
+        roi_size: the spatial window size of patches.
+        slab_dim: the spatial dimension along which streaming slab progresses (default 0).
+        cropped_shape: the shape of the final merged output tensor.
+        device: device for destination merged tensor (default "cpu").
+        slab_device: device for active slab accumulation (e.g. "cuda" or sw_device).
+        value_dtype: the dtype for values. Default torch.float32.
+        count_dtype: the dtype for counts. Default torch.float32.
+    """
+
+    def __init__(
+        self,
+        merged_shape: Sequence[int],
+        roi_size: Sequence[int],
+        slab_dim: int = 0,
+        cropped_shape: Sequence[int] | None = None,
+        device: torch.device | str = "cpu",
+        slab_device: torch.device | str | None = None,
+        value_dtype: torch.dtype = torch.float32,
+        count_dtype: torch.dtype = torch.float32,
+    ) -> None:
+        super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape, device=device)
+        self.roi_size = tuple(roi_size)
+        num_spatial_dims = len(self.merged_shape) - 2
+        if slab_dim < -num_spatial_dims or slab_dim >= num_spatial_dims:
+            raise ValueError(f"slab_dim must be in [{-num_spatial_dims}, {num_spatial_dims - 1}], got {slab_dim}.")
+        if slab_dim < 0:
+            slab_dim += num_spatial_dims
+        self.slab_dim = slab_dim
+        self.slab_device = slab_device or device
+        self.value_dtype = value_dtype
+        self.count_dtype = count_dtype
+
+        self.output = torch.full(self.merged_shape, float("nan"), dtype=self.value_dtype, device=self.device)
+        self.P_slab = self.roi_size[self.slab_dim]
+        slab_shape = list(self.merged_shape)
+        slab_shape[self.slab_dim + 2] = self.P_slab
+        self.active_values = torch.zeros(slab_shape, dtype=self.value_dtype, device=self.slab_device)
+        count_shape = [1, 1] + slab_shape[2:]
+        self.active_counts = torch.zeros(count_shape, dtype=self.count_dtype, device=self.slab_device)
+        self.curr_z_start: int | None = None
+        self.num_spatial_dims = num_spatial_dims
+
+    def _retire_slices(self, count: int, z_start: int) -> None:
+        """Normalize finalized active slab slices and stream them to destination output.
+
+        Args:
+            count: number of slices along ``slab_dim`` to retire.
+            z_start: starting coordinate along ``slab_dim`` in the destination tensor.
+        """
+        count = min(count, self.P_slab)
+        if count <= 0:
+            return
+        retire_val_slice = [slice(None), slice(None)] + [slice(None)] * self.num_spatial_dims
+        retire_val_slice[self.slab_dim + 2] = slice(0, count)
+        retire_cnt_slice = [slice(None), slice(None)] + [slice(None)] * self.num_spatial_dims
+        retire_cnt_slice[self.slab_dim + 2] = slice(0, count)
+
+        dst_slice = [slice(None), slice(None)] + [slice(None)] * self.num_spatial_dims
+        dst_slice[self.slab_dim + 2] = slice(z_start, z_start + count)
+
+        retire_val = self.active_values[tuple(retire_val_slice)] / self.active_counts[tuple(retire_cnt_slice)]
+        self.output[tuple(dst_slice)] = retire_val.to(device=self.device)
+
+        rem = self.P_slab - count
+        if rem > 0:
+            src_shift = [slice(None)] * (self.num_spatial_dims + 2)
+            src_shift[self.slab_dim + 2] = slice(count, count + rem)
+            dst_shift = [slice(None)] * (self.num_spatial_dims + 2)
+            dst_shift[self.slab_dim + 2] = slice(0, rem)
+            clear_shift = [slice(None)] * (self.num_spatial_dims + 2)
+            clear_shift[self.slab_dim + 2] = slice(rem, self.P_slab)
+
+            self.active_values[tuple(dst_shift)] = self.active_values[tuple(src_shift)].clone()
+            self.active_values[tuple(clear_shift)].zero_()
+            self.active_counts[tuple(dst_shift)] = self.active_counts[tuple(src_shift)].clone()
+            self.active_counts[tuple(clear_shift)].zero_()
+        else:
+            self.active_values.zero_()
+            self.active_counts.zero_()
+
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
+        """Aggregate a patch prediction into the active slab, retiring completed slices.
+
+        Args:
+            values: patch prediction tensor of shape BCHW[D].
+            location: starting coordinate of the patch in the output tensor.
+
+        Raises:
+            ValueError: if merger is already finalized, or if patches arrive out-of-order
+                with decreasing coordinates along ``slab_dim``.
+        """
+        if self.is_finalized:
+            raise ValueError("`StreamingSlabAvgMerger` is already finalized.")
+        loc_slab = int(location[self.slab_dim])
+        if self.curr_z_start is None:
+            self.curr_z_start = loc_slab
+
+        if loc_slab < self.curr_z_start:
+            raise ValueError(
+                f"`StreamingSlabAvgMerger` requires patches to arrive in non-decreasing order along "
+                f"`slab_dim` ({self.slab_dim}). Got patch location {loc_slab} < current slab start {self.curr_z_start}."
+            )
+
+        if loc_slab > self.curr_z_start:
+            num_retire = loc_slab - self.curr_z_start
+            self._retire_slices(min(num_retire, self.P_slab), self.curr_z_start)
+            self.curr_z_start = loc_slab
+
+        patch_size = values.shape[2:]
+        local_val_s = [slice(None), slice(None)] + [slice(None)] * self.num_spatial_dims
+        local_cnt_s = [slice(None), slice(None)] + [slice(None)] * self.num_spatial_dims
+        for d in range(self.num_spatial_dims):
+            if d == self.slab_dim:
+                offset = loc_slab - self.curr_z_start
+                sz = patch_size[d]
+                local_val_s[d + 2] = slice(offset, offset + sz)
+                local_cnt_s[d + 2] = slice(offset, offset + sz)
+            else:
+                loc = location[d]
+                sz = patch_size[d]
+                local_val_s[d + 2] = slice(loc, loc + sz)
+                local_cnt_s[d + 2] = slice(loc, loc + sz)
+
+        self.active_values[tuple(local_val_s)] += values.to(device=self.slab_device)
+        self.active_counts[tuple(local_cnt_s)] += 1
+
+    def finalize(self) -> torch.Tensor:
+        """Finalize and return the merged tensor.
+
+        Returns:
+            torch.Tensor: merged tensor on ``device``, with cropped spatial dimensions if specified.
+        """
+        if not self.is_finalized:
+            if self.curr_z_start is not None:
+                total_slab_size = self.merged_shape[self.slab_dim + 2]
+                remaining_retire = total_slab_size - self.curr_z_start
+                self._retire_slices(min(self.P_slab, remaining_retire), self.curr_z_start)
+            if self.cropped_shape != self.merged_shape:
+                self.output = self.output[tuple(slice(0, end) for end in self.cropped_shape)]
+            self.is_finalized = True
+        return self.output
+
+    def get_output(self) -> torch.Tensor:
+        """Get the final merged output tensor.
+
+        Returns:
+            torch.Tensor: merged output.
+        """
+        return self.finalize()
 
 
 @require_pkg(pkg_name="zarr")

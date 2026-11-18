@@ -146,6 +146,9 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
 
+        Returns:
+            torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+                the stitched model predictions.
         """
 
         device = self.device
@@ -181,6 +184,8 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
             self.buffer_dim,
             False,
             *args,
+            streaming_slab=kwargs.pop("streaming_slab", getattr(self, "streaming_slab", False)),
+            slab_dim=kwargs.pop("slab_dim", getattr(self, "slab_dim", 0)),
             **kwargs,
         )
 

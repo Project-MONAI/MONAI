@@ -440,6 +440,8 @@ class SimpleInferer(Inferer):
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
 
+        Returns:
+            Any: the result returned directly by ``network``.
         """
         return network(inputs, *args, **kwargs)
 
@@ -493,6 +495,12 @@ class SlidingWindowInferer(Inferer):
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
         with_coord: whether to pass the window coordinates to ``network``. Defaults to False.
             If True, the ``network``'s 2nd input argument should accept the window coordinates.
+        streaming_slab: whether to use active slab streaming for constant O(1) accumulation memory
+            along ``slab_dim``. Defaults to False. When True, only an active slab of depth
+            ``roi_size[slab_dim]`` is maintained in ``sw_device`` memory, and finalized slices are
+            streamed to destination ``device`` memory. Mutually exclusive with ``buffer_steps``.
+        slab_dim: the spatial dimension along which streaming slab progresses. Defaults to 0
+            (the first spatial dimension).
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -517,6 +525,8 @@ class SlidingWindowInferer(Inferer):
         buffer_steps: int | None = None,
         buffer_dim: int = -1,
         with_coord: bool = False,
+        streaming_slab: bool = False,
+        slab_dim: int = 0,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -533,6 +543,8 @@ class SlidingWindowInferer(Inferer):
         self.buffer_steps = buffer_steps
         self.buffer_dim = buffer_dim
         self.with_coord = with_coord
+        self.streaming_slab = streaming_slab
+        self.slab_dim = slab_dim
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -579,6 +591,8 @@ class SlidingWindowInferer(Inferer):
         device = kwargs.pop("device", self.device)
         buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
         buffer_dim = kwargs.pop("buffer_dim", self.buffer_dim)
+        streaming_slab = kwargs.pop("streaming_slab", self.streaming_slab)
+        slab_dim = kwargs.pop("slab_dim", self.slab_dim)
 
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
@@ -602,6 +616,8 @@ class SlidingWindowInferer(Inferer):
             buffer_dim,
             self.with_coord,
             *args,
+            streaming_slab=streaming_slab,
+            slab_dim=slab_dim,
             **kwargs,
         )
 
@@ -632,17 +648,25 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
 
+        Returns:
+            torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+                the stitched model predictions, adapted to CPU memory if GPU OOM occurs.
         """
 
         # if device is provided, use without any adaptations
-        if self.device is not None:
+        if self.device is not None or "device" in kwargs:
             return super().__call__(inputs, network, *args, **kwargs)
 
-        skip_buffer = self.buffer_steps is not None and self.buffer_steps <= 0
+        streaming_active = kwargs.get("streaming_slab", self.streaming_slab)
+        b_steps = kwargs.pop("buffer_steps", self.buffer_steps)
+        if streaming_active and b_steps is not None and b_steps > 0:
+            raise ValueError("`buffer_steps` and `streaming_slab` cannot be used together.")
+
+        skip_buffer = streaming_active or (b_steps is not None and b_steps <= 0)
         cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
         gpu_stitching = inputs.is_cuda and not cpu_cond
         buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
-        buffer_steps = max(1, self.buffer_steps) if self.buffer_steps is not None else 1
+        buffer_steps = max(1, b_steps) if b_steps is not None else 1
         buffer_dim = -1
 
         sh = list(inputs.shape[2:])
