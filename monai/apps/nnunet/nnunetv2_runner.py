@@ -1141,6 +1141,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
 
         nnunet_raw_data_base = os.path.join(work_dir, "nnUNet_raw_data_base")
+        nnunet_preprocessed = os.path.join(work_dir, "nnUNet_preprocessed")
         nnunet_trained_models = os.path.join(work_dir, "nnUNet_trained_models")
 
         next_available_index = get_next_available_index(nnunet_raw_data_base)
@@ -1171,6 +1172,7 @@ class nnUNetV2Runner:  # noqa: N801
             "datalist": input_datalist,
             "dataroot": input_data_root,
             "nnunet_raw": nnunet_raw_data_base,
+            "nnunet_preprocessed": nnunet_preprocessed,
             "nnunet_results": nnunet_trained_models,
             "num_input_channels": num_input_channels,
             "num_foreground_classes": num_foreground_classes,
