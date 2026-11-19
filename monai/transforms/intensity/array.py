@@ -254,7 +254,12 @@ class ShiftIntensity(Transform):
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
-        if self.safe and not img.is_floating_point() and isinstance(offset, float) and not np.isfinite(offset):
+        if (
+            self.safe
+            and not img.is_floating_point()
+            and isinstance(offset, (float, np.floating))
+            and not np.isfinite(offset)
+        ):
             raise ValueError("ShiftIntensity with safe=True requires finite offsets for integer inputs.")
         if self.safe and img.dtype == torch.bool:
             # Interpret bool as 0/1 and saturate to the representable range.
