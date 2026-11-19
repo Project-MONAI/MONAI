@@ -320,6 +320,19 @@ class TestOrientationCase(unittest.TestCase):
         self.assertEqual(img.shape, img_t.shape)
         self.assertLess(float((affine - img.affine).max()), 1e-2)
 
+    def test_labels_default_change_warning(self):
+        """
+        The `labels` default already changed (to None), so the deprecation warning
+        must not name a version (see PR #9197). Locks in the new message for the
+        in-repo callers in `monai/transforms/spatial/`.
+        """
+        with self.assertWarns(FutureWarning) as aw:
+            Orientation(axcodes="LPS")
+        msg = str(aw.warning)
+        self.assertIn("Default value of argument `labels` was changed from", msg)
+        self.assertNotIn("version None", msg)
+        self.assertNotIn("Current default value", msg)
+
 
 if __name__ == "__main__":
     unittest.main()
