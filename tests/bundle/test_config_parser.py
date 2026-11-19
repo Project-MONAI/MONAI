@@ -310,7 +310,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_pdb(self):
         if sys.version_info >= (3, 14):  # BdbQuit is no longer raised for Python 3.14 and up
-            case_pdb()
+            self.assertEqual(case_pdb(), None)
         else:
             with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
                 case_pdb()

@@ -294,7 +294,7 @@ jobs:
     #   (1) the HyenaND operators import only torch + einops + omegaconf at runtime, so
     #       skipping the (still batteries-included: datasets/lightning/wandb) core deps
     #       keeps this job lean; and
-    #   (2) nvsubquadratic pins torch>=2.10,<2.11, which would otherwise upgrade/clash
+    #   (2) nvsubquadratic 0.2.0 pins torch>=2.14.0,<2.15.0, which would otherwise upgrade/clash
     #       with the torch this job (and MONAI's matrix) installs.
     # CUDA-required Hyena tests skip cleanly here; the GPU surface is covered by
     # ``.github/workflows/pythonapp-hyena-gpu.yml``.
