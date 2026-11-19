@@ -454,11 +454,7 @@ class TestDeprecated(unittest.TestCase):
         def argname_was_replaced_without_specified_version():
 
             @deprecated_arg_default(
-                "b",
-                old_default="a",
-                new_default="b",
-                since=self.prev_version,
-                version_val=self.test_version,
+                "b", old_default="a", new_default="b", since=self.prev_version, version_val=self.test_version
             )
             def foo(a, b="b"):
                 return a, b
