@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
-import sys
 import copy
 import os
 import pickle
+import sys
 import tempfile
 import unittest
 import warnings
