@@ -254,8 +254,52 @@ class ShiftIntensity(Transform):
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
-        out = img + offset
-        out, *_ = convert_data_type(data=out, dtype=img.dtype, safe=self.safe)
+        if (
+            self.safe
+            and not img.is_floating_point()
+            and isinstance(offset, (float, np.floating))
+            and not np.isfinite(offset)
+        ):
+            raise ValueError("ShiftIntensity with safe=True requires finite offsets for integer inputs.")
+        if self.safe and img.dtype == torch.bool:
+            # Interpret bool as 0/1 and saturate to the representable range.
+            out = (img.to(torch.float64) + offset).clamp(0, 1).to(img.dtype)
+        elif self.safe and img.dtype == torch.uint64:
+            # Neither int64 nor float64 can represent all uint64 values exactly.
+            raise TypeError("ShiftIntensity with safe=True does not support torch.uint64 inputs.")
+        elif (
+            self.safe
+            and not img.is_floating_point()
+            and (isinstance(offset, int) or (isinstance(offset, float) and offset.is_integer()))
+        ):
+            # Keep integral offsets in integer arithmetic to avoid float64 precision
+            # loss for int64 values above 2**53.
+            shift = int(offset)
+            bounds = torch.iinfo(img.dtype)
+            if shift >= bounds.max - bounds.min:
+                out = torch.full_like(img, bounds.max)
+            elif shift <= bounds.min - bounds.max:
+                out = torch.full_like(img, bounds.min)
+            else:
+                # Clamp before adding so even int64 arithmetic cannot overflow.
+                work = img.to(torch.int64)
+                if shift > 0:
+                    work = work.clamp(max=bounds.max - shift)
+                elif shift < 0:
+                    work = work.clamp(min=bounds.min - shift)
+                # Large offsets may exceed the range of a PyTorch int64 scalar.
+                # Split them into representable additions after clamping.
+                int64_bounds = torch.iinfo(torch.int64)
+                remaining = shift
+                while remaining:
+                    step = min(remaining, int64_bounds.max) if remaining > 0 else max(remaining, int64_bounds.min)
+                    work = work + step
+                    remaining -= step
+                out = work.to(img.dtype)
+        else:
+            computation_img = img.to(torch.float64) if self.safe and not img.is_floating_point() else img
+            out = computation_img + offset
+            out, *_ = convert_data_type(data=out, dtype=img.dtype, safe=self.safe)
 
         return out
 
