@@ -183,6 +183,22 @@ TEST_CASE_13 = [
 ]
 
 
+TEST_CASE_14 = [
+    {
+        "data": list(range(52)),
+        "ratios": [3, 1, 3, 8],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    # the largest rounding deficit is in the second partition, not the first,
+    # so the leftover item goes there rather than to partition 0
+    [list(range(10)), list(range(10, 14)), list(range(14, 24)), list(range(24, 52))],
+]
+
+
 class TestPartitionDataset(unittest.TestCase):
     @parameterized.expand(
         [
@@ -199,6 +215,7 @@ class TestPartitionDataset(unittest.TestCase):
             TEST_CASE_11,
             TEST_CASE_12,
             TEST_CASE_13,
+            TEST_CASE_14,
         ]
     )
     def test_value(self, input_param, result):
