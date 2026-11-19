@@ -105,10 +105,10 @@ extensions = [
 
 intersphinx_mapping = {
     "pytorch": ("https://docs.pytorch.org/docs/stable/", None),
-    "monai": ("https://monai.readthedocs.io/en/stable/", None)
+    "monai": ("https://monai.readthedocs.io/en/stable/", None),
 }
 
-# FIXME: find solution for these warnings related to docs in PyTorch which get inherited but can't be resolved: 
+# FIXME: find solution for these warnings related to docs in PyTorch which get inherited but can't be resolved:
 # "monai/data/meta_tensor.py:docstring of monai.data.MetaTensor.index_add_:16: WARNING: unknown document: '/notes/randomness' [ref.doc])
 suppress_warnings = ["ref.doc"]
 
