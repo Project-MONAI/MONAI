@@ -70,7 +70,7 @@ all = [
   "jsonschema",
   "lmdb",
   "lpips==0.1.4",
-  "matplotlib>=3.6.3",
+  "matplotlib>=3.11.2",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
   "mlflow>=3.15.2",
   "nibabel",
@@ -124,7 +124,7 @@ itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
 lpips = ["lpips==0.1.4"]
-matplotlib = ["matplotlib>=3.6.3"]
+matplotlib = ["matplotlib>=3.11.2"]
 # per #5882 this requirement must be on one line to get removed by sed in weekly-preview.yml
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=3.15.2"]
