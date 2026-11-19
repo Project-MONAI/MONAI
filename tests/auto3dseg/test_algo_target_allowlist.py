@@ -22,7 +22,7 @@ from monai.auto3dseg.utils import _reject_non_algo_target, algo_from_json
 class TestAlgoTargetAllowlist(unittest.TestCase):
     """Regression tests for GHSA-2wx3-8x3w-r8qv.
 
-    ``algo_from_json`` resolves the file's ``_target_`` through ``ConfigParser``, which imports the
+    ``algo_from_json`` resolves the file's ``_target_`` by importing the
     dotted path and calls it. ``algo_object.json`` has exactly one legitimate target type, so a
     ``_target_`` that is not an ``Algo`` subclass is rejected before it is instantiated.
     """
