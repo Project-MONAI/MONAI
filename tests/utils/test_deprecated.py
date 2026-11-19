@@ -450,6 +450,24 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertRaises(ValueError, argname_was_replaced_before_specified_version)
 
+        # new default is used but no replacement version was specified
+        def argname_was_replaced_without_specified_version():
+
+            @deprecated_arg_default(
+                "b",
+                old_default="a",
+                new_default="b",
+                since=self.prev_version,
+                version_val=self.test_version,
+            )
+            def foo(a, b="b"):
+                return a, b
+
+        with self.assertRaises(ValueError) as cm:
+            argname_was_replaced_without_specified_version()
+        self.assertNotIn("version None", str(cm.exception))
+        self.assertIn("no replacement version was specified", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
