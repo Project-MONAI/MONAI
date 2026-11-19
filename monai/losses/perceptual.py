@@ -78,6 +78,8 @@ class PerceptualLoss(nn.Module):
             Defaults to `None`.
         channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
             Defaults to ``False``.
+        use_compile: if True, the perceptual network is compiled with `torch.compile`.
+            Defaults to ``False``.
 
     Raises:
         NotImplementedError: if ``spatial_dims`` is not 2 or 3.
@@ -97,6 +99,7 @@ class PerceptualLoss(nn.Module):
         pretrained_path: str | None = None,
         pretrained_state_dict_key: str | None = None,
         channel_wise: bool = False,
+        use_compile: bool = False,
     ):
         super().__init__()
 
@@ -153,6 +156,9 @@ class PerceptualLoss(nn.Module):
             )
         else:
             self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type)
+
+        if use_compile:
+            self.perceptual_function = torch.compile(self.perceptual_function)
 
         self.is_fake_3d = is_fake_3d
         self.fake_3d_ratio = fake_3d_ratio
