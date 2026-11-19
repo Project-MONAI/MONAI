@@ -64,7 +64,14 @@ class TestShiftIntensity(NumpyImageTestCase2D):
 
     def test_safe_integer_nonfinite_offsets_rejected(self):
         image = torch.tensor([1, 2], dtype=torch.int64)
-        for offset in (float("inf"), float("-inf"), float("nan")):
+        for offset in (
+            float("inf"),
+            float("-inf"),
+            float("nan"),
+            np.float32("inf"),
+            np.float32("-inf"),
+            np.float32("nan"),
+        ):
             with self.subTest(offset=offset), self.assertRaisesRegex(ValueError, "finite offsets"):
                 ShiftIntensity(offset=offset, safe=True)(image)
 
