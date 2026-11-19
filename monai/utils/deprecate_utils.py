@@ -92,7 +92,8 @@ def deprecated(
         msg_prefix = f"{'Function' if is_func else 'Class'} `{obj.__qualname__}`"
 
         if is_removed:
-            msg_infix = f"was removed in version {removed}."
+            in_version = f" in version {removed}" if removed is not None else ""
+            msg_infix = f"was removed{in_version}."
         elif is_deprecated:
             msg_infix = f"has been deprecated since version {since}."
             if removed is not None:
@@ -181,7 +182,8 @@ def deprecated_arg(
         msg_prefix = f"Argument `{name}`"
 
         if is_removed:
-            msg_infix = f"was removed in version {removed}."
+            in_version = f" in version {removed}" if removed is not None else ""
+            msg_infix = f"was removed{in_version}."
         elif is_deprecated:
             msg_infix = f"has been deprecated since version {since}."
             if removed is not None:
