@@ -79,17 +79,21 @@ COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versionee
 COPY tests ./tests
 COPY monai ./monai
 
-# Use print_dependencies.py rather than -e .[all,testing] to filter CUDA-only packages:
-#   cucim-cu* pulls in cuda-toolkit (~1.2 GB); nvidia-ml-py fails at import on ROCm; nni depends on it.
+# Set HIPCIM_INDEX_URL="" to build without WSI/cucim support.
+ARG HIPCIM_INDEX_URL="https://pypi.amd.com/rocm-${ROCM_SERIES}.0/simple/"
+
+# print_dependencies.py resolves the ROCm variants of the GPU imaging stack (amd-hipcim, amd-cupy)
+# and drops the NVIDIA-only packages, see monai/config/vendor_deps.py.
 # BUILD_MONAI=1 builds the C++/HIP extensions ahead of time; FORCE_CUDA=1 is required because the
 # build host has no GPU, so setup.py's `torch.cuda.is_available()` check would otherwise skip them.
 # Compilation itself needs only the toolkit and PYTORCH_ROCM_ARCH (set above), not a device.
 # pytest is not in the "testing" extra; it is added explicitly for running tests by hand.
 RUN python monai/config/print_dependencies.py build-system \
       | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
-  && python monai/config/print_dependencies.py all testing \
-      | grep -vE '^cucim-cu|^nvidia-ml-py|^nni' > /tmp/rocm-requirements-$$.txt \
+  && python monai/config/print_dependencies.py all testing > /tmp/rocm-requirements-$$.txt \
+  && if [ -z "${HIPCIM_INDEX_URL}" ]; then sed -i '/^amd-hipcim/d' /tmp/rocm-requirements-$$.txt; fi \
   && BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation \
+      ${HIPCIM_INDEX_URL:+--extra-index-url "${HIPCIM_INDEX_URL}"} \
       -r /tmp/rocm-requirements-$$.txt pytest -e . \
   && rm -f /tmp/rocm-requirements-$$.txt
 
@@ -97,15 +101,12 @@ RUN python monai/config/print_dependencies.py build-system \
 # without it the extensions built above would be present but never used.
 ENV BUILD_MONAI=1
 
-# Set HIPCIM_INDEX_URL="" to build without WSI/cucim support.
 # CuImage is imported (not just cucim) because cucim uses lazy_loader -- a bare import
 # succeeds even when the native library is unresolvable. Failing here is deliberate: if
 # hipCIM was requested, an image where the cucim backends silently do not work is worse
 # than no image at all.
-ARG HIPCIM_INDEX_URL="https://pypi.amd.com/rocm-${ROCM_SERIES}.0/simple/"
 RUN if [ -n "${HIPCIM_INDEX_URL}" ]; then \
-      pip install --no-cache-dir --extra-index-url "${HIPCIM_INDEX_URL}" "amd-hipcim" \
-      && python -c "from cucim import CuImage"; \
+      python -c "from cucim import CuImage"; \
     else \
       echo "hipCIM not installed; whole-slide-image (cucim) backends are unavailable."; \
     fi

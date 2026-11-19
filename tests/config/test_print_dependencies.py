@@ -45,6 +45,10 @@ PARSE_CASES = [
 
 class TestPrintDependencies(unittest.TestCase):
     def setUp(self):
+        # pin the expectations to the NVIDIA/PyPI lists, whatever torch build the host has
+        vendor = patch.dict(os.environ, {"MONAI_VENDOR": "none"})
+        vendor.start()
+        self.addCleanup(vendor.stop)
         self.toml = NamedTemporaryFile("w", delete=False)
         self.toml.write(TEST_TOML)
         self.toml.close()
@@ -60,6 +64,21 @@ class TestPrintDependencies(unittest.TestCase):
     def test_missing_section(self):
         with self.assertRaises(KeyError):
             parse_dependencies(self.toml.name, ["nonexistent_section"])
+
+    def test_vendor_dependencies(self):
+        env = {"MONAI_VENDOR": "rocm", "MONAI_ROCM_SERIES": "10.0", "GPU_TARGETS": "gfx942"}
+        with patch.dict(os.environ, env):
+            deps = parse_dependencies(self.toml.name, ["build-system"])
+        self.assertEqual(
+            [
+                "numpy",
+                "rocm[libraries,devel,device-gfx942]>=10.0.0a0,<10.2",
+                "setuptools",
+                "torch[device-gfx942]",
+                "wheel",
+            ],
+            deps,
+        )
 
     def test_print_dependencies(self):
         out = StringIO()

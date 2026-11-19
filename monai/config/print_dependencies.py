@@ -14,12 +14,20 @@ This program prints the MONAI dependencies for the optional names given on the c
 be piped to a requirements file to work with pip. All required dependencies are always printed, those for builing are
 included in "build-system" is given as an argument, and all optional requirements are included if "*" is given. This
 assumes the pyproject.toml file is in the current working directory.
+
+On an accelerator-vendor PyTorch the NVIDIA-only distributions are swapped for that vendor's
+equivalents, see ``monai.config.vendor_deps``.
 """
 
 from __future__ import annotations
 
 import sys
 from collections.abc import Collection
+
+try:
+    from .vendor_deps import active_vendor
+except ImportError:  # run as a script rather than imported from the package
+    from vendor_deps import active_vendor  # type: ignore[no-redef]
 
 BUILD_SYSTEM_KEY = "build-system"
 PROJ_KEY = "project"
@@ -57,10 +65,16 @@ def parse_dependencies(filename: str | None = None, sections: Collection[str] | 
     opts = proj[OPTS_KEY]
     dependencies = list(proj[DEP_KEY])
     sections = set(sections or [])
+    vendor = active_vendor()
+
+    if vendor is not None:
+        dependencies = vendor.apply_to_dependencies(dependencies)
+        opts = vendor.apply_to_optional_dependencies(opts)
 
     if BUILD_SYSTEM_KEY in sections:
         sections.remove(BUILD_SYSTEM_KEY)
-        dependencies += data[BUILD_SYSTEM_KEY][REQ_KEY]
+        build_requires = data[BUILD_SYSTEM_KEY][REQ_KEY]
+        dependencies += vendor.apply_to_dependencies(build_requires) if vendor else build_requires
 
     if "*" in sections:
         dependencies += sum(opts.values(), [])
