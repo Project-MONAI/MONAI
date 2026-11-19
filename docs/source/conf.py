@@ -110,6 +110,7 @@ autosectionlabel_prefix_document = True
 napoleon_use_param = True
 napoleon_include_init_with_doc = True
 set_type_checking_flag = True
+autodoc_use_legacy_class_based = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
