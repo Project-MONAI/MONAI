@@ -11,30 +11,45 @@
 
 from __future__ import annotations
 
-import tempfile
-import types
 import unittest
 import warnings
-from pathlib import Path
 from unittest.mock import patch
 
 from monai.config import vendor_deps
-from monai.config.vendor_deps import (
-    active_vendor,
-    apply_to_dependencies,
-    apply_to_optional_dependencies,
-    canonical_name,
-    split_requirement,
-)
+from monai.config.vendor_deps import REGISTRY, Vendor, active_vendor, canonical_name, register, split_requirement
 
 
-def fake_plugin(substitutions=None, extras=None, extra_requirements=()):
-    """A minimal plugin satisfying the contract documented in vendor_deps."""
-    return types.SimpleNamespace(
-        NAME="fake",
-        SUBSTITUTIONS=substitutions or {},
-        extras_for=lambda name: (extras or {}).get(name, []),
-        extra_requirements=lambda: list(extra_requirements),
+class FakeVendor(Vendor):
+    """A vendor whose every hook is set from the constructor."""
+
+    name = "fake"
+
+    def __init__(self, substitutions=None, extras=None, requirements=(), detected=False, hardware=False):
+        self.substitutions = {} if substitutions is None else substitutions
+        self.extras = extras or {}
+        self.requirements = list(requirements)
+        self.detected = detected
+        self.hardware = hardware
+
+    def detect(self):
+        return self.detected
+
+    def hardware_present(self):
+        return self.hardware
+
+    def extras_for(self, name):
+        return self.extras.get(name, [])
+
+    def extra_requirements(self):
+        return list(self.requirements)
+
+
+def only(*vendors, env=None):
+    """Run ``active_vendor`` against exactly ``vendors``, importing no real plugin."""
+    return (
+        patch.dict("os.environ", env or {}, clear=True),
+        patch.object(vendor_deps, "PLUGIN_MODULES", ()),
+        patch.dict(REGISTRY, {vendor.name: vendor for vendor in vendors}, clear=True),
     )
 
 
@@ -57,178 +72,141 @@ class TestRequirementParsing(unittest.TestCase):
         self.assertEqual([], extras)
 
 
-class TestGenericRewrites(unittest.TestCase):
+class TestRewrites(unittest.TestCase):
     def test_substitution_drop_and_dedupe(self):
-        plugin = fake_plugin({"a-cu12": "repl", "a-cu13": "repl", "gone": None})
+        vendor = FakeVendor({"a-cu12": "repl", "a-cu13": "repl", "gone": None})
         self.assertEqual(
-            {"g": ["repl", "kept"]}, apply_to_optional_dependencies({"g": ["a-cu12", "a-cu13", "gone", "kept"]}, plugin)
+            {"g": ["repl", "kept"]}, vendor.apply_to_optional_dependencies({"g": ["a-cu12", "a-cu13", "gone", "kept"]})
         )
 
+    def test_names_are_matched_canonically(self):
+        self.assertEqual(["repl"], FakeVendor({"a-cu12": "repl"}).substitute(["A_cu12>=1.0"]))
+
     def test_group_can_become_empty(self):
-        self.assertEqual({"g": []}, apply_to_optional_dependencies({"g": ["gone"]}, fake_plugin({"gone": None})))
+        self.assertEqual({"g": []}, FakeVendor({"gone": None}).apply_to_optional_dependencies({"g": ["gone"]}))
 
     def test_extras_and_extra_requirements(self):
-        plugin = fake_plugin(extras={"torch": ["device-x"]}, extra_requirements=["runtime>=1"])
+        vendor = FakeVendor(extras={"torch": ["device-x"]}, requirements=["runtime>=1"])
         self.assertEqual(
             ["torch[device-x]>=2.8.0", "numpy>=1.24", "runtime>=1"],
-            apply_to_dependencies(["torch>=2.8.0", "numpy>=1.24"], plugin),
+            vendor.apply_to_dependencies(["torch>=2.8.0", "numpy>=1.24"]),
         )
 
     def test_existing_extras_preserved(self):
-        plugin = fake_plugin(extras={"torch": ["device-x"]})
+        vendor = FakeVendor(extras={"torch": ["device-x"]})
         self.assertEqual(
-            ["torch[device-x,opt-einsum]>=2.8.0"], apply_to_dependencies(["torch[opt-einsum]>=2.8.0"], plugin)
+            ["torch[device-x,opt-einsum]>=2.8.0"], vendor.apply_to_dependencies(["torch[opt-einsum]>=2.8.0"])
         )
 
     def test_unrelated_requirements_untouched(self):
         group = ["scikit-image>=0.19.0", "MetricsReloaded @ git+https://github.com/x/y@z"]
-        self.assertEqual({"all": group}, apply_to_optional_dependencies({"all": group}, fake_plugin()))
+        self.assertEqual({"all": group}, FakeVendor().apply_to_optional_dependencies({"all": group}))
+
+    def test_base_vendor_changes_nothing(self):
+        dependencies = ["torch>=2.8.0", "cucim-cu13"]
+        self.assertEqual(dependencies, Vendor().apply_to_dependencies(dependencies))
 
 
-class TestVendorSelection(unittest.TestCase):
-    def test_none_disables_rewriting(self):
-        for value in ("none", "NONE", "cpu"):
-            with patch.dict("os.environ", {"MONAI_VENDOR": value}):
-                self.assertIsNone(active_vendor())
+class TestRegister(unittest.TestCase):
+    """A malformed substitution table would match nothing and leave the lists unmodified, silently."""
 
-    def test_unknown_vendor_is_rejected(self):
-        with patch.dict("os.environ", {"MONAI_VENDOR": "nosuchvendor"}), self.assertRaises(ValueError):
-            active_vendor()
+    def setUp(self):
+        registry = patch.dict(REGISTRY, {}, clear=True)
+        registry.start()
+        self.addCleanup(registry.stop)
 
-    def test_explicit_vendor_bypasses_detection(self):
-        with patch.dict("os.environ", {"MONAI_VENDOR": "rocm"}):
-            vendor = active_vendor()
-        self.assertIsNotNone(vendor)
-        self.assertEqual("rocm", vendor.name)
+    def test_adds_to_registry(self):
+        vendor = register(FakeVendor({"cucim-cu12": "amd-hipcim"}))
+        self.assertIs(vendor, REGISTRY["fake"])
 
-    def test_no_vendor_when_no_probe_matches(self):
-        with patch.dict("os.environ", {}, clear=True), patch.dict(vendor_deps.REGISTRY, {}, clear=True):
-            self.assertIsNone(active_vendor())
-
-    def test_plugin_not_imported_when_probe_does_not_match(self):
-        probe = vendor_deps._Registration("vendor_rocm", lambda: False)
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True),
-            patch.object(vendor_deps, "_import_plugin", side_effect=AssertionError("plugin must not be imported")),
-        ):
-            self.assertIsNone(active_vendor())
-
-    def test_detection_selects_matching_plugin(self):
-        probe = vendor_deps._Registration("vendor_rocm", lambda: True)
-        with patch.dict("os.environ", {}, clear=True), patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True):
-            vendor = active_vendor()
-        self.assertEqual("rocm", vendor.name)
-
-    def test_detected_vendor_that_cannot_load_is_fatal(self):
-        # Falling back to "no vendor" here would ship another vendor's packages in this one's wheel.
-        probe = vendor_deps._Registration("vendor_broken", lambda: True)
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True),
-            patch.object(vendor_deps, "_import_plugin", side_effect=SyntaxError("invalid syntax")),
-            self.assertRaises(vendor_deps.VendorPluginError),
-        ):
-            active_vendor()
-
-    def test_explicit_vendor_that_cannot_load_is_fatal(self):
-        with (
-            patch.dict("os.environ", {"MONAI_VENDOR": "rocm"}),
-            patch.object(vendor_deps, "_import_plugin", side_effect=SyntaxError("invalid syntax")),
-            self.assertRaises(vendor_deps.VendorPluginError),
-        ):
-            active_vendor()
-
-
-class TestPluginValidation(unittest.TestCase):
-    """A plugin that imports cleanly but is malformed must not reach the rewrites.
-
-    ``key in substitutions`` is a substring test on a string, so a non-mapping table would match
-    nothing and silently emit the unmodified lists into this vendor's wheel.
-    """
-
-    def _load_with(self, **attributes):
-        plugin = types.SimpleNamespace(SUBSTITUTIONS={}, extras_for=lambda name: [], extra_requirements=list)
-        for key, value in attributes.items():
-            setattr(plugin, key, value)
-        with (
-            patch.dict("os.environ", {"MONAI_VENDOR": "rocm"}),
-            patch.object(vendor_deps, "_import_plugin", return_value=plugin),
-        ):
-            return active_vendor()
-
-    def test_well_formed_plugin_loads(self):
-        self.assertEqual("rocm", self._load_with().name)
+    def test_name_is_required(self):
+        with self.assertRaises(ValueError):
+            register(Vendor())
 
     def test_substitutions_must_be_a_mapping(self):
-        for table in ("not a dict", ["cucim-cu12"], None, 7):
-            with self.subTest(table=table), self.assertRaises(vendor_deps.VendorPluginError):
-                self._load_with(SUBSTITUTIONS=table)
-
-    def test_required_callables_are_checked(self):
-        for attribute in ("extras_for", "extra_requirements"):
-            with self.subTest(attribute=attribute), self.assertRaises(vendor_deps.VendorPluginError):
-                self._load_with(**{attribute: "not callable"})
+        for table in ("not a dict", ["cucim-cu12"], 7):
+            with self.subTest(table=table), self.assertRaises(TypeError):
+                register(FakeVendor(table))
+        self.assertEqual({}, REGISTRY)
 
     def test_substitution_keys_must_be_canonical(self):
         # Lookups canonicalise the requirement name, so "cucim_cu12" could never match "cucim-cu12".
         for key in ("cucim_cu12", "cucim.cu12", "CuCIM-cu12", 7):
-            with self.subTest(key=key), self.assertRaises(vendor_deps.VendorPluginError):
-                self._load_with(SUBSTITUTIONS={key: "amd-hipcim"})
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                register(FakeVendor({key: "amd-hipcim"}))
+        self.assertEqual({}, REGISTRY)
 
-    def test_canonical_substitution_keys_are_accepted(self):
-        self.assertEqual("rocm", self._load_with(SUBSTITUTIONS={"cucim-cu12": "amd-hipcim"}).name)
+
+class TestVendorSelection(unittest.TestCase):
+    def test_none_disables_without_importing_plugins(self):
+        for value in ("none", "NONE", "cpu"):
+            with (
+                patch.dict("os.environ", {"MONAI_VENDOR": value}),
+                patch.object(vendor_deps.importlib, "import_module", side_effect=AssertionError("must not import")),
+            ):
+                self.assertIsNone(active_vendor())
+
+    def test_plugins_register_themselves_on_import(self):
+        with patch.dict("os.environ", {"MONAI_VENDOR": "rocm"}):
+            vendor = active_vendor()
+        self.assertEqual("rocm", vendor.name)
+        self.assertIs(vendor, REGISTRY["rocm"])
+
+    def test_unknown_vendor_is_rejected(self):
+        env, plugins, registry = only(FakeVendor(), env={"MONAI_VENDOR": "nosuchvendor"})
+        with env, plugins, registry, self.assertRaises(ValueError):
+            active_vendor()
+
+    def test_explicit_vendor_bypasses_detection(self):
+        fake = FakeVendor(detected=False)
+        env, plugins, registry = only(fake, env={"MONAI_VENDOR": "fake"})
+        with env, plugins, registry:
+            self.assertIs(fake, active_vendor())
+
+    def test_detection_selects_matching_vendor(self):
+        fake = FakeVendor(detected=True)
+        env, plugins, registry = only(fake)
+        with env, plugins, registry:
+            self.assertIs(fake, active_vendor())
+
+    def test_no_vendor_when_none_detects(self):
+        env, plugins, registry = only(FakeVendor(detected=False))
+        with env, plugins, registry:
+            self.assertIsNone(active_vendor())
+
+    def test_plugin_that_cannot_be_imported_is_fatal(self):
+        # Carrying on without it would ship another vendor's packages in this vendor's wheel.
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(vendor_deps, "PLUGIN_MODULES", ("vendor_does_not_exist",)),
+            self.assertRaises(ImportError),
+        ):
+            active_vendor()
 
 
 class TestHardwareWithoutVendor(unittest.TestCase):
     """``pip`` build isolation can hand the build a generic torch while sitting on vendor hardware."""
 
+    def _warnings(self, vendor):
+        env, plugins, registry = only(vendor)
+        with env, plugins, registry, warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            selected = active_vendor()
+        return selected, [str(w.message) for w in caught]
+
     def test_warns_when_hardware_present_but_torch_is_not(self):
-        probe = vendor_deps._Registration("vendor_rocm", lambda: False, lambda: True)
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True),
-            self.assertWarnsRegex(UserWarning, "rocm hardware is present"),
-        ):
-            self.assertIsNone(active_vendor())
+        selected, messages = self._warnings(FakeVendor(detected=False, hardware=True))
+        self.assertIsNone(selected)
+        self.assertEqual(1, len(messages))
+        self.assertIn("fake hardware is present", messages[0])
+        self.assertIn("MONAI_VENDOR=fake", messages[0])
 
     def test_silent_when_hardware_absent(self):
-        probe = vendor_deps._Registration("vendor_rocm", lambda: False, lambda: False)
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True),
-            warnings.catch_warnings(record=True) as caught,
-        ):
-            warnings.simplefilter("always")
-            self.assertIsNone(active_vendor())
-        self.assertEqual([], [str(w.message) for w in caught])
+        self.assertEqual((None, []), self._warnings(FakeVendor(detected=False, hardware=False)))
 
     def test_silent_when_the_vendor_is_active(self):
-        probe = vendor_deps._Registration("vendor_rocm", lambda: True, lambda: True)
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            patch.dict(vendor_deps.REGISTRY, {"rocm": probe}, clear=True),
-            warnings.catch_warnings(record=True) as caught,
-        ):
-            warnings.simplefilter("always")
-            self.assertEqual("rocm", active_vendor().name)
-        self.assertEqual([], [str(w.message) for w in caught])
-
-    def test_gpu_probe_ignores_the_cpu_node(self):
-        with tempfile.TemporaryDirectory() as root:
-            nodes = Path(root)
-            (nodes / "0").mkdir()
-            (nodes / "0" / "properties").write_text("cpu_cores_count 128\ngfx_target_version 0\n")
-            with patch.object(vendor_deps, "KFD_TOPOLOGY_NODES", str(nodes)):
-                self.assertFalse(vendor_deps._amd_gpu_present())
-            (nodes / "1").mkdir()
-            (nodes / "1" / "properties").write_text("cpu_cores_count 0\ngfx_target_version 90500\n")
-            with patch.object(vendor_deps, "KFD_TOPOLOGY_NODES", str(nodes)):
-                self.assertTrue(vendor_deps._amd_gpu_present())
-
-    def test_gpu_probe_without_the_amdgpu_driver(self):
-        with patch.object(vendor_deps, "KFD_TOPOLOGY_NODES", "/nonexistent-kfd"):
-            self.assertFalse(vendor_deps._amd_gpu_present())
+        fake = FakeVendor(detected=True, hardware=True)
+        self.assertEqual((fake, []), self._warnings(fake))
 
 
 if __name__ == "__main__":

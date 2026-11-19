@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import glob
-import importlib.util
+import importlib
 import os
 import re
 import sys
@@ -153,32 +153,25 @@ def get_cmds():
     return cmds
 
 
-def load_vendor_deps():
-    """Import ``monai/config/vendor_deps.py`` by path, without importing the ``monai`` package."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "monai", "config", "vendor_deps.py")
-    spec = importlib.util.spec_from_file_location("monai_vendor_deps", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclasses resolves a class's module through sys.modules
-    spec.loader.exec_module(module)
-    return module
-
-
 def vendor_distclass():
-    """``Distribution`` subclass rewriting the dependency metadata for the detected accelerator
-    vendor, or None when there is none so the build keeps stock setuptools behaviour.
+    """``Distribution`` subclass applying the detected accelerator vendor's dependency variants, or None
+    when there is no such vendor so the build keeps stock setuptools behaviour. See ``monai/config/vendor_deps.py``.
     """
+    # imported as a plain module from its own directory, importing the `monai` package here would import far more
+    config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "monai", "config")
+    sys.path.insert(0, config_dir)
     try:
-        vendor_deps = load_vendor_deps()
-        vendor = vendor_deps.active_vendor()
+        vendor = importlib.import_module("vendor_deps").active_vendor()
     except Exception as e:
-        # A vendor that was detected but could not be loaded is fatal: emitting another vendor's
-        # packages in this vendor's wheel is worse than failing the build.
-        if os.environ.get("MONAI_VENDOR") or type(e).__name__ == "VendorPluginError":
-            raise
-        warnings.warn(f"accelerator vendor detection skipped: {e}")
-        return None
+        # failing beats guessing: the unmodified lists would put another vendor's packages in this vendor's wheel
+        raise RuntimeError(f"vendor dependency resolution failed: {e}. Set MONAI_VENDOR=none to skip it.") from e
+    finally:
+        sys.path.remove(config_dir)
+
     if vendor is None:
         return None
+
+    print(f"Applying {vendor.name} dependency variants, set MONAI_VENDOR=none to use pyproject.toml as written.")
 
     class VendorDistribution(Distribution):
         # pyproject.toml wins over anything passed to setup(), so the lists can only be adjusted once

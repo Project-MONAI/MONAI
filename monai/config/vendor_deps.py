@@ -10,129 +10,41 @@
 # limitations under the License.
 
 """
-Accelerator-vendor rewriting of the dependency lists declared in ``pyproject.toml``.
+Accelerator-vendor variants of the dependency lists declared in ``pyproject.toml``.
 
 Those lists name the packages published for NVIDIA hardware (``cucim-cu*``, ``cupy-cuda*``,
 ``nvidia-*``). Other vendors publish equivalents under different distribution names, so a wheel
 built against, say, a ROCm PyTorch needs different metadata from the same source tree.
 
-This module owns the generic machinery -- requirement parsing, substitution, de-duplication -- and a
-registry of vendor plugins. It contains no vendor-specific knowledge beyond a one-line detection
-probe per entry in :data:`REGISTRY`.
+A vendor is a :class:`Vendor` subclass defined in a sibling ``vendor_<name>.py`` module, which adds
+an instance to :data:`REGISTRY` with :func:`register` when it is imported. :func:`active_vendor`
+imports the modules named in :data:`PLUGIN_MODULES` and returns the vendor this build targets, if
+any; ``setup.py`` and ``print_dependencies.py`` then call its ``apply_to_*`` methods.
 
-A vendor plugin is a sibling module exposing:
+``MONAI_VENDOR`` overrides detection: a registered name forces that vendor, ``none`` turns the
+mechanism off without importing any vendor module, and ``auto`` (the default) detects.
 
-``NAME``
-    Identifier used by the ``MONAI_VENDOR`` environment variable.
-``SUBSTITUTIONS``
-    Mapping of canonical distribution name to its replacement requirement, or to None to drop it.
-``extras_for(name)``
-    Extras to add to the requirement for the distribution ``name``, e.g. device selectors.
-``extra_requirements()``
-    Requirements to append to the required dependencies, e.g. a runtime version pin.
+To see what a vendor does to the lists, on any machine::
 
-Plugin modules are imported only once their registry probe matches, so a build for one vendor never
-executes another vendor's code.
+    MONAI_VENDOR=rocm python monai/config/print_dependencies.py all
 
-``MONAI_VENDOR`` selects a vendor explicitly: a registered name, ``none`` to disable rewriting, or
-``auto`` (the default) to detect.
+``setup.py`` imports these modules directly rather than through the ``monai`` package, so at import
+time they must depend on nothing but the standard library.
 """
 
 from __future__ import annotations
 
 import importlib
-import importlib.util
 import os
 import re
-import sys
 import warnings
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from typing import Any
+from collections.abc import Mapping
 
-__all__ = [
-    "REGISTRY",
-    "ActiveVendor",
-    "VendorPluginError",
-    "active_vendor",
-    "apply_to_dependencies",
-    "apply_to_optional_dependencies",
-    "canonical_name",
-    "load_by_path",
-    "split_requirement",
-]
+__all__ = ["PLUGIN_MODULES", "REGISTRY", "Vendor", "active_vendor", "canonical_name", "register", "split_requirement"]
 
-
-class VendorPluginError(RuntimeError):
-    """A vendor was detected but its plugin could not be loaded.
-
-    Callers must not treat this as "no vendor": the hardware is known, so falling back to the
-    unmodified lists would ship another vendor's packages in this vendor's wheel.
-    """
-
-
-def load_by_path(name: str, path: str) -> Any:
-    """Import the module at ``path`` under ``name``, without importing its package.
-
-    It is registered in ``sys.modules`` before execution because ``dataclasses`` resolves a class's
-    module through it.
-    """
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load {name} from {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _torch_version_attr(attr: str) -> str:
-    """``torch.version.<attr>`` as a string, or "" if torch is absent or has no such attribute."""
-    try:
-        import torch
-
-        return getattr(torch.version, attr, None) or ""
-    except Exception:  # torch absent, or present but not importable in this environment
-        return ""
-
-
-KFD_TOPOLOGY_NODES = "/sys/class/kfd/kfd/topology/nodes"
-
-
-def _amd_gpu_present() -> bool:
-    """True when the amdgpu driver exposes a GPU compute node. Node 0 is the host CPU."""
-    try:
-        nodes = sorted(os.scandir(KFD_TOPOLOGY_NODES), key=lambda node: node.name)
-    except OSError:
-        return False
-    for node in nodes:
-        try:
-            with open(os.path.join(node.path, "properties")) as handle:
-                text = handle.read()
-        except OSError:
-            continue
-        match = re.search(r"^gfx_target_version (\d+)", text, re.M)
-        if match and match.group(1) != "0":
-            return True
-    return False
-
-
-@dataclass(frozen=True)
-class _Registration:
-    """A vendor plugin, the cheap probe deciding whether to load it, and an optional probe for the
-    vendor's hardware used only to warn when that hardware is present but its PyTorch is not.
-    """
-
-    module: str
-    detect: Callable[[], bool]
-    hardware: Callable[[], bool] | None = None
-
-
-# Probes must stay trivial and must not import the plugin module: they run on every build, including
-# builds for other vendors. Add new vendors here and in the matching ``vendor_<name>.py``.
-REGISTRY: dict[str, _Registration] = {
-    "rocm": _Registration("vendor_rocm", lambda: bool(_torch_version_attr("hip")), _amd_gpu_present)
-}
+# Vendors by name, added by `register` as each module named in PLUGIN_MODULES is imported.
+REGISTRY: dict[str, Vendor] = {}
+PLUGIN_MODULES = ("vendor_rocm",)
 
 # name, optional "[extras]", then everything else (version specifiers, markers, URLs).
 _REQUIREMENT = re.compile(r"\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[(?P<extras>[^]]*)\])?(?P<rest>.*)", re.S)
@@ -152,130 +64,115 @@ def split_requirement(requirement: str) -> tuple[str, list[str], str]:
     return match["name"], extras, match["rest"]
 
 
-def _import_plugin(module: str) -> Any:
-    """Import a sibling plugin module, whether this module was imported, run as a script or loaded
-    by path from ``setup.py``.
+class Vendor:
     """
-    if __package__:
-        return importlib.import_module(f".{module}", __package__)
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{module}.py")
-    return load_by_path(f"monai_{module}", path)
+    An accelerator vendor and the changes its PyTorch build needs made to the dependency lists.
 
-
-def _substitute(requirements: list[str], substitutions: dict[str, str | None]) -> list[str]:
-    """Apply ``substitutions``, dropping None entries and de-duplicating the result."""
-    out: list[str] = []
-    for requirement in requirements:
-        name, _, _ = split_requirement(requirement)
-        key = canonical_name(name)
-        if key in substitutions:
-            replacement = substitutions[key]
-            if replacement is None:
-                continue
-            requirement = replacement
-        if requirement not in out:
-            out.append(requirement)
-    return out
-
-
-def apply_to_dependencies(dependencies: list[str], plugin: Any) -> list[str]:
-    """Rewrite required dependencies: substitute distributions, add the extras the plugin asks for
-    and append its extra requirements.
+    A subclass sets ``name``, the identifier used by ``MONAI_VENDOR``, and ``substitutions``, mapping
+    a PEP 503 normalised distribution name to its replacement requirement or to None to drop it, and
+    overrides :meth:`detect`. The other hooks are optional.
     """
-    out = []
-    for requirement in _substitute(dependencies, plugin.SUBSTITUTIONS):
-        name, extras, rest = split_requirement(requirement)
-        added = plugin.extras_for(canonical_name(name))
-        if added:
-            requirement = f"{name}[{','.join(sorted(set(extras) | set(added)))}]{rest}"
-        out.append(requirement)
-    for requirement in plugin.extra_requirements():
-        if requirement not in out:
-            out.append(requirement)
-    return out
 
+    name: str = ""
+    substitutions: Mapping[str, str | None] = {}
 
-def apply_to_optional_dependencies(optional_dependencies: dict[str, list[str]], plugin: Any) -> dict[str, list[str]]:
-    """Rewrite each optional-dependency group, substituting distributions."""
-    return {name: _substitute(list(group), plugin.SUBSTITUTIONS) for name, group in optional_dependencies.items()}
+    def detect(self) -> bool:
+        """Whether the PyTorch this build sees is this vendor's. Runs on every build, so keep it cheap."""
+        return False
 
+    def hardware_present(self) -> bool:
+        """Whether this vendor's hardware is in the machine, used only to warn that :meth:`detect` did not match."""
+        return False
 
-@dataclass(frozen=True)
-class ActiveVendor:
-    """The vendor plugin selected for this build, with the generic rewrites bound to it."""
+    def extras_for(self, name: str) -> list[str]:
+        """Extras to add to the required dependency ``name``, e.g. device selectors."""
+        return []
 
-    name: str
-    plugin: Any
+    def extra_requirements(self) -> list[str]:
+        """Requirements to append to the required dependencies, e.g. a runtime version pin."""
+        return []
+
+    def substitute(self, requirements: list[str]) -> list[str]:
+        """Apply ``substitutions`` to ``requirements``, dropping None entries and duplicates."""
+        out: list[str] = []
+        for requirement in requirements:
+            key = canonical_name(split_requirement(requirement)[0])
+            if key in self.substitutions:
+                replacement = self.substitutions[key]
+                if replacement is None:
+                    continue
+                requirement = replacement
+            if requirement not in out:
+                out.append(requirement)
+        return out
 
     def apply_to_dependencies(self, dependencies: list[str]) -> list[str]:
-        return apply_to_dependencies(dependencies, self.plugin)
+        """Rewrite the required dependencies: substitute, add :meth:`extras_for`, append :meth:`extra_requirements`."""
+        out: list[str] = []
+        for requirement in self.substitute(dependencies):
+            name, extras, rest = split_requirement(requirement)
+            added = self.extras_for(canonical_name(name))
+            if added:
+                requirement = f"{name}[{','.join(sorted(set(extras) | set(added)))}]{rest}"
+            out.append(requirement)
+        return out + [requirement for requirement in self.extra_requirements() if requirement not in out]
 
-    def apply_to_optional_dependencies(self, optional_dependencies: dict[str, list[str]]) -> dict[str, list[str]]:
-        return apply_to_optional_dependencies(optional_dependencies, self.plugin)
+    def apply_to_optional_dependencies(self, optional_dependencies: Mapping[str, list[str]]) -> dict[str, list[str]]:
+        """Rewrite each optional-dependency group with :meth:`substitute`."""
+        return {name: self.substitute(list(group)) for name, group in optional_dependencies.items()}
 
 
-def _validate(name: str, plugin: Any) -> None:
-    """Check the plugin contract before anything is rewritten with it.
-
-    Neither mistake raises where it would be used. ``key in substitutions`` is a substring test on a
-    string and a membership test on any container, so a ``SUBSTITUTIONS`` that is not a mapping
-    quietly matches nothing; and lookups are canonicalised, so a key that is not already a PEP 503
-    name can never match either. Both would ship another vendor's packages without a word.
+def register(vendor: Vendor) -> Vendor:
     """
-    substitutions = getattr(plugin, "SUBSTITUTIONS", None)
-    if not isinstance(substitutions, Mapping):
-        raise VendorPluginError(f"{name} plugin SUBSTITUTIONS must be a mapping")
-    for key in substitutions:
+    Add ``vendor`` to :data:`REGISTRY`; each plugin module calls this as it is imported.
+
+    The substitution table is checked here because a mistake in it does not raise where it is used.
+    ``key in substitutions`` is a substring test on a string, and lookups are canonicalised, so a table
+    that is not a mapping, or a key that is not a PEP 503 name, would match nothing and leave another
+    vendor's packages in this vendor's wheel.
+    """
+    if not vendor.name:
+        raise ValueError(f"{type(vendor).__name__} must set a name")
+    if not isinstance(vendor.substitutions, Mapping):
+        raise TypeError(f"{vendor.name} substitutions must be a mapping")
+    for key in vendor.substitutions:
         if not isinstance(key, str) or key != canonical_name(key):
-            raise VendorPluginError(
-                f"{name} plugin SUBSTITUTIONS key {key!r} is not a PEP 503 normalised name, "
+            raise ValueError(
+                f"{vendor.name} substitutions key {key!r} is not a PEP 503 normalised name, "
                 f"so it would never match a requirement"
             )
-    for attribute in ("extras_for", "extra_requirements"):
-        if not callable(getattr(plugin, attribute, None)):
-            raise VendorPluginError(f"{name} plugin must define {attribute}()")
+    REGISTRY[vendor.name] = vendor
+    return vendor
 
 
-def _load(name: str) -> ActiveVendor:
-    """Import the plugin for ``name``; a failure here is fatal, never a silent "no vendor"."""
-    try:
-        plugin = _import_plugin(REGISTRY[name].module)
-    except Exception as exc:
-        raise VendorPluginError(f"{name} was detected but its plugin could not be loaded: {exc}") from exc
-    _validate(name, plugin)
-    return ActiveVendor(name, plugin)
-
-
-def active_vendor() -> ActiveVendor | None:
-    """The vendor whose packages this build needs, or None to leave ``pyproject.toml`` alone."""
-    requested = os.environ.get("MONAI_VENDOR", "").strip().lower()
+def active_vendor() -> Vendor | None:
+    """The vendor whose packages this build needs, or None to use ``pyproject.toml`` as written."""
+    requested = os.environ.get("MONAI_VENDOR", "").strip().lower() or "auto"
     if requested in ("none", "cpu"):
         return None
-    if requested and requested != "auto":
+
+    for module in PLUGIN_MODULES:  # each registers its vendor as it is imported
+        importlib.import_module(f".{module}" if __package__ else module, __package__ or None)
+
+    if requested != "auto":
         if requested not in REGISTRY:
             raise ValueError(f"unknown MONAI_VENDOR {requested!r}; expected one of {sorted(REGISTRY)} or 'none'")
-        return _load(requested)
-    for name, registration in REGISTRY.items():
-        if registration.detect():
-            return _load(name)
-    _warn_hardware_without_vendor()
-    return None
+        return REGISTRY[requested]
 
+    for vendor in REGISTRY.values():
+        if vendor.detect():
+            return vendor
 
-def _warn_hardware_without_vendor() -> None:
-    """Warn when a vendor's hardware is present but the torch this build sees is not its build.
-
-    Under ``pip`` build isolation the build environment resolves ``torch`` afresh, and a generic
-    PyPI wheel outranks a vendor build under PEP 440, so a source install on vendor hardware can
-    otherwise emit another vendor's dependencies without a word.
-    """
-    for name, registration in REGISTRY.items():
-        if registration.hardware is not None and registration.hardware():
+    # pip's isolated build environment resolves torch afresh, and a plain PyPI wheel outranks a vendor
+    # build of the same release, so a source install on vendor hardware can land here unintentionally.
+    for vendor in REGISTRY.values():
+        if vendor.hardware_present():
             warnings.warn(
-                f"{name} hardware is present, but the torch this build sees is not a {name} build, "
-                f"so {name} dependencies were not applied. Build against a {name} torch (for a "
-                f"source install, `pip install --no-build-isolation` in an environment that already "
-                f"has one), or set MONAI_VENDOR={name} to apply them regardless.",
-                stacklevel=3,
+                f"{vendor.name} hardware is present, but the torch this build sees is not a {vendor.name} build, "
+                f"so {vendor.name} dependencies were not applied. Build against a {vendor.name} torch (for a "
+                f"source install, `pip install --no-build-isolation` in an environment that already has one), "
+                f"or set MONAI_VENDOR={vendor.name} to apply them regardless.",
+                stacklevel=2,
             )
-            return
+            break
+    return None

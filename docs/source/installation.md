@@ -101,13 +101,19 @@ requirement, which is what steers pip towards the ROCm build of PyTorch. `devel`
 `monai/_extensions` JIT-compiles its HIP sources on first use and the link step needs the ROCm
 development tree.
 
-This is driven by a general accelerator-vendor mechanism: `monai/config/vendor_deps.py` holds the
-generic rewriting and a registry of vendors, and each vendor contributes a `vendor_<name>.py` plugin
-listing its package substitutions. A plugin is imported only once its registry probe matches, so a
-build for one vendor never runs another vendor's code, and a build with no vendor detected is left
-exactly as declared in `pyproject.toml`. Set `MONAI_VENDOR` to a registered vendor name to force one,
-or to `none` to disable rewriting. For ROCm, the GPU architectures come from `GPU_TARGETS` or
-`AMDGPU_TARGETS` and the ROCm series from `MONAI_ROCM_SERIES`.
+This is driven by a general accelerator-vendor mechanism: `monai/config/vendor_deps.py` defines a
+`Vendor` class and a registry, and each vendor contributes a `vendor_<name>.py` module that registers
+a subclass listing its package substitutions. A build with no vendor detected is left exactly as
+declared in `pyproject.toml`. Set `MONAI_VENDOR` to a registered vendor name to force one, or to
+`none` to turn the mechanism off. To see what a vendor changes, on any machine, compare the output of
+
+```bash
+MONAI_VENDOR=rocm python monai/config/print_dependencies.py all
+MONAI_VENDOR=none python monai/config/print_dependencies.py all
+```
+
+For ROCm, the GPU architectures come from `GPU_TARGETS` or `AMDGPU_TARGETS` and the ROCm series from
+`MONAI_ROCM_SERIES`.
 
 Two AMD package indexes are involved, and neither is on PyPI. The ROCm SDK (`rocm`) and the ROCm
 build of PyTorch come from the ROCm wheel index. `amd-hipcim` and `amd-cupy` come from the AMD
