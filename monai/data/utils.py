@@ -1167,7 +1167,8 @@ def partition_dataset(
 
     Args:
         data: input dataset to split, expect a list of data.
-        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1]. If rounding the partition sizes
+            leaves some items over, they are added to the partitions that were rounded down the most.
         num_partitions: expected number of the partitions to evenly split, only works when `ratios` not specified.
         shuffle: whether to shuffle the original dataset before splitting.
         seed: random seed to shuffle the dataset, only works when `shuffle` is True.
@@ -1203,19 +1204,16 @@ def partition_dataset(
     if ratios:
         next_idx = 0
         rsum = sum(ratios)
-        sizes = [int(r / rsum * data_len + 0.5) for r in ratios]
-        if sum(sizes) < data_len:
-            # Independent rounding can leave trailing items in no partition
-            # (e.g. ratios [1, 1, 1] on 10 items rounds to 3 + 3 + 3); assign
-            # the remainder so every item lands in exactly one partition.
-            # It goes to the last partition with a positive ratio: a
-            # zero-ratio partition must stay empty (e.g. ratios
-            # [1, 1, 1, 0] on 10 items rounds to 3 + 3 + 3 + 0, and the
-            # leftover item belongs in the third partition, not the empty one).
-            for i in range(len(ratios) - 1, -1, -1):
-                if ratios[i] > 0:
-                    sizes[i] += data_len - sum(sizes)
-                    break
+        exact = [r / rsum * data_len for r in ratios]
+        sizes = [int(e + 0.5) for e in exact]
+        # rounding each size on its own can leave items without a partition,
+        # give them, one each, to the partitions whose sizes were rounded down
+        # the most (ties go to the earlier partition, as in
+        # torch.utils.data.random_split), so each partition stays within one
+        # item of its exact share
+        missing = max(data_len - sum(sizes), 0)
+        for j in sorted(range(len(sizes)), key=lambda k: sizes[k] - exact[k])[:missing]:
+            sizes[j] += 1
         for size in sizes:
             start_idx = next_idx
             next_idx = min(start_idx + size, data_len)
@@ -1270,7 +1268,8 @@ def partition_dataset_classes(
     Args:
         data: input dataset to split, expect a list of data.
         classes: a list of labels to help split the data, the length must match the length of data.
-        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1]. If rounding the partition sizes
+            leaves some items over, they are added to the partitions that were rounded down the most.
         num_partitions: expected number of the partitions to evenly split, only works when no `ratios`.
         shuffle: whether to shuffle the original dataset before splitting.
         seed: random seed to shuffle the dataset, only works when `shuffle` is True.

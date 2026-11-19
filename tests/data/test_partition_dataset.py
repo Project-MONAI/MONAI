@@ -127,7 +127,7 @@ TEST_CASE_9 = [
         "drop_last": True,
         "even_divisible": True,
     },
-    [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9]],
+    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]],
 ]
 
 TEST_CASE_10 = [
@@ -140,7 +140,7 @@ TEST_CASE_10 = [
         "drop_last": True,
         "even_divisible": True,
     },
-    [list(range(50)), list(range(50, 56)), list(range(56, 63))],
+    [list(range(51)), list(range(51, 57)), list(range(57, 63))],
 ]
 
 TEST_CASE_11 = [
@@ -153,7 +153,7 @@ TEST_CASE_11 = [
         "drop_last": True,
         "even_divisible": True,
     },
-    [list(range(6)), list(range(6, 12)), list(range(12, 18)), list(range(18, 24)), list(range(24, 32))],
+    [list(range(7)), list(range(7, 14)), list(range(14, 20)), list(range(20, 26)), list(range(26, 32))],
 ]
 
 TEST_CASE_12 = [
@@ -179,7 +179,7 @@ TEST_CASE_13 = [
         "drop_last": True,
         "even_divisible": True,
     },
-    [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9], []],
+    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], []],
 ]
 
 
