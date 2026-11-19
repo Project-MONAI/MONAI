@@ -44,6 +44,8 @@ skimage, _ = optional_import("skimage", "0.19.0", min_version)
 __all__ = [
     "RandGaussianNoise",
     "RandRicianNoise",
+    "RandSpeckleNoise",
+    "RandUltrasoundDepthGain",
     "ShiftIntensity",
     "RandShiftIntensity",
     "StdShiftIntensity",
@@ -229,6 +231,152 @@ class RandRicianNoise(RandomizableTransform):
                 raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
             img = self._add_noise(img, mean=self.mean, std=std)
         return img
+
+
+class RandSpeckleNoise(RandomizableTransform):
+    """
+    Add multiplicative speckle noise to image, simulating the speckle pattern
+    characteristic of B-mode ultrasound images.
+
+    Fully developed speckle is commonly modelled as multiplicative noise: the
+    backscattered intensity follows a Gamma distribution, see for example
+    `Statistics of speckle in ultrasound B-scans
+    <https://doi.org/10.1109/TSU.1983.31404>`_. The noise factor has unit mean,
+    so the mean image intensity is unchanged in expectation, while the
+    variance of the factor is controlled by `std`. With `std` fixed, the
+    Gamma shape is ``1 / std ** 2`` (the number of looks) and the scale is
+    ``std ** 2``.
+
+    Args:
+        prob: Probability to add speckle noise.
+        std: relative standard deviation of the multiplicative speckle factor.
+            Must be non-negative. A larger value produces stronger speckle.
+        sample_std: If True, sample the relative standard deviation uniformly
+            from 0 to `std` on each call.
+        dtype: output data type, if None, same as input image. defaults to float32.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        prob: float = 0.1,
+        std: float = 0.5,
+        sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if std < 0:
+            raise ValueError(f"`std` must be non-negative, got {std}.")
+        self.std = std
+        self.sample_std = sample_std
+        self.dtype = dtype
+        self.speckle: np.ndarray | None = None
+
+    def randomize(self, img: NdarrayOrTensor) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        std = self.R.uniform(0, self.std) if self.sample_std else self.std
+        if std <= 0:
+            self.speckle = np.ones(img.shape, dtype=self.dtype)
+            return None
+        # Gamma with mean 1 and variance std ** 2: shape = 1 / std ** 2, scale = std ** 2
+        self.speckle, *_ = convert_data_type(self.R.gamma(1.0 / std**2, std**2, size=img.shape), dtype=self.dtype)
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if randomize:
+            self.randomize(img=img)
+
+        if not self._do_transform:
+            return img
+
+        if self.speckle is None:
+            raise RuntimeError("please call the `randomize()` function first.")
+        img, *_ = convert_data_type(img, dtype=self.dtype)
+        speckle, *_ = convert_to_dst_type(self.speckle, img)
+        return img * speckle
+
+
+class RandUltrasoundDepthGain(RandomizableTransform):
+    """
+    Apply a smooth depth-dependent gain to a B-mode ultrasound image,
+    simulating time-gain compensation (TGC) adjustments and depth attenuation.
+
+    Ultrasound signal attenuates with imaging depth, and scanners compensate
+    with a depth-dependent (TGC) gain. Varying that gain is a natural
+    augmentation for ultrasound models, making them robust to transducer
+    settings at deployment time. The gain profile is log-linear along the
+    depth axis: ``gain(t) = exp(slope * (t - 0.5))`` for ``t`` in ``[0, 1]``
+    from the shallow to the deep end of the image. A negative slope darkens
+    the image with depth (attenuation / shadowing), a positive slope
+    brightens it with depth (TGC over-compensation). The slope is sampled
+    uniformly from `gain_range` on each call.
+
+    Args:
+        prob: Probability to apply the depth gain.
+        gain_range: (minimum, maximum) log-gain slope sampled uniformly.
+            A slope of 0 leaves the image unchanged.
+        depth_axis: axis of the image along which depth increases. Defaults to 1,
+            the first spatial axis for channel-first images, where depth
+            typically increases downwards in a B-mode frame.
+        dtype: output data type, if None, same as input image. defaults to float32.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        prob: float = 0.1,
+        gain_range: tuple[float, float] = (-1.0, 1.0),
+        depth_axis: int = 1,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if len(gain_range) != 2:
+            raise ValueError(f"`gain_range` must be a (min, max) tuple, got {gain_range}.")
+        self.gain_range = gain_range
+        self.depth_axis = depth_axis
+        self.dtype = dtype
+        self.slope: float | None = None
+
+    def randomize(self, img: NdarrayOrTensor | None = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.slope = float(self.R.uniform(self.gain_range[0], self.gain_range[1]))
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if randomize:
+            self.randomize(img=img)
+
+        if not self._do_transform:
+            return img
+
+        if self.slope is None:
+            raise RuntimeError("please call the `randomize()` function first.")
+        depth_axis = self.depth_axis if self.depth_axis >= 0 else img.ndim + self.depth_axis
+        if depth_axis < 0 or depth_axis >= img.ndim:
+            raise ValueError(f"`depth_axis` {self.depth_axis} is out of range for image with {img.ndim} dims.")
+        n = img.shape[depth_axis]
+        t = np.linspace(0.0, 1.0, n)
+        profile = np.exp(self.slope * (t - 0.5))
+        gain_shape = [1] * img.ndim
+        gain_shape[depth_axis] = n
+        profile = profile.reshape(gain_shape)
+        img, *_ = convert_data_type(img, dtype=self.dtype)
+        gain, *_ = convert_to_dst_type(profile, img)
+        return img * gain
 
 
 class ShiftIntensity(Transform):

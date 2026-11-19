@@ -498,6 +498,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`RandSpeckleNoise`
+""""""""""""""""""
+.. autoclass:: RandSpeckleNoise
+    :members:
+    :special-members: __call__
+
+`RandUltrasoundDepthGain`
+"""""""""""""""""""""""""
+.. autoclass:: RandUltrasoundDepthGain
+    :members:
+    :special-members: __call__
+
 `RandCoarseTransform`
 """""""""""""""""""""
 .. autoclass:: RandCoarseTransform
@@ -1545,6 +1557,18 @@ Intensity (Dict)
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRicianNoised.png
     :alt: example of RandRicianNoised
 .. autoclass:: RandRicianNoised
+    :members:
+    :special-members: __call__
+
+`RandSpeckleNoised`
+"""""""""""""""""""
+.. autoclass:: RandSpeckleNoised
+    :members:
+    :special-members: __call__
+
+`RandUltrasoundDepthGaind`
+""""""""""""""""""""""""""
+.. autoclass:: RandUltrasoundDepthGaind
     :members:
     :special-members: __call__
 
