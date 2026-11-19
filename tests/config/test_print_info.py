@@ -48,6 +48,7 @@ class TestPrintInfo(unittest.TestCase):
         self.assertEqual(output["CUDA version"], "12.4")
         self.assertNotIn("HIP version", output)
 
+    @patch("torch.cuda.device_count", lambda: 0)
     @patch("torch.version.hip", "7.0.0")
     def test_check_env_hip_version(self):
         """check_env.check_torch_cuda() prints 'HIP version:' on a ROCm build."""

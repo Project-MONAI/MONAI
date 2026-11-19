@@ -206,6 +206,13 @@ def print_system_info(file: TextIO = sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
+    """
+    Collect GPU and toolkit version details.
+
+    Returns:
+        Device information. The toolkit version is under ``HIP version`` on a ROCm build of PyTorch and under
+        ``CUDA version`` otherwise, and either is present only when ``Has CUDA`` is true.
+    """
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()
