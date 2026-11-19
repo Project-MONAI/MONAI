@@ -7,7 +7,7 @@ requires = [
   "more-itertools>=8.0",
   "ninja",
   "packaging",
-  "torch>=2.8.0",
+  "torch>=2.12.1",
   "numpy>=1.24,<3.0",
   "backports.tarfile"  # see https://github.com/Project-MONAI/MONAI/issues/8791
 ]
@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 name = "monai"
 description = "AI Toolkit for Healthcare Imaging"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
@@ -28,10 +28,11 @@ classifiers = [
   "Intended Audience :: Healthcare Industry",
   "Programming Language :: C++",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Scientific/Engineering :: Medical Science Apps.",
@@ -41,7 +42,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "torch>=2.8.0",
+  "torch>=2.12.1",
   "numpy>=1.24,<3.0"
 ]
 dynamic = ["version"]
@@ -69,7 +70,7 @@ all = [
   "itk>=5.2",
   "jsonschema",
   "lmdb",
-  "matplotlib>=3.6.3",
+  "matplotlib>=3.11.2",
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
   "mlflow>=3.15.2",
   "nibabel",
@@ -78,7 +79,6 @@ all = [
   "nvidia-ml-py",
   "onnx_graphsurgeon",
   "onnx>=1.13.0",
-  "onnxruntime; python_version <= '3.10'",
   "onnxscript",
   "openslide-bin",
   "openslide-python",
@@ -124,7 +124,7 @@ itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
 lpips = ["torchvision"]  # compatibility extra; LPIPS is implemented within MONAI
-matplotlib = ["matplotlib>=3.6.3"]
+matplotlib = ["matplotlib>=3.11.2"]
 # per #5882 this requirement must be on one line to get removed by sed in weekly-preview.yml
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=3.15.2"]
@@ -141,7 +141,7 @@ nvimgcodec = [
   "cupy-cuda13x[ctk]!=14.1.0; platform_system == 'Linux'",
   "nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == 'Linux'"
 ]
-onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
+onnx = ["onnx>=1.13.0", "onnx_graphsurgeon", "onnxscript"]
 openslide = ["openslide-python", "openslide-bin"]
 optuna = ["optuna"]
 pandas = ["pandas"]
@@ -396,7 +396,7 @@ project-excludes = [
 ]
 
 # Match CI environment
-python-version = "3.10"
+python-version = "3.11"
 python-platform = "linux"
 
 # "legacy" preset provides a smooth migration from previous type checkers
