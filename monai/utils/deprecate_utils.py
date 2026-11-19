@@ -309,8 +309,12 @@ def deprecated_arg_default(
             raise ValueError(f"Argument `{name}` has no default value.")
 
         if param.default == new_default and not is_replaced:
+            if replaced is not None:
+                raise ValueError(
+                    f"Argument `{name}` was replaced to the new default value `{new_default}` before the specified version {replaced}."
+                )
             raise ValueError(
-                f"Argument `{name}` was replaced to the new default value `{new_default}` before the specified version {replaced}."
+                f"Argument `{name}` was replaced to the new default value `{new_default}` but no replacement version was specified."
             )
 
         @wraps(func)
