@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import os
+import shutil
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -60,6 +61,24 @@ def dummy_train(tracking_folder, tempdir):
 
 
 class TestHandlerMLFlow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # migrate one SQLite schema for the class; tests not about initialization start from a copy of it
+        cls.template_dir = tempfile.TemporaryDirectory()
+        cls.template_db = os.path.join(cls.template_dir.name, "template.db")
+        MLFlowHandler(iteration_log=False, epoch_log=False, tracking_uri=path_to_sqlite_uri(cls.template_db)).close()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.template_dir.cleanup()
+        super().tearDownClass()
+
+    def _init_sqlite_uri(self, db_path):
+        if not os.path.exists(db_path):
+            shutil.copyfile(self.template_db, db_path)
+        return path_to_sqlite_uri(db_path)
+
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # set up the train function for engine
@@ -82,7 +101,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 handler = MLFlowHandler(
                     iteration_log=False,
                     epoch_log=True,
-                    tracking_uri=path_to_sqlite_uri(test_path),
+                    tracking_uri=self._init_sqlite_uri(test_path),
                     state_attributes=["test"],
                     close_on_complete=True,
                 )
@@ -242,7 +261,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=True,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
@@ -278,7 +297,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=epoch_log,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -317,7 +336,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=iteration_log,
                 epoch_log=False,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
@@ -358,7 +377,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             engine = Engine(self._train_func)
             test_path = os.path.join(tempdir, "mlflow_system_metrics_off")
             handler = MLFlowHandler(
-                iteration_log=False, tracking_uri=path_to_sqlite_uri(test_path), close_on_complete=True
+                iteration_log=False, tracking_uri=self._init_sqlite_uri(test_path), close_on_complete=True
             )
             with (
                 patch("monai.handlers.mlflow_handler.SystemMetricsMonitor") as monitor_class,
@@ -379,7 +398,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 log_system_metrics=True,
                 system_metrics_sampling_interval=1,
                 system_metrics_samples_before_logging=1,
@@ -416,7 +435,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handlers = [
                 MLFlowHandler(
                     iteration_log=False,
-                    tracking_uri=path_to_sqlite_uri(test_path),
+                    tracking_uri=self._init_sqlite_uri(test_path),
                     run_name="shared",
                     log_system_metrics=True,
                 )
@@ -460,7 +479,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_unavailable")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
@@ -480,7 +499,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_start_failure")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
@@ -508,7 +527,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             test_path = os.path.join(tempdir, "mlflow_system_metrics_stop_failure")
             handler = MLFlowHandler(
                 iteration_log=False,
-                tracking_uri=path_to_sqlite_uri(test_path),
+                tracking_uri=self._init_sqlite_uri(test_path),
                 log_system_metrics=True,
                 close_on_complete=True,
             )
