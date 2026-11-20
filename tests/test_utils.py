@@ -354,7 +354,12 @@ def has_cupy():
         return False
 
 
-HAS_CUPY = has_cupy()
+def __getattr__(name):
+    # Run the CuPy check on first access instead of on import; the result is then cached as a module global.
+    if name == "HAS_CUPY":
+        globals()[name] = has_cupy()
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def make_nifti_image(
