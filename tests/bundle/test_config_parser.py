@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+import builtins
 import copy
+import json
 import os
 import pickle
 import tempfile
@@ -31,7 +33,17 @@ from monai.utils import min_version, optional_import
 from tests.test_utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
-_, has_yaml = optional_import("yaml")
+yaml, has_yaml = optional_import("yaml")
+
+NON_ASCII_TEXT = "Lungenknoten ≥ 3 mm, Größe, 肺結節"
+_builtin_open = builtins.open
+
+
+def _open_with_cp1252_default(file, mode="r", *args, **kwargs):
+    """``open`` as on a system whose default encoding is cp1252 (e.g. Windows)."""
+    if "b" not in mode:
+        kwargs.setdefault("encoding", "cp1252")
+    return _builtin_open(file, mode, *args, **kwargs)
 
 
 @TimedCall(seconds=100, force_quit=True)
@@ -518,6 +530,46 @@ class TestConfigProxy(unittest.TestCase):
             _ = self.parser.A.B["nonexistent"]
         with self.assertRaises(AttributeError):
             _ = self.parser.A.nonexistent
+
+
+class TestConfigFileEncoding(unittest.TestCase):
+    """Config files are UTF-8, whatever the default encoding of the system."""
+
+    @parameterized.expand([("json",), ("yaml",)])
+    def test_load_utf8_config(self, fmt):
+        if fmt == "yaml" and not has_yaml:
+            self.skipTest("Requires pyyaml")
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = Path(tempdir) / f"config.{fmt}"
+            content = json.dumps({"note": NON_ASCII_TEXT}, ensure_ascii=False)
+            filepath.write_bytes(content.encode("utf-8"))
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                config = ConfigParser.load_config_file(filepath)
+            self.assertEqual(config["note"], NON_ASCII_TEXT)
+
+    def test_export_utf8_json(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = Path(tempdir) / "config.json"
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                ConfigParser.export_config_file({"note": NON_ASCII_TEXT}, filepath, ensure_ascii=False)
+            self.assertEqual(json.loads(filepath.read_bytes().decode("utf-8")), {"note": NON_ASCII_TEXT})
+
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_export_utf8_yaml(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = Path(tempdir) / "config.yaml"
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                ConfigParser.export_config_file({"note": NON_ASCII_TEXT}, filepath, fmt="yaml", allow_unicode=True)
+            self.assertEqual(yaml.safe_load(filepath.read_bytes().decode("utf-8")), {"note": NON_ASCII_TEXT})
+
+    def test_load_non_utf8_config_raises(self):
+        # a cp1252-encoded file used to load under a cp1252 default; it is not valid UTF-8
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = Path(tempdir) / "config.json"
+            filepath.write_bytes('{"note": "Größe"}'.encode("cp1252"))
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                with self.assertRaises(UnicodeDecodeError):
+                    ConfigParser.load_config_file(filepath)
 
 
 if __name__ == "__main__":
