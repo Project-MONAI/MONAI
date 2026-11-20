@@ -204,6 +204,17 @@ def convert_box_to_mask(
     """
     Convert box to int16 mask image, which has the same size with the input image.
 
+    The box mode is assumed to be ``StandardMode`` (``[xmin, ymin, xmax, ymax]`` in 2D,
+    ``[xmin, ymin, zmin, xmax, ymax, zmax]`` in 3D) with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``, consistent with
+    :py:class:`monai.apps.detection.networks.retinanet_detector.RetinaNetDetector`.
+    That is, box axis 0 (``xmin``/``xmax``) maps to mask spatial dim 0 (``H``),
+    box axis 1 (``ymin``/``ymax``) maps to mask spatial dim 1 (``W``).
+    Note this differs from the ``matplotlib`` convention where ``x`` is the column
+    (``W``) and ``y`` is the row (``H``): to overlay a MONAI box with
+    ``plt.imshow``, use ``xmin``/``xmax`` as the row (``y``) coordinates and
+    ``ymin``/``ymax`` as the column (``x``) coordinates.
+
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
         labels: classification foreground(fg) labels corresponding to `boxes`, dtype should be int, sized (N,).
@@ -282,6 +293,13 @@ def convert_mask_to_box(
 ) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Convert int16 mask image to box, which has the same size with the input image
+
+    The box mode is assumed to be ``StandardMode`` (``[xmin, ymin, xmax, ymax]`` in 2D,
+    ``[xmin, ymin, zmin, xmax, ymax, zmax]`` in 3D) with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``. This is the inverse of
+    :py:func:`monai.apps.detection.transforms.box_ops.convert_box_to_mask`: mask
+    spatial dim 0 (``H``) maps to box axis 0 (``xmin``/``xmax``), mask spatial
+    dim 1 (``W``) maps to box axis 1 (``ymin``/``ymax``).
 
     Args:
         boxes_mask: int16 array, sized (num_box, H, W). Each channel represents a box.

@@ -131,6 +131,44 @@ class TestBoxTransform(unittest.TestCase):
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
 
+    def test_value_2d_nonsquare_axis_convention(self):
+        # Regression test for https://github.com/Project-MONAI/MONAI/issues/8998.
+        # MONAI detection convention: StandardMode [xmin, ymin, xmax, ymax] with
+        # 0 <= xmin < xmax <= H, 0 <= ymin < ymax <= W, i.e. box axis 0 maps to
+        # mask spatial dim 0 (H/rows) and box axis 1 maps to dim 1 (W/cols).
+        # Box [1, 1, 3, 6] on a (1, 10, 10) image must therefore fill rows 1:3,
+        # cols 1:6. This differs from the matplotlib convention (x=cols, y=rows).
+        for ellipse_mask in [False, True]:
+            data = {"image": np.zeros((1, 10, 10)), "boxes": np.array([[1, 1, 3, 6]]), "labels": np.array([1])}
+            transform_to_mask = BoxToMaskd(
+                box_keys="boxes",
+                box_mask_keys="box_mask",
+                box_ref_image_keys="image",
+                label_keys="labels",
+                min_fg_label=1,
+                ellipse_mask=ellipse_mask,
+            )
+            transform_to_box = MaskToBoxd(
+                box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=1
+            )
+            data_mask = transform_to_mask(dict(data))
+            mask = np.asarray(data_mask["box_mask"])
+            self.assertEqual(mask.shape, (1, 10, 10))
+            if not ellipse_mask:
+                expected = np.zeros((1, 10, 10), dtype=mask.dtype)
+                expected[0, 1:3, 1:6] = 1
+                assert_allclose(mask, expected, type_test=False, device_test=False, atol=1e-3)
+            else:
+                # ellipse mask must stay inside the box bounds, and be non-empty
+                self.assertTrue(mask[0, 1:3, 1:6].sum() > 0)
+                empty = np.zeros((1, 10, 10), dtype=bool)
+                empty[0, 1:3, 1:6] = True
+                self.assertTrue((mask[0][~empty[0]] == 0).all())
+            data_back = transform_to_box(dict(data_mask))
+            if not ellipse_mask:
+                assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+                assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
+
     def test_shape_assertion(self):
         test_dtype = torch.float32
         image = np.zeros((1, 10, 10, 10))
