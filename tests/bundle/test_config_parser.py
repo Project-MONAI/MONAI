@@ -562,6 +562,15 @@ class TestConfigFileEncoding(unittest.TestCase):
                 ConfigParser.export_config_file({"note": NON_ASCII_TEXT}, filepath, fmt="yaml", allow_unicode=True)
             self.assertEqual(yaml.safe_load(filepath.read_bytes().decode("utf-8")), {"note": NON_ASCII_TEXT})
 
+    def test_load_non_utf8_config_raises(self):
+        # a cp1252-encoded file used to load under a cp1252 default; it is not valid UTF-8
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = Path(tempdir) / "config.json"
+            filepath.write_bytes('{"note": "Größe"}'.encode("cp1252"))
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                with self.assertRaises(UnicodeDecodeError):
+                    ConfigParser.load_config_file(filepath)
+
 
 if __name__ == "__main__":
     unittest.main()
