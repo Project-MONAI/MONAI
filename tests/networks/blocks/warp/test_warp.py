@@ -101,7 +101,8 @@ if USE_COMPILED:
 
 @skip_if_quick
 class TestWarp(unittest.TestCase):
-    def setUp(self):
+    @SkipIfNoModule("itk")
+    def test_itk_benchmark(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
             url=config["url"],
@@ -109,9 +110,6 @@ class TestWarp(unittest.TestCase):
             hash_val=config.get("hash_val"),
             hash_type=config.get("hash_type", "sha256"),
         )
-
-    @SkipIfNoModule("itk")
-    def test_itk_benchmark(self):
         img, ddf = load_img_and_sample_ddf()
         monai_result = monai_warp(img, ddf)
         itk_result = itk_warp(img, ddf)
