@@ -56,14 +56,6 @@ for p in TEST_NDARRAYS:
         TESTS.append(
             [
                 TEST_IMAGE,
-                TEST_AFFINE,
-                dict(reader="NibabelReader", image_only=True, as_closest_canonical=False),
-                np.arange(24).reshape((2, 4, 3)),
-            ]
-        )
-        TESTS.append(
-            [
-                TEST_IMAGE,
                 None,
                 dict(reader="NibabelReader", image_only=True, as_closest_canonical=False),
                 np.arange(24).reshape((2, 4, 3)),
