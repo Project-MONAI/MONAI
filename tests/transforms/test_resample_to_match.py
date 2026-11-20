@@ -30,7 +30,7 @@ from monai.data.image_writer import ITKWriter
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImage, SaveImaged
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.test_utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.test_utils import MODULE_PATH, assert_allclose, download_url_or_skip_test, testing_data_config
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
@@ -52,7 +52,7 @@ class TestResampleToMatch(unittest.TestCase):
         cls.fnames = []
         cls.tmpdir = tempfile.mkdtemp()
         for key in ("0000_t2_tse_tra_4", "0000_ep2d_diff_tra_7"):
-            fname = os.path.join(cls.tmpdir, f"test_{key}.nii.gz")
+            fname = os.path.join(MODULE_PATH, "tests", "testing_data", f"temp_{key}.nii.gz")
             url = testing_data_config("images", key, "url")
             hash_type = testing_data_config("images", key, "hash_type")
             hash_val = testing_data_config("images", key, "hash_val")
