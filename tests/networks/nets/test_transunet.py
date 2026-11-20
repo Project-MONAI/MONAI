@@ -49,14 +49,18 @@ TEST_CASE_TRANsunet = [
 
 @skip_if_quick
 class TestTransUNet(unittest.TestCase):
+    """Shape and argument-validation tests for `TransUNet`."""
+
     @parameterized.expand(TEST_CASE_TRANsunet)
     def test_shape(self, input_param, input_shape, expected_shape):
+        """Check that the output spatial shape matches the input resolution for 2D and 3D inputs."""
         net = TransUNet(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
+        """Check that invalid constructor arguments raise `ValueError`."""
         with self.assertRaises(ValueError):
             TransUNet(in_channels=1, out_channels=3, img_size=(64, 64), dropout_rate=5.0)
 
@@ -65,6 +69,23 @@ class TestTransUNet(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             TransUNet(in_channels=1, out_channels=3, img_size=(60, 60))
+
+    def test_single_element_bottleneck_rejected(self):
+        """A 1x1(x1) bottleneck grid (img_size of 16 in every spatial dim) must raise `ValueError`."""
+        with self.assertRaises(ValueError):
+            TransUNet(in_channels=1, out_channels=3, img_size=(16, 16))
+
+        with self.assertRaises(ValueError):
+            TransUNet(in_channels=1, out_channels=3, img_size=(16, 16, 16), spatial_dims=3)
+
+    def test_multi_element_bottleneck_ok(self):
+        """An img_size with a multi-element bottleneck grid (e.g. (16, 32)) must run in eval mode."""
+        net = TransUNet(
+            in_channels=1, out_channels=3, img_size=(16, 32), hidden_size=192, mlp_dim=768, num_heads=8, num_layers=2
+        )
+        with eval_mode(net):
+            result = net(torch.randn(2, 1, 16, 32))
+            self.assertEqual(result.shape, (2, 3, 16, 32))
 
 
 if __name__ == "__main__":

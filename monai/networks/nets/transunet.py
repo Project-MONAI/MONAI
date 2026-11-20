@@ -59,7 +59,9 @@ class TransUNet(nn.Module):
         Args:
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
-            img_size: dimension of input image.
+            img_size: dimension of input image. Each spatial dimension must be divisible by 16, and the
+                resulting 1/16-scale bottleneck grid must contain more than one element (e.g. use
+                ``(16, 32)``, not ``(16, 16)``, with the default instance normalization).
             feature_size: dimension of network feature size. Defaults to 16.
             hidden_size: dimension of the transformer hidden layer. Defaults to 768.
             mlp_dim: dimension of feedforward layer. Defaults to 3072.
@@ -70,6 +72,13 @@ class TransUNet(nn.Module):
             dropout_rate: fraction of the input units to drop. Defaults to 0.0.
             spatial_dims: number of spatial dims. Defaults to 2.
             qkv_bias: apply the bias term for the qkv linear layer in self attention block. Defaults to False.
+
+        Raises:
+            ValueError: if ``dropout_rate`` is not between 0 and 1.
+            ValueError: if ``hidden_size`` is not divisible by ``num_heads``.
+            ValueError: if ``img_size`` is not divisible by 16 in every spatial dimension.
+            ValueError: if ``img_size`` yields a single-element bottleneck grid at 1/16 scale
+                (e.g. ``(16, 16)``), which the default instance normalization cannot process.
 
         Examples::
 
@@ -95,6 +104,13 @@ class TransUNet(nn.Module):
         self.feat_size = tuple(img_d // s_d for img_d, s_d in zip(img_size, stem_stride))
         if any(img_d % s_d for img_d, s_d in zip(img_size, stem_stride)):
             raise ValueError("img_size should be divisible by 16.")
+        if all(feat_d == 1 for feat_d in self.feat_size):
+            raise ValueError(
+                f"img_size={tuple(img_size)} yields a single-element bottleneck grid {self.feat_size} at "
+                "1/16 scale, which is not supported by the default 'instance' normalization (expected more "
+                "than 1 spatial element); use an img_size with a multi-element bottleneck grid, "
+                "e.g. (16, 32) instead of (16, 16)."
+            )
         self.hidden_size = hidden_size
 
         # CNN stem: skips at 1/1, 1/2, 1/4 and 1/8 scale, bottleneck features at 1/16 scale
@@ -204,12 +220,29 @@ class TransUNet(nn.Module):
         self.proj_view_shape = list(self.feat_size) + [self.hidden_size]
 
     def proj_feat(self, x):
+        """
+        Reshape and permute the transformer output back into a spatial feature map.
+
+        Args:
+            x: transformer output of shape ``(batch, num_tokens, hidden_size)``, where ``num_tokens``
+                is the product of the 1/16-scale spatial dimensions.
+
+        Returns:
+            Feature map of shape ``(batch, hidden_size, *feat_size)`` at 1/16 of the input resolution.
+        """
         new_view = [x.size(0)] + self.proj_view_shape
         x = x.view(new_view)
         x = x.permute(self.proj_axes).contiguous()
         return x
 
     def forward(self, x_in):
+        """
+        Args:
+            x_in: input tensor of shape ``(batch, in_channels, *img_size)``.
+
+        Returns:
+            Segmentation output of shape ``(batch, out_channels, *img_size)``.
+        """
         enc1 = self.encoder1(x_in)
         enc2 = self.encoder2(enc1)
         enc3 = self.encoder3(enc2)
