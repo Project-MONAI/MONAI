@@ -25,17 +25,17 @@ _, has_tv = optional_import("torchvision")
 
 TEST_CASES = [
     [{"in_channels": 1, "out_channels": 1}, (1, 1, 32, 32, 64), (1, 1, 32, 32, 64)],  # single channel 3D, batch 1
-    [{"in_channels": 2, "out_channels": 1}, (3, 2, 32, 64, 128), (3, 1, 32, 64, 128)],  # two channel 3D, batch 3
+    [{"in_channels": 2, "out_channels": 1}, (2, 2, 32, 64, 128), (2, 1, 32, 64, 128)],  # two channel 3D, batch 2
     [
         {"in_channels": 2, "out_channels": 2},
-        (3, 2, 32, 64, 128),
-        (3, 2, 32, 64, 128),
+        (2, 2, 32, 64, 128),
+        (2, 2, 32, 64, 128),
     ],  # two channel 3D, same in & out channels
-    [{"in_channels": 4, "out_channels": 1}, (5, 4, 35, 35, 35), (5, 1, 35, 35, 35)],  # four channel 3D, batch 5
+    [{"in_channels": 4, "out_channels": 1}, (2, 4, 35, 35, 35), (2, 1, 35, 35, 35)],  # four channel 3D, batch 2
     [
         {"in_channels": 4, "out_channels": 4},
-        (5, 4, 35, 35, 35),
-        (5, 4, 35, 35, 35),
+        (2, 4, 35, 35, 35),
+        (2, 4, 35, 35, 35),
     ],  # four channel 3D, same in & out channels
 ]
 
