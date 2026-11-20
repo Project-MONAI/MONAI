@@ -11,8 +11,7 @@
 
 from __future__ import annotations
 
-import os
-import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -78,15 +77,15 @@ class TestDecathlonDataset(unittest.TestCase):
         properties = data.get_properties(keys="labels")
         self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
 
-        shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
-        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
-            DecathlonDataset(
-                root_dir=testing_dir,
-                task="Task04_Hippocampus",
-                transform=transform,
-                section="validation",
-                download=False,
-            )
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
+                DecathlonDataset(
+                    root_dir=empty_dir,
+                    task="Task04_Hippocampus",
+                    transform=transform,
+                    section="validation",
+                    download=False,
+                )
 
 
 if __name__ == "__main__":
