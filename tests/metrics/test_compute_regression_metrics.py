@@ -16,8 +16,9 @@ from functools import partial
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
-from monai.metrics import MAEMetric, MAPEMetric, MSEMetric, PSNRMetric, RMSEMetric
+from monai.metrics import MAEMetric, MAPEMetric, MSEMetric, MultiScaleSSIMMetric, PSNRMetric, RMSEMetric, SSIMMetric
 from monai.utils import set_determinism
 
 
@@ -195,6 +196,134 @@ class TestRegressionMetrics(unittest.TestCase):
                         mt(in_tensor_a, in_tensor_b)
                         out_tensor = mt.aggregate()
                         np.testing.assert_allclose(out_tensor.cpu(), rs, atol=1e-4)
+
+
+class TestRegressionMetricsIntegerInput(unittest.TestCase):
+    """Check small-integer calculations without reducing existing floating-point precision."""
+
+    @parameterized.expand(
+        [
+            (f"{metric}_{name}_{'list' if as_list else 'batch'}", metric, dtype, lower, upper, as_list)
+            for metric in ("mse", "mae", "mape", "rmse", "psnr")
+            for name, dtype, lower, upper in (
+                ("uint8", torch.uint8, 0, 255),
+                ("int8", torch.int8, -128, 127),
+                ("int16", torch.int16, -32768, 32767),
+            )
+            for as_list in (False, True)
+        ]
+    )
+    def test_small_integer_input(self, _, metric_name, dtype, lower, upper, as_list):
+        """Match hand-computed errors for both subtraction directions and public input forms.
+
+        Args:
+            _: Parameterized case name.
+            metric_name: Regression metric to evaluate.
+            dtype: Small integer dtype shared by the two inputs.
+            lower: Minimum input value.
+            upper: Maximum input value.
+            as_list: Whether to pass a list of channel-first images instead of a batch.
+        """
+        prediction = torch.tensor([upper, lower], dtype=dtype).reshape(2, 1, 1, 1).expand(2, 1, 2, 3)
+        target = torch.tensor([lower, upper], dtype=dtype).reshape(2, 1, 1, 1).expand(2, 1, 2, 3)
+        difference = upper - lower
+        metric_types = {"mse": MSEMetric, "mae": MAEMetric, "mape": MAPEMetric, "rmse": RMSEMetric, "psnr": PSNRMetric}
+        kwargs = {"max_val": difference} if metric_name == "psnr" else {"epsilon": 1.0} if metric_name == "mape" else {}
+        expected = {
+            "mse": [[difference**2], [difference**2]],
+            "mae": [[difference], [difference]],
+            "mape": [[100.0 * difference / max(abs(lower), 1)], [100.0 * difference / max(abs(upper), 1)]],
+            "rmse": [[difference], [difference]],
+            "psnr": [[0.0], [0.0]],
+        }[metric_name]
+        metric = metric_types[metric_name](**kwargs)
+        result = metric(list(prediction) if as_list else prediction, list(target) if as_list else target)
+        np.testing.assert_allclose(result.numpy(), expected, rtol=1e-6, atol=1e-4)
+        np.testing.assert_allclose(metric.aggregate().item(), np.mean(expected), rtol=1e-6, atol=1e-4)
+        self.assertEqual(prediction.dtype, dtype)
+        self.assertEqual(target.dtype, dtype)
+
+    @parameterized.expand(
+        [
+            (f"{metric}_{name}", metric, dtype)
+            for metric in ("mse", "mae", "mape", "rmse", "psnr")
+            for name, dtype in (("float64_target", torch.float64), ("uint8_target", torch.uint8))
+        ]
+    )
+    def test_float64_precision(self, _, metric_name, target_dtype):
+        """Preserve a float64 residual that would disappear after a float32 cast.
+
+        Args:
+            _: Parameterized case name.
+            metric_name: Regression metric to evaluate.
+            target_dtype: Float64 or uint8 dtype of the unit target.
+        """
+        prediction = torch.tensor([[1.0 + 1e-10]], dtype=torch.float64)
+        target = torch.ones((1, 1), dtype=target_dtype)
+        difference = prediction.item() - 1.0
+        metric_types = {"mse": MSEMetric, "mae": MAEMetric, "mape": MAPEMetric, "rmse": RMSEMetric, "psnr": PSNRMetric}
+        metric = metric_types[metric_name](**({"max_val": 1.0} if metric_name == "psnr" else {}))
+        expected = {
+            "mse": difference**2,
+            "mae": difference,
+            "mape": 100 * difference,
+            "rmse": difference,
+            "psnr": -10 * np.log10(difference**2),
+        }[metric_name]
+        result = metric(prediction, target)
+        self.assertEqual(result.dtype, torch.float64)
+        np.testing.assert_allclose(result.item(), expected, rtol=1e-12, atol=0)
+
+    def test_float32_precision(self):
+        """Keep the calculation dtype of existing float32 inputs."""
+        result = MSEMetric()(torch.tensor([[3.0]], dtype=torch.float32), torch.tensor([[1.0]], dtype=torch.float32))
+        self.assertEqual(result.dtype, torch.float32)
+        self.assertEqual(result.item(), 4.0)
+
+    @parameterized.expand([("int32", torch.int32, 2**24), ("int64", torch.int64, 2**53)])
+    def test_wider_integer_residual(self, _, dtype, offset):
+        """Retain the existing exact subtraction for nearby large integer values.
+
+        Args:
+            _: Parameterized case name.
+            dtype: Integer dtype outside the small-integer conversion scope.
+            offset: Large shared offset that must not hide a unit difference.
+        """
+        prediction = torch.tensor([[offset + 1]], dtype=dtype)
+        target = torch.tensor([[offset]], dtype=dtype)
+        self.assertEqual(MSEMetric()(prediction, target).item(), 1.0)
+
+    def test_default_float64(self):
+        """Use the default float64 dtype when promoting small integer inputs."""
+        original_dtype = torch.get_default_dtype()
+        try:
+            torch.set_default_dtype(torch.float64)
+            prediction = torch.tensor([[0]], dtype=torch.uint8)
+            target = torch.tensor([[255]], dtype=torch.uint8)
+            result = MSEMetric()(prediction, target)
+            self.assertEqual(result.dtype, torch.float64)
+            self.assertEqual(result.item(), 65025.0)
+        finally:
+            torch.set_default_dtype(original_dtype)
+
+    @parameterized.expand(
+        [("ssim_2d", False, 2), ("ssim_3d", False, 3), ("ms_ssim_2d", True, 2), ("ms_ssim_3d", True, 3)]
+    )
+    def test_integer_image_similarity(self, _, multiscale, spatial_dims):
+        """Match equivalent floating images through the shared regression metric entry point.
+
+        Args:
+            _: Parameterized case name.
+            multiscale: Whether to evaluate MS-SSIM instead of SSIM.
+            spatial_dims: Number of image spatial dimensions.
+        """
+        prediction = torch.arange(16**spatial_dims).remainder(256).to(torch.uint8).reshape(1, 1, *([16] * spatial_dims))
+        target = prediction.flip(-1)
+        metric_type = MultiScaleSSIMMetric if multiscale else SSIMMetric
+        kwargs = {"kernel_size": 3, "weights": (0.5, 0.5)} if multiscale else {"win_size": 3}
+        metric = metric_type(spatial_dims=spatial_dims, data_range=255, **kwargs)
+        expected = metric_type(spatial_dims=spatial_dims, data_range=255, **kwargs)(prediction.float(), target.float())
+        torch.testing.assert_close(metric(prediction, target), expected)
 
 
 if __name__ == "__main__":
