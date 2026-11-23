@@ -129,8 +129,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         @val_engine.on(Events.ITERATION_COMPLETED)
         def check_output(engine):
             expected_batch = torch.tensor([engine.state.iteration - 1], dtype=torch.float32)
-            assert_allclose(engine.state.output["pred_0"], expected_batch + 1)
-            assert_allclose(engine.state.output["pred_1"], expected_batch + 2)
+            assert_allclose(engine.state.output[0]["pred_0"], expected_batch + 1)
+            assert_allclose(engine.state.output[0]["pred_1"], expected_batch + 2)
 
         val_engine.run()
         self.assertEqual(len(thread_ids), 2)
@@ -154,7 +154,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         @val_engine.on(Events.ITERATION_COMPLETED)
         def record_iteration(engine):
-            iterations.append(engine.state.output["pred_0"].item())
+            iterations.append(engine.state.output[0]["pred_0"].item())
 
         val_engine.run()
         val_engine.run()
@@ -173,6 +173,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "inference failed"):
             val_engine.run()
+        self.assertIsNone(val_engine._executor)
 
     def test_invalid_max_workers(self):
         with self.assertRaisesRegex(ValueError, "max_workers"):

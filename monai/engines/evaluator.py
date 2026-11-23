@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -396,6 +397,10 @@ class EnsembleEvaluator(Evaluator):
             `device`, `non_blocking`.
         amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
             https://pytorch.org/docs/stable/amp.html#torch.autocast.
+        parallel: whether to run the networks concurrently for every iteration. Defaults to ``False``.
+            Networks and the inferer must be safe for concurrent calls when this is enabled.
+        max_workers: maximum number of concurrent inference threads when ``parallel=True``.
+            Defaults to the number of networks.
 
     """
 
@@ -422,7 +427,13 @@ class EnsembleEvaluator(Evaluator):
         decollate: bool = True,
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
+        parallel: bool = False,
+        max_workers: int | None = None,
     ) -> None:
+        if max_workers is not None and (
+            not isinstance(max_workers, int) or isinstance(max_workers, bool) or max_workers < 1
+        ):
+            raise ValueError(f"max_workers must be a positive integer, got {max_workers}.")
         super().__init__(
             device=device,
             val_data_loader=val_data_loader,
@@ -451,6 +462,31 @@ class EnsembleEvaluator(Evaluator):
         if len(self.pred_keys) != len(self.networks):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
+        self.parallel = parallel
+        self.max_workers = max_workers
+        self._executor: ThreadPoolExecutor | None = None
+
+    def run(self, global_epoch: int = 1) -> None:  # type: ignore[override]
+        """Execute evaluation, optionally running the networks concurrently."""
+        if not self.parallel or len(self.networks) < 2:
+            return super().run(global_epoch=global_epoch)
+        with ThreadPoolExecutor(
+            max_workers=self.max_workers or len(self.networks), thread_name_prefix="monai-ensemble"
+        ) as executor:
+            self._executor = executor
+            try:
+                super().run(global_epoch=global_epoch)
+            finally:
+                self._executor = None
+
+    def _run_network(
+        self, engine: EnsembleEvaluator, inputs: Any, network: torch.nn.Module, args: tuple, kwargs: dict
+    ) -> Any:
+        with engine.mode(network):
+            if engine.amp:
+                with torch.autocast("cuda", **engine.amp_kwargs):
+                    return engine.inferer(inputs, network, *args, **kwargs)
+            return engine.inferer(inputs, network, *args, **kwargs)
 
     def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
@@ -484,21 +520,17 @@ class EnsembleEvaluator(Evaluator):
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
-        for idx, network in enumerate(engine.networks):
-            with engine.mode(network):
-                if engine.amp:
-                    with torch.autocast("cuda", **engine.amp_kwargs):
-                        if isinstance(engine.state.output, dict):
-                            # pyrefly: ignore [no-matching-overload]
-                            engine.state.output.update(
-                                {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
-                            )
-                else:
-                    if isinstance(engine.state.output, dict):
-                        # pyrefly: ignore [no-matching-overload]
-                        engine.state.output.update(
-                            {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
-                        )
+        if engine._executor is not None:
+            futures = [
+                engine._executor.submit(engine._run_network, engine, inputs, network, args, kwargs)
+                for network in engine.networks
+            ]
+            predictions = [future.result() for future in futures]
+        else:
+            predictions = [engine._run_network(engine, inputs, network, args, kwargs) for network in engine.networks]
+        if isinstance(engine.state.output, dict):
+            # pyrefly: ignore [no-matching-overload]
+            engine.state.output.update(dict(zip(engine.pred_keys, predictions)))
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
