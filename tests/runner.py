@@ -150,8 +150,8 @@ if __name__ == "__main__":
     # Get all test names (optionally from some path with some pattern)
     with PerfContext() as pc:
         # the files are searched from `tests/` folder, starting with `test_`
-        tests_root = Path(__file__).parent
-        tests_path = tests_root / args.path
+        tests_root = Path(__file__).resolve().parent
+        tests_path = (tests_root / args.path).resolve()
         files = {
             file.relative_to(tests_path).as_posix()
             for file in tests_path.rglob("test_*py")
