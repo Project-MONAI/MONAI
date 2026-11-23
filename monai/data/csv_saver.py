@@ -31,6 +31,7 @@ class CSVSaver:
     the cached data into CSV file. If no metadata provided, use index from 0 to save data.
     Note that this saver can't support multi-processing because it reads / writes single
     CSV file and can't guarantee the data order in multi-processing situation.
+    Output files are always encoded as UTF-8.
 
     """
 

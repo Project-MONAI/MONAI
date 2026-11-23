@@ -68,6 +68,7 @@ def write_metrics_reports(
     1. if `metrics` dict is not None, write overall metrics into file, every line is a metric name and value pair.
     2. if `metric_details` dict is not None,  write raw metric data of every image into file, every line for 1 image.
     3. if `summary_ops` is not None, compute summary based on operations on `metric_details` and write to file.
+    All output files are encoded as UTF-8.
 
     Args:
         save_dir: directory to save all the metrics reports.
