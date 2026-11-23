@@ -588,8 +588,9 @@ _WIDE_UNSIGNED_DTYPES = (torch.uint16, torch.uint32, torch.uint64)
 def _as_countable_tensor(x: NdarrayOrTensor) -> torch.Tensor:
     """Wrap `x` as a plain tensor that supports the ops used for counting, without a copy where possible."""
     if isinstance(x, np.ndarray) and (not x.dtype.isnative or any(stride < 0 for stride in x.strides)):
-        # torch does not support non-native byte order or negative strides
-        x = np.ascontiguousarray(x, dtype=x.dtype.newbyteorder("="))
+        # torch does not support non-native byte order or negative strides, `np.ascontiguousarray` is not
+        # enough as it keeps the negative stride of a reversed dimension of size 1
+        x = x.astype(x.dtype.newbyteorder("="), order="C", copy=True)
     t = x.as_tensor() if isinstance(x, monai.data.MetaTensor) else torch.as_tensor(x)
     if t.dtype in _WIDE_UNSIGNED_DTYPES:
         # most torch ops do not support these types, uint64 values >= 2**63 become negative, i.e. invalid

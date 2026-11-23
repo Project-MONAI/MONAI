@@ -142,6 +142,8 @@ class TestLazyClassIndices(unittest.TestCase):
             # torch does not support non-native byte order or negative strides, these only exist as numpy input
             [np.random.default_rng(0).integers(0, 4, size=(1, 6, 7, 8)).astype(np.dtype(np.uint16).newbyteorder()), 4],
             [np.stack([np.arange(6 * 7 * 8).reshape(6, 7, 8) % 3 == c for c in range(3)])[..., ::-1], None],
+            # reversing a dimension of size 1 keeps a negative stride on a C-contiguous array
+            [np.stack([np.arange(4).reshape(2, 2, 1) % 2 == c for c in range(2)])[..., ::-1], None],
         ]
     )
     def test_numpy_layouts_not_supported_by_torch(self, label, num_classes):
@@ -150,10 +152,10 @@ class TestLazyClassIndices(unittest.TestCase):
             lazy = _map_classes_to_lazy_indices(label, num_classes, image, 0.3)
             self.assertEqual([len(i) for i in lazy], [len(i) for i in indices])
             result = map_and_generate_sampling_centers(
-                label, (2, 2, 2), 4, None, num_classes, image, 0.3, rand_state=np.random.RandomState(0)
+                label, (1, 1, 1), 4, None, num_classes, image, 0.3, rand_state=np.random.RandomState(0)
             )
             expected = generate_label_classes_crop_centers(
-                (2, 2, 2), 4, label.shape[1:], indices, rand_state=np.random.RandomState(0)
+                (1, 1, 1), 4, label.shape[1:], indices, rand_state=np.random.RandomState(0)
             )
             self.assertEqual(result, expected)
 
