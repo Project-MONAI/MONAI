@@ -324,6 +324,12 @@ class LoadImage(Transform):
                 continue
             affine = meta_data[key]
             affine = affine.detach().cpu().numpy() if isinstance(affine, torch.Tensor) else np.asarray(affine)
+            if affine.dtype == object:
+                # a custom reader may hand over an object array of numbers, which holds NaN as well
+                try:
+                    affine = affine.astype(float)
+                except (TypeError, ValueError):
+                    continue  # not numeric, so there is no finite value to check
             if np.issubdtype(affine.dtype, np.number) and not np.isfinite(affine).all():
                 raise ValueError(
                     f"{reader.__class__.__name__} returned a non-finite '{key}' (NaN or infinity) for "

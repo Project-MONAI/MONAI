@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import tempfile
 import unittest
@@ -29,6 +30,13 @@ nrrd, has_nrrd = optional_import("nrrd")
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 NOT_FINITE = "not finite|non-finite"
+
+
+def _pydicom_save_kwargs(pydicom) -> dict:
+    """Keyword arguments that make ``Dataset.save_as`` write a preamble and file meta on any pydicom."""
+    if "enforce_file_format" in inspect.signature(pydicom.dataset.Dataset.save_as).parameters:
+        return {"enforce_file_format": True}
+    return {"write_like_original": False}
 
 
 def _write_nifti(path: str, affine: np.ndarray) -> str:
@@ -151,6 +159,18 @@ class TestReaderAffineFinite(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "_NanAffineReader returned a non-finite 'affine'"):
             LoadImage(image_only=True, reader=_NanAffineReader())("anything")
 
+    def test_load_image_checks_object_dtype_affine(self):
+        class _ObjectAffineReader(_NanAffineReader):
+            def get_data(self, img):
+                data, meta = super().get_data(img)
+                meta["affine"] = np.eye(4)
+                meta["original_affine"] = np.eye(4).astype(object)
+                meta["original_affine"][0, 3] = float("nan")
+                return data, meta
+
+        with self.assertRaisesRegex(ValueError, "non-finite 'original_affine'"):
+            LoadImage(image_only=True, reader=_ObjectAffineReader())("anything")
+
     def test_load_image_checks_runtime_reader(self):
         with self.assertRaisesRegex(ValueError, "non-finite 'affine'"):
             LoadImage(image_only=True)("anything", reader=_NanAffineReader())
@@ -161,7 +181,13 @@ class TestReaderAffineFinite(unittest.TestCase):
         # GDCM clamps an out-of-range DS value to +/-DBL_MAX, and the inter-slice direction is
         # computed from the difference of two positions, so opposite-sign overflow makes it non-finite.
         pydicom, _ = optional_import("pydicom")
+        # writing out-of-range DS values is the point here, so validation has to be relaxed for the
+        # duration of the test only: this is a process-global setting that later writes would inherit
+        self.addCleanup(
+            setattr, pydicom.config.settings, "writing_validation_mode", pydicom.config.settings.writing_validation_mode
+        )
         pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+        save_kwargs = _pydicom_save_kwargs(pydicom)
         shape = (8, 8)
         for name, positions in (("bad", ["-1e400", "1e400"]), ("ok", ["0", "1"])):
             series_dir = os.path.join(self.dir, name)
@@ -191,7 +217,7 @@ class TestReaderAffineFinite(unittest.TestCase):
                 ds.ImagePositionPatient = [z, "0", "0"]
                 ds.ImageOrientationPatient = ["1", "0", "0", "0", "1", "0"]
                 ds.PixelData = np.ones(shape, np.uint16).tobytes()
-                ds.save_as(os.path.join(series_dir, f"slice_{i}.dcm"), enforce_file_format=True)
+                ds.save_as(os.path.join(series_dir, f"slice_{i}.dcm"), **save_kwargs)
 
         reader = ITKReader()
         with self.assertRaisesRegex(ValueError, NOT_FINITE):

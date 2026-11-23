@@ -82,24 +82,27 @@ __all__ = [
 DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
 
 
-def _ensure_finite_affine(affine: np.ndarray, reader_name: str) -> np.ndarray:
+def _ensure_finite_affine(
+    affine: np.ndarray, reader_name: str, what: str = "the affine matrix derived from the image header"
+) -> np.ndarray:
     """
     Return ``affine`` unchanged, raising ``ValueError`` if it contains NaN or infinity.
 
-    A non-finite affine cannot describe a valid image geometry. Spatial transforms either fail on it
+    A non-finite value cannot describe a valid image geometry. Spatial transforms either fail on it
     (for example ``Orientation``) or carry it into their output metadata, so readers reject it here,
     when the file is read.
 
     Args:
-        affine: the affine matrix derived from the image header.
+        affine: the affine matrix, or a sequence of values the affine is built from.
         reader_name: name of the reader, used in the error message.
+        what: what ``affine`` is, used in the error message.
 
     Raises:
         ValueError: when ``affine`` has a non-finite element.
     """
     if not np.isfinite(affine).all():
         raise ValueError(
-            f"{reader_name}: the affine matrix derived from the image header is not finite "
+            f"{reader_name}: {what} is not finite "
             f"(it contains NaN or infinity), so the image geometry is invalid: {np.asarray(affine).tolist()}."
         )
     return affine
@@ -796,24 +799,19 @@ class PydicomReader(ImageReader):
             )
             return affine
 
-        def _raise_if_not_finite(values: Sequence[Any], tag: str) -> None:
-            if not np.isfinite(tuple(values)).all():
-                raise ValueError(
-                    f"PydicomReader: cannot derive affine matrix because DICOM tag {tag} "
-                    f"has a non-finite value: {values}."
-                )
-
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
-        _raise_if_not_finite((rx, ry, rz, cx, cy, cz), "ImageOrientationPatient (0020,0037)")
+        _ensure_finite_affine(
+            (rx, ry, rz, cx, cy, cz), "PydicomReader", "DICOM tag ImageOrientationPatient (0020,0037)"
+        )
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        _raise_if_not_finite((sx, sy, sz), "ImagePositionPatient (0020,0032)")
+        _ensure_finite_affine((sx, sy, sz), "PydicomReader", "DICOM tag ImagePositionPatient (0020,0032)")
         # "00280030" is the tag of `PixelSpacing`
         spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
-        _raise_if_not_finite(tuple(spacing), "PixelSpacing (0028,0030)")
+        _ensure_finite_affine(tuple(spacing), "PydicomReader", "DICOM tag PixelSpacing (0028,0030)")
         dr, dc = metadata.get("spacing", spacing)[:2]
-        _raise_if_not_finite((dr, dc), "spacing")
+        _ensure_finite_affine((dr, dc), "PydicomReader", "spacing")
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -828,15 +826,15 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
-            _raise_if_not_finite((t1n, t2n, t3n), "lastImagePositionPatient")
+            _ensure_finite_affine((t1n, t2n, t3n), "PydicomReader", "lastImagePositionPatient")
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
             if n > 1:
                 affine[0, 2] = (t1n - sx) / (n - 1)
                 affine[1, 2] = (t2n - sy) / (n - 1)
                 affine[2, 2] = (t3n - sz) / (n - 1)
 
-        if not np.isfinite(affine).all():
-            raise ValueError("PydicomReader: affine matrix not finite after composition.")
+        # finite inputs can still overflow, for example a large orientation times a large spacing
+        _ensure_finite_affine(affine, "PydicomReader", "the affine matrix composed from the DICOM tags")
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
