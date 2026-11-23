@@ -16,7 +16,7 @@ import random
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from functools import lru_cache, wraps
+from functools import lru_cache, partial, wraps
 from inspect import getmembers, isclass
 from typing import Any
 
@@ -424,7 +424,8 @@ def map_and_generate_sampling_centers(
     """
     if label is None:
         raise ValueError("label must not be None.")
-    indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+    # only the sampled classes need their indices, see `_map_classes_to_lazy_indices`
+    indices = _map_classes_to_lazy_indices(label, num_classes, image, image_threshold, max_samples_per_class)
 
     if label_spatial_shape is not None:
         _shape = label_spatial_shape
@@ -438,7 +439,7 @@ def map_and_generate_sampling_centers(
             "label_spatial_shape or label with a known shape must be provided to infer the output spatial shape."
         )
     centers = generate_label_classes_crop_centers(
-        spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
+        spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn  # type: ignore[arg-type]
     )
 
     return ensure_tuple(centers)
@@ -508,6 +509,23 @@ def map_classes_to_indices(
             Default is None, no subsampling.
 
     """
+    num_classes_, _, class_indices = _class_indices_fn(
+        label, num_classes, image, image_threshold, max_samples_per_class
+    )
+    return [class_indices(c) for c in range(num_classes_)]
+
+
+def _class_indices_fn(
+    label: NdarrayOrTensor,
+    num_classes: int | None,
+    image: NdarrayOrTensor | None,
+    image_threshold: float,
+    max_samples_per_class: int | None,
+) -> tuple[int, NdarrayOrTensor | None, Callable[[int], NdarrayOrTensor]]:
+    """
+    Validate the inputs of `map_classes_to_indices` and return the number of classes, the flattened
+    valid image region (or None) and a function that computes the indices of one class.
+    """
     check_non_lazy_pending_ops(label, name="map_classes_to_indices")
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
@@ -523,8 +541,7 @@ def map_classes_to_indices(
             raise ValueError("channels==1 indicates not using One-Hot format label, must provide ``num_classes``.")
         num_classes_ = num_classes
 
-    indices: list[NdarrayOrTensor] = []
-    for c in range(num_classes_):
+    def class_indices(c: int) -> NdarrayOrTensor:
         if channels > 1:
             label_flat = ravel(convert_data_type(label[c], dtype=bool)[0])
         else:
@@ -538,11 +555,113 @@ def map_classes_to_indices(
         )[0]
         if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
             sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
-            indices.append(cls_indices[sample_id])
-        else:
-            indices.append(cls_indices)
+            return cls_indices[sample_id]
+        return cls_indices
 
-    return indices
+    return num_classes_, img_flat, class_indices
+
+
+class _LazyClassIndices:
+    """
+    The indices of one class, as returned by `map_classes_to_indices`, computed on the first element access.
+    `len()` is known upfront, which is all `generate_label_classes_crop_centers` needs for the classes
+    that are not sampled.
+    """
+
+    def __init__(self, length: int, compute: Callable[[], NdarrayOrTensor]) -> None:
+        self._length = length
+        self._compute = compute
+        self._indices: NdarrayOrTensor | None = None
+
+    def __len__(self) -> int:
+        return self._length
+
+    def __getitem__(self, item):
+        if self._indices is None:
+            self._indices = self._compute()
+        return self._indices[item]
+
+
+_WIDE_UNSIGNED_DTYPES = (torch.uint16, torch.uint32, torch.uint64)
+
+
+def _as_countable_tensor(x: NdarrayOrTensor) -> torch.Tensor:
+    """Wrap `x` as a plain tensor (without a copy for numpy input) that supports the ops used for counting."""
+    t = x.as_tensor() if isinstance(x, monai.data.MetaTensor) else torch.as_tensor(x)
+    if t.dtype in _WIDE_UNSIGNED_DTYPES:
+        # most torch ops do not support these types, uint64 values >= 2**63 become negative, i.e. invalid
+        t = t.to(torch.int32 if t.dtype == torch.uint16 else torch.int64)
+    return t
+
+
+def _count_one_hot_classes(label: NdarrayOrTensor, img_flat: NdarrayOrTensor | None) -> list[int]:
+    """Count the nonzero voxels of every channel of a one-hot label, restricted to `img_flat`."""
+    lab = _as_countable_tensor(label).reshape(len(label), -1)
+    if img_flat is not None:
+        mask = _as_countable_tensor(img_flat).to(device=lab.device, dtype=torch.bool)
+        return [int(torch.count_nonzero(channel[mask])) for channel in lab]
+    # one call per channel is much faster than `torch.count_nonzero(lab, dim=1)` on CPU
+    return [int(torch.count_nonzero(channel)) for channel in lab]
+
+
+def _count_argmax_classes(label: NdarrayOrTensor, num_classes: int, img_flat: NdarrayOrTensor | None) -> list[int]:
+    """
+    Count the voxels of every class of an argmax label, i.e. ``(label == c).sum()`` restricted to `img_flat`,
+    with a single `torch.bincount` instead of one pass per class.
+    """
+    flat = _as_countable_tensor(ravel(label))
+    if flat.dtype == torch.bool:
+        flat = flat.view(torch.uint8)
+    if img_flat is not None:
+        flat = flat[_as_countable_tensor(img_flat).to(device=flat.device, dtype=torch.bool)]
+    if flat.numel() == 0:
+        return [0] * num_classes
+    if flat.is_floating_point() or flat.dtype in (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64):
+        lo, hi = (float(v) for v in torch.aminmax(flat))
+        # NaN fails both comparisons
+        if lo >= 0 and hi < max(num_classes, 1 << 16):
+            keys = flat
+            if flat.is_floating_point():
+                keys = flat.to(torch.uint8 if hi < 256 else torch.int32)
+            # floats that are not integers do not belong to any class, use the general case below for them
+            if keys is flat or bool((keys == flat).all()):
+                # values >= num_classes are dropped by the slicing
+                return torch.bincount(keys, minlength=num_classes)[:num_classes].tolist()
+    # general case, e.g. negative, large, non-integer or NaN values: values that are not equal to
+    # a class id in [0, num_classes) are counted in an extra bin. Chunks bound the memory of the int64 keys.
+    counts = torch.zeros(num_classes + 1, dtype=torch.int64, device=flat.device)
+    chunk = 1 << 22
+    for start in range(0, flat.shape[0], chunk):
+        part = flat[start : start + chunk]
+        keys = part.to(torch.int64)
+        valid = (keys == part) & (keys >= 0) & (keys < num_classes)
+        counts += torch.bincount(torch.where(valid, keys, num_classes), minlength=num_classes + 1)
+    return counts[:num_classes].tolist()
+
+
+def _map_classes_to_lazy_indices(
+    label: NdarrayOrTensor,
+    num_classes: int | None = None,
+    image: NdarrayOrTensor | None = None,
+    image_threshold: float = 0.0,
+    max_samples_per_class: int | None = None,
+) -> list[_LazyClassIndices]:
+    """
+    Same as `map_classes_to_indices`, but the indices of a class are only computed when they are accessed.
+    The lengths of all classes are computed upfront, for an argmax label with a single pass over the label
+    instead of one pass per class. This is used to sample crop centers, where only the classes that are
+    sampled need their indices.
+    """
+    num_classes_, img_flat, class_indices = _class_indices_fn(
+        label, num_classes, image, image_threshold, max_samples_per_class
+    )
+    if len(label) > 1:
+        lengths = _count_one_hot_classes(label, img_flat)
+    else:
+        lengths = _count_argmax_classes(label, num_classes_, img_flat)
+    if max_samples_per_class:
+        lengths = [max_samples_per_class if n > max_samples_per_class and n > 1 else n for n in lengths]
+    return [_LazyClassIndices(n, partial(class_indices, c)) for c, n in enumerate(lengths)]
 
 
 def weighted_patch_samples(
