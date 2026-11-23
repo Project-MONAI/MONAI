@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import threading
 import unittest
 
 import torch
@@ -88,6 +89,100 @@ class TestEnsembleEvaluator(unittest.TestCase):
             self.assertEqual(val_engine.state.opt, 0)
 
         val_engine.run()
+
+
+class TestEnsembleEvaluatorParallel(unittest.TestCase):
+    def _get_loader(self):
+        class TestDataset(torch.utils.data.Dataset):
+            def __len__(self):
+                return 4
+
+            def __getitem__(self, index):
+                return {"image": torch.tensor([index]), "label": torch.zeros(1)}
+
+        return torch.utils.data.DataLoader(TestDataset())
+
+    def test_parallel_inference_and_output_order(self):
+        barrier = threading.Barrier(2, timeout=5)
+        thread_ids = set()
+        thread_ids_lock = threading.Lock()
+
+        class BarrierNet(torch.nn.Module):
+            def __init__(self, offset):
+                super().__init__()
+                self.offset = offset
+
+            def forward(self, x):
+                with thread_ids_lock:
+                    thread_ids.add(threading.get_ident())
+                barrier.wait()
+                return x + self.offset
+
+        val_engine = EnsembleEvaluator(
+            device=torch.device("cpu:0"),
+            val_data_loader=self._get_loader(),
+            networks=[BarrierNet(1), BarrierNet(2)],
+            parallel=True,
+            max_workers=2,
+        )
+
+        @val_engine.on(Events.ITERATION_COMPLETED)
+        def check_output(engine):
+            expected_batch = torch.tensor([engine.state.iteration - 1], dtype=torch.float32)
+            assert_allclose(engine.state.output["pred_0"], expected_batch + 1)
+            assert_allclose(engine.state.output["pred_1"], expected_batch + 2)
+
+        val_engine.run()
+        self.assertEqual(len(thread_ids), 2)
+
+    def test_parallel_run_can_be_reused(self):
+        class AddNet(torch.nn.Module):
+            def __init__(self, offset):
+                super().__init__()
+                self.offset = offset
+
+            def forward(self, x):
+                return x + self.offset
+
+        val_engine = EnsembleEvaluator(
+            device=torch.device("cpu:0"),
+            val_data_loader=self._get_loader(),
+            networks=[AddNet(1), AddNet(2)],
+            parallel=True,
+        )
+        iterations = []
+
+        @val_engine.on(Events.ITERATION_COMPLETED)
+        def record_iteration(engine):
+            iterations.append(engine.state.output["pred_0"].item())
+
+        val_engine.run()
+        val_engine.run()
+        self.assertEqual(iterations, [1, 2, 3, 4, 1, 2, 3, 4])
+
+    def test_parallel_inference_propagates_errors(self):
+        class FailingNet(torch.nn.Module):
+            def forward(self, x):
+                raise RuntimeError("inference failed")
+
+        val_engine = EnsembleEvaluator(
+            device=torch.device("cpu:0"),
+            val_data_loader=self._get_loader(),
+            networks=[torch.nn.Identity(), FailingNet()],
+            parallel=True,
+        )
+        with self.assertRaisesRegex(RuntimeError, "inference failed"):
+            val_engine.run()
+
+    def test_invalid_max_workers(self):
+        with self.assertRaisesRegex(ValueError, "max_workers"):
+            EnsembleEvaluator(
+                device=torch.device("cpu:0"),
+                val_data_loader=self._get_loader(),
+                networks=[torch.nn.Identity()],
+                parallel=True,
+                max_workers=0,
+            )
 
 
 if __name__ == "__main__":
