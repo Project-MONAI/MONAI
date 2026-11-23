@@ -21,7 +21,7 @@ green=""
 red=""
 noColor=""
 
-if [[ -t 1 ]] # stdout is a terminal
+if [[ -t 1 ]] && tput setaf 1 > /dev/null 2>&1 # stdout is a terminal that supports colors
 then
     separator=$'--------------------------------------------------------------------------------\n'
     blue="$(tput bold; tput setaf 4)"
