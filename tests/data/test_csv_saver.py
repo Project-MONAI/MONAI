@@ -75,6 +75,22 @@ class TestCSVSaver(unittest.TestCase):
         self.assertEqual(rows[0], [patient_name, "1.0"])
         self.assertEqual(rows[1], ["patient_03", "2.0"])
 
+    def test_utf8_append_rejects_non_utf8_existing_file(self):
+        csv_filename = "predictions.csv"
+        legacy_contents = b"caf\xe9,1.0\n"
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, csv_filename)
+            with open(filepath, "wb") as f:
+                f.write(legacy_contents)
+
+            appender = CSVSaver(output_dir=tempdir, filename=csv_filename, overwrite=False, delimiter="\t")
+            appender.save(torch.tensor(2), {"filename_or_obj": "patient_03"})
+            with self.assertRaisesRegex(ValueError, "not valid UTF-8"):
+                appender.finalize()
+
+            with open(filepath, "rb") as f:
+                self.assertEqual(f.read(), legacy_contents)
+
 
 if __name__ == "__main__":
     unittest.main()

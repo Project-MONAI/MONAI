@@ -31,7 +31,8 @@ class CSVSaver:
     the cached data into CSV file. If no metadata provided, use index from 0 to save data.
     Note that this saver can't support multi-processing because it reads / writes single
     CSV file and can't guarantee the data order in multi-processing situation.
-    Output files are always encoded as UTF-8.
+    Output files are encoded as UTF-8. Appending to an existing file that is not valid
+    UTF-8 raises a ``ValueError`` instead of mixing encodings.
 
     """
 
@@ -74,6 +75,15 @@ class CSVSaver:
         """
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
+        if self._filepath.exists():
+            try:
+                with open(self._filepath, encoding="utf-8") as existing:
+                    while existing.read(1024 * 1024):
+                        pass
+            except UnicodeDecodeError as error:
+                raise ValueError(
+                    f"{self._filepath} is not valid UTF-8; convert it to UTF-8 before appending."
+                ) from error
         with open(self._filepath, "a", encoding="utf-8") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
