@@ -41,6 +41,40 @@ class TestCSVSaver(unittest.TestCase):
                     i += 1
                 self.assertEqual(i, 8)
 
+    def test_utf8_non_ascii_filename_and_metadata(self):
+        patient_name = "\u60a3\u8005_01_\U0001f600.nii.gz"
+        csv_filename = "\u9884\u6d4b_\U0001f600.csv"
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = CSVSaver(output_dir=tempdir, filename=csv_filename, delimiter="\t")
+            saver.save_batch(torch.tensor([1, 2]), {"filename_or_obj": [patient_name, "patient_02"]})
+            saver.finalize()
+
+            filepath = os.path.join(tempdir, csv_filename)
+            with open(filepath, encoding="utf-8") as f:
+                rows = [line.split("\t") for line in f.read().splitlines()]
+
+        self.assertEqual(rows[0], [patient_name, "1.0"])
+        self.assertEqual(rows[1], ["patient_02", "2.0"])
+
+    def test_utf8_append_preserves_existing_rows(self):
+        patient_name = "\u60a3\u8005_02_\u75c5\u7076.nii.gz"
+        csv_filename = "predictions.csv"
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = CSVSaver(output_dir=tempdir, filename=csv_filename, delimiter="\t")
+            saver.save(torch.tensor(1), {"filename_or_obj": patient_name})
+            saver.finalize()
+
+            appender = CSVSaver(output_dir=tempdir, filename=csv_filename, overwrite=False, delimiter="\t")
+            appender.save(torch.tensor(2), {"filename_or_obj": "patient_03"})
+            appender.finalize()
+
+            filepath = os.path.join(tempdir, csv_filename)
+            with open(filepath, encoding="utf-8") as f:
+                rows = [line.split("\t") for line in f.read().splitlines()]
+
+        self.assertEqual(rows[0], [patient_name, "1.0"])
+        self.assertEqual(rows[1], ["patient_03", "2.0"])
+
 
 if __name__ == "__main__":
     unittest.main()

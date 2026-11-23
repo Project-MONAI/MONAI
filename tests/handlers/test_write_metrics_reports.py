@@ -85,6 +85,49 @@ class TestWriteMetricsReports(unittest.TestCase):
                     header = f.readline().strip().split(",")
                 self.assertEqual(header, ["filename"] + [f"class{i}" for i in range(nclass)] + ["mean"])
 
+    def test_utf8_non_ascii_reports(self):
+        patient_names = ["\u60a3\u8005_01_\U0001f600.nii.gz", "\u60a3\u8005_02_\u75c5\u7076.nii.gz"]
+        class_labels = ["\u6b63\u5e38", "\u75c5\u7076\U0001f600"]
+        with tempfile.TemporaryDirectory() as tempdir:
+            save_dir = Path(tempdir) / "\u8bc4\u6d4b\u62a5\u544a"
+            write_metrics_reports(
+                save_dir=save_dir,
+                images=patient_names,
+                metrics={"dice": torch.tensor(0.75)},
+                metric_details={"dice": torch.tensor([[0.5, 0.25], [0.75, 0.8]])},
+                summary_ops=["mean"],
+                class_labels=class_labels,
+            )
+
+            metrics_text = (save_dir / "metrics.csv").read_text(encoding="utf-8")
+            raw_text = (save_dir / "dice_raw.csv").read_text(encoding="utf-8")
+            summary_text = (save_dir / "dice_summary.csv").read_text(encoding="utf-8")
+
+        self.assertTrue(metrics_text.startswith("dice,"))
+        self.assertIn(patient_names[0], raw_text)
+        self.assertIn(",".join(class_labels), raw_text)
+        self.assertIn(class_labels[0], summary_text)
+        self.assertIn(class_labels[1], summary_text)
+
+    def test_utf8_metric_name_in_output_filename(self):
+        metric_name = "dice_\u75c5\u7076"
+        patient_name = "\u60a3\u8005_03_\u75c5\u7076.nii.gz"
+        with tempfile.TemporaryDirectory() as tempdir:
+            save_dir = Path(tempdir)
+            write_metrics_reports(
+                save_dir=save_dir,
+                images=[patient_name],
+                metrics=None,
+                metric_details={metric_name: torch.tensor([[0.75]])},
+                summary_ops=None,
+            )
+
+            raw_path = save_dir / f"{metric_name}_raw.csv"
+            raw_text = raw_path.read_text(encoding="utf-8")
+
+        self.assertTrue(raw_path.name.startswith(metric_name))
+        self.assertIn(patient_name, raw_text)
+
 
 if __name__ == "__main__":
     unittest.main()
