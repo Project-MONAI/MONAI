@@ -19,7 +19,7 @@ from ignite.engine import EventEnum, Events
 from parameterized import parameterized
 
 from monai.engines import EnsembleEvaluator
-from tests.test_utils import assert_allclose
+from tests.test_utils import assert_allclose, skip_if_no_cuda
 
 TEST_CASE_1 = [["pred_0", "pred_1", "pred_2", "pred_3", "pred_4"]]
 
@@ -225,6 +225,38 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 parallel=True,
                 max_workers=0,
             )
+
+    @skip_if_no_cuda
+    def test_parallel_inference_waits_for_custom_cuda_stream(self):
+        class TestDataset(torch.utils.data.Dataset):
+            def __len__(self):
+                return 1
+
+            def __getitem__(self, index):
+                return {"image": torch.zeros(1), "label": torch.zeros(1)}
+
+        def prepare_batch(batchdata, device, non_blocking, **kwargs):
+            image = torch.zeros_like(batchdata["image"], device=device)
+            torch.cuda._sleep(100_000_000)
+            image.fill_(1)
+            return image, batchdata["label"].to(device=device)
+
+        val_engine = EnsembleEvaluator(
+            device=torch.device("cuda:0"),
+            val_data_loader=torch.utils.data.DataLoader(TestDataset()),
+            networks=[torch.nn.Identity(), torch.nn.Identity()],
+            parallel=True,
+            prepare_batch=prepare_batch,
+        )
+        observed = []
+
+        @val_engine.on(Events.ITERATION_COMPLETED)
+        def record_output(engine):
+            observed.append(engine.state.output[0]["pred_0"].item())
+
+        with torch.cuda.stream(torch.cuda.Stream(device=val_engine.state.device)):
+            val_engine.run()
+        self.assertEqual(observed, [1])
 
 
 if __name__ == "__main__":

@@ -482,13 +482,27 @@ class EnsembleEvaluator(Evaluator):
                 self._executor = None
 
     def _run_network(
-        self, engine: EnsembleEvaluator, inputs: Any, network: torch.nn.Module, args: tuple, kwargs: dict
-    ) -> Any:
+        self,
+        engine: EnsembleEvaluator,
+        inputs: Any,
+        network: torch.nn.Module,
+        args: tuple,
+        kwargs: dict,
+        ready_event: torch.cuda.Event | None = None,
+    ) -> tuple[Any, torch.cuda.Event | None]:
+        if ready_event is not None:
+            torch.cuda.current_stream(engine.state.device).wait_event(ready_event)
         with engine.mode(network):
             if engine.amp:
                 with torch.autocast("cuda", **engine.amp_kwargs):
-                    return engine.inferer(inputs, network, *args, **kwargs)
-            return engine.inferer(inputs, network, *args, **kwargs)
+                    prediction = engine.inferer(inputs, network, *args, **kwargs)
+            else:
+                prediction = engine.inferer(inputs, network, *args, **kwargs)
+        if ready_event is None:
+            return prediction, None
+        done_event = torch.cuda.Event()
+        done_event.record(torch.cuda.current_stream(engine.state.device))
+        return prediction, done_event
 
     def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
@@ -523,13 +537,25 @@ class EnsembleEvaluator(Evaluator):
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         if engine._executor is not None:
+            ready_event = None
+            caller_stream = None
+            if engine.state.device.type == "cuda":
+                caller_stream = torch.cuda.current_stream(engine.state.device)
+                ready_event = torch.cuda.Event()
+                ready_event.record(caller_stream)
             futures = [
-                engine._executor.submit(engine._run_network, engine, inputs, network, args, kwargs)
+                engine._executor.submit(engine._run_network, engine, inputs, network, args, kwargs, ready_event)
                 for network in engine.networks
             ]
-            predictions = [future.result() for future in futures]
+            predictions = []
+            for future in futures:
+                prediction, done_event = future.result()
+                if done_event is not None:
+                    assert caller_stream is not None
+                    caller_stream.wait_event(done_event)
+                predictions.append(prediction)
         else:
-            predictions = [engine._run_network(engine, inputs, network, args, kwargs) for network in engine.networks]
+            predictions = [engine._run_network(engine, inputs, network, args, kwargs)[0] for network in engine.networks]
         if isinstance(engine.state.output, dict):
             # pyrefly: ignore [no-matching-overload]
             engine.state.output.update(dict(zip(engine.pred_keys, predictions)))
