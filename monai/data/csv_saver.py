@@ -65,28 +65,30 @@ class CSVSaver:
         if self._filepath.exists() and overwrite:
             os.remove(self._filepath)
 
-        self._validated_size = 0
+        self._validated_file: tuple[int, ...] | None = None
         self.flush = flush
         self.delimiter = delimiter
         self._data_index = 0
 
-    def _validate_utf8_suffix(self) -> None:
-        file_size = self._filepath.stat().st_size
-        if file_size < self._validated_size:
-            self._validated_size = 0
-        if file_size == self._validated_size:
+    @staticmethod
+    def _file_fingerprint(file_stat: os.stat_result) -> tuple[int, ...]:
+        return (file_stat.st_dev, file_stat.st_ino, file_stat.st_size, file_stat.st_mtime_ns, file_stat.st_ctime_ns)
+
+    def _validate_utf8_file(self) -> None:
+        file_stat = self._filepath.stat()
+        fingerprint = self._file_fingerprint(file_stat)
+        if self._validated_file == fingerprint:
             return
 
         try:
             decoder = codecs.getincrementaldecoder("utf-8")("strict")
             with open(self._filepath, "rb") as existing:
-                existing.seek(self._validated_size)
                 for chunk in iter(lambda: existing.read(1024 * 1024), b""):
                     decoder.decode(chunk)
             decoder.decode(b"", final=True)
         except UnicodeDecodeError as error:
             raise ValueError(f"{self._filepath} is not valid UTF-8; convert it to UTF-8 before appending.") from error
-        self._validated_size = file_size
+        self._validated_file = fingerprint
 
     def finalize(self) -> None:
         """
@@ -100,14 +102,14 @@ class CSVSaver:
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
         if self._filepath.exists():
-            self._validate_utf8_suffix()
+            self._validate_utf8_file()
         with open(self._filepath, "a", encoding="utf-8") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
                     f.write(self.delimiter + str(result))
                 f.write("\n")
-        self._validated_size = self._filepath.stat().st_size
+        self._validated_file = self._file_fingerprint(self._filepath.stat())
         # clear cache content after writing
         self.reset_cache()
 

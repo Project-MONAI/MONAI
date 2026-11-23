@@ -109,6 +109,25 @@ class TestCSVSaver(unittest.TestCase):
             with open(filepath, "rb") as f:
                 self.assertEqual(f.read(), valid_contents + b"\xff")
 
+    def test_utf8_flush_rejects_same_size_rewrite(self):
+        csv_filename = "predictions.csv"
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = CSVSaver(output_dir=tempdir, filename=csv_filename, flush=True, delimiter="\t")
+            saver.save_batch(torch.tensor([1]), {"filename_or_obj": ["patient_06"]})
+            filepath = os.path.join(tempdir, csv_filename)
+            with open(filepath, "rb") as f:
+                valid_contents = f.read()
+            with open(filepath, "wb") as f:
+                f.write(b"\xff" + valid_contents[1:])
+            original_stat = os.stat(filepath)
+            os.utime(filepath, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns + 1_000_000_000))
+
+            with self.assertRaisesRegex(ValueError, "not valid UTF-8"):
+                saver.save_batch(torch.tensor([2]), {"filename_or_obj": ["patient_07"]})
+
+            with open(filepath, "rb") as f:
+                self.assertEqual(f.read(), b"\xff" + valid_contents[1:])
+
 
 if __name__ == "__main__":
     unittest.main()
