@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import codecs
 import os
 import warnings
 from collections import OrderedDict
@@ -64,32 +65,49 @@ class CSVSaver:
         if self._filepath.exists() and overwrite:
             os.remove(self._filepath)
 
+        self._validated_size = 0
         self.flush = flush
         self.delimiter = delimiter
         self._data_index = 0
 
+    def _validate_utf8_suffix(self) -> None:
+        file_size = self._filepath.stat().st_size
+        if file_size < self._validated_size:
+            self._validated_size = 0
+        if file_size == self._validated_size:
+            return
+
+        try:
+            decoder = codecs.getincrementaldecoder("utf-8")("strict")
+            with open(self._filepath, "rb") as existing:
+                existing.seek(self._validated_size)
+                for chunk in iter(lambda: existing.read(1024 * 1024), b""):
+                    decoder.decode(chunk)
+            decoder.decode(b"", final=True)
+        except UnicodeDecodeError as error:
+            raise ValueError(f"{self._filepath} is not valid UTF-8; convert it to UTF-8 before appending.") from error
+        self._validated_size = file_size
+
     def finalize(self) -> None:
         """
-        Writes the cached dict to a csv
+        Write the cached dict to a CSV file.
+
+        Raises:
+            ValueError: If appending to an existing file that is not valid UTF-8.
+                The existing file is left unchanged and the cache is preserved.
 
         """
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
         if self._filepath.exists():
-            try:
-                with open(self._filepath, encoding="utf-8") as existing:
-                    while existing.read(1024 * 1024):
-                        pass
-            except UnicodeDecodeError as error:
-                raise ValueError(
-                    f"{self._filepath} is not valid UTF-8; convert it to UTF-8 before appending."
-                ) from error
+            self._validate_utf8_suffix()
         with open(self._filepath, "a", encoding="utf-8") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
                     f.write(self.delimiter + str(result))
                 f.write("\n")
+        self._validated_size = self._filepath.stat().st_size
         # clear cache content after writing
         self.reset_cache()
 
@@ -115,6 +133,10 @@ class CSVSaver:
         Args:
             batch_data: target batch data content that save into cache.
             meta_data: every key-value in the meta_data is corresponding to 1 batch of data.
+
+        Raises:
+            ValueError: If ``flush`` is True and appending to an existing file that
+                is not valid UTF-8. The exception is propagated from ``finalize``.
 
         """
         for i, data in enumerate(batch_data):  # save a batch of files

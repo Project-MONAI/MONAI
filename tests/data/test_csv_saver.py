@@ -91,6 +91,24 @@ class TestCSVSaver(unittest.TestCase):
             with open(filepath, "rb") as f:
                 self.assertEqual(f.read(), legacy_contents)
 
+    def test_utf8_flush_rejects_non_utf8_suffix(self):
+        csv_filename = "predictions.csv"
+        patient_name = "\u60a3\u8005_04_\u75c5\u7076.nii.gz"
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = CSVSaver(output_dir=tempdir, filename=csv_filename, flush=True, delimiter="\t")
+            saver.save_batch(torch.tensor([1]), {"filename_or_obj": [patient_name]})
+            filepath = os.path.join(tempdir, csv_filename)
+            with open(filepath, "rb") as f:
+                valid_contents = f.read()
+            with open(filepath, "ab") as f:
+                f.write(b"\xff")
+
+            with self.assertRaisesRegex(ValueError, "not valid UTF-8"):
+                saver.save_batch(torch.tensor([2]), {"filename_or_obj": ["patient_05"]})
+
+            with open(filepath, "rb") as f:
+                self.assertEqual(f.read(), valid_contents + b"\xff")
+
 
 if __name__ == "__main__":
     unittest.main()
