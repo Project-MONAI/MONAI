@@ -155,6 +155,54 @@ class TestReaderAffineFinite(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "non-finite 'affine'"):
             LoadImage(image_only=True)("anything", reader=_NanAffineReader())
 
+    @SkipIfNoModule("itk")
+    @SkipIfNoModule("pydicom")
+    def test_itk_dicom_series_overflowing_positions(self):
+        # GDCM clamps an out-of-range DS value to +/-DBL_MAX, and the inter-slice direction is
+        # computed from the difference of two positions, so opposite-sign overflow makes it non-finite.
+        pydicom, _ = optional_import("pydicom")
+        pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+        shape = (8, 8)
+        for name, positions in (("bad", ["-1e400", "1e400"]), ("ok", ["0", "1"])):
+            series_dir = os.path.join(self.dir, name)
+            os.makedirs(series_dir)
+            series_uid = pydicom.uid.generate_uid()
+            for i, z in enumerate(positions):
+                meta = pydicom.dataset.FileMetaDataset()
+                meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+                meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+                meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+                ds = pydicom.dataset.Dataset()
+                ds.file_meta = meta
+                ds.SOPClassUID = meta.MediaStorageSOPClassUID
+                ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+                ds.SeriesInstanceUID = series_uid
+                ds.StudyInstanceUID = pydicom.uid.generate_uid()
+                ds.Modality = "CT"
+                ds.Rows, ds.Columns = shape
+                ds.BitsAllocated = ds.BitsStored = 16
+                ds.HighBit = 15
+                ds.PixelRepresentation = 0
+                ds.SamplesPerPixel = 1
+                ds.PhotometricInterpretation = "MONOCHROME2"
+                ds.PixelSpacing = ["1", "1"]
+                ds.SliceThickness = "1"
+                ds.InstanceNumber = i + 1
+                ds.ImagePositionPatient = [z, "0", "0"]
+                ds.ImageOrientationPatient = ["1", "0", "0", "0", "1", "0"]
+                ds.PixelData = np.ones(shape, np.uint16).tobytes()
+                ds.save_as(os.path.join(series_dir, f"slice_{i}.dcm"), enforce_file_format=True)
+
+        reader = ITKReader()
+        with self.assertRaisesRegex(ValueError, NOT_FINITE):
+            reader.get_data(reader.read(os.path.join(self.dir, "bad")))
+        with self.assertRaisesRegex(ValueError, NOT_FINITE):
+            LoadImage(image_only=True)(os.path.join(self.dir, "bad"))
+        # the control series still loads, so the check is not rejecting series in general
+        img = LoadImage(image_only=True)(os.path.join(self.dir, "ok"))
+        self.assertTrue(np.isfinite(np.asarray(img.affine)).all())
+        self.assertEqual(tuple(img.shape), (8, 8, 2))
+
 
 if __name__ == "__main__":
     unittest.main()
