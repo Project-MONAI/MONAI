@@ -137,6 +137,26 @@ class TestLazyClassIndices(unittest.TestCase):
             )
             self.assertEqual(result, expected)
 
+    @parameterized.expand(
+        [
+            # torch does not support non-native byte order or negative strides, these only exist as numpy input
+            [np.random.default_rng(0).integers(0, 4, size=(1, 6, 7, 8)).astype(np.dtype(np.uint16).newbyteorder()), 4],
+            [np.stack([np.arange(6 * 7 * 8).reshape(6, 7, 8) % 3 == c for c in range(3)])[..., ::-1], None],
+        ]
+    )
+    def test_numpy_layouts_not_supported_by_torch(self, label, num_classes):
+        for image in (None, np.random.default_rng(1).random((1, *label.shape[1:]))[..., ::-1]):
+            indices = map_classes_to_indices(label, num_classes, image, 0.3)
+            lazy = _map_classes_to_lazy_indices(label, num_classes, image, 0.3)
+            self.assertEqual([len(i) for i in lazy], [len(i) for i in indices])
+            result = map_and_generate_sampling_centers(
+                label, (2, 2, 2), 4, None, num_classes, image, 0.3, rand_state=np.random.RandomState(0)
+            )
+            expected = generate_label_classes_crop_centers(
+                (2, 2, 2), 4, label.shape[1:], indices, rand_state=np.random.RandomState(0)
+            )
+            self.assertEqual(result, expected)
+
     def test_only_sampled_classes_are_computed(self):
         label = np.random.default_rng(0).integers(0, 10, size=(1, 8, 8, 8))
         lazy = _map_classes_to_lazy_indices(label, 10)
