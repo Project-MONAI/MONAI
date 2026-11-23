@@ -97,6 +97,7 @@ from .milmodel import MILModel
 from .navit import NaViT
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
+from .perceptual import LPIPS, LPIPSFeatures, NetLinLayer, ScalingLayer
 from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
