@@ -47,8 +47,8 @@ PARSE_CASES = [
 ]
 
 
-@patch("monai.config.print_dependencies.PROJ","test")
-@patch("monai.config.print_dependencies.PROJ_WEEKLY","test-weekly")
+@patch("monai.config.print_dependencies.PROJ", "test")
+@patch("monai.config.print_dependencies.PROJ_WEEKLY", "test-weekly")
 class TestPrintDependencies(unittest.TestCase):
     def setUp(self):
         self.toml = NamedTemporaryFile("w", delete=False)
