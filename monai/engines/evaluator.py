@@ -399,6 +399,8 @@ class EnsembleEvaluator(Evaluator):
             https://pytorch.org/docs/stable/amp.html#torch.autocast.
         parallel: whether to run the networks concurrently for every iteration. Defaults to ``False``.
             Networks and the inferer must be safe for concurrent calls when this is enabled.
+            Predictions remain associated with ``pred_keys`` in the original network order, and an
+            exception from any network aborts the evaluation.
         max_workers: maximum number of concurrent inference threads when ``parallel=True``.
             Defaults to the number of networks.
 

@@ -160,6 +160,47 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         val_engine.run()
         self.assertEqual(iterations, [1, 2, 3, 4, 1, 2, 3, 4])
 
+    def test_parallel_results_match_sequential_results(self):
+        class ScaleNet(torch.nn.Module):
+            def __init__(self, scale):
+                super().__init__()
+                self.scale = scale
+
+            def forward(self, x):
+                return x * self.scale
+
+        class TestDataset(torch.utils.data.Dataset):
+            def __getitem__(self, index):
+                return {"image": torch.tensor([index], dtype=torch.float32), "label": torch.zeros(1)}
+
+            def __len__(self):
+                return 5
+
+        def evaluate(parallel):
+            outputs = []
+            val_engine = EnsembleEvaluator(
+                device=torch.device("cpu:0"),
+                val_data_loader=torch.utils.data.DataLoader(TestDataset(), batch_size=1),
+                networks=[ScaleNet(2), ScaleNet(3)],
+                pred_keys=["double", "triple"],
+                parallel=parallel,
+            )
+
+            @val_engine.on(Events.ITERATION_COMPLETED)
+            def record_output(engine):
+                outputs.append(engine.state.output[0])
+
+            val_engine.run()
+            return outputs
+
+        sequential = evaluate(parallel=False)
+        parallel = evaluate(parallel=True)
+        self.assertEqual(len(parallel), len(sequential))
+        for parallel_output, sequential_output in zip(parallel, sequential):
+            self.assertEqual(parallel_output.keys(), sequential_output.keys())
+            for key in sequential_output:
+                assert_allclose(parallel_output[key], sequential_output[key])
+
     def test_parallel_inference_propagates_errors(self):
         class FailingNet(torch.nn.Module):
             def forward(self, x):
