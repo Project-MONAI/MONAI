@@ -33,6 +33,8 @@ dependencies = ["torch", "numpy"]
 [project.optional-dependencies]
 all = ["something", "another"]
 testing = ["coverage", "black"]
+recursive= ["monai[testing]"]
+recursive_weekly= ["monai-weekly[testing]"]
 """
 
 PARSE_CASES = [
@@ -40,6 +42,8 @@ PARSE_CASES = [
     (["testing"], ["black", "coverage", "numpy", "torch"]),
     (["build-system"], ["numpy", "setuptools", "torch", "wheel"]),
     (["*"], ["another", "black", "coverage", "numpy", "something", "torch"]),
+    (["recursive"], ["black", "coverage", "numpy", "torch"]),
+    (["recursive_weekly"], ["black", "coverage", "numpy", "torch"]),
 ]
 
 
