@@ -29,6 +29,21 @@ REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
 
+def _resolve_monai_opts(opt: str | list[str], all_opts: dict[str, str]):
+    """Recurse through the dependencies dictionary to resolve monai[...] dependencies into actual packages."""
+    if isinstance(opt, list):  # dependency list, yield from each resolved item
+        for subopt in opt:
+            yield from _resolve_monai_opts(subopt, all_opts)
+    elif opt in all_opts:  # a dependency name, resolve the members of this list
+        reduced_opts = {k: v for k, v in all_opts.items() if k != opt}  # remove found opt to prevent infinite recursion
+        yield from _resolve_monai_opts(all_opts[opt], reduced_opts)
+    elif opt.strip().startswith("monai["):  # resolve monai[...] dependencies
+        for subopt in opt.strip()[6:-1].split(","):
+            yield from _resolve_monai_opts(subopt.strip(), all_opts)
+    else:
+        yield opt  # an actual dependency value
+
+
 def parse_dependencies(filename: str | None = None, sections: Collection[str] | None = None) -> list[str]:
     """
     Parse the toml file given by `filename` and return the dependency sections selected by `sections`.
@@ -62,11 +77,11 @@ def parse_dependencies(filename: str | None = None, sections: Collection[str] | 
         sections.remove(BUILD_SYSTEM_KEY)
         dependencies += data[BUILD_SYSTEM_KEY][REQ_KEY]
 
-    if "*" in sections:
-        dependencies += sum(opts.values(), [])
-    else:
-        for s in sections:
-            dependencies += opts[s]
+    # select all sections if * is given on the command
+    resolved_sections = opts.keys() if "*" in sections else sections
+
+    for s in resolved_sections:
+        dependencies += _resolve_monai_opts(opts[s], opts)
 
     return sorted(set(dependencies))
 
