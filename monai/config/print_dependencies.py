@@ -42,8 +42,8 @@ def _resolve_monai_opts(opt: str | list[str], all_opts: dict[str, str]):
         reduced_opts = {k: v for k, v in all_opts.items() if k != opt}  # remove found opt to prevent infinite recursion
         yield from _resolve_monai_opts(all_opts[opt], reduced_opts)
     else:  # string dependency, either monai[...], monai-weekly[...], or something else
-        opt=opt.strip()
-        if (opt.startswith(PROJ+"[")or opt.startswith(PROJ_WEEKLY+"[")) and opt.strip().endswith("]"):
+        opt = opt.strip()
+        if (opt.startswith(PROJ + "[") or opt.startswith(PROJ_WEEKLY + "[")) and opt.strip().endswith("]"):
             start_idx = len(PROJ_WEEKLY) if opt.startswith(PROJ_WEEKLY) else len(PROJ)  # remove either project name
             for subopt in opt[start_idx + 1 : -1].split(","):
                 yield from _resolve_monai_opts(subopt.strip(), all_opts)
