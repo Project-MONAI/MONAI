@@ -73,7 +73,7 @@ class CSVSaver:
         """
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
-        with open(self._filepath, "a") as f:
+        with open(self._filepath, "a", encoding="utf-8") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
