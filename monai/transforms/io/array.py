@@ -273,6 +273,10 @@ class LoadImage(Transform):
                 DICOM images series and read.
             reader: runtime reader to load image file and metadata.
 
+        Raises:
+            ValueError: when the reader returns an affine matrix (``affine`` or ``original_affine``
+                metadata) that contains NaN or infinity, as the image geometry is then invalid.
+
         """
         filename = tuple(
             f"{Path(s).expanduser()}" if self.expanduser else s for s in ensure_tuple(filename)  # allow Path objects
@@ -314,6 +318,17 @@ class LoadImage(Transform):
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
+        # every reader, including user-registered ones, must return a finite geometry
+        for key in (MetaKeys.AFFINE, MetaKeys.ORIGINAL_AFFINE):
+            if meta_data.get(key) is None:
+                continue
+            affine = meta_data[key]
+            affine = affine.detach().cpu().numpy() if isinstance(affine, torch.Tensor) else np.asarray(affine)
+            if np.issubdtype(affine.dtype, np.number) and not np.isfinite(affine).all():
+                raise ValueError(
+                    f"{reader.__class__.__name__} returned a non-finite '{key}' (NaN or infinity) for "
+                    f"{ensure_tuple(filename)[0]}, so the image geometry is invalid."
+                )
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 

@@ -82,6 +82,29 @@ __all__ = [
 DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
 
 
+def _ensure_finite_affine(affine: np.ndarray, reader_name: str) -> np.ndarray:
+    """
+    Return ``affine`` unchanged, raising ``ValueError`` if it contains NaN or infinity.
+
+    A non-finite affine cannot describe a valid image geometry. Spatial transforms either fail on it
+    (for example ``Orientation``) or carry it into their output metadata, so readers reject it here,
+    when the file is read.
+
+    Args:
+        affine: the affine matrix derived from the image header.
+        reader_name: name of the reader, used in the error message.
+
+    Raises:
+        ValueError: when ``affine`` has a non-finite element.
+    """
+    if not np.isfinite(affine).all():
+        raise ValueError(
+            f"{reader_name}: the affine matrix derived from the image header is not finite "
+            f"(it contains NaN or infinity), so the image geometry is invalid: {np.asarray(affine).tolist()}."
+        )
+    return affine
+
+
 class ImageReader(ABC):
     """
     An abstract class defines APIs to load image files.
@@ -352,6 +375,9 @@ class ITKReader(ImageReader):
             img: an ITK image object loaded from an image file.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Raises:
+            ValueError: when the affine matrix is not finite.
+
         """
         direction = itk.array_from_matrix(img.GetDirection())
         spacing = np.asarray(img.GetSpacing())
@@ -362,6 +388,7 @@ class ITKReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
         affine[:sr, -1] = origin[:sr]
+        _ensure_finite_affine(affine, "ITKReader")
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -1365,8 +1392,11 @@ class NibabelReader(ImageReader):
         Args:
             img: a Nibabel image object loaded from an image file.
 
+        Raises:
+            ValueError: when the affine matrix is not finite.
+
         """
-        return np.array(img.affine, copy=True)
+        return _ensure_finite_affine(np.array(img.affine, copy=True), "NibabelReader")
 
     def _get_spatial_shape(self, img):
         """
@@ -1767,7 +1797,10 @@ class NrrdReader(ImageReader):
         spacing, orientation or execute spatial transforms.
 
         Args:
-            img: A `NrrdImage` loaded from image file
+            header: the header of a `NrrdImage` loaded from an image file.
+
+        Raises:
+            ValueError: when the affine matrix is not finite.
 
         """
         direction = header["space directions"]
@@ -1778,7 +1811,7 @@ class NrrdReader(ImageReader):
         affine: np.ndarray = np.eye(affine_diam)
         affine[:x, :y] = direction.T
         affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
-        return affine
+        return _ensure_finite_affine(affine, "NrrdReader")
 
     def _switch_lps_ras(self, header: dict) -> dict:
         """
