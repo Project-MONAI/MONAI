@@ -92,7 +92,11 @@ class TestEnsembleEvaluator(unittest.TestCase):
 
 
 class TestEnsembleEvaluatorParallel(unittest.TestCase):
+    """Tests for opt-in parallel ensemble inference."""
+
     def _get_loader(self):
+        """Return a loader whose image values identify the sample index."""
+
         class TestDataset(torch.utils.data.Dataset):
             def __len__(self):
                 return 4
@@ -103,6 +107,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         return torch.utils.data.DataLoader(TestDataset())
 
     def test_parallel_inference_and_output_order(self):
+        """Verify concurrent execution and prediction-key ordering."""
+
         barrier = threading.Barrier(2, timeout=5)
         thread_ids = set()
         thread_ids_lock = threading.Lock()
@@ -136,6 +142,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         self.assertEqual(len(thread_ids), 2)
 
     def test_parallel_run_can_be_reused(self):
+        """Verify that a parallel evaluator can run more than once."""
+
         class AddNet(torch.nn.Module):
             def __init__(self, offset):
                 super().__init__()
@@ -161,6 +169,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         self.assertEqual(iterations, [1, 2, 3, 4, 1, 2, 3, 4])
 
     def test_parallel_results_match_sequential_results(self):
+        """Verify that parallel inference preserves sequential predictions."""
+
         class ScaleNet(torch.nn.Module):
             def __init__(self, scale):
                 super().__init__()
@@ -202,6 +212,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 assert_allclose(parallel_output[key], sequential_output[key])
 
     def test_parallel_inference_propagates_errors(self):
+        """Verify that worker exceptions abort evaluation and clear the executor."""
+
         class FailingNet(torch.nn.Module):
             def forward(self, x):
                 raise RuntimeError("inference failed")
@@ -217,6 +229,8 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         self.assertIsNone(val_engine._executor)
 
     def test_invalid_max_workers(self):
+        """Verify that non-positive worker counts are rejected."""
+
         with self.assertRaisesRegex(ValueError, "max_workers"):
             EnsembleEvaluator(
                 device=torch.device("cpu:0"),
@@ -226,9 +240,31 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 max_workers=0,
             )
 
+    def test_parallel_inference_without_device(self):
+        """Verify that parallel inference also works when no device is configured."""
+
+        val_engine = EnsembleEvaluator(
+            device=None,
+            val_data_loader=self._get_loader(),
+            networks=[torch.nn.Identity(), torch.nn.Identity()],
+            parallel=True,
+        )
+        outputs = []
+
+        @val_engine.on(Events.ITERATION_COMPLETED)
+        def record_output(engine):
+            outputs.append(engine.state.output[0]["pred_0"].item())
+
+        val_engine.run()
+        self.assertEqual(outputs, [0, 1, 2, 3])
+
     @skip_if_no_cuda
     def test_parallel_inference_waits_for_custom_cuda_stream(self):
+        """Verify caller and worker CUDA stream dependencies in both directions."""
+
         class TestDataset(torch.utils.data.Dataset):
+            """One-sample dataset for the CUDA stream ordering test."""
+
             def __len__(self):
                 return 1
 
@@ -236,15 +272,28 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 return {"image": torch.zeros(1), "label": torch.zeros(1)}
 
         def prepare_batch(batchdata, device, non_blocking, **kwargs):
+            """Produce the input asynchronously after delayed caller-stream work."""
+
             image = torch.zeros_like(batchdata["image"], device=device)
             torch.cuda._sleep(100_000_000)
             image.fill_(1)
             return image, batchdata["label"].to(device=device)
 
+        class DelayedAddNet(torch.nn.Module):
+            """Add an offset after delayed work on the worker CUDA stream."""
+
+            def __init__(self, offset):
+                super().__init__()
+                self.offset = offset
+
+            def forward(self, x):
+                torch.cuda._sleep(50_000_000)
+                return x + self.offset
+
         val_engine = EnsembleEvaluator(
             device=torch.device("cuda:0"),
             val_data_loader=torch.utils.data.DataLoader(TestDataset()),
-            networks=[torch.nn.Identity(), torch.nn.Identity()],
+            networks=[DelayedAddNet(1), DelayedAddNet(2)],
             parallel=True,
             prepare_batch=prepare_batch,
         )
@@ -252,11 +301,13 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         @val_engine.on(Events.ITERATION_COMPLETED)
         def record_output(engine):
-            observed.append(engine.state.output[0]["pred_0"].item())
+            """Force the caller to consume results before the iteration completes."""
+
+            observed.append((engine.state.output[0]["pred_0"].item(), engine.state.output[0]["pred_1"].item()))
 
         with torch.cuda.stream(torch.cuda.Stream(device=val_engine.state.device)):
             val_engine.run()
-        self.assertEqual(observed, [1])
+        self.assertEqual(observed, [(1, 2)])
 
 
 if __name__ == "__main__":
