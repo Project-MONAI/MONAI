@@ -58,14 +58,23 @@ Segmentation Losses
 .. autoclass:: DiceCELoss
     :members:
 
+.. autoclass:: dice_ce
+    :members:
+
 `DiceFocalLoss`
 ~~~~~~~~~~~~~~~
 .. autoclass:: DiceFocalLoss
     :members:
 
+.. autoclass:: dice_focal
+    :members:
+
 `GeneralizedDiceFocalLoss`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GeneralizedDiceFocalLoss
+    :members:
+
+.. autoclass:: generalized_dice_focal
     :members:
 
 `FocalLoss`
@@ -98,6 +107,9 @@ Segmentation Losses
 .. autoclass:: HausdorffDTLoss
     :members:
 
+.. autoclass:: LogHausdorffDTLoss
+    :members:
+
 `SoftclDiceLoss`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: SoftclDiceLoss
@@ -116,6 +128,30 @@ Segmentation Losses
 `MCCLoss`
 ~~~~~~~~~
 .. autoclass:: MCCLoss
+    :members:
+
+`AsymmetricUnifiedFocalLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AsymmetricUnifiedFocalLoss
+    :members:
+
+Classification Losses
+---------------------
+
+`AUCMLoss`
+~~~~~~~~~~
+.. autoclass:: AUCMLoss
+    :members:
+
+Detection Losses
+----------------
+
+`BoxGIoULoss`
+~~~~~~~~~~~~~
+.. autoclass:: BoxGIoULoss
+    :members:
+
+.. autoclass:: giou
     :members:
 
 Registration Losses
