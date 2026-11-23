@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import os
 import pickle
+import sys
 import tempfile
 import unittest
 import warnings
@@ -308,8 +309,11 @@ class TestConfigParser(unittest.TestCase):
             parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
 
     def test_pdb(self):
-        with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
-            case_pdb()
+        if sys.version_info >= (3, 14):  # BdbQuit is no longer raised for Python 3.14 and up
+            self.assertEqual(case_pdb(), None)
+        else:
+            with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
+                case_pdb()
         self.assertEqual(case_pdb_inst(), None)  # pdb.runcall without input is None
 
     def test_get_via_attributes(self):
