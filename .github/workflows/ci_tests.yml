@@ -209,11 +209,22 @@ jobs:
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
   full-dep:  # Test with full dependencies installed for different OS runners
+    # Keep the existing check names for branch protection.
+    name: >-
+      full-dep (${{ matrix.os }}${{ matrix.python-version &&
+      format(', {0}, {1}', matrix.python-version, matrix.pytorch-version) || '' }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest]  # macOS-latest is very slow (#8864), testing install only
+        include:
+        - os: windows-latest
+        - os: ubuntu-latest
+        - os: macOS-latest  # macOS-latest is very slow (#8864), testing install only
+        - os: ubuntu-latest
+          python-version: '3.12'
+          pytorch-version: '2.15.0'
+          torchvision-version: '0.29.2'
     timeout-minutes: 120
     needs: test_skip
     env:
@@ -236,11 +247,11 @@ jobs:
         disk-root: "D:"
     - uses: actions/checkout@v7
       if: needs.test_skip.outputs.skip == 0
-    - name: Set up Python ${{ env.PYTHON_VER1 }}
+    - name: Set up Python ${{ matrix.python-version || env.PYTHON_VER1 }}
       if: needs.test_skip.outputs.skip == 0
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ env.PYTHON_VER1 }}
+        python-version: ${{ matrix.python-version || env.PYTHON_VER1 }}
         cache: 'pip'
     - name: Prepare pip wheel
       if: needs.test_skip.outputs.skip == 0
@@ -250,9 +261,11 @@ jobs:
     - if: needs.test_skip.outputs.skip == 0
       name: Install PyTorch
       run: |
-        # install the lowest version of PyTorch supported
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        python -m pip install "torch==${PYTORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}"
       shell: bash
+      env:
+        PYTORCH_VERSION: ${{ matrix.pytorch-version || env.PYTORCH_VER1 }}
+        TORCHVISION_VERSION: ${{ matrix.torchvision-version || env.TORCHVISION_VER1 }}
     - if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       name: Install itk pre-release (Linux only)
       run: |
@@ -275,6 +288,25 @@ jobs:
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
       shell: bash
+    - name: Verify resolved PyTorch versions
+      if: matrix.pytorch-version && needs.test_skip.outputs.skip == 0
+      shell: bash
+      env:
+        PYTORCH_VERSION: ${{ matrix.pytorch-version }}
+        TORCHVISION_VERSION: ${{ matrix.torchvision-version }}
+      run: |
+        python - <<'PY'
+        import os
+        from importlib.metadata import version
+
+        for package, expected in (
+            ("torch", os.environ["PYTORCH_VERSION"]),
+            ("torchvision", os.environ["TORCHVISION_VERSION"]),
+        ):
+            installed = version(package)
+            if installed.split("+", 1)[0] != expected:
+                raise SystemExit(f"Expected {package}=={expected}, found {installed}.")
+        PY
     - if: runner.os != 'macOS' && needs.test_skip.outputs.skip == 0
       name: Run full tests
       run: |
