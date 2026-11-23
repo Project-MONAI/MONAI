@@ -33,8 +33,8 @@ dependencies = ["torch", "numpy"]
 [project.optional-dependencies]
 all = ["something", "another"]
 testing = ["coverage", "black"]
-recursive= ["monai[testing]"]
-recursive_weekly= ["monai-weekly[testing]"]
+recursive= ["test[testing]"]
+recursive_weekly= ["test-weekly[testing]"]
 """
 
 PARSE_CASES = [
@@ -47,6 +47,8 @@ PARSE_CASES = [
 ]
 
 
+@patch("monai.config.print_dependencies.PROJ","test")
+@patch("monai.config.print_dependencies.PROJ_WEEKLY","test-weekly")
 class TestPrintDependencies(unittest.TestCase):
     def setUp(self):
         self.toml = NamedTemporaryFile("w", delete=False)

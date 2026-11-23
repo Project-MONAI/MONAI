@@ -28,22 +28,27 @@ DEP_KEY = "dependencies"
 REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
+# project name and -weekly variant
+PROJ = "monai"
+PROJ_WEEKLY = f"{PROJ}-weekly"
+
 
 def _resolve_monai_opts(opt: str | list[str], all_opts: dict[str, str]):
     """Recurse through the dependencies dictionary to resolve monai[...] dependencies into actual packages."""
     if isinstance(opt, list):  # dependency list, yield from each resolved item
         for subopt in opt:
             yield from _resolve_monai_opts(subopt, all_opts)
-    elif opt in all_opts:  # a dependency name, resolve the members of this list
+    elif opt in all_opts:  # an optional dependency name, resolve the members of this list
         reduced_opts = {k: v for k, v in all_opts.items() if k != opt}  # remove found opt to prevent infinite recursion
         yield from _resolve_monai_opts(all_opts[opt], reduced_opts)
-    elif opt.strip().startswith("monai") and opt.strip().endswith("]"):  # resolve monai[...] dependencies
-        opt = opt.strip()
-        start_idx = 13 if opt.startswith("monai-weekly") else 6  # remove either monai-weekly or monai name and [
-        for subopt in opt[start_idx:-1].split(","):
-            yield from _resolve_monai_opts(subopt.strip(), all_opts)
-    else:
-        yield opt  # an actual dependency value
+    else:  # string dependency, either monai[...], monai-weekly[...], or something else
+        opt=opt.strip()
+        if (opt.startswith(PROJ+"[")or opt.startswith(PROJ_WEEKLY+"[")) and opt.strip().endswith("]"):
+            start_idx = len(PROJ_WEEKLY) if opt.startswith(PROJ_WEEKLY) else len(PROJ)  # remove either project name
+            for subopt in opt[start_idx + 1 : -1].split(","):
+                yield from _resolve_monai_opts(subopt.strip(), all_opts)
+        else:
+            yield opt  # an actual dependency value
 
 
 def parse_dependencies(filename: str | None = None, sections: Collection[str] | None = None) -> list[str]:
