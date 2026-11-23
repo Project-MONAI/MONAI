@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
@@ -535,6 +535,23 @@ class EnsembleEvaluator(Evaluator):
         done_event.record(stream)
         return prediction, done_event
 
+    @staticmethod
+    def _find_cuda_device(value: Any) -> torch.device | None:
+        """Return the first CUDA tensor device found in prepared network inputs."""
+        if isinstance(value, torch.Tensor):
+            return value.device if value.is_cuda else None
+        if isinstance(value, Mapping):
+            values = value.values()
+        elif isinstance(value, (list, tuple)):
+            values = value
+        else:
+            return None
+        for item in values:
+            device = EnsembleEvaluator._find_cuda_device(item)
+            if device is not None:
+                return device
+        return None
+
     def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
@@ -570,10 +587,11 @@ class EnsembleEvaluator(Evaluator):
         if engine._executor is not None:
             ready_event = None
             caller_stream = None
-            cuda_device = None
-            if engine.state.device is not None and engine.state.device.type == "cuda":
-                caller_stream = torch.cuda.current_stream(engine.state.device)
-                cuda_device = caller_stream.device
+            cuda_device = engine._find_cuda_device((inputs, args, kwargs))
+            if cuda_device is None and engine.state.device is not None and engine.state.device.type == "cuda":
+                cuda_device = torch.cuda.current_stream(engine.state.device).device
+            if cuda_device is not None:
+                caller_stream = torch.cuda.current_stream(cuda_device)
                 ready_event = torch.cuda.Event()
                 ready_event.record(caller_stream)
             futures = [

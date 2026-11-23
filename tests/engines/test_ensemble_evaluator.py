@@ -260,7 +260,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_parallel_inference_waits_for_custom_cuda_stream(self):
-        """Verify caller and worker CUDA stream dependencies in both directions."""
+        """Verify CUDA stream dependencies with an explicit or inferred device."""
 
         class TestDataset(torch.utils.data.Dataset):
             """One-sample dataset for the CUDA stream ordering test."""
@@ -274,10 +274,11 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         def prepare_batch(batchdata, device, non_blocking, **kwargs):
             """Produce the input asynchronously after delayed caller-stream work."""
 
-            image = torch.zeros_like(batchdata["image"], device=device)
+            target_device = device if device is not None else torch.device("cuda:0")
+            image = torch.zeros_like(batchdata["image"], device=target_device)
             torch.cuda._sleep(100_000_000)
             image.fill_(1)
-            return image, batchdata["label"].to(device=device)
+            return image, batchdata["label"].to(device=target_device)
 
         class DelayedAddNet(torch.nn.Module):
             """Add an offset after delayed work on the worker CUDA stream."""
@@ -290,24 +291,27 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 torch.cuda._sleep(50_000_000)
                 return x + self.offset
 
-        val_engine = EnsembleEvaluator(
-            device=torch.device("cuda:0"),
-            val_data_loader=torch.utils.data.DataLoader(TestDataset()),
-            networks=[DelayedAddNet(1), DelayedAddNet(2)],
-            parallel=True,
-            prepare_batch=prepare_batch,
-        )
-        observed = []
+        cuda_device = torch.device("cuda:0")
+        for device in (cuda_device, None):
+            with self.subTest(device=device):
+                val_engine = EnsembleEvaluator(
+                    device=device,
+                    val_data_loader=torch.utils.data.DataLoader(TestDataset()),
+                    networks=[DelayedAddNet(1), DelayedAddNet(2)],
+                    parallel=True,
+                    prepare_batch=prepare_batch,
+                )
+                observed = []
 
-        @val_engine.on(Events.ITERATION_COMPLETED)
-        def record_output(engine):
-            """Force the caller to consume results before the iteration completes."""
+                @val_engine.on(Events.ITERATION_COMPLETED)
+                def record_output(engine):
+                    """Force the caller to consume results before the iteration completes."""
 
-            observed.append((engine.state.output[0]["pred_0"].item(), engine.state.output[0]["pred_1"].item()))
+                    observed.append((engine.state.output[0]["pred_0"].item(), engine.state.output[0]["pred_1"].item()))
 
-        with torch.cuda.stream(torch.cuda.Stream(device=val_engine.state.device)):
-            val_engine.run()
-        self.assertEqual(observed, [(1, 2)])
+                with torch.cuda.stream(torch.cuda.Stream(device=cuda_device)):
+                    val_engine.run()
+                self.assertEqual(observed, [(2, 3)])
 
 
 if __name__ == "__main__":
