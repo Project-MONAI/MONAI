@@ -425,6 +425,35 @@ def get_filename_from_url(data_url: str) -> str:
         raise Exception(f"Error processing URL: {e}") from e
 
 
+def _tmp_download_path(tmp_dir: PathLike, remote_filename: str) -> Path:
+    """
+    Return the path inside ``tmp_dir`` for a file whose name was reported by the remote server.
+
+    A name is only accepted when it is a single path component: it must not contain ``/`` or
+    ``\\``, and must not be empty, ``"."`` or ``".."``. This keeps a server-reported name from
+    placing the file outside ``tmp_dir`` (``"../a.zip"``, ``"/abs/a.zip"``, ``"sub/a.zip"``).
+    Callers that need a nested destination should pass ``filepath`` explicitly.
+
+    Raises:
+        ValueError: When ``remote_filename`` is not a single usable path component, or when the
+            resolved destination is not directly inside ``tmp_dir``.
+    """
+    name = _basename(remote_filename.replace("\\", "/"))
+    if name in ("", ".", "..") or "/" in remote_filename.replace("\\", "/"):
+        raise ValueError(
+            f"Invalid file name from the remote server: {remote_filename!r}. "
+            "The download must stay inside the temporary directory."
+        )
+    tmp_root = Path(tmp_dir).resolve()
+    path = (tmp_root / name).resolve()
+    if path.parent != tmp_root:
+        raise ValueError(
+            f"Invalid file name from the remote server: {remote_filename!r}. "
+            "The download must stay inside the temporary directory."
+        )
+    return path
+
+
 def download_and_extract(
     url: str,
     filepath: PathLike = "",
@@ -453,8 +482,20 @@ def download_and_extract(
             to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
             be False.
         progress: whether to display progress bar.
+
+    Raises:
+        ValueError: When ``filepath`` is not given and the file name reported by the server
+            has no usable base name (for example ``".."``).
+
+    Note:
+        When ``filepath`` is not given, the file is downloaded into a temporary directory under the
+        name reported by the server (``Content-Disposition`` or the URL). A reported name that is
+        not a single path component (it contains a path separator, or is empty, ``"."`` or ``".."``)
+        is rejected with a ``ValueError`` before anything is downloaded; pass ``filepath`` when a
+        nested destination is needed.
     """
-    url_filename_ext = "".join(Path(get_filename_from_url(url)).suffixes)
+    remote_filename = get_filename_from_url(url)
+    url_filename_ext = "".join(Path(remote_filename).suffixes)
     filepath_ext = "".join(Path(_basename(filepath)).suffixes)
     if filepath not in ["", "."]:
         if filepath_ext == "":
@@ -466,6 +507,6 @@ def download_and_extract(
     if filepath_ext and filepath_ext != url_filename_ext:
         raise ValueError(f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
+        filename = filepath or _tmp_download_path(tmp_dir, remote_filename)
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
