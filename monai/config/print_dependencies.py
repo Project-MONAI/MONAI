@@ -37,8 +37,10 @@ def _resolve_monai_opts(opt: str | list[str], all_opts: dict[str, str]):
     elif opt in all_opts:  # a dependency name, resolve the members of this list
         reduced_opts = {k: v for k, v in all_opts.items() if k != opt}  # remove found opt to prevent infinite recursion
         yield from _resolve_monai_opts(all_opts[opt], reduced_opts)
-    elif opt.strip().startswith("monai["):  # resolve monai[...] dependencies
-        for subopt in opt.strip()[6:-1].split(","):
+    elif opt.strip().startswith("monai") and opt.strip().endswith("]"):  # resolve monai[...] dependencies
+        opt=opt.strip()
+        start_idx=13 if opt.startswith("monai-weekly") else 6  # remove either monai-weekly or monai name and [
+        for subopt in opt[start_idx:-1].split(","):
             yield from _resolve_monai_opts(subopt.strip(), all_opts)
     else:
         yield opt  # an actual dependency value
