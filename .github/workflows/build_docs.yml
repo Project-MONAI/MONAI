@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # minimum supported version of Python
-      PYTHON_VER1: '3.10'
+      PYTHON_VER1: '3.11'
       # force installation of CPU-only PyTorch
       PIP_EXTRA_INDEX_URL: 'https://download.pytorch.org/whl/cpu'
     steps:
