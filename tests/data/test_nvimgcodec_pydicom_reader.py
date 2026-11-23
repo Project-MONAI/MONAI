@@ -233,8 +233,8 @@ class TestNvImgCodecPluginRegistration(unittest.TestCase):
 class TestNvImgCodecPydicomReaderIntegration(unittest.TestCase):
     # Skip this test if the optional dependency `nvimgcodec`` wasn't installed. It seems nvidia.nvimgcodec is installed
     # by cucim so it's absence won't indicate `nvimgcodec` wasn't installed. `nvimgcodec` installs
-    # `nvidia-nvimgcodec-cu13[all]` which with `[all]` will include  `nvidia-nvjpeg2k-cu13`, and which is looked for 
-    # here to determine if this dependency was installed. Previously, this test was skipped if `pylibjpeg`, `openjpeg`, 
+    # `nvidia-nvimgcodec-cu13[all]` which with `[all]` will include  `nvidia-nvjpeg2k-cu13`, and which is looked for
+    # here to determine if this dependency was installed. Previously, this test was skipped if `pylibjpeg`, `openjpeg`,
     # `jpeg_ls`, and `gdcm` were absent. None of these are dependencies anywhere so were never installed.
     @skip_if_no_jpeg2000
     def test_pixels_match_pydicom_reader(self):
