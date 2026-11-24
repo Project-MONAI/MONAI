@@ -290,7 +290,7 @@ class SupervisedEvaluator(Evaluator):
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            ValueError: When ``batchdata`` is None.
+            ValueError: When ``batchdata`` is None or prepared CUDA inputs span multiple devices.
 
         """
         if batchdata is None:
