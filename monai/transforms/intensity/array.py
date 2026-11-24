@@ -260,11 +260,7 @@ class RandSpeckleNoise(RandomizableTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        prob: float = 0.1,
-        std: float = 0.5,
-        sample_std: bool = True,
-        dtype: DtypeLike = np.float32,
+        self, prob: float = 0.1, std: float = 0.5, sample_std: bool = True, dtype: DtypeLike = np.float32
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         if std < 0:
