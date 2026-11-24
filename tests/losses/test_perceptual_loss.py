@@ -18,11 +18,8 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.losses.perceptual import normalize_tensor
-from monai.utils import optional_import
-from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, SkipIfNoModule
 
-_, has_torchvision = optional_import("torchvision")
-_, has_lpips = optional_import("lpips", name="LPIPS")
 
 SHAPE1 = (2, 1, 64, 64, 64)
 SHAPE2 = (2, 6, 64, 64, 64)
@@ -42,17 +39,11 @@ TEST_CASES = [
 ]
 
 
-def _skip_if_no_lpips(network_type):
-    if not has_lpips and network_type.lower() in {"vgg", "alex", "squeeze"}:
-        raise unittest.SkipTest(f"LPIPS needed for this test when using {network_type=}.")
-
-
-@unittest.skipUnless(has_torchvision, "Requires torchvision")
+@SkipIfNoModule("torchvision")
 class TestPerceptualLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_shape(self, input_param, input_shape, target_shape):
-        _skip_if_no_lpips(input_param["network_type"])
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=len(input_shape) - 2, **input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
@@ -65,7 +56,6 @@ class TestPerceptualLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_identical_input(self, input_param, input_shape, target_shape):
-        _skip_if_no_lpips(input_param["network_type"])
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=len(input_shape) - 2, **input_param)
         tensor = torch.randn(input_shape)
@@ -78,7 +68,6 @@ class TestPerceptualLoss(unittest.TestCase):
 
     @skip_if_quick
     def test_different_shape(self):
-        _skip_if_no_lpips("squeeze")
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")
         tensor = torch.randn(2, 1, 64, 64)

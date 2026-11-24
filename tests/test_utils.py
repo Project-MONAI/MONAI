@@ -75,7 +75,7 @@ TESTS_PATH = MODULE_PATH / "tests"
 
 TESTING_DATA_PATH = TESTS_PATH / "testing_data"
 
-DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, URLError, HTTPError, ConnectionError)
+DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, HTTPError, ConnectionError)
 if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
 if has_gdown:
