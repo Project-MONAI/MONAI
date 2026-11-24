@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any
 
@@ -620,13 +620,16 @@ class EnsembleEvaluator(Evaluator):
                     )
                     for network in engine.networks
                 ]
-                predictions = []
-                for future in futures:
-                    prediction, done_event = future.result()
-                    if done_event is not None:
-                        assert caller_stream is not None
-                        caller_stream.wait_event(done_event)
-                    predictions.append(prediction)
+                try:
+                    predictions = []
+                    for future in futures:
+                        prediction, done_event = future.result()
+                        if done_event is not None:
+                            assert caller_stream is not None
+                            caller_stream.wait_event(done_event)
+                        predictions.append(prediction)
+                finally:
+                    wait(futures)
         else:
             predictions = [engine._run_network(engine, inputs, network, args, kwargs)[0] for network in engine.networks]
         if isinstance(engine.state.output, dict):
