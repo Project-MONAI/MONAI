@@ -67,6 +67,21 @@ class TestRandSpeckleNoise(NumpyImageTestCase2D):
         expected = (img.astype(np.float64) * factor).astype(np.uint8)
         np.testing.assert_array_equal(np.asarray(out), expected)
 
+    @unittest.skipUnless(torch.backends.mps.is_available(), "MPS is not available")
+    def test_mps_float32_input(self):
+        # MPS does not support float64, so the transform must compute in float32 on MPS inputs.
+        img = torch.full((1, 4, 4), 100.0, dtype=torch.float32, device="mps")
+        speckle_fn = RandSpeckleNoise(prob=1.0, std=0.5, sample_std=False, dtype=None)
+        speckle_fn.set_random_state(0)
+        out = speckle_fn(img)
+        self.assertEqual(out.device.type, "mps")
+        self.assertEqual(out.dtype, torch.float32)
+        np.random.seed(0)
+        np.random.random()
+        factor = np.random.gamma(1.0 / 0.5**2, 0.5**2, size=img.shape)
+        expected = img.cpu().numpy().astype(np.float32) * factor.astype(np.float32)
+        np.testing.assert_allclose(out.cpu().numpy(), expected, atol=1e-4)
+
     def test_negative_std_raises(self):
         with self.assertRaises(ValueError):
             RandSpeckleNoise(prob=1.0, std=-0.1)

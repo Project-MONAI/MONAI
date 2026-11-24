@@ -68,6 +68,19 @@ class TestRandUltrasoundDepthGain(NumpyImageTestCase2D):
         expected = (img.astype(np.float64) * profile).astype(np.uint8)
         np.testing.assert_array_equal(np.asarray(out), expected)
 
+    @unittest.skipUnless(torch.backends.mps.is_available(), "MPS is not available")
+    def test_mps_float32_input(self):
+        # MPS does not support float64, so the transform must compute in float32 on MPS inputs.
+        img = torch.full((1, 8, 4), 100.0, dtype=torch.float32, device="mps")
+        gain_fn = RandUltrasoundDepthGain(prob=1.0, gain_range=(1.0, 1.0), depth_axis=1, dtype=None)
+        gain_fn.set_random_state(0)
+        out = gain_fn(img)
+        self.assertEqual(out.device.type, "mps")
+        self.assertEqual(out.dtype, torch.float32)
+        profile = np.exp(1.0 * (np.linspace(0.0, 1.0, 8) - 0.5)).reshape((1, 8, 1))
+        expected = img.cpu().numpy().astype(np.float32) * profile.astype(np.float32)
+        np.testing.assert_allclose(out.cpu().numpy(), expected, atol=1e-4)
+
     def test_prob_zero(self):
         gain_fn = RandUltrasoundDepthGain(prob=0.0, gain_range=(-1.0, 1.0))
         gain_fn.set_random_state(0)

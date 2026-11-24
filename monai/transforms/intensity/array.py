@@ -233,6 +233,18 @@ class RandRicianNoise(RandomizableTransform):
         return img
 
 
+def _get_float_compute_dtype(img: NdarrayOrTensor) -> DtypeLike:
+    """
+    Return the floating point dtype to use for intermediate multiplication.
+
+    float64 is used where supported, but the MPS backend does not support
+    float64 tensors, so float32 is used for MPS inputs.
+    """
+    if isinstance(img, torch.Tensor) and img.device.type == "mps":
+        return np.float32
+    return np.float64
+
+
 class RandSpeckleNoise(RandomizableTransform):
     """
     Add multiplicative speckle noise to image, simulating the speckle pattern
@@ -325,8 +337,10 @@ class RandSpeckleNoise(RandomizableTransform):
             raise RuntimeError("please call the `randomize()` function first.")
         # Multiply in floating point, then convert to the requested output dtype,
         # so fractional factors are not truncated for integer inputs when `dtype` is None.
+        # MPS does not support float64, so float32 is used for the intermediate
+        # computation on MPS inputs.
         out_dtype = self.dtype if self.dtype is not None else img.dtype
-        img_f, *_ = convert_data_type(img, dtype=np.float64)
+        img_f, *_ = convert_data_type(img, dtype=_get_float_compute_dtype(img))
         speckle, *_ = convert_to_dst_type(self.speckle, img_f)
         out = img_f * speckle
         out, *_ = convert_data_type(out, dtype=out_dtype)
@@ -437,8 +451,10 @@ class RandUltrasoundDepthGain(RandomizableTransform):
         profile = profile.reshape(gain_shape)
         # Multiply in floating point, then convert to the requested output dtype,
         # so fractional gains are not truncated for integer inputs when `dtype` is None.
+        # MPS does not support float64, so float32 is used for the intermediate
+        # computation on MPS inputs.
         out_dtype = self.dtype if self.dtype is not None else img.dtype
-        img_f, *_ = convert_data_type(img, dtype=np.float64)
+        img_f, *_ = convert_data_type(img, dtype=_get_float_compute_dtype(img))
         gain, *_ = convert_to_dst_type(profile, img_f)
         out = img_f * gain
         out, *_ = convert_data_type(out, dtype=out_dtype)

@@ -49,6 +49,25 @@ class TestRandSpeckleNoisedNumpy(NumpyImageTestCase2D):
         # identical inputs must get the identical shared speckle factor
         np.testing.assert_array_equal(np.asarray(noised[keys[0]]), np.asarray(noised[keys[1]]))
 
+    @unittest.skipUnless(torch.backends.mps.is_available(), "MPS is not available")
+    def test_mps_float32_input(self):
+        # MPS does not support float64, so the transform must compute in float32 on MPS inputs.
+        keys = ["img1", "img2"]
+        speckle_fn = RandSpeckleNoised(keys=keys, prob=1.0, std=0.5, sample_std=False, dtype=None)
+        speckle_fn.set_random_state(seed)
+        img = torch.full((1, 4, 4), 100.0, dtype=torch.float32, device="mps")
+        noised = speckle_fn({k: img for k in keys})
+        np.random.seed(seed)
+        np.random.random()
+        factor = np.random.gamma(1.0 / 0.5**2, 0.5**2, size=img.shape)
+        expected = img.cpu().numpy().astype(np.float32) * factor.astype(np.float32)
+        for k in keys:
+            self.assertEqual(noised[k].device.type, "mps")
+            self.assertEqual(noised[k].dtype, torch.float32)
+            np.testing.assert_allclose(noised[k].cpu().numpy(), expected, atol=1e-4)
+        # identical inputs must get the identical shared speckle factor
+        np.testing.assert_array_equal(np.asarray(noised[keys[0]].cpu()), np.asarray(noised[keys[1]].cpu()))
+
 
 if __name__ == "__main__":
     unittest.main()
