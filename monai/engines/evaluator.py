@@ -512,8 +512,9 @@ class EnsembleEvaluator(Evaluator):
             ready_event: caller-stream event that workers wait for before reading ``inputs``.
 
         Returns:
-            ``(prediction, done_event)`` where ``done_event`` is recorded on the worker's CUDA
-            stream and must be awaited by the caller before consuming ``prediction``.
+            ``(prediction, done_event)``. When ``cuda_device`` is ``None``, ``done_event`` is
+            also ``None``. Otherwise, ``done_event`` is recorded on the worker's CUDA stream and
+            must be awaited by the caller before consuming ``prediction``.
 
         Raises:
             RuntimeError: if the network or inferer raises.

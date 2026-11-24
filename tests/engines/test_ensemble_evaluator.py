@@ -99,9 +99,11 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         class TestDataset(torch.utils.data.Dataset):
             def __len__(self):
+                """Return the number of samples."""
                 return 4
 
             def __getitem__(self, index):
+                """Return one indexed sample."""
                 return {"image": torch.tensor([index]), "label": torch.zeros(1)}
 
         return torch.utils.data.DataLoader(TestDataset())
@@ -115,10 +117,12 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         class BarrierNet(torch.nn.Module):
             def __init__(self, offset):
+                """Initialize the network with an additive offset."""
                 super().__init__()
                 self.offset = offset
 
             def forward(self, x):
+                """Synchronize both workers, record their threads, and add the offset."""
                 with thread_ids_lock:
                     thread_ids.add(threading.get_ident())
                 barrier.wait()
@@ -134,6 +138,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         @val_engine.on(Events.ITERATION_COMPLETED)
         def check_output(engine):
+            """Verify that predictions retain network order."""
             expected_batch = torch.tensor([engine.state.iteration - 1], dtype=torch.float32)
             assert_allclose(engine.state.output[0]["pred_0"], expected_batch + 1)
             assert_allclose(engine.state.output[0]["pred_1"], expected_batch + 2)
@@ -146,10 +151,12 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         class AddNet(torch.nn.Module):
             def __init__(self, offset):
+                """Initialize the network with an additive offset."""
                 super().__init__()
                 self.offset = offset
 
             def forward(self, x):
+                """Add the configured offset to the input."""
                 return x + self.offset
 
         val_engine = EnsembleEvaluator(
@@ -162,6 +169,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         @val_engine.on(Events.ITERATION_COMPLETED)
         def record_iteration(engine):
+            """Record each prediction from the first network."""
             iterations.append(engine.state.output[0]["pred_0"].item())
 
         val_engine.run()
@@ -173,20 +181,32 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         class ScaleNet(torch.nn.Module):
             def __init__(self, scale):
+                """Initialize the network with a multiplicative scale."""
                 super().__init__()
                 self.scale = scale
 
             def forward(self, x):
+                """Scale the input by the configured factor."""
                 return x * self.scale
 
         class TestDataset(torch.utils.data.Dataset):
             def __getitem__(self, index):
+                """Return one indexed sample."""
                 return {"image": torch.tensor([index], dtype=torch.float32), "label": torch.zeros(1)}
 
             def __len__(self):
+                """Return the number of samples."""
                 return 5
 
         def evaluate(parallel):
+            """Evaluate the dataset with sequential or parallel network inference.
+
+            Args:
+                parallel: whether to run the networks concurrently.
+
+            Returns:
+                Prediction dictionaries recorded after each iteration.
+            """
             outputs = []
             val_engine = EnsembleEvaluator(
                 device=torch.device("cpu:0"),
@@ -198,6 +218,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
             @val_engine.on(Events.ITERATION_COMPLETED)
             def record_output(engine):
+                """Record the current prediction dictionary."""
                 outputs.append(engine.state.output[0])
 
             val_engine.run()
@@ -216,6 +237,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         class FailingNet(torch.nn.Module):
             def forward(self, x):
+                """Raise an inference error."""
                 raise RuntimeError("inference failed")
 
         val_engine = EnsembleEvaluator(
@@ -253,6 +275,7 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
         @val_engine.on(Events.ITERATION_COMPLETED)
         def record_output(engine):
+            """Record each prediction from the first network."""
             outputs.append(engine.state.output[0]["pred_0"].item())
 
         val_engine.run()
@@ -260,19 +283,39 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_parallel_inference_waits_for_custom_cuda_stream(self):
-        """Verify CUDA stream dependencies with an explicit or inferred device."""
+        """Verify CUDA stream dependencies with an explicit or inferred device.
+
+        ``prepare_batch`` queues a delayed fill on the caller's custom stream and returns CUDA
+        tensors. Each worker must wait for that fill before running inference. The delayed
+        networks then queue work on worker streams, and the caller must wait for completion
+        before the iteration callback reads predictions. Observing ``(2, 3)`` verifies both
+        handoffs. The subtest covers an explicit ``cuda:0`` configuration and ``device=None``,
+        where the synchronization device is inferred from the prepared tensors.
+        """
 
         class TestDataset(torch.utils.data.Dataset):
             """One-sample dataset for the CUDA stream ordering test."""
 
             def __len__(self):
+                """Return the number of samples."""
                 return 1
 
             def __getitem__(self, index):
+                """Return one CPU sample."""
                 return {"image": torch.zeros(1), "label": torch.zeros(1)}
 
         def prepare_batch(batchdata, device, non_blocking, **kwargs):
-            """Produce the input asynchronously after delayed caller-stream work."""
+            """Produce input after delayed caller-stream work.
+
+            Args:
+                batchdata: CPU batch returned by the data loader.
+                device: configured evaluator device, or ``None`` when inference is inferred.
+                non_blocking: whether device transfers should be non-blocking.
+                kwargs: additional transfer options.
+
+            Returns:
+                CUDA image and label tensors for network inference.
+            """
 
             target_device = device if device is not None else torch.device("cuda:0")
             image = torch.zeros_like(batchdata["image"], device=target_device)
@@ -284,10 +327,12 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
             """Add an offset after delayed work on the worker CUDA stream."""
 
             def __init__(self, offset):
+                """Initialize the network with an additive offset."""
                 super().__init__()
                 self.offset = offset
 
             def forward(self, x):
+                """Add the offset after delaying worker-stream work."""
                 torch.cuda._sleep(50_000_000)
                 return x + self.offset
 
