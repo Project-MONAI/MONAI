@@ -16,6 +16,8 @@ silently removed any shear. Tests 1 and 2 pin the behaviour after the fix (shear
 column rescale); tests 3 and 4 are regression guards for parts verified correct.
 """
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -103,8 +105,7 @@ class TestSpacingShearInvariance(unittest.TestCase):
             degs = _axis_direction_changes(A[:3, :3], outA[:3, :3])
             self.assertTrue(
                 np.allclose(outA[:3, :3], A[:3, :3], atol=1e-4),
-                f"case {i}: round trip changed the linear affine, max axis-direction "
-                f"change {degs.max():.2f} deg",
+                f"case {i}: round trip changed the linear affine, max axis-direction " f"change {degs.max():.2f} deg",
             )
 
 
