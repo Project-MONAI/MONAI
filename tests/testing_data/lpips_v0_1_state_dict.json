@@ -1,0 +1,638 @@
+{
+    "source": "richzhang/PerceptualSimilarity@082bb24f84c091ea94de2867d34c4544f68e0963",
+    "networks": {
+        "alex": {
+            "scaling_layer.shift": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "scaling_layer.scale": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "net.slice1.0.weight": [
+                64,
+                3,
+                11,
+                11
+            ],
+            "net.slice1.0.bias": [
+                64
+            ],
+            "net.slice2.3.weight": [
+                192,
+                64,
+                5,
+                5
+            ],
+            "net.slice2.3.bias": [
+                192
+            ],
+            "net.slice3.6.weight": [
+                384,
+                192,
+                3,
+                3
+            ],
+            "net.slice3.6.bias": [
+                384
+            ],
+            "net.slice4.8.weight": [
+                256,
+                384,
+                3,
+                3
+            ],
+            "net.slice4.8.bias": [
+                256
+            ],
+            "net.slice5.10.weight": [
+                256,
+                256,
+                3,
+                3
+            ],
+            "net.slice5.10.bias": [
+                256
+            ],
+            "lin0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lin1.model.1.weight": [
+                1,
+                192,
+                1,
+                1
+            ],
+            "lin2.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lin3.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lin4.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lins.0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lins.1.model.1.weight": [
+                1,
+                192,
+                1,
+                1
+            ],
+            "lins.2.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lins.3.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lins.4.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ]
+        },
+        "vgg": {
+            "scaling_layer.shift": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "scaling_layer.scale": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "net.slice1.0.weight": [
+                64,
+                3,
+                3,
+                3
+            ],
+            "net.slice1.0.bias": [
+                64
+            ],
+            "net.slice1.2.weight": [
+                64,
+                64,
+                3,
+                3
+            ],
+            "net.slice1.2.bias": [
+                64
+            ],
+            "net.slice2.5.weight": [
+                128,
+                64,
+                3,
+                3
+            ],
+            "net.slice2.5.bias": [
+                128
+            ],
+            "net.slice2.7.weight": [
+                128,
+                128,
+                3,
+                3
+            ],
+            "net.slice2.7.bias": [
+                128
+            ],
+            "net.slice3.10.weight": [
+                256,
+                128,
+                3,
+                3
+            ],
+            "net.slice3.10.bias": [
+                256
+            ],
+            "net.slice3.12.weight": [
+                256,
+                256,
+                3,
+                3
+            ],
+            "net.slice3.12.bias": [
+                256
+            ],
+            "net.slice3.14.weight": [
+                256,
+                256,
+                3,
+                3
+            ],
+            "net.slice3.14.bias": [
+                256
+            ],
+            "net.slice4.17.weight": [
+                512,
+                256,
+                3,
+                3
+            ],
+            "net.slice4.17.bias": [
+                512
+            ],
+            "net.slice4.19.weight": [
+                512,
+                512,
+                3,
+                3
+            ],
+            "net.slice4.19.bias": [
+                512
+            ],
+            "net.slice4.21.weight": [
+                512,
+                512,
+                3,
+                3
+            ],
+            "net.slice4.21.bias": [
+                512
+            ],
+            "net.slice5.24.weight": [
+                512,
+                512,
+                3,
+                3
+            ],
+            "net.slice5.24.bias": [
+                512
+            ],
+            "net.slice5.26.weight": [
+                512,
+                512,
+                3,
+                3
+            ],
+            "net.slice5.26.bias": [
+                512
+            ],
+            "net.slice5.28.weight": [
+                512,
+                512,
+                3,
+                3
+            ],
+            "net.slice5.28.bias": [
+                512
+            ],
+            "lin0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lin1.model.1.weight": [
+                1,
+                128,
+                1,
+                1
+            ],
+            "lin2.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lin3.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lin4.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lins.0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lins.1.model.1.weight": [
+                1,
+                128,
+                1,
+                1
+            ],
+            "lins.2.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lins.3.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lins.4.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ]
+        },
+        "squeeze": {
+            "scaling_layer.shift": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "scaling_layer.scale": [
+                1,
+                3,
+                1,
+                1
+            ],
+            "net.slice1.0.weight": [
+                64,
+                3,
+                3,
+                3
+            ],
+            "net.slice1.0.bias": [
+                64
+            ],
+            "net.slice2.3.squeeze.weight": [
+                16,
+                64,
+                1,
+                1
+            ],
+            "net.slice2.3.squeeze.bias": [
+                16
+            ],
+            "net.slice2.3.expand1x1.weight": [
+                64,
+                16,
+                1,
+                1
+            ],
+            "net.slice2.3.expand1x1.bias": [
+                64
+            ],
+            "net.slice2.3.expand3x3.weight": [
+                64,
+                16,
+                3,
+                3
+            ],
+            "net.slice2.3.expand3x3.bias": [
+                64
+            ],
+            "net.slice2.4.squeeze.weight": [
+                16,
+                128,
+                1,
+                1
+            ],
+            "net.slice2.4.squeeze.bias": [
+                16
+            ],
+            "net.slice2.4.expand1x1.weight": [
+                64,
+                16,
+                1,
+                1
+            ],
+            "net.slice2.4.expand1x1.bias": [
+                64
+            ],
+            "net.slice2.4.expand3x3.weight": [
+                64,
+                16,
+                3,
+                3
+            ],
+            "net.slice2.4.expand3x3.bias": [
+                64
+            ],
+            "net.slice3.6.squeeze.weight": [
+                32,
+                128,
+                1,
+                1
+            ],
+            "net.slice3.6.squeeze.bias": [
+                32
+            ],
+            "net.slice3.6.expand1x1.weight": [
+                128,
+                32,
+                1,
+                1
+            ],
+            "net.slice3.6.expand1x1.bias": [
+                128
+            ],
+            "net.slice3.6.expand3x3.weight": [
+                128,
+                32,
+                3,
+                3
+            ],
+            "net.slice3.6.expand3x3.bias": [
+                128
+            ],
+            "net.slice3.7.squeeze.weight": [
+                32,
+                256,
+                1,
+                1
+            ],
+            "net.slice3.7.squeeze.bias": [
+                32
+            ],
+            "net.slice3.7.expand1x1.weight": [
+                128,
+                32,
+                1,
+                1
+            ],
+            "net.slice3.7.expand1x1.bias": [
+                128
+            ],
+            "net.slice3.7.expand3x3.weight": [
+                128,
+                32,
+                3,
+                3
+            ],
+            "net.slice3.7.expand3x3.bias": [
+                128
+            ],
+            "net.slice4.9.squeeze.weight": [
+                48,
+                256,
+                1,
+                1
+            ],
+            "net.slice4.9.squeeze.bias": [
+                48
+            ],
+            "net.slice4.9.expand1x1.weight": [
+                192,
+                48,
+                1,
+                1
+            ],
+            "net.slice4.9.expand1x1.bias": [
+                192
+            ],
+            "net.slice4.9.expand3x3.weight": [
+                192,
+                48,
+                3,
+                3
+            ],
+            "net.slice4.9.expand3x3.bias": [
+                192
+            ],
+            "net.slice5.10.squeeze.weight": [
+                48,
+                384,
+                1,
+                1
+            ],
+            "net.slice5.10.squeeze.bias": [
+                48
+            ],
+            "net.slice5.10.expand1x1.weight": [
+                192,
+                48,
+                1,
+                1
+            ],
+            "net.slice5.10.expand1x1.bias": [
+                192
+            ],
+            "net.slice5.10.expand3x3.weight": [
+                192,
+                48,
+                3,
+                3
+            ],
+            "net.slice5.10.expand3x3.bias": [
+                192
+            ],
+            "net.slice6.11.squeeze.weight": [
+                64,
+                384,
+                1,
+                1
+            ],
+            "net.slice6.11.squeeze.bias": [
+                64
+            ],
+            "net.slice6.11.expand1x1.weight": [
+                256,
+                64,
+                1,
+                1
+            ],
+            "net.slice6.11.expand1x1.bias": [
+                256
+            ],
+            "net.slice6.11.expand3x3.weight": [
+                256,
+                64,
+                3,
+                3
+            ],
+            "net.slice6.11.expand3x3.bias": [
+                256
+            ],
+            "net.slice7.12.squeeze.weight": [
+                64,
+                512,
+                1,
+                1
+            ],
+            "net.slice7.12.squeeze.bias": [
+                64
+            ],
+            "net.slice7.12.expand1x1.weight": [
+                256,
+                64,
+                1,
+                1
+            ],
+            "net.slice7.12.expand1x1.bias": [
+                256
+            ],
+            "net.slice7.12.expand3x3.weight": [
+                256,
+                64,
+                3,
+                3
+            ],
+            "net.slice7.12.expand3x3.bias": [
+                256
+            ],
+            "lin0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lin1.model.1.weight": [
+                1,
+                128,
+                1,
+                1
+            ],
+            "lin2.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lin3.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lin4.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lin5.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lin6.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lins.0.model.1.weight": [
+                1,
+                64,
+                1,
+                1
+            ],
+            "lins.1.model.1.weight": [
+                1,
+                128,
+                1,
+                1
+            ],
+            "lins.2.model.1.weight": [
+                1,
+                256,
+                1,
+                1
+            ],
+            "lins.3.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lins.4.model.1.weight": [
+                1,
+                384,
+                1,
+                1
+            ],
+            "lins.5.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ],
+            "lins.6.model.1.weight": [
+                1,
+                512,
+                1,
+                1
+            ]
+        }
+    }
+}
