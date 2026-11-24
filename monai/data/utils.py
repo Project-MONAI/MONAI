@@ -1181,8 +1181,9 @@ def partition_dataset(
 
     Args:
         data: input dataset to split, expect a list of data.
-        ratios: a list of ratio number to split the dataset, like [8, 1, 1]. If rounding the partition sizes
-            leaves some items over, they are added to the partitions that were rounded down the most.
+        ratios: relative partition sizes, e.g., [8, 1, 1]. If the rounded sizes fall short of the dataset
+            length, add one item to the partitions rounded down the most. If they exceed it, take one item
+            back from the partitions rounded up the most. Earlier partitions get the extra item on ties.
         num_partitions: expected number of the partitions to evenly split, only works when `ratios` not specified.
         shuffle: whether to shuffle the original dataset before splitting.
         seed: random seed to shuffle the dataset, only works when `shuffle` is True.
@@ -1220,11 +1221,16 @@ def partition_dataset(
         rsum = sum(ratios)
         exact = [r / rsum * data_len for r in ratios]
         sizes = [int(e + 0.5) for e in exact]
-        # rounding each size on its own can leave items without a partition,
-        # give them to the partitions whose sizes were rounded down the most
-        missing = max(data_len - sum(sizes), 0)
-        for j in sorted(range(len(sizes)), key=lambda k: sizes[k] - exact[k])[:missing]:
-            sizes[j] += 1
+        remainder = data_len - sum(sizes)
+        if remainder:
+            # A stable sort lets earlier partitions gain an item first and later partitions lose one first.
+            by_error = sorted(range(len(sizes)), key=lambda i: sizes[i] - exact[i])
+            if remainder > 0:
+                to_adjust, step = by_error[:remainder], 1
+            else:
+                to_adjust, step = by_error[remainder:], -1
+            for i in to_adjust:
+                sizes[i] += step
         for size in sizes:
             start_idx = next_idx
             next_idx = min(start_idx + size, data_len)

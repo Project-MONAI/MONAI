@@ -141,17 +141,41 @@ class TestPartitionDataset(unittest.TestCase):
         """
         self.assertListEqual(partition_dataset(**input_param), result)
 
-    @parameterized.expand([(63, [0.8, 0.1, 0.1]), (303, [0.7, 0.15, 0.15]), (32, [1, 1, 1, 1, 1])])
-    def test_ratios_assign_every_item(self, data_len, ratios):
-        """Every item lands in exactly one partition when the data is shuffled.
+    @parameterized.expand([(52, [3, 1, 3, 8], [10, 4, 10, 28]), (80, [9, 9, 3, 9, 2], [23, 23, 7, 22, 5])])
+    def test_ratios_rounding_sizes(self, data_len, ratios, expected_sizes):
+        """When rounding gives too few or too many items, adjust the partitions with the largest errors.
 
         Args:
             data_len: number of items to partition.
             ratios: the partition ratios.
+            expected_sizes: partition sizes after correcting the rounded total.
         """
-        data = list(range(data_len))
-        partitions = partition_dataset(data, ratios=ratios, shuffle=True, seed=0)
-        self.assertListEqual(sorted(i for part in partitions for i in part), data)
+        partitions = partition_dataset(range(data_len), ratios=ratios)
+        self.assertListEqual([len(part) for part in partitions], expected_sizes)
+
+    @parameterized.expand(
+        [(63, [0.8, 0.1, 0.1]), (303, [0.7, 0.15, 0.15]), (32, [1, 1, 1, 1, 1]), (80, [0, 9, 9, 3, 9, 2, 0])]
+    )
+    def test_ratios_assign_every_item(self, max_len, ratios):
+        """Check coverage and rounding across dataset lengths, including splits with a zero ratio.
+
+        Args:
+            max_len: largest number of items to partition.
+            ratios: the partition ratios.
+        """
+        total_ratio = sum(ratios)
+        for data_len in range(max_len + 1):
+            with self.subTest(data_len=data_len):
+                data = list(range(data_len))
+                partitions = partition_dataset(data, ratios=ratios, shuffle=True, seed=0)
+                self.assertListEqual(sorted(i for part in partitions for i in part), data)
+                sizes = [len(part) for part in partitions]
+                exact = [r / total_ratio * data_len for r in ratios]
+                for size, share in zip(sizes, exact, strict=True):
+                    self.assertLess(abs(size - share), 1)
+                rounded = [int(share + 0.5) for share in exact]
+                if sum(rounded) == data_len:
+                    self.assertListEqual(sizes, rounded)
 
 
 if __name__ == "__main__":
