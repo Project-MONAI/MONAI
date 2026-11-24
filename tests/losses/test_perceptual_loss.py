@@ -18,8 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.losses.perceptual import normalize_tensor
-from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, SkipIfNoModule
-
+from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, skip_if_quick
 
 SHAPE1 = (2, 1, 64, 64, 64)
 SHAPE2 = (2, 6, 64, 64, 64)
