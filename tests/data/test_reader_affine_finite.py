@@ -58,6 +58,22 @@ def _write_nrrd(path: str, directions: str, origin: str) -> str:
     return path
 
 
+class _CustomAffineReader(ImageReader):
+    """A user-defined reader that returns the affine it is given verbatim."""
+
+    def __init__(self, affine):
+        self.affine = affine
+
+    def verify_suffix(self, filename):
+        return True
+
+    def read(self, data, **kwargs):
+        return data
+
+    def get_data(self, img):
+        return np.ones((4, 4, 4), np.float32), {"affine": self.affine, "original_affine": np.eye(4)}
+
+
 class _NanAffineReader(ImageReader):
     """A user-defined reader that returns a non-finite affine."""
 
@@ -160,16 +176,22 @@ class TestReaderAffineFinite(unittest.TestCase):
             LoadImage(image_only=True, reader=_NanAffineReader())("anything")
 
     def test_load_image_checks_object_dtype_affine(self):
-        class _ObjectAffineReader(_NanAffineReader):
-            def get_data(self, img):
-                data, meta = super().get_data(img)
-                meta["affine"] = np.eye(4)
-                meta["original_affine"] = np.eye(4).astype(object)
-                meta["original_affine"][0, 3] = float("nan")
-                return data, meta
+        affine = np.eye(4).astype(object)
+        affine[0, 3] = float("nan")
+        with self.assertRaisesRegex(ValueError, "non-finite 'affine'"):
+            LoadImage(image_only=True, reader=_CustomAffineReader(affine))("anything")
 
-        with self.assertRaisesRegex(ValueError, "non-finite 'original_affine'"):
-            LoadImage(image_only=True, reader=_ObjectAffineReader())("anything")
+    def test_load_image_accepts_finite_object_dtype_affine(self):
+        # the other side of the check: an object array of numbers with finite values is accepted
+        img = LoadImage(image_only=True, reader=_CustomAffineReader(np.eye(4).astype(object)))("anything")
+        self.assertTrue(np.isfinite(np.asarray(img.affine)).all())
+
+    def test_load_image_propagates_unconvertible_affine(self):
+        # a geometry that cannot be read as numbers is a bug in the custom reader, not skipped
+        with self.assertRaises(TypeError):
+            LoadImage(image_only=True, reader=_CustomAffineReader(np.array([1, object()])))("anything")
+        with self.assertRaises(ValueError):
+            LoadImage(image_only=True, reader=_CustomAffineReader(np.array(["affine!"])))("anything")
 
     def test_load_image_checks_runtime_reader(self):
         with self.assertRaisesRegex(ValueError, "non-finite 'affine'"):

@@ -324,13 +324,13 @@ class LoadImage(Transform):
                 continue
             affine = meta_data[key]
             affine = affine.detach().cpu().numpy() if isinstance(affine, torch.Tensor) else np.asarray(affine)
-            if affine.dtype == object:
-                # a custom reader may hand over an object array of numbers, which holds NaN as well
-                try:
-                    affine = affine.astype(float)
-                except (TypeError, ValueError):
-                    continue  # not numeric, so there is no finite value to check
-            if np.issubdtype(affine.dtype, np.number) and not np.isfinite(affine).all():
+            if not np.issubdtype(affine.dtype, np.number):
+                # a custom reader may hand over an object or string array; convert it so a NaN it
+                # holds is checked too, and let a conversion error propagate: a geometry that cannot
+                # be read as numbers is a bug in that reader, not something to skip silently
+                affine = affine.astype(float)
+                meta_data[key] = affine  # hand downstream code numbers it can convert to a tensor
+            if not np.isfinite(affine).all():
                 raise ValueError(
                     f"{reader.__class__.__name__} returned a non-finite '{key}' (NaN or infinity) for "
                     f"{ensure_tuple(filename)[0]}, so the image geometry is invalid."
