@@ -262,6 +262,16 @@ class RandSpeckleNoise(RandomizableTransform):
     def __init__(
         self, prob: float = 0.1, std: float = 0.5, sample_std: bool = True, dtype: DtypeLike = np.float32
     ) -> None:
+        """
+        Args:
+            prob: probability to add speckle noise.
+            std: relative standard deviation of the multiplicative speckle factor. Must be non-negative.
+            sample_std: if True, sample the relative standard deviation uniformly from 0 to `std` on each call.
+            dtype: output data type, if None, same as input image.
+
+        Raises:
+            ValueError: if `std` is negative.
+        """
         RandomizableTransform.__init__(self, prob)
         if std < 0:
             raise ValueError(f"`std` must be non-negative, got {std}.")
@@ -271,6 +281,14 @@ class RandSpeckleNoise(RandomizableTransform):
         self.speckle: np.ndarray | None = None
 
     def randomize(self, img: NdarrayOrTensor) -> None:
+        """
+        Randomize the speckle factor for the given image.
+
+        Args:
+            img: image the speckle factor is sampled for, only its shape is used.
+                The sampled factor is stored in `self.speckle` and reused when
+                `__call__` is invoked with `randomize=False`.
+        """
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -284,6 +302,17 @@ class RandSpeckleNoise(RandomizableTransform):
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
+
+        Args:
+            img: input image.
+            randomize: if True, sample a fresh speckle factor, otherwise reuse the
+                factor stored by a previous `randomize` call.
+
+        Returns:
+            image multiplied by the speckle factor, converted to `dtype` (or the input dtype if `dtype` is None).
+
+        Raises:
+            RuntimeError: if `randomize` is False and no speckle factor was sampled yet.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
@@ -294,9 +323,14 @@ class RandSpeckleNoise(RandomizableTransform):
 
         if self.speckle is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img, *_ = convert_data_type(img, dtype=self.dtype)
-        speckle, *_ = convert_to_dst_type(self.speckle, img)
-        return img * speckle
+        # Multiply in floating point, then convert to the requested output dtype,
+        # so fractional factors are not truncated for integer inputs when `dtype` is None.
+        out_dtype = self.dtype if self.dtype is not None else img.dtype
+        img_f, *_ = convert_data_type(img, dtype=np.float64)
+        speckle, *_ = convert_to_dst_type(self.speckle, img_f)
+        out = img_f * speckle
+        out, *_ = convert_data_type(out, dtype=out_dtype)
+        return out
 
 
 class RandUltrasoundDepthGain(RandomizableTransform):
@@ -334,6 +368,16 @@ class RandUltrasoundDepthGain(RandomizableTransform):
         depth_axis: int = 1,
         dtype: DtypeLike = np.float32,
     ) -> None:
+        """
+        Args:
+            prob: probability to apply the depth gain.
+            gain_range: (minimum, maximum) log-gain slope sampled uniformly.
+            depth_axis: axis of the image along which depth increases.
+            dtype: output data type, if None, same as input image.
+
+        Raises:
+            ValueError: if `gain_range` does not contain exactly two values.
+        """
         RandomizableTransform.__init__(self, prob)
         if len(gain_range) != 2:
             raise ValueError(f"`gain_range` must be a (min, max) tuple, got {gain_range}.")
@@ -343,6 +387,14 @@ class RandUltrasoundDepthGain(RandomizableTransform):
         self.slope: float | None = None
 
     def randomize(self, img: NdarrayOrTensor | None = None) -> None:
+        """
+        Randomize the gain slope.
+
+        Args:
+            img: unused, accepted for a uniform `randomize` signature across transforms.
+                The sampled slope is stored in `self.slope` and reused when
+                `__call__` is invoked with `randomize=False`.
+        """
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -351,6 +403,19 @@ class RandUltrasoundDepthGain(RandomizableTransform):
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
+
+        Args:
+            img: input image.
+            randomize: if True, sample a fresh slope, otherwise reuse the slope
+                stored by a previous `randomize` call.
+
+        Returns:
+            image multiplied by the depth-gain profile, converted to `dtype`
+            (or the input dtype if `dtype` is None).
+
+        Raises:
+            RuntimeError: if `randomize` is False and no slope was sampled yet.
+            ValueError: if `depth_axis` is out of range for the image.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
@@ -370,9 +435,14 @@ class RandUltrasoundDepthGain(RandomizableTransform):
         gain_shape = [1] * img.ndim
         gain_shape[depth_axis] = n
         profile = profile.reshape(gain_shape)
-        img, *_ = convert_data_type(img, dtype=self.dtype)
-        gain, *_ = convert_to_dst_type(profile, img)
-        return img * gain
+        # Multiply in floating point, then convert to the requested output dtype,
+        # so fractional gains are not truncated for integer inputs when `dtype` is None.
+        out_dtype = self.dtype if self.dtype is not None else img.dtype
+        img_f, *_ = convert_data_type(img, dtype=np.float64)
+        gain, *_ = convert_to_dst_type(profile, img_f)
+        out = img_f * gain
+        out, *_ = convert_data_type(out, dtype=out_dtype)
+        return out
 
 
 class ShiftIntensity(Transform):

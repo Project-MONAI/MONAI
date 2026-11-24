@@ -54,6 +54,19 @@ class TestRandSpeckleNoise(NumpyImageTestCase2D):
         out = speckle_fn(self.imt)
         np.testing.assert_allclose(self.imt, np.asarray(out))
 
+    def test_uint8_input_dtype_none(self):
+        # Fractional speckle factors must not be truncated to integers before multiplication.
+        img = np.full((1, 4, 4), 100, dtype=np.uint8)
+        speckle_fn = RandSpeckleNoise(prob=1.0, std=0.5, sample_std=False, dtype=None)
+        speckle_fn.set_random_state(0)
+        out = speckle_fn(img)
+        self.assertEqual(np.asarray(out).dtype, np.uint8)
+        np.random.seed(0)
+        np.random.random()
+        factor = np.random.gamma(1.0 / 0.5**2, 0.5**2, size=img.shape)
+        expected = (img.astype(np.float64) * factor).astype(np.uint8)
+        np.testing.assert_array_equal(np.asarray(out), expected)
+
     def test_negative_std_raises(self):
         with self.assertRaises(ValueError):
             RandSpeckleNoise(prob=1.0, std=-0.1)

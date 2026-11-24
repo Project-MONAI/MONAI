@@ -338,6 +338,15 @@ class RandSpeckleNoised(RandomizableTransform, MapTransform):
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            prob: probability to add speckle noise to the dictionary.
+            std: relative standard deviation of the multiplicative speckle factor. Must be non-negative.
+            sample_std: if True, sample the relative standard deviation uniformly from 0 to `std` on each call.
+            dtype: output data type, if None, same as input image.
+            allow_missing_keys: do not raise an exception if a key is missing.
+        """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_speckle_noise = RandSpeckleNoise(prob=1.0, std=std, sample_std=sample_std, dtype=dtype)
@@ -345,11 +354,33 @@ class RandSpeckleNoised(RandomizableTransform, MapTransform):
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
     ) -> RandSpeckleNoised:
+        """
+        Set the random state for this transform and its array transform.
+
+        Args:
+            seed: seed for the random state.
+            state: random state to use instead of `seed`.
+
+        Returns:
+            this transform, for chaining.
+        """
         super().set_random_state(seed, state)
         self.rand_speckle_noise.set_random_state(seed, state)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        """
+        Apply the transform to `data`.
+
+        Args:
+            data: dictionary of images. All configured fields are expected to have the same shape
+                and share one speckle factor, as documented in the class docstring.
+
+        Returns:
+            dictionary with the configured fields multiplied by the shared speckle factor.
+                Missing keys are skipped when `allow_missing_keys` is True; when no configured
+                field is present, the values are only converted to tensors.
+        """
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -357,8 +388,17 @@ class RandSpeckleNoised(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
+        # all the keys share the same random noise
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
+        self.rand_speckle_noise.randomize(d[first_key])
+
         for key in self.key_iterator(d):
-            d[key] = self.rand_speckle_noise(d[key], randomize=True)
+            d[key] = self.rand_speckle_noise(img=d[key], randomize=False)
         return d
 
 
@@ -391,6 +431,15 @@ class RandUltrasoundDepthGaind(RandomizableTransform, MapTransform):
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            prob: probability to apply the depth gain to the dictionary.
+            gain_range: (minimum, maximum) log-gain slope sampled uniformly.
+            depth_axis: axis of the image along which depth increases.
+            dtype: output data type, if None, same as input image.
+            allow_missing_keys: do not raise an exception if a key is missing.
+        """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_ultrasound_depth_gain = RandUltrasoundDepthGain(
@@ -400,11 +449,31 @@ class RandUltrasoundDepthGaind(RandomizableTransform, MapTransform):
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
     ) -> RandUltrasoundDepthGaind:
+        """
+        Set the random state for this transform and its array transform.
+
+        Args:
+            seed: seed for the random state.
+            state: random state to use instead of `seed`.
+
+        Returns:
+            this transform, for chaining.
+        """
         super().set_random_state(seed, state)
         self.rand_ultrasound_depth_gain.set_random_state(seed, state)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        """
+        Apply the transform to `data`.
+
+        Args:
+            data: dictionary of images.
+
+        Returns:
+            dictionary with the configured fields multiplied by the depth-gain profile.
+                Missing keys are skipped when `allow_missing_keys` is True.
+        """
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:

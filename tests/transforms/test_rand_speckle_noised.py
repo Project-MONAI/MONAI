@@ -35,17 +35,19 @@ class TestRandSpeckleNoisedNumpy(NumpyImageTestCase2D):
         speckle_fn.set_random_state(seed)
         noised = speckle_fn({k: in_type(self.imt) for k in keys})
         np.random.seed(seed)
+        # simulate the `randomize` function of transform, called once so all keys share one factor
+        np.random.random()
+        _std = np.random.uniform(0, std) if sample_std else std
+        if _std <= 0:
+            expected = self.imt
+        else:
+            expected = self.imt * np.random.gamma(1.0 / _std**2, _std**2, size=self.imt.shape)
         for k in keys:
-            # simulate the `randomize` function of transform
-            np.random.random()
-            _std = np.random.uniform(0, std) if sample_std else std
-            if _std <= 0:
-                expected = self.imt
-            else:
-                expected = self.imt * np.random.gamma(1.0 / _std**2, _std**2, size=self.imt.shape)
             if isinstance(noised[k], torch.Tensor):
                 noised[k] = noised[k].cpu()
             np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
+        # identical inputs must get the identical shared speckle factor
+        np.testing.assert_array_equal(np.asarray(noised[keys[0]]), np.asarray(noised[keys[1]]))
 
 
 if __name__ == "__main__":

@@ -52,9 +52,21 @@ class TestRandUltrasoundDepthGain(NumpyImageTestCase2D):
     def test_gain_increases_with_depth(self):
         gain_fn = RandUltrasoundDepthGain(prob=1.0, gain_range=(1.0, 1.0), depth_axis=1)
         gain_fn.set_random_state(0)
-        out = gain_fn(np.ones((1, 1, 8, 4), dtype=np.float32))
-        row_means = np.asarray(out).mean(axis=(0, 2, 3))
+        out = gain_fn(np.ones((1, 8, 4), dtype=np.float32))
+        row_means = np.asarray(out).mean(axis=(0, 2))
+        self.assertEqual(len(row_means), 8)
         self.assertTrue(np.all(np.diff(row_means) > 0))
+
+    def test_uint8_input_dtype_none(self):
+        # Fractional gains must not be truncated to integers before multiplication.
+        img = np.full((1, 8, 4), 100, dtype=np.uint8)
+        gain_fn = RandUltrasoundDepthGain(prob=1.0, gain_range=(1.0, 1.0), depth_axis=1, dtype=None)
+        gain_fn.set_random_state(0)
+        out = gain_fn(img)
+        self.assertEqual(np.asarray(out).dtype, np.uint8)
+        profile = np.exp(1.0 * (np.linspace(0.0, 1.0, 8) - 0.5)).reshape((1, 8, 1))
+        expected = (img.astype(np.float64) * profile).astype(np.uint8)
+        np.testing.assert_array_equal(np.asarray(out), expected)
 
     def test_prob_zero(self):
         gain_fn = RandUltrasoundDepthGain(prob=0.0, gain_range=(-1.0, 1.0))
