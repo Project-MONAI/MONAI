@@ -15,6 +15,8 @@ import csv
 import os
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
@@ -127,6 +129,34 @@ class TestCSVSaver(unittest.TestCase):
 
             with open(filepath, "rb") as f:
                 self.assertEqual(f.read(), b"\xff" + valid_contents[1:])
+
+    def test_finalize_does_not_replay_rows_when_stat_fails_after_write(self):
+        """A failed fingerprint stat must not leave already-written rows cached."""
+        csv_filename = "predictions.csv"
+        with tempfile.TemporaryDirectory() as tempdir:
+            saver = CSVSaver(output_dir=tempdir, filename=csv_filename, delimiter="\t")
+            saver.save(torch.tensor(1), {"filename_or_obj": "patient_01"})
+            filepath = Path(tempdir) / csv_filename
+            original_stat = Path.stat
+
+            def stat_with_failure(path, *args, **kwargs):
+                """Fail only when the target file exists, after its contents are written."""
+                if path == filepath and os.path.exists(filepath):
+                    raise OSError("stat failed")
+                return original_stat(path, *args, **kwargs)
+
+            with mock.patch.object(Path, "stat", new=stat_with_failure):
+                with self.assertRaisesRegex(OSError, "stat failed"):
+                    saver.finalize()
+
+            self.assertFalse(saver.get_cache())
+            with open(filepath, "rb") as f:
+                written_contents = f.read()
+
+            saver.finalize()
+
+            with open(filepath, "rb") as f:
+                self.assertEqual(f.read(), written_contents)
 
 
 if __name__ == "__main__":

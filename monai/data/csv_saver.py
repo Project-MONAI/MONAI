@@ -111,9 +111,9 @@ class CSVSaver:
                 for result in v.flatten():
                     f.write(self.delimiter + str(result))
                 f.write("\n")
-        self._validated_file = self._file_fingerprint(self._filepath.stat())
         # clear cache content after writing
         self.reset_cache()
+        self._validated_file = self._file_fingerprint(self._filepath.stat())
 
     def save(self, data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
