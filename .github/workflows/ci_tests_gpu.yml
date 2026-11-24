@@ -3,7 +3,13 @@ name: tests
 on:
   schedule:
     - cron: "0 2 * * 3"  # at 02:00 UTC Wednesday
-  workflow_dispatch:
+  # workflow_dispatch:
+  push:  # TODO: REMOVE BEFORE MERGE
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
 
 permissions:
   contents: read
