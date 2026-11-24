@@ -91,6 +91,6 @@ jobs:
     - name: Run Hyena tests
       run: |
         python -c "import torch; from monai.networks.blocks.hyena import is_nvsubquadratic_available; \
-                  assert torch.cuda.is_available(), 'No CUDA devices found.'
+                  assert torch.cuda.is_available(), 'No CUDA devices found.'; \
                   assert is_nvsubquadratic_available(), 'nvsubquadratic must be importable.'"
         python -m unittest tests.networks.blocks.test_hyena_block tests.networks.nets.test_hyena_nd_unetr tests.networks.nets.test_swin_unetr
