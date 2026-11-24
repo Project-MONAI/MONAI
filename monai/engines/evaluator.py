@@ -14,6 +14,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -520,38 +521,54 @@ class EnsembleEvaluator(Evaluator):
             RuntimeError: if the network or inferer raises.
         """
         stream = None
-        if cuda_device is not None:
-            assert ready_event is not None
-            stream = torch.cuda.current_stream(cuda_device)
-            stream.wait_event(ready_event)
-        with engine.mode(network):
-            if engine.amp:
-                with torch.autocast("cuda", **engine.amp_kwargs):
+        with ExitStack() as stack:
+            if cuda_device is not None:
+                assert ready_event is not None
+                stack.enter_context(torch.cuda.device(cuda_device))
+                stream = torch.cuda.Stream(device=cuda_device)
+                stack.enter_context(torch.cuda.stream(stream))
+                stream.wait_event(ready_event)
+            grad_context = torch.no_grad() if engine.mode is eval_mode else torch.enable_grad()
+            with grad_context:
+                if engine.amp:
+                    with torch.autocast("cuda", **engine.amp_kwargs):
+                        prediction = engine.inferer(inputs, network, *args, **kwargs)
+                else:
                     prediction = engine.inferer(inputs, network, *args, **kwargs)
-            else:
-                prediction = engine.inferer(inputs, network, *args, **kwargs)
-        if stream is None:
-            return prediction, None
-        done_event = torch.cuda.Event()
-        done_event.record(stream)
-        return prediction, done_event
+            if stream is None:
+                return prediction, None
+            done_event = torch.cuda.Event()
+            done_event.record(stream)
+            return prediction, done_event
 
     @staticmethod
     def _find_cuda_device(value: Any) -> torch.device | None:
-        """Return the first CUDA tensor device found in prepared network inputs."""
-        if isinstance(value, torch.Tensor):
-            return value.device if value.is_cuda else None
-        if isinstance(value, Mapping):
-            values = value.values()
-        elif isinstance(value, (list, tuple)):
-            values = value
-        else:
-            return None
-        for item in values:
-            device = EnsembleEvaluator._find_cuda_device(item)
-            if device is not None:
-                return device
-        return None
+        """Return the CUDA device used by prepared network inputs.
+
+        Args:
+            value: prepared network inputs, inferer args, or kwargs.
+
+        Returns:
+            The single CUDA device found in ``value``, or ``None`` when it contains no CUDA tensors.
+
+        Raises:
+            ValueError: when ``value`` contains tensors on more than one CUDA device.
+        """
+        devices = set()
+        pending = [value]
+        while pending:
+            item = pending.pop()
+            if isinstance(item, torch.Tensor):
+                if item.is_cuda:
+                    devices.add(item.device)
+            elif isinstance(item, Mapping):
+                pending.extend(item.values())
+            elif isinstance(item, (list, tuple)):
+                pending.extend(item)
+        if len(devices) > 1:
+            device_names = ", ".join(sorted(str(device) for device in devices))
+            raise ValueError(f"parallel ensemble inference requires inputs on one CUDA device, got: {device_names}")
+        return next(iter(devices), None)
 
     def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
@@ -590,24 +607,26 @@ class EnsembleEvaluator(Evaluator):
             caller_stream = None
             cuda_device = engine._find_cuda_device((inputs, args, kwargs))
             if cuda_device is None and engine.state.device is not None and engine.state.device.type == "cuda":
-                cuda_device = torch.cuda.current_stream(engine.state.device).device
+                cuda_device = engine.state.device
             if cuda_device is not None:
                 caller_stream = torch.cuda.current_stream(cuda_device)
                 ready_event = torch.cuda.Event()
                 ready_event.record(caller_stream)
-            futures = [
-                engine._executor.submit(
-                    engine._run_network, engine, inputs, network, args, kwargs, cuda_device, ready_event
-                )
-                for network in engine.networks
-            ]
-            predictions = []
-            for future in futures:
-                prediction, done_event = future.result()
-                if done_event is not None:
-                    assert caller_stream is not None
-                    caller_stream.wait_event(done_event)
-                predictions.append(prediction)
+            networks = list({id(network): network for network in engine.networks}.values())
+            with engine.mode(*networks):
+                futures = [
+                    engine._executor.submit(
+                        engine._run_network, engine, inputs, network, args, kwargs, cuda_device, ready_event
+                    )
+                    for network in engine.networks
+                ]
+                predictions = []
+                for future in futures:
+                    prediction, done_event = future.result()
+                    if done_event is not None:
+                        assert caller_stream is not None
+                        caller_stream.wait_event(done_event)
+                    predictions.append(prediction)
         else:
             predictions = [engine._run_network(engine, inputs, network, args, kwargs)[0] for network in engine.networks]
         if isinstance(engine.state.output, dict):

@@ -281,6 +281,73 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         val_engine.run()
         self.assertEqual(outputs, [0, 1, 2, 3])
 
+    def test_parallel_shared_network_stays_in_eval_mode(self):
+        """Verify that a shared network remains in eval mode until both workers finish."""
+
+        class SharedModeNet(torch.nn.Module):
+            """Record whether a shared module is restored while another worker is running."""
+
+            def __init__(self):
+                """Initialize synchronization state."""
+                super().__init__()
+                self.barrier = threading.Barrier(2, timeout=5)
+                self.restored = threading.Event()
+                self.calls = 0
+                self.observed_training = []
+                self.lock = threading.Lock()
+
+            def forward(self, x):
+                """Observe training mode after giving the first worker time to restore it."""
+                with self.lock:
+                    self.calls += 1
+                    call_number = self.calls
+                self.barrier.wait()
+                if call_number == 2:
+                    self.restored.wait(timeout=0.2)
+                with self.lock:
+                    self.observed_training.append(self.training)
+                return x
+
+            def train(self, mode=True):
+                """Signal when the module is restored to training mode."""
+                result = super().train(mode)
+                if mode:
+                    self.restored.set()
+                return result
+
+        class TestDataset(torch.utils.data.Dataset):
+            """One-sample dataset for the shared-network mode test."""
+
+            def __len__(self):
+                """Return the number of samples."""
+                return 1
+
+            def __getitem__(self, index):
+                """Return one sample."""
+                return {"image": torch.zeros(1), "label": torch.zeros(1)}
+
+        network = SharedModeNet()
+        network.train()
+        val_engine = EnsembleEvaluator(
+            device=torch.device("cpu:0"),
+            val_data_loader=torch.utils.data.DataLoader(TestDataset()),
+            networks=[network, network],
+            parallel=True,
+        )
+
+        val_engine.run()
+        self.assertEqual(network.observed_training, [False, False])
+        self.assertTrue(network.training)
+
+    @unittest.skipUnless(torch.cuda.device_count() >= 2, "requires at least two CUDA devices")
+    def test_multiple_cuda_devices_are_rejected(self):
+        """Verify that inputs spanning CUDA devices are rejected."""
+
+        with self.assertRaisesRegex(ValueError, "one CUDA device"):
+            EnsembleEvaluator._find_cuda_device(
+                (torch.zeros(1, device="cuda:0"), {"image": torch.zeros(1, device="cuda:1")})
+            )
+
     @skip_if_no_cuda
     def test_parallel_inference_waits_for_custom_cuda_stream(self):
         """Verify CUDA stream dependencies with an explicit or inferred device.
@@ -292,6 +359,11 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
         handoffs. The subtest covers an explicit ``cuda:0`` configuration and ``device=None``,
         where the synchronization device is inferred from the prepared tensors.
         """
+
+        cuda_device = torch.device("cuda:0")
+        worker_streams = set()
+        worker_devices = set()
+        worker_streams_lock = threading.Lock()
 
         class TestDataset(torch.utils.data.Dataset):
             """One-sample dataset for the CUDA stream ordering test."""
@@ -333,12 +405,17 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
 
             def forward(self, x):
                 """Add the offset after delaying worker-stream work."""
+                with worker_streams_lock:
+                    worker_streams.add(torch.cuda.current_stream(cuda_device).cuda_stream)
+                    worker_devices.add(torch.cuda.current_device())
                 torch.cuda._sleep(50_000_000)
                 return x + self.offset
 
-        cuda_device = torch.device("cuda:0")
         for device in (cuda_device, None):
             with self.subTest(device=device):
+                with worker_streams_lock:
+                    worker_streams.clear()
+                    worker_devices.clear()
                 val_engine = EnsembleEvaluator(
                     device=device,
                     val_data_loader=torch.utils.data.DataLoader(TestDataset()),
@@ -357,6 +434,9 @@ class TestEnsembleEvaluatorParallel(unittest.TestCase):
                 with torch.cuda.stream(torch.cuda.Stream(device=cuda_device)):
                     val_engine.run()
                 self.assertEqual(observed, [(2, 3)])
+                self.assertEqual(worker_devices, {cuda_device.index})
+                self.assertEqual(len(worker_streams), 2)
+                self.assertNotIn(torch.cuda.default_stream(cuda_device).cuda_stream, worker_streams)
 
 
 if __name__ == "__main__":
