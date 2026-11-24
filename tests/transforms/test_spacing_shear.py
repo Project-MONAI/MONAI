@@ -31,18 +31,18 @@ def _random_sheared_affine(rng: np.random.Generator, det_negative: bool = False)
     """Random 4x4 affine with anisotropic spacing, non-orthogonal (sheared) rotation."""
     sp = rng.uniform(0.8, 3.5, size=3)
     a, b, c = rng.uniform(-np.pi, np.pi, size=3)
-    Rx = np.array([[1, 0, 0], [0, np.cos(a), -np.sin(a)], [0, np.sin(a), np.cos(a)]])
-    Ry = np.array([[np.cos(b), 0, np.sin(b)], [0, 1, 0], [-np.sin(b), 0, np.cos(b)]])
-    Rz = np.array([[np.cos(c), -np.sin(c), 0], [np.sin(c), np.cos(c), 0], [0, 0, 1]])
-    R = Rz @ Ry @ Rx
-    S = np.eye(3)
-    S[0, 1] = rng.uniform(-0.35, 0.35)
-    S[1, 2] = rng.uniform(-0.3, 0.3)
-    R = R @ S
+    rx = np.array([[1, 0, 0], [0, np.cos(a), -np.sin(a)], [0, np.sin(a), np.cos(a)]])
+    ry = np.array([[np.cos(b), 0, np.sin(b)], [0, 1, 0], [-np.sin(b), 0, np.cos(b)]])
+    rz = np.array([[np.cos(c), -np.sin(c), 0], [np.sin(c), np.cos(c), 0], [0, 0, 1]])
+    r = rz @ ry @ rx
+    shear = np.eye(3)
+    shear[0, 1] = rng.uniform(-0.35, 0.35)
+    shear[1, 2] = rng.uniform(-0.3, 0.3)
+    r = r @ shear
     if det_negative:
-        R[:, 0] *= -1.0
+        r[:, 0] *= -1.0
     A = np.eye(4)
-    A[:3, :3] = R @ np.diag(sp)
+    A[:3, :3] = r @ np.diag(sp)
     A[:3, 3] = rng.uniform(-20, 20, size=3)
     return A
 
