@@ -142,6 +142,26 @@ class TestVerifyBundle(unittest.TestCase):
             {k: v for k, v in sys.modules.items() if k == "scripts" or k.startswith("scripts.")}, existing_modules
         )
 
+    def test_bundle_imported_as_package(self):
+        self._download_schema()
+        bundle = self._make_custom_bundle("my_bundle", out_channels=2)
+        (bundle / "__init__.py").write_text("")
+        # the bundle itself is already imported as a package before verifying
+        sys.path.insert(0, self.tempdir)
+        try:
+            import my_bundle
+            import my_bundle.scripts.net as bundle_net
+        finally:
+            sys.path.remove(self.tempdir)
+        try:
+            verify_bundle(bundle_path=str(bundle), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
+            # the original module instances are kept
+            self.assertIs(sys.modules["my_bundle"], my_bundle)
+            self.assertIs(sys.modules["my_bundle.scripts.net"], bundle_net)
+        finally:
+            for name in [m for m in sys.modules if m == "my_bundle" or m.startswith("my_bundle.")]:
+                sys.modules.pop(name)
+
     def test_wrong_checkpoint(self):
         self._download_schema()
         torch.save({"unrelated.weight": torch.zeros(3)}, self.bundle / "models" / "model.pt")

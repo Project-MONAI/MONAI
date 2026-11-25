@@ -1330,13 +1330,15 @@ def _verify_bundle_checkpoint(net_id: str, ckpt_file: str, meta_file: str, confi
     logger.info("checkpoint matches the network with no error.")
 
 
-def _remove_modules_under(path: PathLike) -> None:
-    """Remove the modules imported from files under `path` from ``sys.modules``."""
+def _modules_under(path: PathLike) -> dict[str, Any]:
+    """Return the modules in ``sys.modules`` imported from files under `path`."""
     root = os.path.normcase(os.path.realpath(path)) + os.sep
+    modules = {}
     for name, module in list(sys.modules.items()):
         file = getattr(module, "__file__", None)
         if file and os.path.normcase(os.path.realpath(file)).startswith(root):
-            sys.modules.pop(name, None)
+            modules[name] = module
+    return modules
 
 
 @contextmanager
@@ -1348,7 +1350,8 @@ def _bundle_import_context(bundle_root: Path) -> Iterator[None]:
     top-level name is provided by the bundle (for example ``scripts``) are taken out of ``sys.modules``,
     so that the bundle's own code is imported instead of a cached module of the same name.
     Afterwards, ``sys.path`` and the bytecode flag are restored, the modules imported from the bundle
-    are removed, and the modules taken out are put back.
+    are removed, and the modules that existed before (including the ones imported from files of the
+    bundle under another name, for example when the bundle itself is imported as a package) are put back.
     """
     names = set()
     for item in bundle_root.iterdir():
@@ -1359,9 +1362,12 @@ def _bundle_import_context(bundle_root: Path) -> Iterator[None]:
     def _from_bundle(module_name: str) -> bool:
         return module_name.partition(".")[0] in names
 
-    saved_modules = {k: v for k, v in sys.modules.items() if _from_bundle(k)}
-    for k in saved_modules:
+    # the modules imported from the bundle's files before are kept, the shadowing ones are taken out
+    saved_modules = _modules_under(bundle_root)
+    shadowing_modules = {k: v for k, v in sys.modules.items() if _from_bundle(k)}
+    for k in shadowing_modules:
         sys.modules.pop(k)
+    saved_modules.update(shadowing_modules)
     sys.path.insert(0, str(bundle_root))
     dont_write_bytecode = sys.dont_write_bytecode
     sys.dont_write_bytecode = True
@@ -1371,9 +1377,8 @@ def _bundle_import_context(bundle_root: Path) -> Iterator[None]:
     finally:
         sys.path.remove(str(bundle_root))
         sys.dont_write_bytecode = dont_write_bytecode
-        for k in [k for k in sys.modules if _from_bundle(k)]:
-            sys.modules.pop(k)
-        _remove_modules_under(bundle_root)
+        for k in [k for k in sys.modules if _from_bundle(k)] + list(_modules_under(bundle_root)):
+            sys.modules.pop(k, None)
         sys.modules.update(saved_modules)
 
 
