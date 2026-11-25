@@ -12,8 +12,8 @@ on:
 
 
 env:
-  PYTHON_VER: '3.10'
-  PYTORCH_VER: '2.8.0'
+  PYTHON_VER: '3.11'
+  PYTORCH_VER: '2.12.1'
   PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
 
 jobs:
@@ -74,6 +74,7 @@ jobs:
         # remove git clone dependencies, see https://github.com/Project-MONAI/MONAI/issues/5882
         sed -i /git+/d pyproject.toml
         sed -i 's/name\ =\ "monai"$/name\ =\ "monai-weekly"/g' pyproject.toml
+        sed -i 's/"monai\[/"monai-weekly[/g' pyproject.toml
         echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
         git diff pyproject.toml monai/__init__.py
         git config user.name "CI Builder"

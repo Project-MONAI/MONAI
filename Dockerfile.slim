@@ -61,8 +61,9 @@ FROM ${IMAGE} AS build2
 ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_INSTALL="apt install -y --no-install-recommends"
 
+# install the necessary libraries for running Python and for Triton to build kernels when needed
 RUN apt update && apt upgrade -y && \
-    ${APT_INSTALL} ca-certificates  python-is-python3 git libopenslide0 && \
+    ${APT_INSTALL} ca-certificates python-is-python3 python3-dev git libopenslide0 build-essential && \
     apt clean && \
     rm -rf /usr/lib/python*/EXTERNALLY-MANAGED /var/lib/apt/lists/*
 
