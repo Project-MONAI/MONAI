@@ -34,7 +34,7 @@ RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc &&
     rm -rf ngccli_linux.zip ngc-cli.md5
 ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 RUN apt-get update \
-  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
+  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0 libopenmpi3 \
   && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
