@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
-from monai.losses.perceptual import normalize_tensor
+from monai.losses.perceptual import normalize_tensor, torchvision_zscore_norm
 from monai.utils import optional_import
 from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick
 
@@ -136,6 +136,58 @@ class TestPerceptualLoss(unittest.TestCase):
         self.assertFalse(torch.isnan(out).any())
         self.assertIsNotNone(x.grad)
         self.assertFalse(torch.isnan(x.grad).any())
+
+
+@unittest.skipUnless(has_torchvision, "Requires torchvision")
+class TestTorchvisionPerceptualLoss(unittest.TestCase):
+    @parameterized.expand([1, 3])
+    def test_input_not_modified(self, channels):
+        loss = PerceptualLoss(spatial_dims=2, network_type="resnet50", pretrained=False)
+        input = torch.rand(1, channels, 32, 32)
+        target = torch.rand_like(input)
+        input_before = input.clone()
+        target_before = target.clone()
+
+        result = loss(input, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertTrue(torch.equal(input, input_before))
+        self.assertTrue(torch.equal(target, target_before))
+
+    @parameterized.expand([1, 3])
+    def test_leaf_gradient(self, channels):
+        loss = PerceptualLoss(spatial_dims=2, network_type="resnet50", pretrained=False)
+        input = torch.rand(1, channels, 32, 32, requires_grad=True)
+        target = torch.rand_like(input, requires_grad=True)
+
+        result = loss(input, target)
+        result.backward()
+
+        self.assertIsNotNone(input.grad)
+        self.assertIsNotNone(target.grad)
+        self.assertTrue(torch.isfinite(input.grad).all())
+        self.assertTrue(torch.isfinite(target.grad).all())
+
+
+class TestTorchvisionZScoreNorm(unittest.TestCase):
+    @parameterized.expand([torch.float32, torch.float64])
+    def test_normalization(self, dtype):
+        input = torch.rand(2, 3, 4, 4, dtype=dtype)
+        input_before = input.clone()
+        expected = torch.stack(
+            [
+                (input[:, channel] - mean) / std
+                for channel, (mean, std) in enumerate(zip([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+            ],
+            dim=1,
+        )
+
+        result = torchvision_zscore_norm(input)
+
+        assert_allclose(result, expected, rtol=0, atol=0)
+        self.assertEqual(result.dtype, input.dtype)
+        self.assertEqual(result.device, input.device)
+        self.assertTrue(torch.equal(input, input_before))
 
 
 if __name__ == "__main__":
