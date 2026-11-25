@@ -20,7 +20,7 @@ from monai.networks import eval_mode
 from monai.networks.nets import Quicknat
 from monai.networks.nets.quicknat import SkipConnectionWithIdx
 from monai.utils import optional_import
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 _, has_se = optional_import("squeeze_and_excitation")
 
@@ -108,6 +108,11 @@ class TestQuicknat(unittest.TestCase):
         net = Quicknat(num_classes=1, num_channels=1)
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        net = Quicknat(num_classes=1, num_channels=1)
+        test_data = torch.randn(16, 1, 32, 32)
+        test_export_save(net, test_data)
 
 
 if __name__ == "__main__":

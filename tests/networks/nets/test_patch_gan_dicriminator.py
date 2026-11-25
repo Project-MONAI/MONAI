@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import MultiScalePatchDiscriminator, PatchDiscriminator
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 TEST_PATCHGAN = [
     [
@@ -140,6 +140,22 @@ class TestPatchGAN(unittest.TestCase):
         i = torch.rand([1, 3, 256, 512])
         test_script_save(net, i)
 
+    def test_export(self):
+        net = PatchDiscriminator(
+            num_layers_d=3,
+            spatial_dims=2,
+            channels=8,
+            in_channels=3,
+            out_channels=1,
+            kernel_size=3,
+            activation="LEAKYRELU",
+            norm="instance",
+            bias=False,
+            dropout=0.1,
+        )
+        i = torch.rand([1, 3, 256, 512])
+        test_export_save(net, i)
+
 
 class TestMultiscalePatchGAN(unittest.TestCase):
     @parameterized.expand(TEST_MULTISCALE_PATCHGAN)
@@ -173,6 +189,24 @@ class TestMultiscalePatchGAN(unittest.TestCase):
         )
         i = torch.rand([1, 3, 256, 512])
         test_script_save(net, i)
+
+    def test_export(self):
+        net = MultiScalePatchDiscriminator(
+            num_d=2,
+            num_layers_d=3,
+            spatial_dims=2,
+            channels=8,
+            in_channels=3,
+            out_channels=1,
+            kernel_size=3,
+            activation="LEAKYRELU",
+            norm="instance",
+            bias=False,
+            dropout=0.1,
+            minimum_size_im=256,
+        )
+        i = torch.rand([1, 3, 256, 512])
+        test_export_save(net, i)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import VoxelMorph, VoxelMorphUNet
-from tests.test_utils import test_script_save
+from tests.test_utils import test_export_save, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -262,6 +262,17 @@ class TestVOXELMORPH(unittest.TestCase):
         )
         test_data = torch.randn(1, 2, 96, 96)
         test_script_save(net, test_data)
+
+    def test_export(self):
+        net = VoxelMorphUNet(
+            spatial_dims=2,
+            in_channels=2,
+            unet_out_channels=32,
+            channels=(16, 32, 32, 32, 32, 32),
+            final_conv_channels=(16, 16),
+        )
+        test_data = torch.randn(1, 2, 96, 96)
+        test_export_save(net, test_data)
 
     @parameterized.expand(ILL_CASES)
     def test_ill_input_hyper_params(self, input_param):

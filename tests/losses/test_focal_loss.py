@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.test_utils import TEST_DEVICES, test_script_save
+from tests.test_utils import TEST_DEVICES, test_export_save, test_script_save
 
 TEST_CASES = []
 for case in TEST_DEVICES:
@@ -356,8 +356,11 @@ class TestFocalLoss(unittest.TestCase):
             FocalLoss(include_background=True, weight=(1.0, 1.0, 2.0))(chn_input, chn_target)
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(include_background=False, weight=(1.0, 1.0, 1.0, 1.0))(chn_input, chn_target)
-        with self.assertRaisesRegex(ValueError, ""):
-            FocalLoss(include_background=False, weight=(1.0, 1.0, -1.0))(chn_input, chn_target)
+
+    @parameterized.expand([[(1.0, 1.0, -1.0)], [-1.0]])
+    def test_negative_weight(self, weight):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            FocalLoss(weight=weight)
 
     def test_warnings(self):
         with self.assertWarns(Warning):
@@ -375,6 +378,14 @@ class TestFocalLoss(unittest.TestCase):
             chn_target = torch.ones((1, 3, 3))
             loss = FocalLoss(include_background=False, use_softmax=True, alpha=0.5)
             loss(chn_input, chn_target)
+
+    @parameterized.expand(
+        [[True, None], [False, None], [True, (1.0, 2.0)], [False, (1.0, 2.0)], [True, 0.5], [False, 0.5]]
+    )
+    def test_export(self, use_softmax, weight):
+        loss = FocalLoss(use_softmax=use_softmax, weight=weight)
+        test_input = torch.ones(2, 2, 8, 8)
+        test_export_save(loss, test_input, test_input)
 
     def test_script(self):
         for use_softmax in [True, False]:

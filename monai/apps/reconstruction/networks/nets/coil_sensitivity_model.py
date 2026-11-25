@@ -24,6 +24,38 @@ from monai.apps.reconstruction.networks.nets.utils import (
     reshape_channel_to_batch_dim,
 )
 from monai.networks.blocks.fft_utils_t import ifftn_centered_t
+from monai.utils import deprecated
+
+
+def _fully_sampled_mask(mask: Tensor) -> Tensor:
+    """
+    Compute a boolean mask of the Auto Calibration Region (ACR), the fully-sampled center of the k-space.
+    This uses tensor operations rather than loops over mask values, which ``torch.export`` cannot trace, and creates
+    no tensors with an explicit device, which an exported program would keep and so could not be moved.
+
+    Args:
+        mask: the under-sampling mask of shape (..., S, 1) where S denotes the sampling dimension.
+
+    Returns:
+        A boolean tensor with the same shape as ``mask``.
+
+    Raises:
+        ValueError: When ``mask`` holds more than one sampling vector.
+    """
+    num_samples = mask.shape[-2]
+    if mask.numel() != num_samples:
+        raise ValueError(f"mask must hold a single sampling vector, got shape {mask.shape}.")
+
+    center = num_samples // 2
+    sampled = mask.reshape(-1) != 0
+    right = torch.cumprod(sampled[center:], dim=0).sum()
+    left = torch.cumprod(sampled[: center + 1].flip([0]), dim=0).sum()
+    num_low_freqs = left + right - 1  # size of the fully-sampled center, which is counted twice
+
+    start = (num_samples - num_low_freqs + 1) // 2  # this marks the start of center extraction
+    positions = torch.cumsum(torch.ones_like(sampled, dtype=torch.int64), dim=0) - 1
+    region = (positions >= start) & (positions < start + num_low_freqs)
+    return region.view(mask.shape)
 
 
 class CoilSensitivityModel(nn.Module):
@@ -85,6 +117,7 @@ class CoilSensitivityModel(nn.Module):
         self.spatial_dims = spatial_dims
         self.coil_dim = coil_dim
 
+    @deprecated(since="1.7.0", removed="1.9.0", msg_suffix="`forward` no longer uses it.")
     def get_fully_sampled_region(self, mask: Tensor) -> tuple[int, int]:
         """
         Extracts the size of the fully-sampled part of the kspace. Note that when a kspace
@@ -122,13 +155,8 @@ class CoilSensitivityModel(nn.Module):
         Returns:
             predicted coil sensitivity maps with shape (B,C,H,W,2) for 2D data or (B,C,H,W,D,2) for 3D data.
         """
-        left, right = self.get_fully_sampled_region(mask)
-        num_low_freqs = right - left  # size of the fully-sampled center
-
         # take out the fully-sampled region and set the rest of the data to zero
-        x = torch.zeros_like(masked_kspace)
-        start = (mask.shape[-2] - num_low_freqs + 1) // 2  # this marks the start of center extraction
-        x[..., start : start + num_low_freqs, :] = masked_kspace[..., start : start + num_low_freqs, :]
+        x = masked_kspace.masked_fill(~_fully_sampled_mask(mask), 0)
 
         # apply inverse fourier to the extracted fully-sampled data
         x = ifftn_centered_t(x, spatial_dims=self.spatial_dims, is_complex=True)

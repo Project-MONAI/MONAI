@@ -38,6 +38,7 @@ Model Bundle
 `Scripts`
 ---------
 .. autofunction:: ckpt_export
+.. autofunction:: export_checkpoint
 .. autofunction:: trt_export
 .. autofunction:: onnx_export
 .. autofunction:: download
