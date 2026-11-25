@@ -20,19 +20,31 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from monai.utils.deprecate_utils import deprecated
+
 __all__ = ["MODEL_DESC", "RemoteMMARKeys"]
 
 
+@deprecated(
+    since="1.7.0",
+    removed="1.9.0",
+    msg_suffix="NVIDIA Clara MMAR support is deprecated. Please use MONAI Bundles instead.",
+)
 class RemoteMMARKeys:
     """
     Data keys used for loading MMAR.
     ID must uniquely define an MMAR.
+
+    .. deprecated:: 1.7.0
+        NVIDIA Clara MMAR support will be removed in version 1.9.0. Use MONAI Bundles instead.
+        Reading these constants or ``MODEL_DESC`` does not emit a warning; both will be removed
+        with the MMAR module in version 1.9.0.
     """
 
     ID = "id"  # unique MMAR
     NAME = "name"  # MMAR name for readability
     URL = "url"  # remote location of the MMAR, see also: `monai.apps.mmars.mmars._get_ngc_url`
-    DOC = "doc"  # documentation page of the remote model, see also: `monai.apps.mmars.mmars._get_ngc_doc_url`
+    DOC = "doc"  # documentation page of the remote model
     FILE_TYPE = "file_type"  # type of the compressed MMAR
     HASH_TYPE = "hash_type"  # hashing method for the compressed MMAR
     HASH_VAL = "hash_val"  # hashing value for the compressed MMAR

@@ -7,7 +7,7 @@ requires = [
   "more-itertools>=8.0",
   "ninja",
   "packaging",
-  "torch>=2.8.0",
+  "torch>=2.12.1",
   "numpy>=1.24,<3.0",
   "backports.tarfile"  # see https://github.com/Project-MONAI/MONAI/issues/8791
 ]
@@ -17,8 +17,9 @@ build-backend = "setuptools.build_meta"
 name = "monai"
 description = "AI Toolkit for Healthcare Imaging"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10"
-license = { text = "Apache License 2.0" }
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "MONAI Consortium", email = "monai.contact@gmail.com" }]
 classifiers = [
   "Intended Audience :: Developers",
@@ -27,10 +28,11 @@ classifiers = [
   "Intended Audience :: Healthcare Industry",
   "Programming Language :: C++",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Scientific/Engineering :: Medical Science Apps.",
@@ -42,7 +44,7 @@ classifiers = [
 # The NVIDIA distributions named below are swapped for the detected accelerator vendor's equivalents
 # by monai/config/vendor_deps.py when MONAI is built or installed against that vendor's PyTorch.
 dependencies = [
-  "torch>=2.8.0",
+  "torch>=2.12.1",
   "numpy>=1.24,<3.0"
 ]
 dynamic = ["version"]
@@ -56,57 +58,17 @@ Documentation = "https://monai.readthedocs.io/"
 [project.optional-dependencies]
 # All dependencies are included here except some omitted for compatibility. Testing dependencies are typically not
 # needed and so present only in "testing". Ensure requirement changes in other lists are reflected here as well.
-all = [
-  "clearml>=1.10.0rc0",
-  "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
-  "cucim-cu13; platform_system == 'Linux' and python_version >= '3.11'",
-  "einops",
-  "filelock<3.12.0",
-  "fire",
-  "gdown>=4.7.3",
-  "h5py",
-  "huggingface_hub",
-  "imagecodecs; platform_system == 'Linux' or platform_system == 'Darwin'",
-  "itk>=5.2",
-  "jsonschema",
-  "lmdb",
-  "lpips==0.1.4",
-  "matplotlib>=3.6.3",
+all=[
+  "monai[all_python,pynvml,cucim]",
+  # per #5882 these requirements must be on one line to get removed by sed in weekly-preview.yml
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
-  "mlflow>=3.15.2",
-  "nibabel",
-  "ninja",
-  "nni; platform_system == 'Linux' and 'arm' not in platform_machine and 'aarch' not in platform_machine",
-  "nvidia-ml-py",
-  "onnx_graphsurgeon",
-  "onnx>=1.13.0",
-  "onnxruntime; python_version <= '3.10'",
-  "onnxscript",
-  "openslide-bin",
-  "openslide-python",
-  "optuna",
-  "pandas",
-  "pillow!=8.3.0",
-  "polygraphy",
-  "psutil",
-  "pyamg>=5.0.0,<5.3.0",
-  "pybind11",
-  "pydicom",
-  "pynrrd",
-  "pytorch-ignite",
-  "pyyaml",
-  "requests",
-  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588",
-  "scikit-image>=0.19.0",
-  "scipy>=1.12.0",
-  "tensorboard>=2.12.0",
-  "tensorboardX",
-  "tifffile; platform_system == 'Linux' or platform_system == 'Darwin'",
-  "torchio",
-  "torchvision",
-  "tqdm>=4.47.0",
-  "transformers>=5.5.0",
-  "zarr"
+  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"
+]
+# All dependencies which are not conditional on platform are here, included as MONAI optionals defined below this one.
+all_python=[
+  "monai[clearml,einops,fire,gdown,h5py,huggingface_hub,ignite,imagecodecs,itk,jsonschema,lmdb,matplotlib,mlflow]",
+  "monai[nibabel,nni,onnx,openslide,optuna,pandas,pandas,pillow,polygraphy,psutil,pyamg,pybind11,pydicom,pynrrd]",
+  "monai[pyyaml,requests,scipy,skimage,tensorboard,tensorboardX,tifffile,torchio,torchvision,tqdm,transformers,zarr]"
 ]
 clearml = ["clearml>=1.10.0rc0"]
 cucim = [
@@ -125,8 +87,8 @@ imagecodecs = ["imagecodecs; platform_system == 'Linux' or platform_system == 'D
 itk = ["itk>=5.2"]
 jsonschema = ["jsonschema"]
 lmdb = ["lmdb"]
-lpips = ["lpips==0.1.4"]
-matplotlib = ["matplotlib>=3.6.3"]
+lpips = ["torchvision"]  # compatibility extra; LPIPS is implemented within MONAI
+matplotlib = ["matplotlib>=3.11.2"]
 # per #5882 this requirement must be on one line to get removed by sed in weekly-preview.yml
 metrics_reloaded = ["MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support"]
 mlflow = ["mlflow>=3.15.2"]
@@ -143,7 +105,7 @@ nvimgcodec = [
   "cupy-cuda13x[ctk]!=14.1.0; platform_system == 'Linux'",
   "nvidia-nvimgcodec-cu13[all]>=0.8.0; platform_system == 'Linux'"
 ]
-onnx = ["onnx>=1.13.0", "onnxruntime; python_version <= '3.10'", "onnx_graphsurgeon", "onnxscript"]
+onnx = ["onnx>=1.13.0", "onnx_graphsurgeon", "onnxscript"]
 openslide = ["openslide-python", "openslide-bin"]
 optuna = ["optuna"]
 pandas = ["pandas"]
@@ -189,7 +151,8 @@ testing = [
 ]
 
 [tool.setuptools]
-license-files = ["LICENSE"]
+# C++/CUDA sources under monai/csrc are compiled into monai._C; they are not Python packages or package data
+include-package-data = false
 
 [tool.setuptools.dynamic]
 version = {attr = "monai.__version__"}
@@ -397,7 +360,7 @@ project-excludes = [
 ]
 
 # Match CI environment
-python-version = "3.10"
+python-version = "3.11"
 python-platform = "linux"
 
 # "legacy" preset provides a smooth migration from previous type checkers

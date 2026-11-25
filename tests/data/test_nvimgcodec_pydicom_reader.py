@@ -100,12 +100,27 @@ class TestNvImgCodecPydicomReader(unittest.TestCase):
     @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
-    def test_reader_init_registers_plugin(self, _mock_available, mock_register):
+    def test_reader_registers_plugin_lazily(self, _mock_available, mock_register):
         from monai.data import NvImgCodecPydicomReader
 
         reader = NvImgCodecPydicomReader()
         self.assertIsInstance(reader, NvImgCodecPydicomReader)
+
+        mock_register.assert_not_called()
+
+        reader.verify_suffix("x.dcm")
+
         mock_register.assert_called_once()
+
+    @SkipIfNoModule("pydicom")
+    @patch("monai.data.nvimgcodec_pydicom_plugin.register_as_decoder_plugin", return_value=True)
+    @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=True)
+    def test_reader_does_not_register_plugin_for_non_dicom(self, _mock_available, mock_register):
+        from monai.data import NvImgCodecPydicomReader
+
+        reader = NvImgCodecPydicomReader()
+        self.assertFalse(reader.verify_suffix("x.png"))
+        mock_register.assert_not_called()
 
     @SkipIfNoModule("pydicom")
     @patch("monai.data.nvimgcodec_pydicom_plugin.is_nvimgcodec_available", return_value=False)

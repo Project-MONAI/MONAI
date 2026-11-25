@@ -33,6 +33,8 @@ dependencies = ["torch", "numpy"]
 [project.optional-dependencies]
 all = ["something", "another"]
 testing = ["coverage", "black"]
+recursive= ["test[testing]"]
+recursive_weekly= ["test-weekly[testing]"]
 """
 
 PARSE_CASES = [
@@ -40,9 +42,13 @@ PARSE_CASES = [
     (["testing"], ["black", "coverage", "numpy", "torch"]),
     (["build-system"], ["numpy", "setuptools", "torch", "wheel"]),
     (["*"], ["another", "black", "coverage", "numpy", "something", "torch"]),
+    (["recursive"], ["black", "coverage", "numpy", "torch"]),
+    (["recursive_weekly"], ["black", "coverage", "numpy", "torch"]),
 ]
 
 
+@patch("monai.config.print_dependencies.PROJ", "test")
+@patch("monai.config.print_dependencies.PROJ_WEEKLY", "test-weekly")
 class TestPrintDependencies(unittest.TestCase):
     def setUp(self):
         # pin the expectations to the NVIDIA/PyPI lists, whatever torch build the host has
