@@ -229,6 +229,8 @@ jobs:
     needs: test_skip
     env:
       QUICKTEST: True
+      PYTORCH_VERSION: ${{ matrix.pytorch-version }}
+      TORCHVISION_VERSION: ${{ matrix.torchvision-version }}
     steps:
     - name: Clean unused tools
       if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
@@ -261,11 +263,8 @@ jobs:
     - if: needs.test_skip.outputs.skip == 0
       name: Install PyTorch
       run: |
-        python -m pip install "torch==${PYTORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}"
+        python -m pip install "torch==${PYTORCH_VERSION:-$PYTORCH_VER1}" "torchvision==${TORCHVISION_VERSION:-$TORCHVISION_VER1}"
       shell: bash
-      env:
-        PYTORCH_VERSION: ${{ matrix.pytorch-version || env.PYTORCH_VER1 }}
-        TORCHVISION_VERSION: ${{ matrix.torchvision-version || env.TORCHVISION_VER1 }}
     - if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       name: Install itk pre-release (Linux only)
       run: |
@@ -291,22 +290,19 @@ jobs:
     - name: Verify resolved PyTorch versions
       if: matrix.pytorch-version && needs.test_skip.outputs.skip == 0
       shell: bash
-      env:
-        PYTORCH_VERSION: ${{ matrix.pytorch-version }}
-        TORCHVISION_VERSION: ${{ matrix.torchvision-version }}
       run: |
-        python - <<'PY'
-        import os
-        from importlib.metadata import version
+        INSTALLED_PACKAGES=$(python -m pip list --format=columns)
+        ACTUAL_PYTORCH_VER=$(awk '$1 == "torch" {print $2}' <<< "$INSTALLED_PACKAGES")
+        ACTUAL_TORCHVISION_VER=$(awk '$1 == "torchvision" {print $2}' <<< "$INSTALLED_PACKAGES")
 
-        for package, expected in (
-            ("torch", os.environ["PYTORCH_VERSION"]),
-            ("torchvision", os.environ["TORCHVISION_VERSION"]),
-        ):
-            installed = version(package)
-            if installed.split("+", 1)[0] != expected:
-                raise SystemExit(f"Expected {package}=={expected}, found {installed}.")
-        PY
+        # CPU wheels can include a local version suffix such as +cpu.
+        if [[ "${ACTUAL_PYTORCH_VER%%+*}" != "$PYTORCH_VERSION" ||
+              "${ACTUAL_TORCHVISION_VER%%+*}" != "$TORCHVISION_VERSION" ]]; then
+            echo "Mismatched PyTorch/Torchvision versions:"
+            echo "  PyTorch version actual=$ACTUAL_PYTORCH_VER, expected=$PYTORCH_VERSION"
+            echo "  Torchvision version actual=$ACTUAL_TORCHVISION_VER, expected=$TORCHVISION_VERSION"
+            exit 1
+        fi
     - if: runner.os != 'macOS' && needs.test_skip.outputs.skip == 0
       name: Run full tests
       run: |
