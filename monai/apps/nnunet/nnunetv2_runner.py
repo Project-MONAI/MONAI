@@ -61,10 +61,10 @@ def _confine_to_dir(candidate: str, allowed_dir: str, description: str) -> str:
     Raises:
         ValueError: if the resolved path escapes ``allowed_dir``.
     """
+    resolved = os.path.realpath(candidate)
     try:
-        return str(confined_path(allowed_dir, candidate))
+        confined_path(allowed_dir, resolved)
     except ValueError as e:
-        resolved = os.path.realpath(os.path.join(allowed_dir, candidate))
         allowed_root = os.path.realpath(allowed_dir)
         raise ValueError(
             f"Refusing to load {description} from '{candidate}': it resolves to '{resolved}', outside the "
@@ -72,6 +72,7 @@ def _confine_to_dir(candidate: str, allowed_dir: str, description: str) -> str:
             "value pointing outside the results directory indicates that file has been tampered with "
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87)."
         ) from e
+    return resolved
 
 
 @require_pkg(pkg_name="nnunetv2")
