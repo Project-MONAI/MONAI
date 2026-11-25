@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import ast
+import importlib
 import json
 import os
 import re
@@ -19,7 +20,8 @@ import sys
 import tempfile
 import urllib
 import warnings
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
 from pydoc import locate
@@ -1337,6 +1339,44 @@ def _remove_modules_under(path: PathLike) -> None:
             sys.modules.pop(name, None)
 
 
+@contextmanager
+def _bundle_import_context(bundle_root: Path) -> Iterator[None]:
+    """
+    Make the custom code shipped with the bundle importable, isolated from the modules of the process.
+
+    `bundle_root` is added to ``sys.path`` and no bytecode is written into the bundle. The modules whose
+    top-level name is provided by the bundle (for example ``scripts``) are taken out of ``sys.modules``,
+    so that the bundle's own code is imported instead of a cached module of the same name.
+    Afterwards, ``sys.path`` and the bytecode flag are restored, the modules imported from the bundle
+    are removed, and the modules taken out are put back.
+    """
+    names = set()
+    for item in bundle_root.iterdir():
+        name = item.stem if item.is_file() and item.suffix == ".py" else item.name if item.is_dir() else ""
+        if name.isidentifier():
+            names.add(name)
+
+    def _from_bundle(module_name: str) -> bool:
+        return module_name.partition(".")[0] in names
+
+    saved_modules = {k: v for k, v in sys.modules.items() if _from_bundle(k)}
+    for k in saved_modules:
+        sys.modules.pop(k)
+    sys.path.insert(0, str(bundle_root))
+    dont_write_bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    importlib.invalidate_caches()
+    try:
+        yield
+    finally:
+        sys.path.remove(str(bundle_root))
+        sys.dont_write_bytecode = dont_write_bytecode
+        for k in [k for k in sys.modules if _from_bundle(k)]:
+            sys.modules.pop(k)
+        _remove_modules_under(bundle_root)
+        sys.modules.update(saved_modules)
+
+
 def verify_bundle(
     bundle_path: PathLike | None = None,
     mode: str | None = None,
@@ -1375,8 +1415,9 @@ def verify_bundle(
 
     In "full" mode, `bundle_path` is temporarily added to ``sys.path`` so that custom code shipped with
     the bundle (for example, ``"$import scripts"`` in the config) can be imported. No bytecode is written
-    into the bundle, and the modules imported from the bundle are removed from ``sys.modules`` afterwards,
-    so that several bundles with packages of the same name can be verified in one process.
+    into the bundle. The bundle's code is imported in isolation: modules of the same name already in
+    ``sys.modules`` are not used and are restored afterwards, and the modules imported from the bundle
+    are removed, so that several bundles with packages of the same name can be verified in one process.
 
     Typical usage examples:
 
@@ -1485,12 +1526,8 @@ def verify_bundle(
             config_file_ = str(found)
         ckpt_file_ = str(bundle_root / "models" / "model.pt") if ckpt_file_ is None else ckpt_file_
 
-        # make custom code shipped with the bundle importable without writing bytecode into the bundle,
-        # restore `sys.path`, the bytecode flag and the imported modules afterwards
-        sys.path.insert(0, str(bundle_root))
-        dont_write_bytecode = sys.dont_write_bytecode
-        sys.dont_write_bytecode = True
-        try:
+        # make custom code shipped with the bundle importable, isolated from the modules of the process
+        with _bundle_import_context(bundle_root):
             if Path(ckpt_file_).is_file():
                 _verify_bundle_checkpoint(
                     net_id=net_id_,
@@ -1526,10 +1563,6 @@ def verify_bundle(
                     torch.jit.load(str(existing_ts), map_location="cpu")
             else:
                 logger.info("skip verifying the TorchScript export.")
-        finally:
-            sys.path.remove(str(bundle_root))
-            sys.dont_write_bytecode = dont_write_bytecode
-            _remove_modules_under(bundle_root)
     logger.info(f"bundle `{bundle_root}` is verified with no error (mode: full).")
 
 

@@ -124,6 +124,24 @@ class TestVerifyBundle(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "channel"):
             verify_bundle(bundle_path=str(bundle_bad), **kwargs)
 
+    def test_existing_module_with_same_name(self):
+        self._download_schema()
+        bundle_ok = self._make_custom_bundle("bundle_ok", out_channels=2)
+        bundle_bad = self._make_custom_bundle("bundle_bad", out_channels=3)
+        # a `scripts` package that does not match the metadata is already imported before verifying
+        sys.path.insert(0, str(bundle_bad))
+        try:
+            import scripts.net as existing_net
+        finally:
+            sys.path.remove(str(bundle_bad))
+        existing_modules = {k: v for k, v in sys.modules.items() if k == "scripts" or k.startswith("scripts.")}
+        # the bundle must be verified with its own `scripts`, and the existing modules are kept afterwards
+        verify_bundle(bundle_path=str(bundle_ok), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
+        self.assertIs(sys.modules["scripts.net"], existing_net)
+        self.assertEqual(
+            {k: v for k, v in sys.modules.items() if k == "scripts" or k.startswith("scripts.")}, existing_modules
+        )
+
     def test_wrong_checkpoint(self):
         self._download_schema()
         torch.save({"unrelated.weight": torch.zeros(3)}, self.bundle / "models" / "model.pt")
