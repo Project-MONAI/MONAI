@@ -1313,6 +1313,30 @@ def _verify_bundle_version(meta_file: Path) -> None:
         raise ValueError(f"version `{version}` is missing in the `changelog` of `{meta_file}`.")
 
 
+def _verify_bundle_checkpoint(net_id: str, ckpt_file: str, meta_file: str, config_file: str, bundle_root: str) -> None:
+    """Check that the checkpoint provides exactly the weights of the network, with matching names and shapes."""
+    parser = ConfigParser()
+    parser.read_config(f=config_file)
+    parser.read_meta(f=meta_file)
+    parser["bundle_root"] = bundle_root
+    net = parser.get_parsed_content(net_id)
+    ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=True)
+    try:
+        net.load_state_dict(ckpt, strict=True)
+    except (RuntimeError, TypeError) as e:
+        raise ValueError(f"checkpoint `{ckpt_file}` does not match the weights of network `{net_id}`.") from e
+    logger.info("checkpoint matches the network with no error.")
+
+
+def _remove_modules_under(path: PathLike) -> None:
+    """Remove the modules imported from files under `path` from ``sys.modules``."""
+    root = os.path.normcase(os.path.realpath(path)) + os.sep
+    for name, module in list(sys.modules.items()):
+        file = getattr(module, "__file__", None)
+        if file and os.path.normcase(os.path.realpath(file)).startswith(root):
+            sys.modules.pop(name, None)
+
+
 def verify_bundle(
     bundle_path: PathLike | None = None,
     mode: str | None = None,
@@ -1343,13 +1367,16 @@ def verify_bundle(
             - the metadata is valid against the schema referenced by its ``schema`` field,
               see :py:func:`verify_metadata`.
         - "full" mode only:
+            - if the checkpoint exists, its weights match the network exactly (names and shapes).
             - the network input and output match the ``network_data_format`` of the metadata,
               see :py:func:`verify_net_in_out`. Skipped if `check_net_io` is False.
             - the checkpoint can be exported to TorchScript and loaded back, see :py:func:`ckpt_export`.
               If ``models/model.ts`` exists, it is also loaded. Skipped if `check_torchscript` is False.
 
     In "full" mode, `bundle_path` is temporarily added to ``sys.path`` so that custom code shipped with
-    the bundle (for example, ``"$import scripts"`` in the config) can be imported.
+    the bundle (for example, ``"$import scripts"`` in the config) can be imported. No bytecode is written
+    into the bundle, and the modules imported from the bundle are removed from ``sys.modules`` afterwards,
+    so that several bundles with packages of the same name can be verified in one process.
 
     Typical usage examples:
 
@@ -1458,9 +1485,20 @@ def verify_bundle(
             config_file_ = str(found)
         ckpt_file_ = str(bundle_root / "models" / "model.pt") if ckpt_file_ is None else ckpt_file_
 
-        # make custom code shipped with the bundle importable, restore `sys.path` afterwards
+        # make custom code shipped with the bundle importable without writing bytecode into the bundle,
+        # restore `sys.path`, the bytecode flag and the imported modules afterwards
         sys.path.insert(0, str(bundle_root))
+        dont_write_bytecode = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
         try:
+            if Path(ckpt_file_).is_file():
+                _verify_bundle_checkpoint(
+                    net_id=net_id_,
+                    ckpt_file=ckpt_file_,
+                    meta_file=str(meta_file),
+                    config_file=config_file_,
+                    bundle_root=str(bundle_root),
+                )
             # `bundle_root` is set so that references such as "$@bundle_root + '/models'" resolve to this bundle
             if check_net_io_:
                 verify_net_in_out(
@@ -1482,14 +1520,16 @@ def verify_bundle(
                     config_file=config_file_,
                     bundle_root=str(bundle_root),
                 )
-                torch.jit.load(str(ts_file))
+                torch.jit.load(str(ts_file), map_location="cpu")
                 existing_ts = bundle_root / "models" / "model.ts"
                 if existing_ts.is_file():
-                    torch.jit.load(str(existing_ts))
+                    torch.jit.load(str(existing_ts), map_location="cpu")
             else:
                 logger.info("skip verifying the TorchScript export.")
         finally:
             sys.path.remove(str(bundle_root))
+            sys.dont_write_bytecode = dont_write_bytecode
+            _remove_modules_under(bundle_root)
     logger.info(f"bundle `{bundle_root}` is verified with no error (mode: full).")
 
 

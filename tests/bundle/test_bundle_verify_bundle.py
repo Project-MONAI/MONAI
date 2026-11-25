@@ -18,10 +18,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import torch
 
-from monai.bundle import ConfigParser, verify_bundle
+from monai.bundle import ConfigParser, ckpt_export, verify_bundle
 from tests.test_utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
 
 TESTS_DIR = Path(__file__).parents[1]
@@ -72,22 +73,83 @@ class TestVerifyBundle(unittest.TestCase):
         verify_bundle(bundle_path=str(self.bundle), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
         self.assertEqual(os.listdir(self.bundle / "models"), ["model.pt"])  # the test export is not kept
 
-    def test_full_with_custom_code(self):
-        self._download_schema()
-        # a bundle network defined in the bundle's own `scripts` package
-        (self.bundle / "scripts").mkdir()
-        (self.bundle / "scripts" / "__init__.py").write_text("")
-        (self.bundle / "scripts" / "net.py").write_text(
-            "from monai.networks.nets import UNet\n\n\nclass CustomUNet(UNet):\n    pass\n"
+    def _make_custom_bundle(self, name: str, out_channels: int) -> Path:
+        """Copy the test bundle to `name`, with a network defined in the bundle's own `scripts` package."""
+        bundle = Path(self.tempdir) / name
+        shutil.copytree(self.bundle, bundle)
+        (bundle / "scripts").mkdir()
+        (bundle / "scripts" / "__init__.py").write_text("")
+        (bundle / "scripts" / "net.py").write_text(
+            "from monai.networks.nets import UNet\n\n\n"
+            "class CustomUNet(UNet):\n"
+            "    def __init__(self, **kwargs):\n"
+            f"        kwargs['out_channels'] = {out_channels}\n"
+            "        super().__init__(**kwargs)\n"
         )
-        config_path = self.bundle / "configs" / "inference.json"
+        config_path = bundle / "configs" / "inference.json"
         config = json.loads(config_path.read_text())
         config["network_def"]["_target_"] = "scripts.net.CustomUNet"
         config_path.write_text(json.dumps(config))
+        # save a checkpoint matching the custom network, without leaving it imported or cached
+        sys.path.insert(0, str(bundle))
+        dont_write_bytecode, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+        try:
+            parser = ConfigParser()
+            parser.read_config(str(config_path))
+            torch.save(parser.get_parsed_content("network_def").state_dict(), bundle / "models" / "model.pt")
+        finally:
+            sys.path.remove(str(bundle))
+            sys.dont_write_bytecode = dont_write_bytecode
+            for module in [m for m in sys.modules if m == "scripts" or m.startswith("scripts.")]:
+                sys.modules.pop(module)
+        return bundle
 
+    def test_full_with_custom_code(self):
+        self._download_schema()
+        bundle = self._make_custom_bundle("custom_bundle", out_channels=2)
         sys_path = list(sys.path)
-        verify_bundle(bundle_path=str(self.bundle), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
+        verify_bundle(bundle_path=str(bundle), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
         self.assertEqual(sys.path, sys_path)  # `sys.path` is restored
+        self.assertNotIn("scripts", sys.modules)  # the bundle's modules are not kept
+        self.assertEqual(list(bundle.rglob("__pycache__")), [])  # no bytecode is written into the bundle
+
+    def test_bundles_with_same_package_name(self):
+        self._download_schema()
+        # both bundles have a `scripts` package, only the first one matches the 2 output channels of the metadata
+        bundle_ok = self._make_custom_bundle("bundle_ok", out_channels=2)
+        bundle_bad = self._make_custom_bundle("bundle_bad", out_channels=3)
+        kwargs = {"mode": "full", "schema_file": str(SCHEMA_FILE), "device": "cpu"}
+        verify_bundle(bundle_path=str(bundle_ok), **kwargs)
+        # the second bundle must be verified with its own `scripts`, not the one imported for the first bundle
+        with self.assertRaisesRegex(ValueError, "channel"):
+            verify_bundle(bundle_path=str(bundle_bad), **kwargs)
+
+    def test_wrong_checkpoint(self):
+        self._download_schema()
+        torch.save({"unrelated.weight": torch.zeros(3)}, self.bundle / "models" / "model.pt")
+        kwargs = {"bundle_path": str(self.bundle), "mode": "full", "schema_file": str(SCHEMA_FILE), "device": "cpu"}
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            verify_bundle(**kwargs)
+        # also when the TorchScript export, which loads the checkpoint differently, is skipped
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            verify_bundle(check_torchscript=False, **kwargs)
+
+    def test_torchscript_loaded_on_cpu(self):
+        self._download_schema()
+        # export a TorchScript model into the bundle, then check every `torch.jit.load` maps it to CPU
+        ckpt_export(
+            net_id="network_def",
+            filepath=str(self.bundle / "models" / "model.ts"),
+            ckpt_file=str(self.bundle / "models" / "model.pt"),
+            meta_file=str(self.bundle / "configs" / "metadata.json"),
+            config_file=str(self.bundle / "configs" / "inference.json"),
+            bundle_root=str(self.bundle),
+        )
+        with mock.patch("torch.jit.load", wraps=torch.jit.load) as jit_load:
+            verify_bundle(bundle_path=str(self.bundle), mode="full", schema_file=str(SCHEMA_FILE), device="cpu")
+        self.assertEqual(jit_load.call_count, 2)  # the test export and `models/model.ts`
+        for call in jit_load.call_args_list:
+            self.assertEqual(call.kwargs.get("map_location"), "cpu")
 
     def test_skip_net_io(self):
         self._download_schema()
