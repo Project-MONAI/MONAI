@@ -16,6 +16,7 @@ import os
 import tempfile
 import unittest
 import warnings
+from pathlib import Path
 from unittest.case import skipIf, skipUnless
 from unittest.mock import patch
 
@@ -314,6 +315,54 @@ class TestDownload(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as tempdir:
                     download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
                     mock_logger.warning.assert_not_called()
+
+
+class TestNgcPathTraversal(unittest.TestCase):
+    """The NGC modelFiles manifest is server-controlled; a ``../`` path must not escape the bundle dir."""
+
+    def test_ngc_manifest_traversal_rejected(self):
+        from monai.bundle.scripts import _download_from_ngc
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "ESCAPED")
+            evil = os.path.join("..", "ESCAPED")  # resolves to tempdir/ESCAPED, one level above the bundle dir
+            with patch("monai.bundle.scripts._get_all_download_files", return_value=[evil]):
+                with patch("monai.bundle.scripts.download_url") as mock_dl:
+                    download_path = Path(tempdir) / "bundle"
+                    with self.assertRaises(ValueError):
+                        _download_from_ngc(
+                            download_path=download_path,
+                            filename="spleen",
+                            version="0.1",
+                            remove_prefix=None,
+                            progress=False,
+                        )
+                    mock_dl.assert_not_called()
+            self.assertFalse(os.path.exists(marker))
+
+    def test_ngc_manifest_nested_path_allowed(self):
+        from monai.bundle.scripts import _download_from_ngc
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            captured = {}
+
+            def _fake_download_url(url, filepath, hash_val=None, progress=True):
+                captured["filepath"] = filepath
+
+            with patch("monai.bundle.scripts._get_all_download_files", return_value=["configs/model.pt"]):
+                with patch("monai.bundle.scripts.download_url", side_effect=_fake_download_url):
+                    download_path = Path(tempdir) / "bundle"
+                    _download_from_ngc(
+                        download_path=download_path,
+                        filename="spleen",
+                        version="0.1",
+                        remove_prefix=None,
+                        progress=False,
+                    )
+            dest = Path(captured["filepath"]).resolve()
+            self.assertTrue(dest.is_relative_to(download_path.resolve()))
+            self.assertEqual(dest.parts[-2:], ("configs", "model.pt"))
+            self.assertTrue(dest.parent.is_dir())
 
 
 @skip_if_no_cuda

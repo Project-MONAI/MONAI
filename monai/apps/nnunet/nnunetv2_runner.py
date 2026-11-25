@@ -24,6 +24,7 @@ from typing import Any
 import monai
 from monai.apps.nnunet.utils import NNUNETMode as M
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
+from monai.apps.utils import confined_path
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import, require_pkg
 from monai.utils.misc import MONAIEnvVars, run_cmd
@@ -60,16 +61,17 @@ def _confine_to_dir(candidate: str, allowed_dir: str, description: str) -> str:
     Raises:
         ValueError: if the resolved path escapes ``allowed_dir``.
     """
-    resolved = os.path.realpath(candidate)
-    allowed_root = os.path.realpath(allowed_dir)
-    if os.path.commonpath([resolved, allowed_root]) != allowed_root:
+    try:
+        return str(confined_path(allowed_dir, candidate))
+    except ValueError as e:
+        resolved = os.path.realpath(os.path.join(allowed_dir, candidate))
+        allowed_root = os.path.realpath(allowed_dir)
         raise ValueError(
             f"Refusing to load {description} from '{candidate}': it resolves to '{resolved}', outside the "
             f"expected directory '{allowed_root}'. This path is read from `inference_information.json`; a "
             "value pointing outside the results directory indicates that file has been tampered with "
             "(see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-8f32-8649-rv87)."
-        )
-    return resolved
+        ) from e
 
 
 @require_pkg(pkg_name="nnunetv2")

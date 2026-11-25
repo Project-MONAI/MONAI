@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 import torch
 
 from monai.apps import download_and_extract
-from monai.apps.utils import get_logger
+from monai.apps.utils import confined_path, get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import (
     _prepare_cmd_bcprun,
@@ -94,12 +94,11 @@ def _confined_join(root: str, name: str) -> str:
     Raises:
         ValueError: if the resolved path is not inside ``root``.
     """
-    path = os.path.join(root, name)
-    real_root = os.path.realpath(root)
-    real_path = os.path.realpath(path)
-    if real_path == real_root or os.path.commonpath([real_root, real_path]) != real_root:
-        raise ValueError(f"Invalid path: {path!r} is not inside {root!r}.")
-    return path
+    try:
+        confined_path(root, name)
+    except ValueError as e:
+        raise ValueError(f"Invalid path: {os.path.join(root, name)!r} is not inside {root!r}.") from e
+    return os.path.join(root, name)
 
 
 def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:

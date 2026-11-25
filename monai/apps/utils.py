@@ -135,6 +135,59 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
         raise e
 
 
+def confined_path(
+    root: PathLike,
+    relative: PathLike,
+    *,
+    require_existing_dir: bool = False,
+    allow_subdirs: bool = True,
+    create_parents: bool = False,
+) -> Path:
+    """
+    Join ``relative`` onto ``root`` and require that the resolved result stays inside ``root``.
+
+    This is the shared containment primitive for every place MONAI writes a file to a path built
+    from a name it did not choose (archive members, remote download manifests, paths read from a
+    config file). It resolves both ``root`` and the joined target before comparing, so a symlinked
+    base directory (for example ``/tmp`` -> ``/private/tmp`` on macOS) does not cause a false
+    rejection, and uses :meth:`~pathlib.Path.is_relative_to` so a sibling prefix (``/x/foo2`` vs
+    ``/x/foo``) is not treated as inside.
+
+    Note:
+        Resolution follows symlinks that already exist, which stops ``..`` and symlinked-parent
+        escapes at check time. It does not defend against a symlink planted inside ``root`` between
+        this check and a later write (TOCTOU); callers that extract untrusted archives must also
+        reject symlink/hardlink members (see :func:`safe_extract_member`).
+
+    Args:
+        root: the directory the result must stay inside.
+        relative: the untrusted name to join onto ``root``. An absolute value is rejected unless it
+            already resolves inside ``root``.
+        require_existing_dir: when True, raise unless ``root`` is an existing directory.
+        allow_subdirs: when False, the result must be a direct child of ``root`` (reject ``a/b``).
+        create_parents: when True, create the parent directory of the result before returning.
+
+    Returns:
+        The resolved absolute target path.
+
+    Raises:
+        ValueError: if ``root`` is required to exist and does not, if the resolved target is
+            ``root`` itself or escapes ``root``, or if ``allow_subdirs`` is False and the target is
+            nested below ``root``.
+    """
+    root_path = Path(root).resolve()
+    if require_existing_dir and not root_path.is_dir():
+        raise ValueError(f"Expected an existing directory, got: {root!r}.")
+    target = Path(root_path, relative).resolve()
+    if target == root_path or not target.is_relative_to(root_path):
+        raise ValueError(f"Unsafe path: {str(relative)!r} does not stay inside {str(root_path)!r}.")
+    if not allow_subdirs and target.parent != root_path:
+        raise ValueError(f"Unsafe path: {str(relative)!r} must be a direct child of {str(root_path)!r}.")
+    if create_parents:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
 def safe_extract_member(member, extract_to):
     """Securely verify compressed package member paths to prevent path traversal attacks"""
     # Get member path (handle different compression formats)
@@ -152,19 +205,17 @@ def safe_extract_member(member, extract_to):
 
     member_path = os.path.normpath(member_path)
 
+    # Archive-specific: a member name must never be absolute or contain `..`.
     if os.path.isabs(member_path) or ".." in member_path.split(os.sep):
         raise ValueError(f"Unsafe path detected in archive: {member_path}")
 
-    full_path = os.path.join(extract_to, member_path)
-    full_path = os.path.normpath(full_path)
+    # Shared containment check (resolve both sides, stay inside the extraction root).
+    try:
+        confined_path(extract_to, member_path)
+    except ValueError as e:
+        raise ValueError(f"Unsafe path: path traversal {member_path}") from e
 
-    extract_root = os.path.realpath(extract_to)
-    target_real = os.path.realpath(full_path)
-    # Ensure the resolved path stays within the extraction root
-    if os.path.commonpath([extract_root, target_real]) != extract_root:
-        raise ValueError(f"Unsafe path: path traversal {member_path}")
-
-    return full_path
+    return os.path.normpath(os.path.join(extract_to, member_path))
 
 
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
