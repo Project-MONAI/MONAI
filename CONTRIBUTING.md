@@ -37,6 +37,8 @@ Attribution of AI-generated content should be included, for example with trailer
 
 Code review and analysis can be assisted through the use of tools, for example linting or formatting tools. Diagnostic output from such tools does not form part of the submission but should be clearly labelled. The key emphasis is that these tools assist and do not replace human review, so contributors and reviewers must consider what might be missed by these tools, or what might be hallucinated. It might be helpful to review code with a different tool from one used for generation.
 
+The root [`AGENTS.md`](AGENTS.md) describes how the code base works for AI coding assistants, and a package can add its own `AGENTS.md` next to its code for notes specific to it. Treat these files as documentation: when a change alters a convention one of them describes, update that file in the same pull request.
+
 ## The contribution process
 
 *Pull request early*
