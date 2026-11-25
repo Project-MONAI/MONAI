@@ -25,6 +25,9 @@ import torch
 
 from monai.data import MetaTensor
 from monai.transforms import Orientation, RandAffine, Spacing
+from monai.utils import optional_import
+
+nib, has_nib = optional_import("nibabel")
 
 
 def _random_sheared_affine(rng: np.random.Generator, det_negative: bool = False) -> np.ndarray:
@@ -112,21 +115,20 @@ class TestSpacingShearInvariance(unittest.TestCase):
 class TestVerifiedCorrect(unittest.TestCase):
     """Regression guards for behaviour that was measured CORRECT against SimpleITK."""
 
+    @unittest.skipUnless(has_nib, "nibabel is required for Orientation")
     def test_orientation_roundtrip(self):
         rng = np.random.default_rng(31)
         for i, ax in enumerate(["RAS", "LPS", "PLS", "ASL", "IRP", "SLA", "AIL", "RPI"]):
             affine = _random_sheared_affine(rng, det_negative=(i % 2 == 1))
-            data = _smooth_volume(seed=i)
+            data = torch.arange(16 * 16 * 16, dtype=torch.float32).reshape(1, 16, 16, 16)
             mt = MetaTensor(data.clone())
             mt.affine = affine
             t1 = Orientation(axcodes=ax)(mt)
-            import nibabel as nib
-
             orig_ax = nib.orientations.aff2axcodes(affine)
             t2 = Orientation(axcodes="".join(orig_ax))(t1)
-            if t2.shape == mt.shape:
-                self.assertLess(np.abs(t2.numpy()[0] - mt.numpy()[0]).max(), 1e-6)
-                self.assertLess(np.abs(np.asarray(t2.affine) - affine).max(), 1e-6)
+            self.assertEqual(t2.shape, mt.shape)
+            self.assertLess(np.abs(t2.numpy()[0] - mt.numpy()[0]).max(), 1e-6)
+            self.assertLess(np.abs(np.asarray(t2.affine) - affine).max(), 1e-6)
 
     def test_randaffine_inverse_consistent(self):
         """RandAffine.inverse uses the exact inverse of the forward voxel affine (5.96e-7)."""
