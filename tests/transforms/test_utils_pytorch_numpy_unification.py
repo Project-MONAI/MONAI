@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms.utils_pytorch_numpy_unification import max, min, mode, percentile
-from monai.utils import convert_to_dst_type, set_determinism
+from monai.utils import dtype_numpy_to_torch, set_determinism
 from tests.test_utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
 TEST_MODE = []
@@ -90,7 +90,10 @@ class TestPytorchNumpyUnification(unittest.TestCase):
         for p in TEST_NDARRAYS:
             for dtype in (np.float16, np.float32, np.float64):
                 result = percentile(p(np.arange(10, dtype=dtype)), [25, 50])
-                self.assertEqual(result.dtype, convert_to_dst_type(np.zeros(1, dtype=dtype), result)[0].dtype)
+                if isinstance(result, torch.Tensor):
+                    self.assertEqual(result.dtype, dtype_numpy_to_torch(np.dtype(dtype)))
+                else:
+                    self.assertEqual(result.dtype, np.dtype(dtype))
                 assert_allclose(result, [2.25, 4.5], type_test=False)
 
     def test_percentile_bfloat16_tensor(self):
