@@ -210,12 +210,12 @@ def safe_extract_member(member, extract_to):
         raise ValueError(f"Unsafe path detected in archive: {member_path}")
 
     # Shared containment check (resolve both sides, stay inside the extraction root).
+    # Return the resolved destination that passed the check, so the path written matches the path
+    # that was validated even when ``extract_to`` contains a symlink.
     try:
-        confined_path(extract_to, member_path)
+        return str(confined_path(extract_to, member_path))
     except ValueError as e:
         raise ValueError(f"Unsafe path: path traversal {member_path}") from e
-
-    return os.path.normpath(os.path.join(extract_to, member_path))
 
 
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:

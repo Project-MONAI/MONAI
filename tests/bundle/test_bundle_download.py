@@ -360,8 +360,10 @@ class TestNgcPathTraversal(unittest.TestCase):
                         progress=False,
                     )
             dest = Path(captured["filepath"]).resolve()
-            self.assertTrue(dest.is_relative_to(download_path.resolve()))
-            self.assertEqual(dest.parts[-2:], ("configs", "model.pt"))
+            # remove_prefix=None keeps the monai_ prefix, so the model dir is download_path/monai_spleen.
+            model_dir = (download_path / "monai_spleen").resolve()
+            self.assertTrue(dest.is_relative_to(model_dir))
+            self.assertEqual(dest, model_dir / "configs" / "model.pt")
             self.assertTrue(dest.parent.is_dir())
 
 

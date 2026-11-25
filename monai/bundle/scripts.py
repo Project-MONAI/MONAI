@@ -2013,11 +2013,12 @@ def create_workflow(
 
 def _safe_large_file_path(bundle_path: PathLike, filepath: str) -> str:
     """Securely resolve a large-file target path to prevent traversal outside the bundle directory."""
+    # Return the resolved destination that passed the check, so the path handed to ``download_url``
+    # matches the path that was validated even when ``bundle_path`` contains a symlink.
     try:
-        confined_path(bundle_path, filepath)
+        return str(confined_path(bundle_path, filepath))
     except ValueError as e:
         raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}") from e
-    return os.path.normpath(os.path.join(bundle_path, filepath))
 
 
 def download_large_files(bundle_path: str | None = None, large_file_name: str | None = None) -> None:

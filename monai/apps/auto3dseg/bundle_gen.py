@@ -95,10 +95,9 @@ def _confined_join(root: str, name: str) -> str:
         ValueError: if the resolved path is not inside ``root``.
     """
     try:
-        confined_path(root, name)
+        return str(confined_path(root, name))
     except ValueError as e:
         raise ValueError(f"Invalid path: {os.path.join(root, name)!r} is not inside {root!r}.") from e
-    return os.path.join(root, name)
 
 
 def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
