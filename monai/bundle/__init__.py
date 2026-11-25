@@ -31,6 +31,7 @@ from .scripts import (
     run_workflow,
     trt_export,
     update_kwargs,
+    verify_bundle,
     verify_metadata,
     verify_net_in_out,
 )

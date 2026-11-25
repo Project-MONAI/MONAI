@@ -15,6 +15,8 @@ import ast
 import json
 import os
 import re
+import sys
+import tempfile
 import urllib
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -1274,6 +1276,223 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
+def _find_bundle_file(root_dir: PathLike, name: str, suffixes: Sequence[str] = ("json", "yaml", "yml")) -> Path | None:
+    """Return the first existing file ``root_dir/name.<suffix>``, or ``None`` if there is none."""
+    for suffix in suffixes:
+        candidate = Path(root_dir) / f"{name}.{suffix}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _verify_bundle_files(bundle_path: Path, check_preferred_files: bool) -> None:
+    """Check the files required (and, optionally, preferred) by the MONAI Bundle Specification."""
+    for file in ("configs/metadata.json", "LICENSE"):
+        if not (bundle_path / file).is_file():
+            raise FileNotFoundError(f"necessary file `{file}` is missing from bundle `{bundle_path}`.")
+    if check_preferred_files:
+        if not (bundle_path / "models" / "model.pt").is_file():
+            hint = ""
+            if _find_bundle_file(bundle_path, "large_files") is not None:
+                hint = " It may be listed in the large_files file of the bundle, set `download_large=True` to fetch it."
+            raise FileNotFoundError(f"preferred file `models/model.pt` is missing from bundle `{bundle_path}`.{hint}")
+        if _find_bundle_file(bundle_path / "configs", "inference") is None:
+            raise FileNotFoundError(
+                f"preferred file `configs/inference.json` (or .yaml/.yml) is missing from bundle `{bundle_path}`."
+            )
+
+
+def _verify_bundle_version(meta_file: Path) -> None:
+    """Check that `version` and `changelog` exist in the metadata and that the version is in the changelog."""
+    metadata = ConfigParser.load_config_file(filepath=meta_file)
+    for key in ("version", "changelog"):
+        if key not in metadata:
+            raise ValueError(f"`{key}` is missing in `{meta_file}`.")
+    version = metadata["version"]
+    if version not in metadata["changelog"]:
+        raise ValueError(f"version `{version}` is missing in the `changelog` of `{meta_file}`.")
+
+
+def verify_bundle(
+    bundle_path: PathLike | None = None,
+    mode: str | None = None,
+    net_id: str | None = None,
+    config_file: str | None = None,
+    ckpt_file: str | None = None,
+    schema_file: PathLike | None = None,
+    check_preferred_files: bool | None = None,
+    check_net_io: bool | None = None,
+    check_torchscript: bool | None = None,
+    download_large: bool | None = None,
+    device: str | None = None,
+    args_file: str | None = None,
+) -> None:
+    """
+    Verify that a bundle follows the `MONAI Bundle Specification
+    <https://docs.monai.io/en/latest/mb_specification.html>`_, so that it can be used by the MONAI Model Zoo
+    and downstream applications. The bundle directory is not modified: the downloaded schema (unless
+    `schema_file` is given) and the test TorchScript export are written to a temporary directory.
+
+    The checks, in order:
+
+        - "min" and "full" modes:
+            - the necessary files ``configs/metadata.json`` and ``LICENSE`` exist, and, if
+              `check_preferred_files` is True, the preferred files ``models/model.pt`` and
+              ``configs/inference.json`` (or ``.yaml``/``.yml``) exist.
+            - ``version`` and ``changelog`` exist in the metadata, and the version is listed in the changelog.
+            - the metadata is valid against the schema referenced by its ``schema`` field,
+              see :py:func:`verify_metadata`.
+        - "full" mode only:
+            - the network input and output match the ``network_data_format`` of the metadata,
+              see :py:func:`verify_net_in_out`. Skipped if `check_net_io` is False.
+            - the checkpoint can be exported to TorchScript and loaded back, see :py:func:`ckpt_export`.
+              If ``models/model.ts`` exists, it is also loaded. Skipped if `check_torchscript` is False.
+
+    In "full" mode, `bundle_path` is temporarily added to ``sys.path`` so that custom code shipped with
+    the bundle (for example, ``"$import scripts"`` in the config) can be imported.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        # quick checks of the bundle structure and metadata
+        python -m monai.bundle verify_bundle --bundle_path <bundle path>
+
+        # all the checks, including network data shape and TorchScript export
+        python -m monai.bundle verify_bundle --bundle_path <bundle path> --mode full --device cpu
+
+    Args:
+        bundle_path: root directory of the bundle to verify. Default to ``os.getcwd()``.
+        mode: "min" or "full", see above. Default to "min".
+        net_id: ID name of the network component in the config. Default to "network_def".
+        config_file: filepath of the inference config. Default to ``configs/inference.json``
+            (or ``.yaml``/``.yml``) under `bundle_path`.
+        ckpt_file: filepath of the model checkpoint. Default to ``models/model.pt`` under `bundle_path`.
+        schema_file: filepath to store the downloaded metadata schema. If the file already exists, it is
+            reused and not downloaded again. Default to a file in a temporary directory.
+        check_preferred_files: whether ``models/model.pt`` and the inference config are required.
+            Default to True. "full" mode needs the inference config regardless, and the checkpoint
+            unless `check_torchscript` is False.
+        check_net_io: whether to verify the network input and output in "full" mode. Default to True.
+            Set it to False for networks whose input or output cannot be described by ``network_data_format``.
+        check_torchscript: whether to verify the TorchScript export in "full" mode. Default to True.
+            Set it to False for networks that do not support TorchScript.
+        download_large: whether to download the files listed in ``large_files.json``
+            (or ``.yaml``/``.yml``) under `bundle_path` before verifying, see :py:func:`download_large_files`.
+            Default to False.
+        device: target device to run the network checks of "full" mode.
+            If None, prefer to "cuda" if existing.
+        args_file: a JSON or YAML file to provide default values for all the args in this function,
+            so that the command line inputs can be simplified.
+
+    Raises:
+        ValueError: when `mode` is not supported or the bundle content is invalid.
+        FileNotFoundError: when a required file of the bundle is missing.
+
+    """
+    _args = update_kwargs(
+        args=args_file,
+        bundle_path=bundle_path,
+        mode=mode,
+        net_id=net_id,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        schema_file=schema_file,
+        check_preferred_files=check_preferred_files,
+        check_net_io=check_net_io,
+        check_torchscript=check_torchscript,
+        download_large=download_large,
+        device=device,
+    )
+    _log_input_summary(tag="verify_bundle", args=_args)
+    (
+        bundle_path_,
+        mode_,
+        net_id_,
+        config_file_,
+        ckpt_file_,
+        schema_file_,
+        check_preferred_files_,
+        check_net_io_,
+        check_torchscript_,
+        download_large_,
+        device_,
+    ) = _pop_args(
+        _args,
+        bundle_path=os.getcwd(),
+        mode="min",
+        net_id="network_def",
+        config_file=None,
+        ckpt_file=None,
+        schema_file=None,
+        check_preferred_files=True,
+        check_net_io=True,
+        check_torchscript=True,
+        download_large=False,
+        device="cuda:0" if is_available() else "cpu",
+    )
+    if mode_ not in ("min", "full"):
+        raise ValueError(f"unsupported mode `{mode_}`, available options are 'min' and 'full'.")
+    bundle_root = Path(bundle_path_)
+    if not bundle_root.is_dir():
+        raise FileNotFoundError(f"bundle directory `{bundle_root}` does not exist.")
+
+    if download_large_ and _find_bundle_file(bundle_root, "large_files") is not None:
+        download_large_files(bundle_path=str(bundle_root))
+
+    _verify_bundle_files(bundle_root, check_preferred_files=check_preferred_files_)
+    meta_file = bundle_root / "configs" / "metadata.json"
+    _verify_bundle_version(meta_file)
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        schema_path = Path(tempdir) / "schema.json" if schema_file_ is None else Path(schema_file_)
+        verify_metadata(meta_file=str(meta_file), filepath=str(schema_path))
+        if mode_ == "min":
+            logger.info(f"bundle `{bundle_root}` is verified with no error (mode: min).")
+            return
+
+        if config_file_ is None:
+            found = _find_bundle_file(bundle_root / "configs", "inference")
+            if found is None:
+                raise FileNotFoundError(f"cannot find `configs/inference.json` (or .yaml/.yml) in `{bundle_root}`.")
+            config_file_ = str(found)
+        ckpt_file_ = str(bundle_root / "models" / "model.pt") if ckpt_file_ is None else ckpt_file_
+
+        # make custom code shipped with the bundle importable, restore `sys.path` afterwards
+        sys.path.insert(0, str(bundle_root))
+        try:
+            # `bundle_root` is set so that references such as "$@bundle_root + '/models'" resolve to this bundle
+            if check_net_io_:
+                verify_net_in_out(
+                    net_id=net_id_,
+                    meta_file=str(meta_file),
+                    config_file=config_file_,
+                    device=device_,
+                    bundle_root=str(bundle_root),
+                )
+            else:
+                logger.info("skip verifying the network input and output.")
+            if check_torchscript_:
+                ts_file = Path(tempdir) / "verify_model.ts"
+                ckpt_export(
+                    net_id=net_id_,
+                    filepath=str(ts_file),
+                    ckpt_file=ckpt_file_,
+                    meta_file=str(meta_file),
+                    config_file=config_file_,
+                    bundle_root=str(bundle_root),
+                )
+                torch.jit.load(str(ts_file))
+                existing_ts = bundle_root / "models" / "model.ts"
+                if existing_ts.is_file():
+                    torch.jit.load(str(existing_ts))
+            else:
+                logger.info("skip verifying the TorchScript export.")
+        finally:
+            sys.path.remove(str(bundle_root))
+    logger.info(f"bundle `{bundle_root}` is verified with no error (mode: full).")
+
+
 def _export(
     converter: Callable,
     saver: Callable,
@@ -1307,11 +1526,13 @@ def _export(
 
     """
     net = parser.get_parsed_content(net_id)
+    # map to CPU so that checkpoints saved on GPU can be exported on CPU-only machines,
+    # the weights are then copied to the device of `net`
+    ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=True)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt)
     else:
-        ckpt = torch.load(ckpt_file, weights_only=True)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
     # Use the given converter to convert a model and save with metadata, config content
