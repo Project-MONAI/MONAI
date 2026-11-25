@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms.utils_pytorch_numpy_unification import max, min, mode, percentile
-from monai.utils import set_determinism
+from monai.utils import convert_to_dst_type, set_determinism
 from tests.test_utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
 TEST_MODE = []
@@ -60,6 +60,43 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                     if isinstance(x, torch.Tensor):
                         self.assertIsInstance(q, torch.Tensor)
                     assert_allclose(q.shape, [2], type_test=False)
+
+    @parameterized.expand([[p, dtype] for p in TEST_NDARRAYS for dtype in (np.uint8, np.int16, np.int32, np.int64)])
+    def test_percentile_integer_input(self, p, dtype):
+        # interpolated percentiles of integer inputs must not raise or be truncated
+        data = np.array([[0, 1, 2, 3], [1, 0, 1, 0]]).astype(dtype)
+        for kwargs in ({}, {"dim": 1}):
+            result = percentile(p(data), [25, 50], **kwargs)
+            expected = np.percentile(data, [25, 50], axis=kwargs.get("dim"))
+            if isinstance(result, torch.Tensor):
+                self.assertTrue(result.is_floating_point())
+            else:
+                self.assertTrue(np.issubdtype(result.dtype, np.floating))
+            assert_allclose(result, expected, type_test=False, atol=1e-6)
+
+    def test_percentile_bool_tensor(self):
+        result = percentile(torch.tensor([True, False, True, False]), 50)
+        self.assertTrue(result.is_floating_point())
+        assert_allclose(result, 0.5, type_test=False)
+
+    def test_percentile_integer_input_many_elements(self):
+        # tensors above 1e6 elements go through `np.percentile` (pytorch#64947), the result must not be truncated
+        data = np.arange(1_000_004, dtype=np.int32) % 4
+        for p in TEST_NDARRAYS:
+            result = percentile(p(data), 50)
+            assert_allclose(result, 1.5, type_test=False)
+
+    def test_percentile_floating_input_keeps_dtype(self):
+        for p in TEST_NDARRAYS:
+            for dtype in (np.float16, np.float32, np.float64):
+                result = percentile(p(np.arange(10, dtype=dtype)), [25, 50])
+                self.assertEqual(result.dtype, convert_to_dst_type(np.zeros(1, dtype=dtype), result)[0].dtype)
+                assert_allclose(result, [2.25, 4.5], type_test=False)
+
+    def test_percentile_bfloat16_tensor(self):
+        result = percentile(torch.arange(10, dtype=torch.bfloat16), [25, 50])
+        self.assertEqual(result.dtype, torch.bfloat16)
+        assert_allclose(result.float(), [2.25, 4.5], type_test=False, atol=1e-2)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:

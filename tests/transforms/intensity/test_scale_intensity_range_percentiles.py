@@ -65,6 +65,17 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
                 result, p(np.clip(expected_img, expected_b_min, expected_b_max)), type_test="tensor", rtol=0.1
             )
 
+    def test_integer_input(self):
+        # integer images (e.g. uint8 PNG or int16 CT) should be scaled as their floating point equivalents
+        for dtype in (np.uint8, np.int16):
+            img = (self.imt[0] * 200).astype(dtype)
+            scaler = ScaleIntensityRangePercentiles(lower=10, upper=90, b_min=0, b_max=1)
+            expected = scaler(img.astype(np.float32))
+            for p in TEST_NDARRAYS:
+                result = scaler(p(img))
+                self.assertEqual(result.dtype, torch.float32)
+                assert_allclose(result, p(expected), type_test="tensor", rtol=1e-5, atol=1e-6)
+
     def test_invalid_instantiation(self):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=-10, upper=99, b_min=0, b_max=255)
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=101, upper=99, b_min=0, b_max=255)
