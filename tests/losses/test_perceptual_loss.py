@@ -100,6 +100,17 @@ class TestPerceptualLoss(unittest.TestCase):
         else:
             self.assertEqual(result, torch.Tensor([0.0]))
 
+    @parameterized.expand([0.01, 0.2, 1 / 3, 1.0])
+    def test_fake_3d_small_ratio(self, fake_3d_ratio):
+        loss = PerceptualLoss(spatial_dims=3, network_type="resnet50", pretrained=False, fake_3d_ratio=fake_3d_ratio)
+        tensor = torch.rand(1, 1, 3, 32, 32, requires_grad=True)
+        result = loss(tensor, tensor)
+
+        self.assertEqual(result.item(), 0.0)
+        result.backward()
+        self.assertIsNotNone(tensor.grad)
+        self.assertTrue(torch.isfinite(tensor.grad).all())
+
     def test_different_shape(self):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")
