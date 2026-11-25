@@ -128,10 +128,16 @@ def percentile(
         raise ValueError(f"q values must be in [0, 100], got values: {q}.")
     result: NdarrayOrTensor | float | int
     if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
-        _x = convert_data_type(x, output_type=np.ndarray)[0]
+        # `.numpy()` does not support bfloat16, compute in float32 and cast back below
+        _x = convert_data_type(
+            x.float() if isinstance(x, torch.Tensor) and x.dtype == torch.bfloat16 else x, output_type=np.ndarray
+        )[0]
+        is_floating = np.issubdtype(_x.dtype, np.floating)
+        if _x.dtype == np.bool_:
+            _x = _x.astype(np.float64)  # `np.percentile` cannot interpolate between boolean values
         result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
         # keep the floating point dtype of the result for non-floating inputs, otherwise it would be truncated
-        out_dtype = None if np.issubdtype(_x.dtype, np.floating) else np.asarray(result).dtype
+        out_dtype = None if is_floating else np.asarray(result).dtype
         result = convert_to_dst_type(result, x, dtype=out_dtype)[0]
     else:
         # `torch.quantile` only supports float32 and float64 inputs

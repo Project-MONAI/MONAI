@@ -96,6 +96,19 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                     self.assertEqual(result.dtype, np.dtype(dtype))
                 assert_allclose(result, [2.25, 4.5], type_test=False)
 
+    def test_percentile_bool_many_elements(self):
+        # booleans are not interpolated by `np.percentile`, which is used for numpy inputs and large tensors
+        data = np.arange(1_000_004) % 2 == 0
+        for p in TEST_NDARRAYS:
+            result = percentile(p(data), 50)
+            assert_allclose(result, 0.5, type_test=False)
+
+    def test_percentile_bfloat16_many_elements(self):
+        # `Tensor.numpy` does not support bfloat16, tensors above 1e6 elements are computed with numpy
+        result = percentile((torch.arange(1_000_004) % 4).to(torch.bfloat16), [25, 50])
+        self.assertEqual(result.dtype, torch.bfloat16)
+        assert_allclose(result.float(), [0.75, 1.5], type_test=False, atol=1e-2)
+
     def test_percentile_bfloat16_tensor(self):
         result = percentile(torch.arange(10, dtype=torch.bfloat16), [25, 50])
         self.assertEqual(result.dtype, torch.bfloat16)
