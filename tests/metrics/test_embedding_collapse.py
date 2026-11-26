@@ -14,23 +14,36 @@ from __future__ import annotations
 import unittest
 
 import torch
+from parameterized import parameterized
 
 from monai.metrics.embedding_collapse import (
+    _MIN_HSIC_SAMPLES,
     EmbeddingCollapseMetric,
     _centroid_similarity,
     _domain_shift,
     _effective_rank_score,
+    _hsic,
     _per_class_rank,
     compute_embedding_collapse,
     linear_probe_accuracy,
 )
 
+SCORE_KEYS = [
+    "centroid_similarity",
+    "per_class_rank_0",
+    "per_class_rank_1",
+    "separation",
+    "effective_rank_score",
+    "domain_shift",
+    "aggregate",
+]
+
 
 class TestEmbeddingCollapseMetricInit(unittest.TestCase):
-    def test_valid_reductions(self):
-        for r in ("max", "mean", "none"):
-            m = EmbeddingCollapseMetric(reduction=r)
-            self.assertEqual(m.reduction, r)
+    @parameterized.expand(["max", "mean", "none"])
+    def test_valid_reductions(self, reduction):
+        m = EmbeddingCollapseMetric(reduction=reduction)
+        self.assertEqual(m.reduction, reduction)
 
     def test_invalid_reduction_raises(self):
         with self.assertRaises(ValueError):
@@ -53,26 +66,33 @@ class TestComputeEmbeddingCollapseReturnTypes(unittest.TestCase):
         self.emb = torch.randn(20, 64)
         self.lbl = torch.randint(0, 2, (20,))
 
-    def test_all_values_are_tensor_or_none(self):
+    def test_score_keys_match_parameterized_cases(self):
         scores = compute_embedding_collapse(self.emb, self.lbl)
-        for k, v in scores.items():
-            self.assertTrue(
-                v is None or isinstance(v, torch.Tensor),
-                f"Key '{k}' has type {type(v).__name__}, expected Tensor or None",
-            )
+        self.assertEqual(set(scores), set(SCORE_KEYS))
 
-    def test_tensor_values_are_scalar(self):
+    @parameterized.expand(SCORE_KEYS)
+    def test_all_values_are_tensor_or_none(self, key):
         scores = compute_embedding_collapse(self.emb, self.lbl)
-        for k, v in scores.items():
-            if isinstance(v, torch.Tensor):
-                self.assertEqual(v.ndim, 0, f"Key '{k}' should be a scalar tensor, got shape {v.shape}")
+        value = scores[key]
+        self.assertTrue(
+            value is None or isinstance(value, torch.Tensor),
+            f"Key '{key}' has type {type(value).__name__}, expected Tensor or None",
+        )
 
-    def test_tensor_values_in_unit_interval(self):
+    @parameterized.expand(SCORE_KEYS)
+    def test_tensor_values_are_scalar(self, key):
         scores = compute_embedding_collapse(self.emb, self.lbl)
-        for k, v in scores.items():
-            if isinstance(v, torch.Tensor):
-                self.assertGreaterEqual(float(v), 0.0, f"Key '{k}' = {float(v):.4f} < 0")
-                self.assertLessEqual(float(v), 1.0, f"Key '{k}' = {float(v):.4f} > 1")
+        value = scores[key]
+        if isinstance(value, torch.Tensor):
+            self.assertEqual(value.ndim, 0, f"Key '{key}' should be a scalar tensor, got shape {value.shape}")
+
+    @parameterized.expand(SCORE_KEYS)
+    def test_tensor_values_in_unit_interval(self, key):
+        scores = compute_embedding_collapse(self.emb, self.lbl)
+        value = scores[key]
+        if isinstance(value, torch.Tensor):
+            self.assertGreaterEqual(float(value), 0.0, f"Key '{key}' = {float(value):.4f} < 0")
+            self.assertLessEqual(float(value), 1.0, f"Key '{key}' = {float(value):.4f} > 1")
 
 
 class TestAggregateReduction(unittest.TestCase):
@@ -205,15 +225,15 @@ class TestEffectiveRankScore(unittest.TestCase):
         # A full-rank random matrix should have low collapse score
         self.assertLess(float(score), 0.8)
 
-    def test_score_in_unit_interval(self):
-        torch.manual_seed(6)
-        for _ in range(10):
-            n = torch.randint(5, 50, (1,)).item()
-            d = torch.randint(4, 32, (1,)).item()
-            emb = torch.randn(int(n), int(d))
-            score = _effective_rank_score(emb)
-            self.assertGreaterEqual(float(score), 0.0)
-            self.assertLessEqual(float(score), 1.0)
+    @parameterized.expand(range(10))
+    def test_score_in_unit_interval(self, seed):
+        torch.manual_seed(seed)
+        n = torch.randint(5, 50, (1,)).item()
+        d = torch.randint(4, 32, (1,)).item()
+        emb = torch.randn(int(n), int(d))
+        score = _effective_rank_score(emb)
+        self.assertGreaterEqual(float(score), 0.0)
+        self.assertLessEqual(float(score), 1.0)
 
     def test_formula_matches_manual(self):
         torch.manual_seed(7)
@@ -301,6 +321,63 @@ class TestDomainShift(unittest.TestCase):
         self.assertIsNotNone(score)
         self.assertGreaterEqual(float(score), 0.0)
         self.assertLessEqual(float(score), 1.0)
+
+    @parameterized.expand([8, 32, 128])
+    def test_hsic_is_unbiased_for_independent_inputs(self, n):
+        """HSIC of independent representations must average to zero at every n.
+
+        The biased plug-in estimator carries an ``O(1/n)`` term, so on
+        independent inputs its mean sat tens of standard errors above zero
+        (t > 40 for every sample count tested) instead of at zero. The
+        unbiased estimator of Song et al. (2007) removes that term.
+        """
+        values = []
+        for seed in range(100):
+            torch.manual_seed(seed)
+            values.append(float(_hsic(torch.randn(n, 8), torch.randn(n, 8))))
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+        std_error = (variance / len(values)) ** 0.5
+        self.assertLess(
+            abs(mean / std_error), 3.0, f"HSIC mean {mean:.4f} is {mean / std_error:.1f} SEs from 0 at n={n}"
+        )
+
+    @parameterized.expand([32, 64, 128, 256])
+    def test_independent_input_score_is_defined(self, n):
+        scores = []
+        for seed in range(20):
+            torch.manual_seed(seed)
+            scores.append(_domain_shift(torch.randn(n, 8), torch.randn(n, 8)))
+        self.assertNotIn(None, scores, f"undefined score for independent inputs at n={n}")
+
+    def test_score_does_not_drift_with_sample_count(self):
+        """Unrelated representations must not look more similar at smaller n.
+
+        With the biased estimator the score fell as roughly ``1/n`` -- 0.20 at
+        n=32, 0.11 at n=64, 0.06 at n=128, 0.03 at n=256 -- so a score was only
+        comparable against another computed at the same sample count.
+        ``_domain_shift`` subsamples to the smaller of its two inputs, which
+        made that easy to hit.
+        """
+        means = []
+        for n in (32, 64, 128, 256):
+            scores = []
+            for seed in range(20):
+                torch.manual_seed(seed)
+                score = _domain_shift(torch.randn(n, 8), torch.randn(n, 8))
+                scores.append(float(score))
+            means.append(sum(scores) / len(scores))
+        self.assertLess(max(means), 0.1, f"independent inputs scored {means} at n=32,64,128,256")
+        self.assertLess(max(means) - min(means), 0.1, f"score drifts with sample count: {means}")
+
+    @parameterized.expand([(n, reverse) for n in range(1, _MIN_HSIC_SAMPLES) for reverse in (False, True)])
+    def test_below_minimum_samples_returns_none(self, n, reverse):
+        """Linear CKA is undefined below ``_MIN_HSIC_SAMPLES`` samples."""
+        torch.manual_seed(14)
+        target = torch.randn(10, 8)
+        small = torch.randn(n, 8)
+        source, target = (target, small) if reverse else (small, target)
+        self.assertIsNone(_domain_shift(source, target))
 
     def test_single_sample_returns_none(self):
         src = torch.randn(1, 8)
