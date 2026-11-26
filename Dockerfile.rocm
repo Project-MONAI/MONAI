@@ -79,19 +79,19 @@ COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versionee
 COPY tests ./tests
 COPY monai ./monai
 
-# Set HIPCIM_INDEX_URL="" to build without WSI/cucim support.
+# AMD's package index for this ROCm series, which serves amd-hipcim and amd-cupy.
+# Set HIPCIM_INDEX_URL="" to build without them, and so without WSI/cucim and CuPy support.
 ARG HIPCIM_INDEX_URL="https://pypi.amd.com/rocm-${ROCM_SERIES}.0/simple/"
 
-# print_dependencies.py resolves the ROCm variants of the GPU imaging stack (amd-hipcim, amd-cupy)
-# and drops the NVIDIA-only packages, see monai/config/vendor_deps.py.
+# The "all_amd" extra is "all" with the AMD builds of cuCIM and CuPy in place of the NVIDIA-only packages.
 # BUILD_MONAI=1 builds the C++/HIP extensions ahead of time; FORCE_CUDA=1 is required because the
 # build host has no GPU, so setup.py's `torch.cuda.is_available()` check would otherwise skip them.
 # Compilation itself needs only the toolkit and PYTORCH_ROCM_ARCH (set above), not a device.
 # pytest is not in the "testing" extra; it is added explicitly for running tests by hand.
 RUN python monai/config/print_dependencies.py build-system \
       | xargs -d '\n' pip install --no-cache-dir --no-build-isolation \
-  && python monai/config/print_dependencies.py all testing > /tmp/rocm-requirements-$$.txt \
-  && if [ -z "${HIPCIM_INDEX_URL}" ]; then sed -i '/^amd-hipcim/d' /tmp/rocm-requirements-$$.txt; fi \
+  && python monai/config/print_dependencies.py all_amd testing > /tmp/rocm-requirements-$$.txt \
+  && if [ -z "${HIPCIM_INDEX_URL}" ]; then sed -i '/^amd-/d' /tmp/rocm-requirements-$$.txt; fi \
   && BUILD_MONAI=1 FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation \
       ${HIPCIM_INDEX_URL:+--extra-index-url "${HIPCIM_INDEX_URL}"} \
       -r /tmp/rocm-requirements-$$.txt pytest -e . \

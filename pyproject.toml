@@ -41,8 +41,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
 ]
-# The NVIDIA distributions named below are swapped for the detected accelerator vendor's equivalents
-# by monai/config/vendor_deps.py when MONAI is built or installed against that vendor's PyTorch.
 dependencies = [
   "torch>=2.12.1",
   "numpy>=1.24,<3.0"
@@ -59,7 +57,16 @@ Documentation = "https://monai.readthedocs.io/"
 # All dependencies are included here except some omitted for compatibility. Testing dependencies are typically not
 # needed and so present only in "testing". Ensure requirement changes in other lists are reflected here as well.
 all=[
-  "monai[all_python,pynvml,cucim]",
+  # nni is listed here rather than in all_python because it depends on nvidia-ml-py
+  "monai[all_python,nni,pynvml,cucim]",
+  # per #5882 these requirements must be on one line to get removed by sed in weekly-preview.yml
+  "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
+  "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"
+]
+# The counterpart of "all" for AMD ROCm, do not combine it with "all", "cucim" or "cupy": the AMD and NVIDIA packages
+# install the same cucim and cupy modules. See the ROCm section of docs/source/installation.md.
+all_amd=[
+  "monai[all_python,amd_cupy,hipcim]",
   # per #5882 these requirements must be on one line to get removed by sed in weekly-preview.yml
   "MetricsReloaded @ git+https://github.com/Project-MONAI/MetricsReloaded@monai-support",
   "segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588"
@@ -67,9 +74,11 @@ all=[
 # All dependencies which are not conditional on platform are here, included as MONAI optionals defined below this one.
 all_python=[
   "monai[clearml,einops,fire,gdown,h5py,huggingface_hub,ignite,imagecodecs,itk,jsonschema,lmdb,matplotlib,mlflow]",
-  "monai[nibabel,nni,onnx,openslide,optuna,pandas,pandas,pillow,polygraphy,psutil,pyamg,pybind11,pydicom,pynrrd]",
+  "monai[nibabel,onnx,openslide,optuna,pandas,pandas,pillow,polygraphy,psutil,pyamg,pybind11,pydicom,pynrrd]",
   "monai[pyyaml,requests,scipy,skimage,tensorboard,tensorboardX,tifffile,torchio,torchvision,tqdm,transformers,zarr]"
 ]
+# AMD ROCm build of CuPy, from AMD's package index; the floor skips the 0.0.2 placeholder on PyPI
+amd_cupy = ["amd-cupy>=14.1.1; platform_system == 'Linux'"]
 clearml = ["clearml>=1.10.0rc0"]
 cucim = [
   "cucim-cu12; platform_system == 'Linux' and python_version <= '3.10'",
@@ -80,6 +89,8 @@ einops = ["einops"]
 fire = ["fire"]
 gdown = ["gdown>=4.7.3"]
 h5py = ["h5py"]
+# hipCIM, the AMD ROCm build of cuCIM, from AMD's package index; the floor skips the 0.0.2 placeholder on PyPI
+hipcim = ["amd-hipcim>=26.6.0; platform_system == 'Linux'"]
 huggingface_hub = ["huggingface_hub"]
 hyena = ["nvsubquadratic>=0.1.1", "omegaconf", "einops"]  # omitted from all for compatibility
 ignite = ["pytorch-ignite"]

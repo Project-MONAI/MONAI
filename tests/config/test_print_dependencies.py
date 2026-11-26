@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 import os
+import re
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
@@ -46,15 +48,14 @@ PARSE_CASES = [
     (["recursive_weekly"], ["black", "coverage", "numpy", "torch"]),
 ]
 
+PYPROJECT = Path(__file__).parents[2] / "pyproject.toml"
+NVIDIA_ONLY = re.compile(r"cucim-cu|cupy-cuda|nvidia|nni\b", re.IGNORECASE)
+
 
 @patch("monai.config.print_dependencies.PROJ", "test")
 @patch("monai.config.print_dependencies.PROJ_WEEKLY", "test-weekly")
 class TestPrintDependencies(unittest.TestCase):
     def setUp(self):
-        # pin the expectations to the NVIDIA/PyPI lists, whatever torch build the host has
-        vendor = patch.dict(os.environ, {"MONAI_VENDOR": "none"})
-        vendor.start()
-        self.addCleanup(vendor.stop)
         self.toml = NamedTemporaryFile("w", delete=False)
         self.toml.write(TEST_TOML)
         self.toml.close()
@@ -71,21 +72,6 @@ class TestPrintDependencies(unittest.TestCase):
         with self.assertRaises(KeyError):
             parse_dependencies(self.toml.name, ["nonexistent_section"])
 
-    def test_vendor_dependencies(self):
-        env = {"MONAI_VENDOR": "rocm", "MONAI_ROCM_SERIES": "10.0", "GPU_TARGETS": "gfx942"}
-        with patch.dict(os.environ, env):
-            deps = parse_dependencies(self.toml.name, ["build-system"])
-        self.assertEqual(
-            [
-                "numpy",
-                "rocm[libraries,devel,device-gfx942]>=10.0.0a0,<10.2",
-                "setuptools",
-                "torch[device-gfx942]",
-                "wheel",
-            ],
-            deps,
-        )
-
     def test_print_dependencies(self):
         out = StringIO()
         with redirect_stdout(out), patch("monai.config.print_dependencies.TOML_FILE", self.toml.name):
@@ -99,6 +85,16 @@ class TestPrintDependencies(unittest.TestCase):
             with self.subTest("Test missing section"):
                 with patch("sys.argv", ["", "nonexistent_section"]), self.assertRaises(KeyError):
                     print_dependencies_argv()
+
+
+@unittest.skipUnless(PYPROJECT.is_file(), "requires pyproject.toml from the source tree")
+class TestAmdExtras(unittest.TestCase):
+    def test_all_amd_has_no_nvidia_packages(self):
+        """`all_amd` is for ROCm machines, where packages needing NVIDIA hardware install but do not work."""
+        deps = parse_dependencies(str(PYPROJECT), ["all_amd"])
+        self.assertEqual([], [d for d in deps if NVIDIA_ONLY.match(d)])
+        for package in ("amd-cupy", "amd-hipcim"):
+            self.assertTrue(any(d.startswith(package) for d in deps), f"{package} missing from all_amd")
 
 
 if __name__ == "__main__":
