@@ -100,9 +100,9 @@ pair can be installed in an environment: do not combine the AMD extras with `all
 
 A few points to be aware of:
 
-- Keep the ROCm SDK on the series the extensions index is published for, as the `==10.0.*` pin above does.
-  The AMD wheels are built against that series, and with a different ROCm they can install and then fail
-  when CuPy compiles its GPU kernels.
+- `amd-cupy` and `amd-hipcim` are available for ROCm 10.0 only as of now, so keep the ROCm SDK on that series,
+  as the `==10.0.*` pin above does. With a newer ROCm they install, but CuPy fails when it compiles its GPU
+  kernels.
 - Install Torchvision from the ROCm index in the first step. If it is left to the second step, `pip` takes
   the PyPI build, which is not built for ROCm.
 - Without the extensions index the second step fails with `No matching distribution found for amd-cupy`,
