@@ -11,10 +11,14 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import tempfile
 import unittest
 
 import numpy as np
 import torch
+import torch._dynamo
 from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
@@ -151,6 +155,49 @@ class TestDints(unittest.TestCase):
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
         self.assertTrue(isinstance(net.weight_parameters(), list))
+
+    @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
+    def test_dints_arch_code_types(self, dints_grid_params, _dints_params, _input_shape, _expected_shape):
+        """arch_code may be given as numpy arrays, torch tensors or nested lists (issue #9025)."""
+        dints_grid_params = {k: v for k, v in dints_grid_params.items() if k != "arch_code"}  # shared across tests
+        num_blocks = dints_grid_params["num_blocks"]
+        num_depths = dints_grid_params["num_depths"]
+        num_cell_ops = len(Cell(1, 1, 0, spatial_dims=dints_grid_params["spatial_dims"]).OPS)
+        rng = np.random.RandomState(0)
+        arch_code_a = rng.randint(2, size=(num_blocks, 3 * num_depths - 2))
+        arch_code_a[:, 0] = 1  # keep at least one active path per block
+        arch_code_c = rng.randint(num_cell_ops, size=(num_blocks, 3 * num_depths - 2))
+
+        ref = TopologyInstance(arch_code=[arch_code_a, arch_code_c], **dints_grid_params)
+        for variant in (
+            [torch.as_tensor(arch_code_a), torch.as_tensor(arch_code_c)],
+            [arch_code_a.tolist(), arch_code_c.tolist()],
+        ):
+            grid = TopologyInstance(arch_code=variant, **dints_grid_params)
+            torch.testing.assert_close(grid.arch_code_a, ref.arch_code_a, check_dtype=False)
+            torch.testing.assert_close(grid.arch_code_c, ref.arch_code_c, check_dtype=False)
+            self.assertEqual(set(grid.cell_tree.keys()), set(ref.cell_tree.keys()))
+
+    def test_dints_search_code_weights_only_roundtrip(self):
+        """A search checkpoint saved with tensors loads under ``torch.load(weights_only=True)``
+        and can be used to build ``TopologyInstance`` / ``DiNTS`` (issue #9025)."""
+        grid_params = {"channel_mul": 0.2, "num_blocks": 2, "num_depths": 2, "device": "cpu", "use_downsample": True}
+        node_a, arch_code_a, arch_code_c, arch_code_a_max = TopologySearch(**grid_params).decode()
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = os.path.join(tempdir, "search_code.pt")
+            torch.save(
+                {
+                    "node_a": torch.as_tensor(node_a),
+                    "arch_code_a": torch.as_tensor(arch_code_a),
+                    "arch_code_c": torch.as_tensor(arch_code_c),
+                    "arch_code_a_max": torch.as_tensor(arch_code_a_max),
+                },
+                path,
+            )
+            ckpt = torch.load(path, map_location="cpu", weights_only=True)
+        grid = TopologyInstance(arch_code=[ckpt["arch_code_a"], ckpt["arch_code_c"]], **grid_params)
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, use_downsample=True, node_a=ckpt["node_a"])
+        self.assertEqual(net(torch.randn(1, 1, 16, 16, 16)).shape, (1, 2, 16, 16, 16))
 
 
 class TestDintsArchCode(unittest.TestCase):
@@ -291,6 +338,34 @@ class TestDintsTopologyCache(unittest.TestCase):
         self.assertTrue(bool(grid.arch_code_a[0, 0]))
         arch_code_a[0, 0] = 0  # caller edits the array it passed in
         self.assertFalse(bool(grid.arch_code_a[0, 0]))
+
+
+@unittest.skipUnless(torch._dynamo.is_dynamo_supported(), "dynamo is unsupported on this platform")
+class TestDintsGraphBreaks(unittest.TestCase):
+    def test_compiles_to_a_single_graph(self):
+        """A deployed DiNTS traces into one graph, with no break on a topology branch."""
+        # Before https://github.com/Project-MONAI/MONAI/issues/9144 was fixed this grid reported
+        # 14 graphs / 13 breaks: one break per `node_a` / `arch_code_a` element read.
+        torch._dynamo.reset()
+        # dynamo logs thousands of DEBUG records while tracing; pytest replays them all on
+        # failure, burying the assertion message.
+        trace_logger = logging.getLogger("torch.__trace")
+        self.addCleanup(trace_logger.setLevel, trace_logger.level)
+        trace_logger.setLevel(logging.WARNING)
+        grid = TopologyInstance(
+            channel_mul=0.2, num_blocks=6, num_depths=3, use_downsample=True, spatial_dims=3, device="cpu"
+        )
+        net = DiNTS(dints_space=grid, in_channels=1, num_classes=2, spatial_dims=3, use_downsample=True).eval()
+
+        input_tensor = torch.randn(1, 1, 32, 32, 32)
+        torch.compile(net, backend="eager", fullgraph=True)(input_tensor)
+        explanation = torch._dynamo.explain(net)(input_tensor)
+
+        self.assertEqual(
+            (explanation.graph_count, explanation.graph_break_count),
+            (1, 0),
+            "DiNTS no longer compiles to a single graph; a topology branch is reading a tensor again (#9144).",
+        )
 
 
 class TestDintsTS(unittest.TestCase):

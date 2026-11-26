@@ -30,6 +30,7 @@ from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
+from monai.utils.deprecate_utils import warn_deprecated
 
 requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
@@ -134,6 +135,59 @@ def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> 
         raise e
 
 
+def confined_path(
+    root: PathLike,
+    relative: PathLike,
+    *,
+    require_existing_dir: bool = False,
+    allow_subdirs: bool = True,
+    create_parents: bool = False,
+) -> Path:
+    """
+    Join ``relative`` onto ``root`` and require that the resolved result stays inside ``root``.
+
+    This is the shared containment primitive for every place MONAI writes a file to a path built
+    from a name it did not choose (archive members, remote download manifests, paths read from a
+    config file). It resolves both ``root`` and the joined target before comparing, so a symlinked
+    base directory (for example ``/tmp`` -> ``/private/tmp`` on macOS) does not cause a false
+    rejection, and uses :meth:`~pathlib.Path.is_relative_to` so a sibling prefix (``/x/foo2`` vs
+    ``/x/foo``) is not treated as inside.
+
+    Note:
+        Resolution follows symlinks that already exist, which stops ``..`` and symlinked-parent
+        escapes at check time. It does not defend against a symlink planted inside ``root`` between
+        this check and a later write (TOCTOU); callers that extract untrusted archives must also
+        reject symlink/hardlink members (see :func:`safe_extract_member`).
+
+    Args:
+        root: the directory the result must stay inside.
+        relative: the untrusted name to join onto ``root``. An absolute value is rejected unless it
+            already resolves inside ``root``.
+        require_existing_dir: when True, raise unless ``root`` is an existing directory.
+        allow_subdirs: when False, the result must be a direct child of ``root`` (reject ``a/b``).
+        create_parents: when True, create the parent directory of the result before returning.
+
+    Returns:
+        The resolved absolute target path.
+
+    Raises:
+        ValueError: if ``root`` is required to exist and does not, if the resolved target is
+            ``root`` itself or escapes ``root``, or if ``allow_subdirs`` is False and the target is
+            nested below ``root``.
+    """
+    root_path = Path(root).resolve()
+    if require_existing_dir and not root_path.is_dir():
+        raise ValueError(f"Expected an existing directory, got: {root!r}.")
+    target = Path(root_path, relative).resolve()
+    if target == root_path or not target.is_relative_to(root_path):
+        raise ValueError(f"Unsafe path: {str(relative)!r} does not stay inside {str(root_path)!r}.")
+    if not allow_subdirs and target.parent != root_path:
+        raise ValueError(f"Unsafe path: {str(relative)!r} must be a direct child of {str(root_path)!r}.")
+    if create_parents:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
 def safe_extract_member(member, extract_to):
     """Securely verify compressed package member paths to prevent path traversal attacks"""
     # Get member path (handle different compression formats)
@@ -151,19 +205,17 @@ def safe_extract_member(member, extract_to):
 
     member_path = os.path.normpath(member_path)
 
+    # Archive-specific: a member name must never be absolute or contain `..`.
     if os.path.isabs(member_path) or ".." in member_path.split(os.sep):
         raise ValueError(f"Unsafe path detected in archive: {member_path}")
 
-    full_path = os.path.join(extract_to, member_path)
-    full_path = os.path.normpath(full_path)
-
-    extract_root = os.path.realpath(extract_to)
-    target_real = os.path.realpath(full_path)
-    # Ensure the resolved path stays within the extraction root
-    if os.path.commonpath([extract_root, target_real]) != extract_root:
-        raise ValueError(f"Unsafe path: path traversal {member_path}")
-
-    return full_path
+    # Shared containment check (resolve both sides, stay inside the extraction root).
+    # Return the resolved destination that passed the check, so the path written matches the path
+    # that was validated even when ``extract_to`` contains a symlink.
+    try:
+        return str(confined_path(extract_to, member_path))
+    except ValueError as e:
+        raise ValueError(f"Unsafe path: path traversal {member_path}") from e
 
 
 def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha256") -> bool:
@@ -177,6 +229,9 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "sha
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
             See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
+    .. versionchanged:: 1.7
+        The default `hash_type` changed from "md5" to "sha256" for stronger integrity verification.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes.
     """
     if val is None:
         warnings.warn(f"No hash value provided for {filepath}; file integrity is NOT verified.", stacklevel=2)
@@ -204,7 +259,7 @@ def download_url(
     url: str,
     filepath: PathLike = "",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     progress: bool = True,
     **gdown_kwargs: Any,
 ) -> None:
@@ -217,7 +272,7 @@ def download_url(
             If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
             The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
         progress: whether to display a progress bar.
         gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
@@ -234,7 +289,23 @@ def download_url(
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
         HashCheckError: When the hash validation of the ``url`` downloaded file fails.
+
+    .. versionchanged:: 1.7
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.download_url",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
+            "set to explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
+            'default will be set to "sha256".',
+            stacklevel=3,
+        )
+        hash_type = "sha256"
+
     if not filepath:
         filepath = Path(".", _basename(url)).resolve()
         logger.info(f"Default downloading to '{filepath}'")
@@ -316,7 +387,7 @@ def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
 ) -> None:
@@ -329,7 +400,7 @@ def extractall(
         output_dir: target directory to save extracted files.
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
@@ -340,7 +411,22 @@ def extractall(
         HashCheckError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
+    .. versionchanged:: 1.6.1
+        The default `hash_type` changed from "md5" to None for stronger integrity verification. If this is left None
+        when a `hash_val` value is provided, this will warn to explicitly set `hash_type` then choose sha256 hashing.
+        Pass `hash_type="md5"` explicitly to verify against MD5 hashes and suppress the warning. In MONAI 1.8 the
+        default will be set to "sha256".
     """
+    if hash_val is not None and hash_type is None:
+        warn_deprecated(
+            "monai.apps.utils.extractall",
+            'Default `hash_type` value changed to `None` from "md5" in MONAI 1.7, '
+            "set to an explicit value to suppress this warning. Defaulting to sha256 checking. In MONAI 1.8 the "
+            'default will be set to "sha256".',
+            stacklevel=3,
+        )
+        hash_type = "sha256"
+
     filepath = Path(filepath)
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise HashCheckError(
@@ -395,7 +481,7 @@ def download_and_extract(
     filepath: PathLike = "",
     output_dir: PathLike = ".",
     hash_val: str | None = None,
-    hash_type: str = "sha256",
+    hash_type: str | None = None,
     file_type: str = "",
     has_base: bool = True,
     progress: bool = True,
@@ -411,7 +497,7 @@ def download_and_extract(
             default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
-        hash_type: type of hash algorithm to use, default is `"sha256"`.
+        hash_type: type of hash algorithm to use, default is None which will select `"sha256"`.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
         has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
             folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped

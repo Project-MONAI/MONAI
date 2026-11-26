@@ -30,11 +30,11 @@ class DeprecatedError(Exception):
     pass
 
 
-def warn_deprecated(obj, msg, warning_category=FutureWarning):
+def warn_deprecated(obj, msg, warning_category=FutureWarning, stacklevel=2):
     """
     Issue the warning message `msg`.
     """
-    warnings.warn(f"{obj}: {msg}", category=warning_category, stacklevel=2)
+    warnings.warn(f"{obj}: {msg}", category=warning_category, stacklevel=stacklevel)
 
 
 def deprecated(
