@@ -165,7 +165,7 @@ class IntegrationFastTrain(DistTestCase):
         # Novograd paper suggests to use a bigger LR than Adam,
         # because Adam does normalization by element-wise second moments
         optimizer = Novograd(model.parameters(), learning_rate * 10)
-        scaler = torch.cuda.amp.GradScaler()
+        scaler = torch.amp.GradScaler()
 
         post_pred = AsDiscrete(argmax=True, to_onehot=2)
         post_label = AsDiscrete(to_onehot=2)
