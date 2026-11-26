@@ -782,6 +782,25 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
+`LPIPS`
+~~~~~~~
+.. autoclass:: LPIPS
+  :members:
+
+`LPIPSFeatures`
+~~~~~~~~~~~~~~~
+.. autoclass:: LPIPSFeatures
+  :members:
+
+`NetLinLayer`
+~~~~~~~~~~~~~
+.. autoclass:: NetLinLayer
+
+`ScalingLayer`
+~~~~~~~~~~~~~~
+.. autoclass:: ScalingLayer
+  :members:
+
 `MILModel`
 ~~~~~~~~~~
 .. autoclass:: MILModel

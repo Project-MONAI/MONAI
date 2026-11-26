@@ -273,6 +273,10 @@ class LoadImage(Transform):
                 DICOM images series and read.
             reader: runtime reader to load image file and metadata.
 
+        Raises:
+            ValueError: when the reader returns an affine matrix (``affine`` or ``original_affine``
+                metadata) that contains NaN or infinity, as the image geometry is then invalid.
+
         """
         filename = tuple(
             f"{Path(s).expanduser()}" if self.expanduser else s for s in ensure_tuple(filename)  # allow Path objects
@@ -314,6 +318,23 @@ class LoadImage(Transform):
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
+        # every reader, including user-registered ones, must return a finite geometry
+        for key in (MetaKeys.AFFINE, MetaKeys.ORIGINAL_AFFINE):
+            if meta_data.get(key) is None:
+                continue
+            affine = meta_data[key]
+            affine = affine.detach().cpu().numpy() if isinstance(affine, torch.Tensor) else np.asarray(affine)
+            if not np.issubdtype(affine.dtype, np.number):
+                # a custom reader may hand over an object or string array; convert it so a NaN it
+                # holds is checked too, and let a conversion error propagate: a geometry that cannot
+                # be read as numbers is a bug in that reader, not something to skip silently
+                affine = affine.astype(float)
+                meta_data[key] = affine  # hand downstream code numbers it can convert to a tensor
+            if not np.isfinite(affine).all():
+                raise ValueError(
+                    f"{reader.__class__.__name__} returned a non-finite '{key}' (NaN or infinity) for "
+                    f"{ensure_tuple(filename)[0]}, so the image geometry is invalid."
+                )
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -510,21 +531,22 @@ class SaveImage(Transform):
             kw = self.fname_formatter(meta_data, self)
             filename = self.folder_layout.filename(**kw)
 
+        data_kwargs = self.data_kwargs.copy()
         if meta_data:
             meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
             if len(meta_spatial_shape) >= len(img.shape):
-                self.data_kwargs["channel_dim"] = None
-            elif is_no_channel(self.data_kwargs.get("channel_dim")):
+                data_kwargs["channel_dim"] = None
+            elif is_no_channel(data_kwargs.get("channel_dim")):
                 warnings.warn(
                     f"data shape {img.shape} (with spatial shape {meta_spatial_shape}) "
-                    f"but SaveImage `channel_dim` is set to {self.data_kwargs.get('channel_dim')} no channel."
+                    f"but SaveImage `channel_dim` is set to {data_kwargs.get('channel_dim')} no channel."
                 )
 
         err = []
         for writer_cls in self.writers:
             try:
                 writer_obj = writer_cls(**self.init_kwargs)
-                writer_obj.set_data_array(data_array=img, **self.data_kwargs)
+                writer_obj.set_data_array(data_array=img, **data_kwargs)
                 writer_obj.set_metadata(meta_dict=meta_data, **self.meta_kwargs)
                 writer_obj.write(filename, **self.write_kwargs)
                 self.writer_obj = writer_obj
