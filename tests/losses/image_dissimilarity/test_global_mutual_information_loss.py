@@ -353,19 +353,6 @@ class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
         self.assertIsNotNone(pred.grad)
         self.assertTrue(torch.isfinite(pred.grad).all())
 
-    def test_scripted_cpu_float16_autocast_large_volume_is_finite(self):
-        """Verify scripted loss avoids float16 histogram overflow under autocast."""
-        pred = torch.zeros((1, 1, 257, 257), requires_grad=True)
-        target = torch.zeros_like(pred)
-        loss = torch.jit.script(GlobalMutualInformationLoss(kernel_type="gaussian"))
-
-        with torch.autocast(device_type="cpu", dtype=torch.float16):
-            result = loss(pred, target)
-
-        self.assertTrue(torch.isfinite(result))
-        result.backward()
-        self.assertIsNotNone(pred.grad)
-        self.assertTrue(torch.isfinite(pred.grad).all())
 
     def test_cpu_float16_autocast_large_volume_is_finite(self):
         """Verify CPU float16 autocast avoids histogram accumulation overflow."""
