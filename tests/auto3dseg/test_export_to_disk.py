@@ -93,6 +93,20 @@ class TestExportToDiskPathConfinement(unittest.TestCase):
                     self._algo(name=name).export_to_disk(self.output, "net_0", fill_template=False)
                 self.assertTrue(os.path.isfile(os.path.join(self.output, "net_0", "scripts", "train.py")))
 
+    def test_symlinked_destination_inside_output_path_is_rejected(self):
+        """A destination symlink pointing inside output_path must not be followed into a destructive rmtree."""
+        target = os.path.join(self.output, "net_1")
+        os.makedirs(target)
+        with open(os.path.join(target, "trained.txt"), "w") as f:
+            f.write("keep\n")
+        try:
+            os.symlink(target, os.path.join(self.output, "net_0"), target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            self.skipTest(f"cannot create symlinks here: {e}")
+        with self.assertRaisesRegex(ValueError, "symbolic link"):
+            self._algo().export_to_disk(self.output, "net_0", fill_template=False)
+        self.assertTrue(os.path.isfile(os.path.join(target, "trained.txt")))
+
     def test_algo_name_attribute_outside_template_path_is_rejected(self):
         with self.assertRaises(ValueError):
             self._algo(name="../sibling").export_to_disk(self.output, "net_0", fill_template=False)
