@@ -103,6 +103,15 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
+intersphinx_mapping = {
+    "pytorch": ("https://docs.pytorch.org/docs/stable/", None),
+    "monai": ("https://monai.readthedocs.io/en/stable/", None),
+}
+
+# FIXME: find solution for these warnings related to docs in PyTorch which get inherited but can't be resolved:
+# "monai/data/meta_tensor.py:docstring of monai.data.MetaTensor.index_add_:16: WARNING: unknown document: '/notes/randomness' [ref.doc])
+suppress_warnings = ["ref.doc"]
+
 autoclass_content = "class"
 add_module_names = True
 source_encoding = "utf-8"
@@ -110,6 +119,7 @@ autosectionlabel_prefix_document = True
 napoleon_use_param = True
 napoleon_include_init_with_doc = True
 set_type_checking_flag = True
+autodoc_use_legacy_class_based = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

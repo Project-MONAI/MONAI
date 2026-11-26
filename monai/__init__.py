@@ -59,7 +59,7 @@ logging.getLogger("py.warnings").addFilter(DeprecatedTypesWarningFilter())
 
 
 PY_REQUIRED_MAJOR = 3
-PY_REQUIRED_MINOR = 9
+PY_REQUIRED_MINOR = 11
 
 version_dict = get_versions()
 __version__: str = str(version_dict.get("version", "0+unknown"))

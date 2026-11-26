@@ -106,7 +106,6 @@ class TestThreadContainer(unittest.TestCase):
             tempimg = f"{tempdir}/threadcontainer_plot_test.png"
             fig.savefig(tempimg)
             comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 5e-2)
-
             self.assertIsNone(comp, comp)  # None indicates test passed
 
 
