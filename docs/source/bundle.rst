@@ -46,6 +46,7 @@ Model Bundle
 .. autofunction:: get_bundle_info
 .. autofunction:: get_bundle_versions
 .. autofunction:: run
+.. autofunction:: verify_bundle
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
 .. autofunction:: init_bundle

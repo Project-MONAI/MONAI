@@ -20,6 +20,7 @@ from monai.bundle.scripts import (
     run,
     run_workflow,
     trt_export,
+    verify_bundle,
     verify_metadata,
     verify_net_in_out,
 )
