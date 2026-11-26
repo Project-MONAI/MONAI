@@ -100,14 +100,13 @@ pair can be installed in an environment: do not combine the AMD extras with `all
 
 A few points to be aware of:
 
-- `amd-cupy` and `amd-hipcim` are available for ROCm 10.0 only as of now, so keep the ROCm SDK on that series,
-  as the `==10.0.*` pin above does. With a newer ROCm they install, but CuPy fails when it compiles its GPU
-  kernels.
+- `amd-cupy` and `amd-hipcim` are currently released for ROCm 10.0. Keep the ROCm SDK on that series, as the
+  `==10.0.*` pin above does.
 - Install Torchvision from the ROCm index in the first step. If it is left to the second step, `pip` takes
   the PyPI build, which is not built for ROCm.
-- Without the extensions index the second step fails with `No matching distribution found for amd-cupy`,
-  because only placeholder packages exist on PyPI.
-- `amd-hipcim` is published for CPython 3.12 on x86_64 Linux only.
+- `amd-cupy` and `amd-hipcim` are served from AMD's extensions index, so the `--extra-index-url` option is
+  required in the second step.
+- `amd-hipcim` is currently released for CPython 3.12 on x86_64 Linux.
 - `Dockerfile.rocm` in the repository root sets up a complete environment, including the compiler and library
   paths needed to build the C++/HIP extensions.
 
