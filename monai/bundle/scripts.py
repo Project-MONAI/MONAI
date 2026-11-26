@@ -30,7 +30,7 @@ import torch
 from torch.cuda import is_available
 
 from monai._version import get_versions
-from monai.apps.utils import _basename, _extract_zip, download_url, extractall, get_logger
+from monai.apps.utils import _basename, _extract_zip, confined_path, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -260,7 +260,10 @@ def _download_from_ngc(
     filepath = download_path / filename
     filepath.mkdir(parents=True, exist_ok=True)
     for file in _get_all_download_files(url):
-        download_url(url=f"{url}/{file}", filepath=f"{filepath}/{file}", hash_val=None, progress=progress)
+        # `file` is a server-controlled path from the NGC modelFiles manifest; keep the write inside
+        # the bundle directory and create any nested directories it legitimately needs.
+        dest = confined_path(filepath, file, create_parents=True)
+        download_url(url=f"{url}/{file}", filepath=dest, hash_val=None, progress=progress)
 
 
 def _download_from_ngc_private(
@@ -2010,13 +2013,12 @@ def create_workflow(
 
 def _safe_large_file_path(bundle_path: PathLike, filepath: str) -> str:
     """Securely resolve a large-file target path to prevent traversal outside the bundle directory."""
-    bundle_root = os.path.realpath(bundle_path)
-    target = os.path.normpath(os.path.join(bundle_path, filepath))
-    target_real = os.path.realpath(target)
-    # Ensure the resolved path stays within the bundle root
-    if os.path.commonpath([bundle_root, target_real]) != bundle_root:
-        raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}")
-    return target
+    # Return the resolved destination that passed the check, so the path handed to ``download_url``
+    # matches the path that was validated even when ``bundle_path`` contains a symlink.
+    try:
+        return str(confined_path(bundle_path, filepath))
+    except ValueError as e:
+        raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}") from e
 
 
 def download_large_files(bundle_path: str | None = None, large_file_name: str | None = None) -> None:
