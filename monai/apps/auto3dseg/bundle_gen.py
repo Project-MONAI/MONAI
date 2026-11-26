@@ -386,6 +386,14 @@ class BundleAlgo(Algo):
             if not os.path.isdir(source):
                 raise ValueError(f"Algo template folder {source!r} does not exist.")
             self.output_path = _confined_join(output_path, algo_name)
+            # Reject a symlinked destination before the destructive rmtree: _confined_join resolves
+            # the symlink, so a link pointing inside output_path would otherwise pass containment and
+            # the rmtree below would delete the link's target instead of the link.
+            if os.path.islink(os.path.join(output_path, algo_name)):
+                raise ValueError(
+                    f"Refusing to export to {os.path.join(output_path, algo_name)!r}: "
+                    "the destination is a symbolic link."
+                )
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
