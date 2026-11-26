@@ -89,15 +89,23 @@ def _confined_join(root: str, name: str) -> str:
         name: the child directory name.
 
     Returns:
-        the joined path.
+        the joined path (``os.path.join(root, name)``, not resolved), so callers keep the path
+        they passed; containment is validated against the resolved path.
 
     Raises:
         ValueError: if the resolved path is not inside ``root``.
     """
+    # Validate on the resolved path, but return the unresolved join so a caller's public path
+    # (e.g. BundleAlgo.output_path / get_output_path) keeps the spelling it was given. This is safe
+    # here because ``name`` is a validated single component and the only destructive caller
+    # (export_to_disk) rejects a symlinked destination before writing. Sinks that write directly to
+    # an attacker-influenced name (safe_extract_member, _safe_large_file_path) instead return the
+    # resolved path confined_path validated.
     try:
-        return str(confined_path(root, name))
+        confined_path(root, name)
     except ValueError as e:
         raise ValueError(f"Invalid path: {os.path.join(root, name)!r} is not inside {root!r}.") from e
+    return os.path.join(root, name)
 
 
 def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:

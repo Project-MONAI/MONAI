@@ -47,7 +47,7 @@ class TestExportToDiskPathConfinement(unittest.TestCase):
     def test_valid_name_is_exported(self):
         algo = self._algo()
         algo.export_to_disk(self.output, "net_0", fill_template=False)
-        self.assertEqual(algo.output_path, os.path.realpath(os.path.join(self.output, "net_0")))
+        self.assertEqual(algo.output_path, os.path.join(self.output, "net_0"))
         self.assertTrue(os.path.isfile(os.path.join(self.output, "net_0", "scripts", "train.py")))
 
     def test_re_export_replaces_existing_directory(self):
