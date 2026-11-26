@@ -458,17 +458,15 @@ print_version
 
 if [ $doCopyRight = true ]
 then
-    # check copyright headers
-    copyright_bad=0
-    copyright_all=0
-    while read -r fname; do
-        copyright_all=$((copyright_all + 1))
-        if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
-            print_error_msg "Missing the license header in file: $fname"
-            copyright_bad=$((copyright_bad + 1))
-        fi
-    done <<< "$(find "$(pwd)/monai" "$(pwd)/tests" -type f \
+    # check copyright headers, listing the files without one in a single grep rather than one grep per file
+    copyright_files="$(find "$(pwd)/monai" "$(pwd)/tests" -type f \
         ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h")"
+    copyright_all=$(wc -l <<< "$copyright_files")
+    copyright_bad=0
+    while read -r fname; do
+        print_error_msg "Missing the license header in file: $fname"
+        copyright_bad=$((copyright_bad + 1))
+    done < <(tr '\n' '\0' <<< "$copyright_files" | xargs -0 grep -L "http://www.apache.org/licenses/LICENSE-2.0")
     if [[ ${copyright_bad} -eq 0 ]];
     then
         echo "${green}Source code copyright headers checked ($copyright_all).${noColor}"
