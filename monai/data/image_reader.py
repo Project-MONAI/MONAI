@@ -82,6 +82,32 @@ __all__ = [
 DICOM_READER_ENV_MAP = {"itk": "itkreader", "pydicom": "pydicomreader", "nvimgcodec": "nvimgcodecpydicomreader"}
 
 
+def _ensure_finite_affine(
+    affine: np.ndarray, reader_name: str, what: str = "the affine matrix derived from the image header"
+) -> np.ndarray:
+    """
+    Return ``affine`` unchanged, raising ``ValueError`` if it contains NaN or infinity.
+
+    A non-finite value cannot describe a valid image geometry. Spatial transforms either fail on it
+    (for example ``Orientation``) or carry it into their output metadata, so readers reject it here,
+    when the file is read.
+
+    Args:
+        affine: the affine matrix, or a sequence of values the affine is built from.
+        reader_name: name of the reader, used in the error message.
+        what: what ``affine`` is, used in the error message.
+
+    Raises:
+        ValueError: when ``affine`` has a non-finite element.
+    """
+    if not np.isfinite(affine).all():
+        raise ValueError(
+            f"{reader_name}: {what} is not finite "
+            f"(it contains NaN or infinity), so the image geometry is invalid: {np.asarray(affine).tolist()}."
+        )
+    return affine
+
+
 class ImageReader(ABC):
     """
     An abstract class defines APIs to load image files.
@@ -352,6 +378,9 @@ class ITKReader(ImageReader):
             img: an ITK image object loaded from an image file.
             lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
+        Raises:
+            ValueError: when the affine matrix is not finite.
+
         """
         direction = itk.array_from_matrix(img.GetDirection())
         spacing = np.asarray(img.GetSpacing())
@@ -362,6 +391,7 @@ class ITKReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
         affine[:sr, -1] = origin[:sr]
+        _ensure_finite_affine(affine, "ITKReader")
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -769,24 +799,19 @@ class PydicomReader(ImageReader):
             )
             return affine
 
-        def _raise_if_not_finite(values: Sequence[Any], tag: str) -> None:
-            if not np.isfinite(tuple(values)).all():
-                raise ValueError(
-                    f"PydicomReader: cannot derive affine matrix because DICOM tag {tag} "
-                    f"has a non-finite value: {values}."
-                )
-
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
-        _raise_if_not_finite((rx, ry, rz, cx, cy, cz), "ImageOrientationPatient (0020,0037)")
+        _ensure_finite_affine(
+            (rx, ry, rz, cx, cy, cz), "PydicomReader", "DICOM tag ImageOrientationPatient (0020,0037)"
+        )
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        _raise_if_not_finite((sx, sy, sz), "ImagePositionPatient (0020,0032)")
+        _ensure_finite_affine((sx, sy, sz), "PydicomReader", "DICOM tag ImagePositionPatient (0020,0032)")
         # "00280030" is the tag of `PixelSpacing`
         spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
-        _raise_if_not_finite(tuple(spacing), "PixelSpacing (0028,0030)")
+        _ensure_finite_affine(tuple(spacing), "PydicomReader", "DICOM tag PixelSpacing (0028,0030)")
         dr, dc = metadata.get("spacing", spacing)[:2]
-        _raise_if_not_finite((dr, dc), "spacing")
+        _ensure_finite_affine((dr, dc), "PydicomReader", "spacing")
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -801,15 +826,15 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
-            _raise_if_not_finite((t1n, t2n, t3n), "lastImagePositionPatient")
+            _ensure_finite_affine((t1n, t2n, t3n), "PydicomReader", "lastImagePositionPatient")
             n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
             if n > 1:
                 affine[0, 2] = (t1n - sx) / (n - 1)
                 affine[1, 2] = (t2n - sy) / (n - 1)
                 affine[2, 2] = (t3n - sz) / (n - 1)
 
-        if not np.isfinite(affine).all():
-            raise ValueError("PydicomReader: affine matrix not finite after composition.")
+        # finite inputs can still overflow, for example a large orientation times a large spacing
+        _ensure_finite_affine(affine, "PydicomReader", "the affine matrix composed from the DICOM tags")
 
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -1087,7 +1112,7 @@ class NvImgCodecPydicomReader(PydicomReader):
     Load DICOM images using Pydicom with GPU-accelerated decompression via nvImageCodec.
 
     This reader extends :py:class:`PydicomReader` and registers the nvImageCodec pydicom
-    decoder plugin on initialization. The plugin accelerates decoding of compressed pixel data
+    decoder plugin lazily on first use. The plugin accelerates decoding of compressed pixel data
     for JPEG, JPEG 2000, and HTJ2K transfer syntaxes when CUDA, CuPy and ``nvidia-nvimgcodec`` are available.
 
     If nvImageCodec is not available, a warning is issued and the reader falls back to the
@@ -1117,8 +1142,8 @@ class NvImgCodecPydicomReader(PydicomReader):
 
         This reader only declares ``@require_pkg(pkg_name="pydicom")`` so that :py:class:`monai.transforms.LoadImage`
         can register it without hard-failing when GPU dependencies are missing. ``pydicom`` is required to construct
-        the reader; nvimgcodec, CUDA, and CuPy availability is checked at runtime with a warning issued and fallback to
-        default pydicom decoders if missing.
+        the reader; nvImageCodec, CUDA, and CuPy availability is checked when a DICOM file is verified or read.
+        If the plugin is unavailable or registration fails, the reader falls back to the default pydicom decoders.
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
@@ -1159,6 +1184,14 @@ class NvImgCodecPydicomReader(PydicomReader):
             to_gpu=False,
             **kwargs,
         )
+
+        self._nvimgcodec_available = False
+        self._setup_done = False
+
+    def _ensure_setup(self) -> None:
+        """Import and register the nvImageCodec plugin on first use only."""
+        if self._setup_done:
+            return
         from monai.data.nvimgcodec_pydicom_plugin import is_nvimgcodec_available, register_as_decoder_plugin
 
         self._nvimgcodec_available = is_nvimgcodec_available()
@@ -1167,14 +1200,28 @@ class NvImgCodecPydicomReader(PydicomReader):
                 "NvImgCodecPydicomReader: nvImageCodec decoder plugin did not register successfully. "
                 "Falling back to default pydicom decoders."
             )
+        self._setup_done = True
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files are DICOM and nvImageCodec is available.
         """
-        if not has_pydicom or not self._nvimgcodec_available:
+        if not has_pydicom or not is_dicom_path(filename):
             return False
-        return is_dicom_path(filename)
+        self._ensure_setup()
+        return self._nvimgcodec_available
+
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
+        """Read image data using the configured reader.
+
+        Args:
+            data: Input image data or file path.
+            **kwargs: Additional arguments passed to the underlying reader.
+
+        Returns:
+            The image data returned by the underlying reader."""
+        self._ensure_setup()
+        return super().read(data, **kwargs)
 
 
 @require_pkg(pkg_name="nibabel")
@@ -1343,8 +1390,11 @@ class NibabelReader(ImageReader):
         Args:
             img: a Nibabel image object loaded from an image file.
 
+        Raises:
+            ValueError: when the affine matrix is not finite.
+
         """
-        return np.array(img.affine, copy=True)
+        return _ensure_finite_affine(np.array(img.affine, copy=True), "NibabelReader")
 
     def _get_spatial_shape(self, img):
         """
@@ -1745,7 +1795,10 @@ class NrrdReader(ImageReader):
         spacing, orientation or execute spatial transforms.
 
         Args:
-            img: A `NrrdImage` loaded from image file
+            header: the header of a `NrrdImage` loaded from an image file.
+
+        Raises:
+            ValueError: when the affine matrix is not finite.
 
         """
         direction = header["space directions"]
@@ -1756,7 +1809,7 @@ class NrrdReader(ImageReader):
         affine: np.ndarray = np.eye(affine_diam)
         affine[:x, :y] = direction.T
         affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
-        return affine
+        return _ensure_finite_affine(affine, "NrrdReader")
 
     def _switch_lps_ras(self, header: dict) -> dict:
         """

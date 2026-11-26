@@ -28,6 +28,28 @@ DEP_KEY = "dependencies"
 REQ_KEY = "requires"
 TOML_FILE = "pyproject.toml"
 
+# project name and -weekly variant
+PROJ = "monai"
+PROJ_WEEKLY = f"{PROJ}-weekly"
+
+
+def _resolve_monai_opts(opt: str | list[str], all_opts: dict[str, str]):
+    """Recurse through the dependencies dictionary to resolve monai[...] dependencies into actual packages."""
+    if isinstance(opt, list):  # dependency list, yield from each resolved item
+        for subopt in opt:
+            yield from _resolve_monai_opts(subopt, all_opts)
+    elif opt in all_opts:  # an optional dependency name, resolve the members of this list
+        reduced_opts = {k: v for k, v in all_opts.items() if k != opt}  # remove found opt to prevent infinite recursion
+        yield from _resolve_monai_opts(all_opts[opt], reduced_opts)
+    else:  # string dependency, either monai[...], monai-weekly[...], or something else
+        opt = opt.strip()
+        if opt.startswith((PROJ + "[", PROJ_WEEKLY + "[")) and opt.strip().endswith("]"):
+            start_idx = len(PROJ_WEEKLY) if opt.startswith(PROJ_WEEKLY) else len(PROJ)  # remove either project name
+            for subopt in opt[start_idx + 1 : -1].split(","):
+                yield from _resolve_monai_opts(subopt.strip(), all_opts)
+        else:
+            yield opt  # an actual dependency value
+
 
 def parse_dependencies(filename: str | None = None, sections: Collection[str] | None = None) -> list[str]:
     """
@@ -62,11 +84,11 @@ def parse_dependencies(filename: str | None = None, sections: Collection[str] | 
         sections.remove(BUILD_SYSTEM_KEY)
         dependencies += data[BUILD_SYSTEM_KEY][REQ_KEY]
 
-    if "*" in sections:
-        dependencies += sum(opts.values(), [])
-    else:
-        for s in sections:
-            dependencies += opts[s]
+    # select all sections if * is given on the command
+    resolved_sections = opts.keys() if "*" in sections else sections
+
+    for s in resolved_sections:
+        dependencies += _resolve_monai_opts(opts[s], opts)
 
     return sorted(set(dependencies))
 

@@ -321,5 +321,37 @@ class TestPredictEnsemblePostprocessingWarnings(unittest.TestCase):
             load_pickle.assert_not_called()
 
 
+class TestConfineToDir(unittest.TestCase):
+    def test_absolute_inside_is_returned(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = os.path.realpath(os.path.join(tempdir, "results", "Dataset001"))
+            os.makedirs(root)
+            candidate = os.path.join(root, "postprocessing.pkl")
+            self.assertEqual(nnunetv2_runner._confine_to_dir(candidate, root, "postprocessing_file"), candidate)
+
+    def test_absolute_outside_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = os.path.realpath(os.path.join(tempdir, "results", "Dataset001"))
+            os.makedirs(root)
+            with self.assertRaisesRegex(ValueError, r"GHSA-8f32-8649-rv87"):
+                nnunetv2_runner._confine_to_dir(os.path.join(tempdir, "evil.pkl"), root, "postprocessing_file")
+
+    def test_relative_candidate_resolved_against_cwd(self):
+        """A working-directory-relative candidate must resolve against the cwd, not be re-joined onto root."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = os.path.realpath(os.path.join(tempdir, "results", "Dataset001"))
+            os.makedirs(root)
+            open(os.path.join(root, "postprocessing.pkl"), "w").close()
+            cwd = os.getcwd()
+            try:
+                os.chdir(tempdir)
+                got = nnunetv2_runner._confine_to_dir(
+                    os.path.join("results", "Dataset001", "postprocessing.pkl"), root, "postprocessing_file"
+                )
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(got, os.path.join(root, "postprocessing.pkl"))
+
+
 if __name__ == "__main__":
     unittest.main()

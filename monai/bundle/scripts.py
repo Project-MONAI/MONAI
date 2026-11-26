@@ -30,7 +30,7 @@ import torch
 from torch.cuda import is_available
 
 from monai._version import get_versions
-from monai.apps.utils import _basename, _extract_zip, download_url, extractall, get_logger
+from monai.apps.utils import _basename, _extract_zip, confined_path, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -260,7 +260,10 @@ def _download_from_ngc(
     filepath = download_path / filename
     filepath.mkdir(parents=True, exist_ok=True)
     for file in _get_all_download_files(url):
-        download_url(url=f"{url}/{file}", filepath=f"{filepath}/{file}", hash_val=None, progress=progress)
+        # `file` is a server-controlled path from the NGC modelFiles manifest; keep the write inside
+        # the bundle directory and create any nested directories it legitimately needs.
+        dest = confined_path(filepath, file, create_parents=True)
+        download_url(url=f"{url}/{file}", filepath=dest, hash_val=None, progress=progress)
 
 
 def _download_from_ngc_private(
@@ -336,7 +339,7 @@ def _check_monai_version(bundle_dir: PathLike, name: str) -> None:
     if not metadata_file.exists():
         logger.warning(f"metadata file not found in {metadata_file}.")
         return
-    with open(metadata_file) as f:
+    with open(metadata_file, encoding="utf-8") as f:
         metadata = json.load(f)
     is_compatible, msg = _examine_monai_version(metadata.get("monai_version", "0+unknown"))
     if not is_compatible:
@@ -1817,13 +1820,13 @@ def init_bundle(
     if isinstance(inference_str, dict):
         inference_str = json.dumps(inference_str, indent=4)
 
-    with open(str(configs_dir / "metadata.json"), "w") as o:
+    with open(str(configs_dir / "metadata.json"), "w", encoding="utf-8") as o:
         o.write(metadata_str)
 
-    with open(str(configs_dir / "inference.json"), "w") as o:
+    with open(str(configs_dir / "inference.json"), "w", encoding="utf-8") as o:
         o.write(inference_str)
 
-    with open(str(docs_dir / "README.md"), "w") as o:
+    with open(str(docs_dir / "README.md"), "w", encoding="utf-8") as o:
         readme = """
         # Your Model Name
 
@@ -1840,11 +1843,11 @@ def init_bundle(
 
         o.write(dedent(readme))
 
-    with open(str(bundle_dir / "LICENSE"), "w") as o:
+    with open(str(bundle_dir / "LICENSE"), "w", encoding="utf-8") as o:
         o.write("Select a license and place its terms here\n")
 
     if dataset_license is True:
-        with open(str(docs_dir / "data_license.txt"), "w") as o:
+        with open(str(docs_dir / "data_license.txt"), "w", encoding="utf-8") as o:
             o.write("Select a license for dataset and place its terms here\n")
 
     if ckpt_file is not None:
@@ -1858,7 +1861,7 @@ def _add_model_card_metadata(new_modelcard_path):
     license_name = "unknown"
     license_path = os.path.join(os.path.dirname(new_modelcard_path), "LICENSE")
     if os.path.exists(license_path):
-        with open(license_path) as file:
+        with open(license_path, encoding="utf-8") as file:
             content = file.read()
         if "Apache License" in content and "Version 2.0" in content:
             license_name = "apache-2.0"
@@ -1870,10 +1873,10 @@ def _add_model_card_metadata(new_modelcard_path):
     tag_content = f"---\ntags:\n{tags}license: {license_name}\n---"
 
     # Update model card
-    with open(new_modelcard_path) as file:
+    with open(new_modelcard_path, encoding="utf-8") as file:
         content = file.read()
     new_content = tag_content + "\n" + content
-    with open(new_modelcard_path, "w") as file:
+    with open(new_modelcard_path, "w", encoding="utf-8") as file:
         file.write(new_content)
 
 
@@ -2010,13 +2013,12 @@ def create_workflow(
 
 def _safe_large_file_path(bundle_path: PathLike, filepath: str) -> str:
     """Securely resolve a large-file target path to prevent traversal outside the bundle directory."""
-    bundle_root = os.path.realpath(bundle_path)
-    target = os.path.normpath(os.path.join(bundle_path, filepath))
-    target_real = os.path.realpath(target)
-    # Ensure the resolved path stays within the bundle root
-    if os.path.commonpath([bundle_root, target_real]) != bundle_root:
-        raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}")
-    return target
+    # Return the resolved destination that passed the check, so the path handed to ``download_url``
+    # matches the path that was validated even when ``bundle_path`` contains a symlink.
+    try:
+        return str(confined_path(bundle_path, filepath))
+    except ValueError as e:
+        raise ValueError(f"Unsafe path: path traversal {filepath} for bundle_path {bundle_path}") from e
 
 
 def download_large_files(bundle_path: str | None = None, large_file_name: str | None = None) -> None:

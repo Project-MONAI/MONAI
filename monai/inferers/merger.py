@@ -241,6 +241,7 @@ class ZarrAvgMerger(Merger):
             If True, chunk shape will be guessed from `shape` and `dtype`.
             If False, it will be set to `shape`, i.e., single chunk for the whole array.
             If an int, the chunk size in each dimension will be given by the value of `chunks`.
+        thread_locking: whether to use thread locking during aggregation. Default is True.
     """
 
     @deprecated_arg(
@@ -286,24 +287,28 @@ class ZarrAvgMerger(Merger):
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
-        self.tmpdir: TemporaryDirectory | None
+        # Use separate tmpdir attributes so both TemporaryDirectory objects remain alive
+        # for the full lifetime of this instance. Previously a single `self.tmpdir` was
+        # overwritten when both value_store and count_store were None, causing the first
+        # TemporaryDirectory to be garbage-collected immediately.
+        self.value_tmpdir: TemporaryDirectory | None = None
+        self.count_tmpdir: TemporaryDirectory | None = None
 
         # Handle zarr v3 vs older versions
         is_zarr_v3 = version_geq(get_package_version("zarr"), "3.0.0")
 
         if is_zarr_v3:
             if value_store is None:
-                self.tmpdir = TemporaryDirectory()
-                self.value_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
+                self.value_tmpdir = TemporaryDirectory()
+                self.value_store = zarr.storage.LocalStore(self.value_tmpdir.name)  # type: ignore
             else:
                 self.value_store = value_store  # type: ignore
             if count_store is None:
-                self.tmpdir = TemporaryDirectory()
-                self.count_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
+                self.count_tmpdir = TemporaryDirectory()
+                self.count_store = zarr.storage.LocalStore(self.count_tmpdir.name)  # type: ignore
             else:
                 self.count_store = count_store  # type: ignore
         else:
-            self.tmpdir = None
             self.value_store = zarr.storage.TempStore() if value_store is None else value_store  # type: ignore
             self.count_store = zarr.storage.TempStore() if count_store is None else count_store  # type: ignore
 
@@ -325,7 +330,6 @@ class ZarrAvgMerger(Merger):
             if codecs is not None:
                 self.codecs = codecs
             elif compressor is not None:
-                # Convert compressor to codec format
                 if isinstance(compressor, (list, tuple)):
                     self.codecs = compressor
                 else:
@@ -354,19 +358,22 @@ class ZarrAvgMerger(Merger):
                 self.count_codecs = None
         else:
             # For zarr v2, use compressors
-            if codecs is not None:
-                # If codecs are specified in v2, use the first codec as compressor
-                self.codecs = codecs[0] if isinstance(codecs, (list, tuple)) else codecs
+            if isinstance(codecs, (list, tuple)):
+                self.codecs = codecs[0] if codecs else None
+            elif codecs is not None:
+                self.codecs = codecs
             else:
                 self.codecs = compressor  # type: ignore[assignment]
-
-            if value_codecs is not None:
-                self.value_codecs = value_codecs[0] if isinstance(value_codecs, (list, tuple)) else value_codecs
+            if isinstance(value_codecs, (list, tuple)):
+                self.value_codecs = value_codecs[0] if value_codecs else None
+            elif value_codecs is not None:
+                self.value_codecs = value_codecs
             else:
                 self.value_codecs = value_compressor  # type: ignore[assignment]
-
-            if count_codecs is not None:
-                self.count_codecs = count_codecs[0] if isinstance(count_codecs, (list, tuple)) else count_codecs
+            if isinstance(count_codecs, (list, tuple)):
+                self.count_codecs = count_codecs[0] if count_codecs else None
+            elif count_codecs is not None:
+                self.count_codecs = count_codecs
             else:
                 self.count_codecs = count_compressor  # type: ignore[assignment]
 

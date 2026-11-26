@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections.abc import Sequence
 from enum import Enum
 
 import numpy as np
@@ -106,6 +107,41 @@ def _maybe_new_metatensor(img, dtype=None, device=None):
     )
 
 
+def _cancel_align_corners_scaling(
+    xform: torch.Tensor, in_spatial_size: Sequence[int], out_spatial_size: Sequence[int]
+) -> torch.Tensor:
+    """
+    Pre-compensate a voxel-space affine for the scalings applied again downstream when
+    ``align_corners=True`` and the compiled ``Resample`` path is used.
+
+    ``xform`` is already expressed in voxel space. However, ``Affine`` passes it through ``AffineGrid``,
+    which applies a ``d_out / (d_out - 1)`` scaling per spatial dimension, and the compiled ``Resample``
+    applies a ``(d_in - 1) / d_in`` scaling before ``grid_pull``. This function returns
+    ``T @ S_inv @ xform @ D_inv``, where ``S_inv`` and ``D_inv`` cancel those two scalings and ``T`` is a
+    translation by -0.5 voxel that re-centres the result, so that ``grid_pull`` receives the original
+    ``xform`` unchanged.
+
+    Dimensions are clamped to a minimum of 2 to avoid division by zero for singleton axes.
+
+    Args:
+        xform: homogeneous affine of shape ``(rank + 1, rank + 1)`` in voxel space.
+        in_spatial_size: spatial shape of the input image.
+        out_spatial_size: spatial shape of the resampled output.
+
+    Returns:
+        the compensated homogeneous affine, same shape, dtype and device as ``xform``.
+    """
+    rank = len(xform) - 1
+    eye = torch.eye(rank + 1, dtype=xform.dtype, device=xform.device)
+    s_inv, d_inv, translate = eye.clone(), eye.clone(), eye.clone()
+    for i in range(rank):
+        d_in, d_out = max(2, int(in_spatial_size[i])), max(2, int(out_spatial_size[i]))
+        s_inv[i, i] = d_in / (d_in - 1)
+        d_inv[i, i] = (d_out - 1) / d_out
+        translate[i, -1] = -0.5
+    return translate @ s_inv @ xform @ d_inv
+
+
 def spatial_resample(
     img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy, transform_info
 ) -> torch.Tensor:
@@ -162,8 +198,11 @@ def spatial_resample(
     in_spatial_size = torch.tensor(original_spatial_shape[:spatial_rank])
     if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
         spatial_size = in_spatial_size
-    elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-        spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+    elif spatial_size is None:
+        if spatial_rank > 1:  # auto spatial size
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+        else:
+            spatial_size = in_spatial_size
     spatial_size = torch.tensor(
         fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x is not None and x >= 0)
     )
@@ -213,6 +252,8 @@ def spatial_resample(
     if isinstance(mode, int) or _use_compiled:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
+        if align_corners and not isinstance(mode, int):
+            xform = _cancel_align_corners_scaling(xform, in_sp_size, spatial_size)
         affine_xform = monai.transforms.Affine(
             affine=xform,
             spatial_size=spatial_size,
