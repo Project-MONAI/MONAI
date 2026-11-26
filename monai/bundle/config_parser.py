@@ -610,7 +610,7 @@ class ConfigParser:
         _filepath: str = str(Path(filepath))
         if not re.compile(cls.path_match, re.IGNORECASE).findall(_filepath):
             raise ValueError(f'unknown file input: "{filepath}"')
-        with open(_filepath) as f:
+        with open(_filepath, encoding="utf-8") as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
                 return json.load(f, object_pairs_hook=check_key_duplicates, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
@@ -658,7 +658,7 @@ class ConfigParser:
         """
         _filepath: str = str(Path(filepath))
         writer = look_up_option(fmt.lower(), {"json", "yaml", "yml"})
-        with open(_filepath, "w") as f:
+        with open(_filepath, "w", encoding="utf-8") as f:
             if writer == "json":
                 json.dump(config, f, **kwargs)
                 return
