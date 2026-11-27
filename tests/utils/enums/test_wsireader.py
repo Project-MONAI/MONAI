@@ -475,6 +475,11 @@ class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
 
+        @classmethod
+        def tearDownClass(cls):
+            gc.collect()
+            super().tearDownClass()
+
         def tearDown(self):
             """Force deterministic cleanup of any backend WSI handles.
 
@@ -484,11 +489,12 @@ class WSIReaderTests:
             ``CuImage`` instance that owns an open file descriptor. Without
             forcing a collection here, the temp TIFFs used by these tests
             stay open long enough for the interpreter to emit
-            ``ResourceWarning: unclosed file ...``. Running ``gc.collect``
-            invokes the corresponding ``__del__`` finalizers, which all close
-            the underlying handle.
+            ``ResourceWarning: unclosed file ...``. Collecting the young
+            generations invokes the corresponding ``__del__`` finalizers, which
+            all close the underlying handle; ``tearDownClass`` runs a full
+            collection for any handle that outlived them.
             """
-            gc.collect()
+            gc.collect(1)
 
         @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
