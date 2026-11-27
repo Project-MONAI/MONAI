@@ -325,6 +325,7 @@ def no_collation(x):
     return x
 
 
+@skipUnless(has_nib, "nibabel required for test_inverse")
 class TestInverse(unittest.TestCase):
     """Test inverse methods.
 
@@ -364,13 +365,12 @@ class TestInverse(unittest.TestCase):
                 plot_im(orig, fwd_bck, unmodified)
     """
 
-    def setUp(self):
-        if not has_nib:
-            self.skipTest("nibabel required for test_inverse")
-
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         set_determinism(seed=0)
 
-        self.all_data = {}
+        cls.base_data = {}
 
         affine = make_rand_affine()
         affine[0] *= 2
@@ -379,7 +379,7 @@ class TestInverse(unittest.TestCase):
             # pad 5 onto both ends so that cropping can be lossless
             im_1d = np.pad(np.arange(size), 5)[None]
             name = "1D even" if size % 2 == 0 else "1D odd"
-            self.all_data[name] = {
+            cls.base_data[name] = {
                 "image": torch.as_tensor(np.array(im_1d, copy=True)),
                 "label": torch.as_tensor(np.array(im_1d, copy=True)),
                 "other": torch.as_tensor(np.array(im_1d, copy=True)),
@@ -391,8 +391,12 @@ class TestInverse(unittest.TestCase):
         load_ims = Compose(
             [LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel"), FromMetaTensord(KEYS)]
         )
-        self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
-        self.all_data["3D"] = load_ims({"image": im_3d_fname, "label": seg_3d_fname})
+        cls.base_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
+        cls.base_data["3D"] = load_ims({"image": im_3d_fname, "label": seg_3d_fname})
+
+    def setUp(self):
+        set_determinism(seed=0)
+        self.all_data = deepcopy(self.base_data)
 
     def tearDown(self):
         set_determinism(seed=None)
