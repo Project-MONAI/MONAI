@@ -165,6 +165,16 @@ Blocks
 .. autoclass:: ResidualSELayer
     :members:
 
+`Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SpatialSELayer
+    :members:
+
+`Channel-Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSpatialSELayer
+    :members:
+
 `Squeeze-and-Excitation Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SEBlock
@@ -770,6 +780,25 @@ Nets
 `TorchVisionFCModel`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFCModel
+  :members:
+
+`LPIPS`
+~~~~~~~
+.. autoclass:: LPIPS
+  :members:
+
+`LPIPSFeatures`
+~~~~~~~~~~~~~~~
+.. autoclass:: LPIPSFeatures
+  :members:
+
+`NetLinLayer`
+~~~~~~~~~~~~~
+.. autoclass:: NetLinLayer
+
+`ScalingLayer`
+~~~~~~~~~~~~~~
+.. autoclass:: ScalingLayer
   :members:
 
 `MILModel`

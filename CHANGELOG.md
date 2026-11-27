@@ -4,7 +4,44 @@ All notable changes to MONAI are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+* `SpatialSELayer` and `ChannelSpatialSELayer` in `monai.networks.blocks`: spatial (sSE) and concurrent spatial and channel (scSE) squeeze-and-excitation layers for 1D, 2D and 3D inputs, based on ["Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks"](https://arxiv.org/abs/1803.02579). (#9278)
+### Fixed
+* `Quicknat` no longer depends on the unpublished `squeeze_and_excitation` package for `se_block="SSE"` and `"CSSE"`. Checkpoints saved with that package for these two options use different `state_dict` keys and will not load strictly. (#9276)
+* `ChannelSELayer` raises `ValueError` instead of `ZeroDivisionError` when `r=0`.
 
+## [1.6.2] - 2026-11-18
+### Addressed Security Advisories
+* GHSA-f45g-w7qf-g6cv: Do not evaluate imports when reading an algorithm score (#9254)
+* GHSA-987m-fcvp-pfxm: Treat BundleGen algos mapping values as literal data (#9253)
+* GHSA-95v4-gm26-h6xf: Check nnUNet plans network names against allowed modules (#9237)
+* GHSA-8wp8-g6wq-2m6r: Restore algo state values literally in algo_from_json (#9233)
+* GHSA-jx6w-46x8-v3r5: Confine BundleAlgo.export_to_disk to the output directory (#9236)
+* GHSA-9hf8-cr88-f7wg: Keep argument boundaries when building Auto3DSeg commands (#9234)
+* GHSA-vq3w-pqfr-2w2r: Quote arguments in the NNI trial command (#9235)
+* GHSA-4724-w94g-2rfp: Deprecate MMAR APIs and disable load_from_mmar (#9179)
+
+### Added
+* Add ConvNeXt networks for 1D, 2D, and 3D inputs (#8995)
+* Add MarchingCubes surface extraction and factor LPIPS into MONAI perceptual loss (#9107, #9287)
+* Add average calibration losses, likelihood ratios, and diagnostic odds ratio metrics (#9092, #9105)
+* Add per-component Surface Distance and optional native-resolution deep supervision for DynUNet (#8855, #9127)
+* Add ROCm support for AMD Instinct GPUs and system resource logging with MLFlowHandler (#9153, #9052)
+
+### CI/Testing Fixes
+* Expand ONNX export test coverage to 12 network architectures (#9073)
+* Reduce test runtime by shrinking synthetic volumes, reusing test data, caching SwinUNETR SSL weights, and avoiding repeated mask allocation (#9034, #8985, #8987, #8993)
+* Remove duplicate test cases (#9051)
+
+### Other Fixes
+* Restrict `safe_eval` name resolution to caller-supplied variables (#9125)
+* Fix diffusion inferers with diffusers-style schedulers and preserve device and dtype in `squarepulse` (#8870, #9005)
+* Fix skipped `RandGridDistortiond` transforms, unspecified spatial sizes in resampling, compiled lazy resampling with `align_corners=True`, and `Spacingd` metadata updates (#8788, #9080, #9191, #9248, #9167)
+* Fix Hausdorff percentile and ignored-voxel handling, per-component Dice, and EmbeddingCollapseMetric aggregation (#9096, #9033, #9195, #9171, #9134, #9117)
+* Fix DatasetSummary empty-foreground handling, GridPatchDataset cache edge cases, CSVIterableDataset shuffling, and ZarrAvgMerger behavior with zarr 3 (#9043, #9101, #9249, #8816, #9077)
+* Fix FID compatibility with scipy 1.18+ (#9076)
+* Make `NormalizeIntensity` invertible and preserve non-contiguous inputs during inversion (#8905, #9183)
+* Deprecate `hash_type` and MMAR APIs (#9130, #9179)
 
 ## [1.6.1] - 2026-09-25
 ### Added
