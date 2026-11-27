@@ -120,7 +120,7 @@ class SupervisedTrainer(Trainer):
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
-            default to `True`.
+            default to `False` as training slows due to tensor movement to CPU for decollation when enabled.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
@@ -160,7 +160,7 @@ class SupervisedTrainer(Trainer):
         amp: bool = False,
         event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
-        decollate: bool = True,
+        decollate: bool = False,
         optim_set_to_none: bool = False,
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,

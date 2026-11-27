@@ -119,7 +119,8 @@
             "loss_function": "@loss",
             "optimizer": "@optimizer",
             "inferer": "@train#inferer",
-            "train_handlers": "@train#handlers"
+            "train_handlers": "@train#handlers",
+            "decollate": true
         }
     },
     "validate": {
