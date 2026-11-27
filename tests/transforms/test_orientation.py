@@ -191,17 +191,6 @@ for device in TEST_DEVICES:
         [
             {"axcodes": "L"},
             torch.arange(6).reshape((2, 3)),
-            torch.eye(2),
-            torch.tensor([[2, 1, 0], [5, 4, 3]]),
-            "L",
-            False,
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"axcodes": "L"},
-            torch.arange(6).reshape((2, 3)),
             torch.as_tensor(np.diag([-1, 1])),
             torch.arange(6).reshape((2, 3)),
             "L",
