@@ -503,5 +503,46 @@ class TestConfusionMatrix(unittest.TestCase):
             compute_confusion_matrix_metric("diagnostic likelihood ratio", TEST_CASE_LR[0])
 
 
+def _large_one_hot_pair() -> tuple[torch.Tensor, torch.Tensor]:
+    """Build a 2-channel one-hot pair with more than 2**24 voxels: 100 TP, 1 FP and 1 FN in channel 1."""
+    # uint8 keeps the test light; the counting path is the same for float inputs.
+    foreground_pred = torch.zeros(1, 1, 4096, 4098, dtype=torch.uint8)
+    foreground = torch.zeros_like(foreground_pred)
+    foreground_pred[0, 0, 0, :100] = 1
+    foreground[0, 0, 0, :101] = 1
+    foreground_pred[0, 0, 1, 0] = 1
+    y_pred = torch.cat([1 - foreground_pred, foreground_pred], dim=1)
+    y = torch.cat([1 - foreground, foreground], dim=1)
+    return y_pred, y
+
+
+class TestConfusionMatrixLargeVolume(unittest.TestCase):
+    @parameterized.expand([(None,), (-1,)])  # -1 masks no voxel of a one-hot target but takes the mask path
+    def test_counts_are_exact_above_float32_integer_range(self, ignore_index):
+        """False positives and negatives are not lost when a channel has more than 2**24 voxels."""
+        y_pred, y = _large_one_hot_pair()
+        num_voxels = y[0, 0].numel()
+        self.assertGreater(num_voxels, 2**24)
+
+        result = get_confusion_matrix(y_pred, y, ignore_index=ignore_index)
+
+        # [tp, fp, tn, fn]: the background channel mirrors the foreground errors.
+        self.assertEqual(result[0, 1].tolist(), [100, 1, float(torch.tensor(num_voxels - 102).float()), 1])
+        self.assertEqual(result[0, 0, [1, 2, 3]].tolist(), [1, 100, 1])
+        assert_allclose(
+            compute_confusion_matrix_metric("precision", result)[0, 1], 100 / 101, rtol=1e-6, type_test=False
+        )
+
+    def test_float16_labels_are_counted_exactly(self):
+        """float16 holds integers exactly only up to 2048, so float16 labels must not be summed in float16."""
+        y_pred = torch.zeros(1, 1, 3001, dtype=torch.float16)
+        y = torch.ones_like(y_pred)
+        y_pred[0, 0, :3000] = 1
+
+        result = get_confusion_matrix(y_pred, y)
+
+        self.assertEqual(result[0, 0].tolist(), [3000, 0, 0, 1])
+
+
 if __name__ == "__main__":
     unittest.main()
