@@ -36,6 +36,37 @@ INVALID_CONSTRUCTOR_ARGS = [
     for weight in (value, [1.0, value], torch.tensor([value]))
 ]
 
+HARD_EDGE_CASES = [
+    (num_bins, right, dtype)
+    for num_bins in (2, 4, 20)
+    for right in (False, True)
+    for dtype in (torch.float32, torch.float64)
+]
+
+
+def _boundary_values(num_bins: int, dtype: torch.dtype) -> torch.Tensor:
+    """Return 0, 1, the largest value below 1, a value far from every edge, and each internal edge that is a
+    multiple of 0.25 (exact in every float type) with both of its ``nextafter`` neighbors."""
+    edges = torch.tensor([k / num_bins for k in range(1, num_bins) if (4 * k) % num_bins == 0], dtype=dtype)
+    one = torch.ones(1, dtype=dtype)
+    return torch.cat(
+        [
+            torch.tensor([0.0, 0.33], dtype=dtype),
+            edges,
+            torch.nextafter(edges, torch.zeros_like(edges)),
+            torch.nextafter(edges, torch.ones_like(edges)),
+            torch.nextafter(one, torch.zeros_like(one)),
+            one,
+        ]
+    )
+
+
+def _reference_bin(value: float, num_bins: int, right: bool) -> int:
+    """Bin index from the exact edges ``k / num_bins``; exact for the values of ``_boundary_values``."""
+    if right:
+        return sum(k / num_bins <= value for k in range(1, num_bins))
+    return sum(k / num_bins < value for k in range(1, num_bins))
+
 
 class TestCalibrationBinningHelpers(unittest.TestCase):
     @parameterized.expand([(False,), (True,)])
@@ -48,6 +79,16 @@ class TestCalibrationBinningHelpers(unittest.TestCase):
         torch.testing.assert_close(counts, metric_counts)
         torch.testing.assert_close(sum_p[valid] / counts[valid], metric_p[valid])
         torch.testing.assert_close(sum_target[valid] / counts[valid], metric_target[valid])
+
+    @parameterized.expand(HARD_EDGE_CASES)
+    def test_hard_edges_follow_right(self, num_bins, right, dtype):
+        """Check hard-bin assignments at exact edges and their neighbors in each accumulation dtype."""
+        values = _boundary_values(num_bins, dtype)
+        prediction = values.view(1, -1, 1)
+        _, _, counts = _hard_binned_calibration(prediction, torch.zeros_like(prediction), num_bins, right)
+        self.assertEqual(counts.sum(dim=-1).flatten().tolist(), [1.0] * len(values))
+        expected = [_reference_bin(value, num_bins, right) for value in values.tolist()]
+        self.assertEqual(counts[0].argmax(dim=-1).tolist(), expected)
 
     def test_soft_exact_interpolation(self):
         prediction = torch.tensor([[[0.0, 0.25, 0.5, 0.75, 1.0]]], dtype=torch.float64)
@@ -82,6 +123,17 @@ class TestCalibrationLoss(unittest.TestCase):
         target = torch.tensor([[[0.0, 0.0, 1.0, 1.0, 1.0]]], dtype=torch.float64)
         result = SoftL1ACELoss(num_bins=2)(prediction, target)
         torch.testing.assert_close(result, torch.tensor(0.1, dtype=torch.float64))
+
+    @parameterized.expand([(False, 0.3, [0.5, -0.5]), (True, 0.2, [0.5, 0.5])])
+    def test_hard_value_and_gradient_on_edge(self, right, expected_loss, expected_grad):
+        """Verify the independently expected hard-loss value and gradient at a bin boundary."""
+        # 0.5 is the edge between the two bins; 0.9 is always in the upper bin.
+        prediction = torch.tensor([[[0.5, 0.9]]], requires_grad=True)
+        target = torch.tensor([[[0.0, 1.0]]])
+        result = HardL1ACELoss(num_bins=2, right=right)(prediction, target)
+        torch.testing.assert_close(result, torch.tensor(expected_loss))
+        result.backward()
+        torch.testing.assert_close(prediction.grad, torch.tensor([[expected_grad]]))
 
     @parameterized.expand([HardL1ACELoss, SoftL1ACELoss])
     def test_calibrated_and_miscalibrated_values(self, loss_type):

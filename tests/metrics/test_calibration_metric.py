@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from unittest import mock
 
 import torch
 from parameterized import parameterized
@@ -22,6 +21,31 @@ from monai.utils import MetricReduction
 from tests.test_utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+
+def _boundary_values(num_bins: int, dtype: torch.dtype) -> torch.Tensor:
+    """Return 0, 1, the largest value below 1, a value far from every edge, and each internal edge that is a
+    multiple of 0.25 (exact in every float type) with both of its ``nextafter`` neighbors."""
+    edges = torch.tensor([k / num_bins for k in range(1, num_bins) if (4 * k) % num_bins == 0], dtype=dtype)
+    one = torch.ones(1, dtype=dtype)
+    return torch.cat(
+        [
+            torch.tensor([0.0, 0.33], dtype=dtype),
+            edges,
+            torch.nextafter(edges, torch.zeros_like(edges)),
+            torch.nextafter(edges, torch.ones_like(edges)),
+            torch.nextafter(one, torch.zeros_like(one)),
+            one,
+        ]
+    )
+
+
+def _reference_bin(value: float, num_bins: int, right: bool) -> int:
+    """Bin index from the exact edges ``k / num_bins``; exact for the values of ``_boundary_values``."""
+    if right:
+        return sum(k / num_bins <= value for k in range(1, num_bins))
+    return sum(k / num_bins < value for k in range(1, num_bins))
+
 
 # Test cases for calibration binning
 # Format: [name, y_pred, y, num_bins, right, expected_mean_p, expected_mean_gt, expected_counts]
@@ -127,11 +151,7 @@ class TestCalibrationBinning(unittest.TestCase):
         expected_mean_gt = expected_mean_gt.to(_device)
         expected_counts = expected_counts.to(_device)
 
-        # Use mock.patch to replace torch.linspace
-        # This is to avoid floating point precision issues when looking at edge conditions
-        mock_boundaries = torch.tensor([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], device=_device)
-        with mock.patch("monai.metrics.calibration.torch.linspace", return_value=mock_boundaries):
-            mean_p_per_bin, mean_gt_per_bin, bin_counts = calibration_binning(y_pred, y, num_bins=num_bins, right=right)
+        mean_p_per_bin, mean_gt_per_bin, bin_counts = calibration_binning(y_pred, y, num_bins=num_bins, right=right)
 
         # Handle NaN comparisons: compare NaN masks separately, then compare non-NaN values
         # mean_p_per_bin
@@ -172,6 +192,49 @@ class TestCalibrationBinning(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             calibration_binning(y_pred, y, num_bins=0)
         self.assertIn("num_bins", str(context.exception))
+
+
+class TestCalibrationBinningRealBoundaries(unittest.TestCase):
+    """Edge handling with the real ``torch.linspace`` boundaries, checked against exact edges."""
+
+    @parameterized.expand(
+        [(default_dtype, right) for default_dtype in (torch.float32, torch.float64) for right in (False, True)]
+    )
+    def test_boundary_assignment_independent_of_default_dtype(self, default_dtype, right):
+        """Keep float32 boundary assignments unchanged when the global default dtype changes."""
+        y_pred = torch.tensor([[[0.1]]], dtype=torch.float32, device=_device)
+        original_dtype = torch.get_default_dtype()
+        try:
+            torch.set_default_dtype(default_dtype)
+            _, _, counts = calibration_binning(y_pred, torch.zeros_like(y_pred), num_bins=10, right=right)
+        finally:
+            torch.set_default_dtype(original_dtype)
+        expected = torch.zeros_like(counts)
+        expected[0, 0, 1 if right else 0] = 1
+        torch.testing.assert_close(counts, expected)
+
+    @parameterized.expand([(num_bins, right) for num_bins in (2, 4, 20) for right in (False, True)])
+    def test_edge_assignment(self, num_bins, right):
+        """Assign real edges and adjacent probabilities according to the requested interval convention."""
+        values = _boundary_values(num_bins, torch.float32)
+        # One value per channel, so each channel's counts are one-hot at the assigned bin.
+        y_pred = values.view(1, -1, 1).to(_device)
+        _, _, bin_counts = calibration_binning(y_pred, torch.zeros_like(y_pred), num_bins=num_bins, right=right)
+        self.assertEqual(bin_counts.sum(dim=-1).flatten().tolist(), [1.0] * len(values))
+        expected = [_reference_bin(value, num_bins, right) for value in values.tolist()]
+        self.assertEqual(bin_counts[0].argmax(dim=-1).tolist(), expected)
+
+    @parameterized.expand([(False, 0.3), (True, 0.2)])
+    def test_average_error_on_edge(self, right, expected):
+        """Check the average calibration error for a probability exactly on an internal edge."""
+        # 0.5 is the edge between the two bins; 0.9 is always in the upper bin.
+        y_pred = torch.tensor([[[0.5, 0.9]]], device=_device)
+        y = torch.tensor([[[0.0, 1.0]]], device=_device)
+        metric = CalibrationErrorMetric(
+            num_bins=2, calibration_reduction="average", metric_reduction="none", right=right
+        )
+        metric(y_pred=y_pred, y=y)
+        assert_allclose(metric.aggregate(), torch.tensor([[expected]], device=_device), atol=1e-6, rtol=1e-6)
 
 
 class TestCalibrationErrorMetricValue(unittest.TestCase):

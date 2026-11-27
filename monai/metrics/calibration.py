@@ -41,6 +41,8 @@ def calibration_binning(
     handling each batch and channel separately. For bins that do not contain any elements,
     the mean predicted values and mean ground truth values are set to NaN.
 
+    Predictions and targets are converted to float32 for binning and accumulation.
+
     Args:
         y_pred: Predicted probabilities with shape ``(B, C, spatial...)``, where B is batch size,
             C is number of classes/channels, and spatial can be any number of dimensions (H, W, D, etc.).
@@ -49,9 +51,10 @@ def calibration_binning(
             or contain binary values (0 or 1) indicating the true class membership.
         num_bins: Number of equally-spaced bins to divide the [0, 1] probability range into.
             Defaults to 20. Must be >= 1.
-        right: Determines bin boundary inclusion. If False (default), bins include the left
-            boundary and exclude the right (i.e., [left, right)). If True, bins exclude the
-            left boundary and include the right (i.e., (left, right]).
+        right: Determines bin boundary inclusion, following :py:func:`torch.bucketize`. If False (default),
+            bins exclude the left boundary and include the right (i.e., ``(left, right]``), and 0 falls into
+            the first bin. If True, bins include the left boundary and exclude the right (i.e., ``[left, right)``),
+            and 1 falls into the last bin.
 
     Returns:
         A tuple of three tensors, each with shape ``(B, C, num_bins)``:
@@ -94,9 +97,8 @@ def calibration_binning(
         raise ValueError(f"num_bins must be >= 1, got {num_bins}.")
 
     batch_size, num_channels = y_pred.shape[:2]
-    boundaries = torch.linspace(
-        start=0.0, end=1.0 + torch.finfo(torch.float32).eps, steps=num_bins + 1, device=y_pred.device
-    )
+    # Unexpanded [0, 1] edges, so ``right`` decides values on an edge; the clamp below keeps 1.0 in the last bin.
+    boundaries = torch.linspace(start=0.0, end=1.0, steps=num_bins + 1, dtype=torch.float32, device=y_pred.device)
 
     mean_p_per_bin = torch.zeros(batch_size, num_channels, num_bins, device=y_pred.device)
     mean_gt_per_bin = torch.zeros_like(mean_p_per_bin)
@@ -204,8 +206,8 @@ class CalibrationErrorMetric(CumulativeIterationMetric):
             Defaults to ``"mean"``.
         get_not_nans: If ``True``, ``aggregate()`` returns a tuple ``(metric, not_nans)`` where
             ``not_nans`` is the count of non-NaN values. Defaults to ``False``.
-        right: Bin boundary inclusion rule. If ``False`` (default), bins are ``[left, right)``.
-            If ``True``, bins are ``(left, right]``.
+        right: Bin boundary inclusion rule, see :py:func:`calibration_binning`. If ``False`` (default),
+            bins are ``(left, right]``. If ``True``, bins are ``[left, right)``.
 
     References:
         - Guo, C., et al. "On Calibration of Modern Neural Networks." ICML 2017.

@@ -32,15 +32,15 @@ def _accumulation_dtype(input: torch.Tensor) -> torch.dtype:
 
 
 def _hard_binned_calibration(
-    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool, float32_eps: float = FLOAT32_EPS
+    input: torch.Tensor, target: torch.Tensor, num_bins: int, right: bool
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Return hard-binned prediction sums, target sums, and counts."""
     work_dtype = _accumulation_dtype(input)
     input_flat = input.flatten(start_dim=2).to(dtype=work_dtype).contiguous()
     target_flat = target.detach().flatten(start_dim=2).to(dtype=work_dtype)
 
-    # Match calibration_binning's established boundaries, including its epsilon-expanded upper edge.
-    boundaries = torch.linspace(0.0, 1.0 + float32_eps, num_bins + 1, dtype=work_dtype, device=input.device)
+    # Build the unexpanded [0, 1] hard-bin grid in the accumulation dtype.
+    boundaries = torch.linspace(0.0, 1.0, num_bins + 1, dtype=work_dtype, device=input.device)
     bin_idx = torch.bucketize(input_flat, boundaries[1:], right=right).clamp(max=num_bins - 1)
     counts = torch.zeros(input_flat.shape[0], input_flat.shape[1], num_bins, dtype=work_dtype, device=input.device)
     counts = counts.scatter_add(2, bin_idx, torch.ones_like(input_flat))
@@ -234,7 +234,8 @@ class HardL1ACELoss(_L1ACELoss):
         other_act: optional callable activation. Only one activation option may be used.
         reduction: one of ``"none"``, ``"mean"``, or ``"sum"``.
         weight: scalar or one non-negative value per included class.
-        right: hard-bin boundary inclusion rule, matching :py:func:`monai.metrics.calibration_binning`.
+        right: hard-bin boundary inclusion rule, matching :py:func:`monai.metrics.calibration_binning`: ``False``
+            gives ``(left, right]`` bins and ``True`` gives ``[left, right)`` bins.
         ignore_empty_classes: set the loss for classes absent from an image to zero before reduction. Defaults to
             ``True``.
 
