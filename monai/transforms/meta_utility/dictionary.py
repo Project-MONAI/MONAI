@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
+from monai.data.meta_obj import get_meta_dict_name
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
@@ -77,7 +78,10 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
             _ = self.get_most_recent_transform(d, key)
             # do the inverse
             im = d[key]
-            meta = d.pop(PostFix.meta(key), None)
+            if PostFix.meta(key) in d:
+                meta = d.pop(PostFix.meta(key), None)
+            else:
+                meta = d.pop(get_meta_dict_name(key, d))
             transforms = d.pop(PostFix.transforms(key), None)
             im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
@@ -101,6 +105,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             im = d[key]
+
             meta = d.pop(PostFix.meta(key), None)
             transforms = d.pop(PostFix.transforms(key), None)
             im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
