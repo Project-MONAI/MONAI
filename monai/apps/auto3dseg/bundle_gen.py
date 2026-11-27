@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 import torch
 
 from monai.apps import download_and_extract
-from monai.apps.utils import get_logger
+from monai.apps.utils import confined_path, get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import (
     _prepare_cmd_bcprun,
@@ -89,17 +89,23 @@ def _confined_join(root: str, name: str) -> str:
         name: the child directory name.
 
     Returns:
-        the joined path.
+        the joined path (``os.path.join(root, name)``, not resolved), so callers keep the path
+        they passed; containment is validated against the resolved path.
 
     Raises:
         ValueError: if the resolved path is not inside ``root``.
     """
-    path = os.path.join(root, name)
-    real_root = os.path.realpath(root)
-    real_path = os.path.realpath(path)
-    if real_path == real_root or os.path.commonpath([real_root, real_path]) != real_root:
-        raise ValueError(f"Invalid path: {path!r} is not inside {root!r}.")
-    return path
+    # Validate on the resolved path, but return the unresolved join so a caller's public path
+    # (e.g. BundleAlgo.output_path / get_output_path) keeps the spelling it was given. This is safe
+    # here because ``name`` is a validated single component and the only destructive caller
+    # (export_to_disk) rejects a symlinked destination before writing. Sinks that write directly to
+    # an attacker-influenced name (safe_extract_member, _safe_large_file_path) instead return the
+    # resolved path confined_path validated.
+    try:
+        confined_path(root, name)
+    except ValueError as e:
+        raise ValueError(f"Invalid path: {os.path.join(root, name)!r} is not inside {root!r}.") from e
+    return os.path.join(root, name)
 
 
 def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
@@ -388,6 +394,14 @@ class BundleAlgo(Algo):
             if not os.path.isdir(source):
                 raise ValueError(f"Algo template folder {source!r} does not exist.")
             self.output_path = _confined_join(output_path, algo_name)
+            # Reject a symlinked destination before the destructive rmtree: _confined_join resolves
+            # the symlink, so a link pointing inside output_path would otherwise pass containment and
+            # the rmtree below would delete the link's target instead of the link.
+            if os.path.islink(os.path.join(output_path, algo_name)):
+                raise ValueError(
+                    f"Refusing to export to {os.path.join(output_path, algo_name)!r}: "
+                    "the destination is a symbolic link."
+                )
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
