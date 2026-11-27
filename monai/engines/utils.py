@@ -219,8 +219,8 @@ class PrepareBatchExtraInput(PrepareBatch):
         `kwargs` supports other args for `Tensor.to()` API.
         """
         image, label = default_prepare_batch(batchdata, device, non_blocking, **kwargs)
-        args_ = []
-        kwargs_ = {}
+        args_: tuple = ()
+        kwargs_: dict = {}
 
         def _get_data(key: str) -> torch.Tensor:
             data = batchdata[key]
@@ -231,13 +231,13 @@ class PrepareBatchExtraInput(PrepareBatch):
             return data
 
         if isinstance(self.extra_keys, (str, list, tuple)):
-            for k in ensure_tuple(self.extra_keys):
-                args_.append(_get_data(k))
-        elif isinstance(self.extra_keys, dict):
-            for k, v in self.extra_keys.items():
-                kwargs_.update({k: _get_data(v)})
+            args_ = tuple(_get_data(k) for k in ensure_tuple(self.extra_keys))
 
-        return cast(torch.Tensor, image), cast(torch.Tensor, label), tuple(args_), kwargs_
+        elif isinstance(self.extra_keys, dict):
+                        kwargs_ = {k: _get_data(v) for k, v in self.extra_keys.items()}
+
+
+            return cast(torch.Tensor, image), cast(torch.Tensor, label), args_, kwargs_
 
 
 class DiffusionPrepareBatch(PrepareBatch):
