@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import EMAQuantizer, VectorQuantizer
+from monai.utils import set_determinism
 
 TEST_CASES = [
     [{"spatial_dims": 2, "num_embeddings": 16, "embedding_dim": 8}, (1, 8, 4, 4), (1, 4, 4)],
@@ -67,6 +68,31 @@ class TestEMA(unittest.TestCase):
 
         self.assertTrue(all(layer.embedding.weight[0] != original_weight_0))
         self.assertTrue(all(layer.embedding.weight[1] == original_weight_1))
+
+    @parameterized.expand([[torch.float16], [torch.bfloat16]])
+    def test_ema_half_precision_module(self, dtype):
+        """A quantizer cast to half precision (not just autocast) runs and picks the same codes as float32.
+
+        Args:
+            dtype: the half-precision dtype the module and input are cast to.
+        """
+        set_determinism(seed=0)
+        self.addCleanup(set_determinism, seed=None)
+        layer = EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8).eval()
+        # Spread the codebook out, then build the input as one exact codebook row: it stays the
+        # unambiguous nearest entry under float16/bfloat16 rounding, so the test does not depend on
+        # a random input landing far enough from a codebook boundary (see #9187 review discussion).
+        with torch.no_grad():
+            layer.embedding.weight.mul_(100.0)
+        x = layer.embedding.weight[5].clone().view(1, 8, 1, 1).repeat(1, 1, 4, 4)
+        expected_indices = layer.quantize(x)[2]
+        self.assertTrue(torch.all(expected_indices == 5))
+
+        layer = layer.to(dtype)
+        quantized, _, encoding_indices = layer(x.to(dtype))
+
+        self.assertEqual(quantized.dtype, dtype)
+        torch.testing.assert_close(encoding_indices, expected_indices)
 
 
 class TestVectorQuantizer(unittest.TestCase):
