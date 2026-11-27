@@ -45,14 +45,17 @@ def point_based_window_inferer(
     patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
-        inputs: [1CHWD], input image to be processed.
+        inputs: [1CWHD], input image to be processed (spatial axes are in
+            Width, Height, Depth order; i.e., for [N, C, W, H, D], Width is
+            axis 2, Height is axis 3, Depth is axis 4, matching arrays
+            returned by MONAI's NIfTI/ITK readers).
         roi_size: the spatial window size for inferences.
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        predictor: the model. For vista3D, the output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
+        predictor: the model. For vista3D, the output is [B, 1, W, H, D] which needs to be transposed to [1, B, W, H, D].
             Add transpose=True in kwargs for vista3d.
         point_coords: [B, N, 3]. Point coordinates for B foreground objects, each has N points.
         point_labels: [B, N]. Point labels. 0/1 means negative/positive points for regular supported or zero-shot classes.
@@ -61,13 +64,13 @@ def point_based_window_inferer(
         prompt_class: [B]. The same as class_vector representing the point class and inform point head about
             supported class or zeroshot, not used for automatic segmentation. If None, point head is default
             to supported class segmentation.
-        prev_mask: [1, B, H, W, D]. The value is before sigmoid. An optional tensor of previously segmented masks.
+        prev_mask: [1, B, W, H, D]. The value is before sigmoid. An optional tensor of previously segmented masks.
         point_start: only use points starting from this number. All points before this number is used to generate
             prev_mask. This is used to avoid re-calculating the points in previous iterations if given prev_mask.
         center_only: for each point, only crop the patch centered at this point. If false, crop 3 patches for each point.
         margin: if center_only is false, this value is the distance between point to the patch boundary.
     Returns:
-        stitched_output: [1, B, H, W, D]. The value is before sigmoid.
+        stitched_output: [1, B, W, H, D]. The value is before sigmoid.
     Notice: The function only supports SINGLE OBJECT INFERENCE with B=1.
     """
     if not point_coords.shape[0] == 1:
