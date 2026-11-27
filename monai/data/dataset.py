@@ -236,6 +236,7 @@ class PersistentDataset(Dataset):
         reset_ops_id: bool = True,
         track_meta: bool = False,
         weights_only: bool = True,
+        in_memory: bool = False,
     ) -> None:
         """
         Args:
@@ -276,6 +277,14 @@ class PersistentDataset(Dataset):
                 Setting to `False` should only be done if it's absolutely necessary to load unsafe pickled data,
                 eg. MetaTensor objects with unsafe objects in their metadata. Users must verify the safety of the data
                 they intend to load before doing so.
+            in_memory: if `True`, also keep the pre-processed data in RAM after first access, so that later
+                epochs skip the disk cache entirely. This combines the benefits of persistent storage (data
+                survives restarts) with faster RAM access. Note the cache is unbounded, so the whole dataset
+                is eventually held in memory; use `CacheDataset` or `SmartCacheDataset` if that does not fit.
+                The RAM cache is per-process, so with `DataLoader(num_workers>0, persistent_workers=False)`
+                the cache is rebuilt every epoch; use `persistent_workers=True` (or `num_workers=0`) to retain
+                it across epochs, otherwise most of the benefit is lost.
+                Default to `False`.
         """
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -293,6 +302,17 @@ class PersistentDataset(Dataset):
         self.reset_ops_id = reset_ops_id
         self.track_meta = track_meta
         self.weights_only = weights_only
+        self.in_memory = in_memory
+        self._memory_cache: dict[int, Any] = {}
+
+    @property
+    def memory_cache_size(self) -> int:
+        """
+        Returns:
+            The number of items currently stored in the in-memory cache.
+
+        """
+        return len(self._memory_cache)
 
     def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -320,6 +340,7 @@ class PersistentDataset(Dataset):
 
         """
         self.data = data
+        self._memory_cache = {}
         if self.cache_dir is not None and self.cache_dir.exists():
             shutil.rmtree(self.cache_dir, ignore_errors=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -428,8 +449,24 @@ class PersistentDataset(Dataset):
         return _item_transformed
 
     def _transform(self, index: int):
-        pre_random_item = self._cachecheck(self.data[index])
-        return self._post_transform(pre_random_item)
+        """
+        Fetch the pre-random-transform item for `index` and apply the random transforms to it.
+
+        Args:
+            index: index of the item in `self.data`.
+
+        Returns:
+            The fully transformed data element.
+
+        """
+        if not self.in_memory:
+            return self._post_transform(self._cachecheck(self.data[index]))
+        if index not in self._memory_cache:
+            self._memory_cache[index] = convert_to_tensor(
+                self._cachecheck(self.data[index]), convert_numeric=False, track_meta=self.track_meta
+            )
+        # copy so that the random transforms, or the caller, cannot mutate the cached item
+        return self._post_transform(deepcopy(self._memory_cache[index]))
 
 
 class CacheNTransDataset(PersistentDataset):
