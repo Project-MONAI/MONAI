@@ -812,9 +812,8 @@ def rectify_header_sform_qform(img_nii):
 def zoom_affine(affine: np.ndarray, scale: np.ndarray | Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
-    returns an affine that combines orthogonal rotation and the new scale.
-    This is done by first decomposing `affine`, then setting the zoom factors to
-    `scale`, and composing a new affine; the shearing factors are removed.  If
+    returns an affine that rescales the columns of `affine` to `scale`, preserving
+    the column directions (orientation, shear and reflection components).  If
     diagonal is True, returns a diagonal matrix, the scaling factors are set
     to the diagonal elements.  This function always return an affine with zero
     translations.
@@ -852,12 +851,12 @@ def zoom_affine(affine: np.ndarray, scale: np.ndarray | Sequence[float], diagona
     if diagonal:
         return np.diag(np.append(scale_np, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
-    zs = np.linalg.cholesky(rzs.T @ rzs).T
-    rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale_np)
-    # construct new affine with rotation and zoom
+    # rescale each column to the requested spacing, preserving the column
+    # directions (incl. shear and reflection): keeps orientation/axes intact
+    # (Spacing docstring contract) and is an exact no-op when scale == norm.
+    # For orthogonal rzs this equals the previous polar/Cholesky recomposition.
     new_affine = np.eye(len(affine))
-    new_affine[:-1, :-1] = rotation @ np.diag(s)
+    new_affine[:-1, :-1] = rzs * (np.abs(scale_np) / norm)
     return new_affine
 
 
