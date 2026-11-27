@@ -16,13 +16,21 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
-from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
+from monai.data.image_writer import (
+    SUPPORTED_WRITERS,
+    ITKWriter,
+    NibabelWriter,
+    PILWriter,
+    register_writer,
+    resolve_writer,
+)
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import MetaKeys, OptionalImportError, optional_import
@@ -149,6 +157,36 @@ class TestRegRes(unittest.TestCase):
         register_writer("new", lambda x: x + 1)
         register_writer("new2", lambda x: x + 1)
         self.assertEqual(resolve_writer("new")[0](0), 1)
+
+    def test_missing_writer_install_hint(self):
+        def missing_pillow():
+            raise OptionalImportError("PIL is unavailable", name="PIL")
+
+        with patch.dict(SUPPORTED_WRITERS, {"png": (missing_pillow,)}, clear=True):
+            with self.assertRaisesRegex(OptionalImportError, r"Install `pillow` with `pip install pillow`"):
+                resolve_writer(".PNG")
+
+    def test_multiple_missing_writer_install_hints(self):
+        def missing_itk():
+            raise OptionalImportError("ITK is unavailable", name="itk")
+
+        def missing_nibabel():
+            raise OptionalImportError("Nibabel is unavailable", name="nibabel")
+
+        with patch.dict(SUPPORTED_WRITERS, {"nii": (missing_nibabel, missing_itk)}, clear=True):
+            with self.assertRaises(OptionalImportError) as context:
+                resolve_writer("nii")
+        self.assertIn("Install one of the following packages", str(context.exception))
+        self.assertIn("`itk` (`pip install itk`)", str(context.exception))
+        self.assertIn("`nibabel` (`pip install nibabel`)", str(context.exception))
+
+    def test_missing_writer_without_package_name(self):
+        def missing_unknown():
+            raise OptionalImportError("Unknown dependency")
+
+        with patch.dict(SUPPORTED_WRITERS, {"unknown": (missing_unknown,)}, clear=True):
+            with self.assertRaisesRegex(OptionalImportError, r"^No ImageWriter backend found for unknown\.$"):
+                resolve_writer("unknown")
 
 
 @unittest.skipUnless(has_itk, "itk not installed")
