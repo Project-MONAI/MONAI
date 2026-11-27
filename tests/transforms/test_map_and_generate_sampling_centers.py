@@ -18,6 +18,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import map_and_generate_sampling_centers
+from monai.transforms.utils import (
+    _map_classes_to_lazy_indices,
+    generate_label_classes_crop_centers,
+    map_classes_to_indices,
+)
 from monai.utils.misc import set_determinism
 from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
@@ -80,6 +85,85 @@ class TestMapAndGenerateSamplingCenters(unittest.TestCase):
             if len(results) > 1:
                 for x, y in zip(result[0], result[-1]):
                     assert_allclose(x, y, type_test=False)
+
+
+def _labels_for_lazy_indices_test():
+    rng = np.random.default_rng(0)
+    shape = (1, 6, 7, 8)
+    float_label = rng.integers(-1, 6, size=shape).astype(np.float32)
+    float_label[..., ::5] += 0.5  # not a class
+    float_label[..., ::7] = np.nan
+    one_hot = np.stack([rng.integers(0, 3, size=shape[1:]) == c for c in range(4)]).astype(np.float32)
+    return [
+        [rng.integers(0, 4, size=shape).astype(np.uint8), 4, None],
+        [rng.integers(0, 7, size=shape).astype(np.int64), 5, 3],  # values >= num_classes are not a class
+        [rng.integers(-3, 4, size=shape).astype(np.int16), 4, None],
+        [float_label, 5, None],
+        [np.full(shape, 300, dtype=np.float32), 3, None],  # no voxel of any class
+        [one_hot, None, 2],
+    ]
+
+
+class TestLazyClassIndices(unittest.TestCase):
+    @parameterized.expand(_labels_for_lazy_indices_test())
+    def test_same_as_map_classes_to_indices(self, label, num_classes, max_samples_per_class):
+        image = np.random.default_rng(1).random((1, *label.shape[1:])).astype(np.float32)
+        for p in TEST_NDARRAYS:
+            for img in (None, p(image)):
+                expected = map_classes_to_indices(p(label), num_classes, img, 0.3, max_samples_per_class)
+                lazy = _map_classes_to_lazy_indices(p(label), num_classes, img, 0.3, max_samples_per_class)
+                self.assertEqual([len(i) for i in lazy], [len(i) for i in expected])
+                for e, lz in zip(expected, lazy):
+                    for k in range(len(e)):
+                        assert_allclose(lz[k], e[k], type_test=True)
+
+    @parameterized.expand(_labels_for_lazy_indices_test())
+    def test_same_centers(self, label, num_classes, max_samples_per_class):
+        indices = map_classes_to_indices(label, num_classes, None, 0.0, max_samples_per_class)
+        if not any(len(i) for i in indices):
+            return
+        for seed in range(3):
+            expected = generate_label_classes_crop_centers(
+                (2, 2, 2), 4, label.shape[1:], indices, rand_state=np.random.RandomState(seed), warn=False
+            )
+            result = map_and_generate_sampling_centers(
+                label,
+                (2, 2, 2),
+                4,
+                num_classes=num_classes,
+                max_samples_per_class=max_samples_per_class,
+                rand_state=np.random.RandomState(seed),
+                warn=False,
+            )
+            self.assertEqual(result, expected)
+
+    @parameterized.expand(
+        [
+            # torch does not support non-native byte order or negative strides, these only exist as numpy input
+            [np.random.default_rng(0).integers(0, 4, size=(1, 6, 7, 8)).astype(np.dtype(np.uint16).newbyteorder()), 4],
+            [np.stack([np.arange(6 * 7 * 8).reshape(6, 7, 8) % 3 == c for c in range(3)])[..., ::-1], None],
+            # reversing a dimension of size 1 keeps a negative stride on a C-contiguous array
+            [np.stack([np.arange(4).reshape(2, 2, 1) % 2 == c for c in range(2)])[..., ::-1], None],
+        ]
+    )
+    def test_numpy_layouts_not_supported_by_torch(self, label, num_classes):
+        for image in (None, np.random.default_rng(1).random((1, *label.shape[1:]))[..., ::-1]):
+            indices = map_classes_to_indices(label, num_classes, image, 0.3)
+            lazy = _map_classes_to_lazy_indices(label, num_classes, image, 0.3)
+            self.assertEqual([len(i) for i in lazy], [len(i) for i in indices])
+            result = map_and_generate_sampling_centers(
+                label, (1, 1, 1), 4, None, num_classes, image, 0.3, rand_state=np.random.RandomState(0)
+            )
+            expected = generate_label_classes_crop_centers(
+                (1, 1, 1), 4, label.shape[1:], indices, rand_state=np.random.RandomState(0)
+            )
+            self.assertEqual(result, expected)
+
+    def test_only_sampled_classes_are_computed(self):
+        label = np.random.default_rng(0).integers(0, 10, size=(1, 8, 8, 8))
+        lazy = _map_classes_to_lazy_indices(label, 10)
+        generate_label_classes_crop_centers((2, 2, 2), 1, label.shape[1:], lazy, rand_state=np.random.RandomState(0))
+        self.assertEqual(sum(i._indices is not None for i in lazy), 1)
 
 
 if __name__ == "__main__":

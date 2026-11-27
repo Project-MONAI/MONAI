@@ -33,13 +33,13 @@ from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
+    _map_classes_to_lazy_indices,
     compute_divisible_spatial_size,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     is_positive,
     map_binary_to_indices,
-    map_classes_to_indices,
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
@@ -1340,7 +1340,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if indices_ is None:
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(
+            # only the sampled classes need their indices, see `_map_classes_to_lazy_indices`
+            indices_ = _map_classes_to_lazy_indices(  # type: ignore[assignment]
                 label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
             )
         _shape = None
