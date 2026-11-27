@@ -504,7 +504,7 @@ class TestITKTorchRW(unittest.TestCase):
         TestITKTorchAffineMatrixBridge.setUp(self)
 
     def tearDown(self):
-        TestITKTorchAffineMatrixBridge.setUp(self)
+        TestITKTorchAffineMatrixBridge.tearDown(self)
 
     @parameterized.expand(list(itertools.product(RW_TESTS, ["ITKReader", "NrrdReader"], [True, False])))
     def test_rw_itk(self, filepath, reader, flip):
