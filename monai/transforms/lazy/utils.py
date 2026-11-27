@@ -92,8 +92,9 @@ def affine_from_pending(pending_item):
 def kwargs_from_pending(pending_item):
     """Extract kwargs from a pending transform item.
 
-    When ``pending_item`` is a dict, ``align_corners`` is also extracted from its ``extra_info`` entry
-    (if present and boolean) so the lazy pipeline preserves the original transform's alignment.
+    When ``pending_item`` is a dict, ``mode``, ``padding_mode`` and ``align_corners`` are also extracted
+    from its ``extra_info`` entry (if present and not already set on the pending item) so the lazy
+    pipeline preserves the original transform's interpolation and alignment.
     """
     if not isinstance(pending_item, dict):
         return {}
@@ -105,12 +106,23 @@ def kwargs_from_pending(pending_item):
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
-    # Extract align_corners from extra_info if available
+    # Extract mode, padding_mode, and align_corners from extra_info if available
     extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
-    if isinstance(extra_info, dict) and "align_corners" in extra_info:
-        align_corners_val = extra_info["align_corners"]
-        if isinstance(align_corners_val, bool):
-            ret[LazyAttr.ALIGN_CORNERS] = align_corners_val
+    if isinstance(extra_info, dict):
+        # Pad / CropPad record their *padding* mode under the "mode" key (see
+        # ``monai.transforms.croppad.functional.pad_func``) and are marked by "padded"; their entry must
+        # not be mistaken for an interpolation mode.
+        is_pad = "padded" in extra_info
+        if not is_pad and ret[LazyAttr.INTERP_MODE] is None and "mode" in extra_info:
+            mode_val = extra_info["mode"]
+            ret[LazyAttr.INTERP_MODE] = mode_val[0] if isinstance(mode_val, (list, tuple)) else mode_val
+        if not is_pad and ret[LazyAttr.PADDING_MODE] is None and "padding_mode" in extra_info:
+            pad_val = extra_info["padding_mode"]
+            ret[LazyAttr.PADDING_MODE] = pad_val[0] if isinstance(pad_val, (list, tuple)) else pad_val
+        if "align_corners" in extra_info:
+            align_corners_val = extra_info["align_corners"]
+            if isinstance(align_corners_val, bool):
+                ret[LazyAttr.ALIGN_CORNERS] = align_corners_val
     return ret
 
 
