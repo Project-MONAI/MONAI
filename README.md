@@ -38,6 +38,17 @@ Its ambitions are as follows:
 
 MONAI works with the [currently supported versions of Python](https://devguide.python.org/versions), and depends directly on NumPy and PyTorch with many optional dependencies.
 
+This revision declares the following **core package requirements** in its packaging metadata. For the latest development-branch constraints, see [`pyproject.toml` on `dev`](https://github.com/Project-MONAI/MONAI/blob/dev/pyproject.toml):
+
+| Dependency | Declared requirement |
+| --- | --- |
+| Python | `>=3.10` |
+| PyTorch | `>=2.8.0` |
+| NumPy | `>=1.24,<3.0` |
+
+These are the package metadata constraints recorded in this revision, not a guarantee that every possible combination has been tested. The supported versions for a specific MONAI release may differ; check that release's packaging metadata and the compatibility policy below. Additional libraries are optional and are listed under `[project.optional-dependencies]` in the linked development-branch metadata.
+
+
 * Major releases of MONAI will have dependency versions stated for them. The current state of the `dev` branch in this repository is the unreleased development version of MONAI which typically will support current versions of dependencies and include updates and bug fixes to do so.
 * PyTorch support covers [the current version](https://github.com/pytorch/pytorch/releases) plus three previous minor versions. If compatibility issues with a PyTorch version and other dependencies arise, support for a version may be delayed until a major release.
 * Our support policy for other dependencies adheres for the most part to [SPEC0](https://scientific-python.org/specs/spec-0000), where dependency versions are supported where possible for up to two years. Discovered vulnerabilities or defects may require certain versions to be explicitly not supported.
