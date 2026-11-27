@@ -63,6 +63,10 @@ class VanillaGrad:
 
     If ``index`` is None, argmax of the output logits will be used.
 
+    ``x`` may hold a batch of images: ``index`` is then either an integer applied to every image, or a tensor with
+    one class index per image. The model is run in evaluation mode and the selected class scores are summed, so
+    for networks without cross-batch interactions the saliency map of each image is the one it would get on its own.
+
     See also:
 
         - Simonyan et al. Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps
@@ -89,8 +93,6 @@ class VanillaGrad:
     def get_grad(
         self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph: bool = True, **kwargs: Any
     ) -> torch.Tensor:
-        if x.shape[0] != 1:
-            raise ValueError("expect batch size of 1")
         x.requires_grad = True
 
         self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
@@ -104,7 +106,8 @@ class VanillaGrad:
 class SmoothGrad(VanillaGrad):
     """
     Compute averaged sensitivity map based on ``n_samples`` (Gaussian additive) of noisy versions
-    of the input image ``x``.
+    of the input image ``x``. The noise standard deviation is ``stdev_spread`` times the intensity range
+    of each image in the batch ``x``.
 
     See also:
 
@@ -130,11 +133,14 @@ class SmoothGrad(VanillaGrad):
             self.range = range
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
-        stdev = (self.stdev_spread * (x.max() - x.min())).item()
+        # noise scale of each batch element is ``stdev_spread`` times the intensity range of that element
+        x_flat = x.detach().reshape(x.shape[0], -1)
+        stdev = self.stdev_spread * (x_flat.max(dim=1)[0] - x_flat.min(dim=1)[0])
+        stdev = stdev.view(-1, *([1] * (x.ndim - 1)))
         total_gradients = torch.zeros_like(x)
         for _ in self.range(self.n_samples):
             # create noisy image
-            noise = torch.normal(0, stdev, size=x.shape, dtype=torch.float32, device=x.device)
+            noise = torch.randn(x.shape, dtype=torch.float32, device=x.device) * stdev
             x_plus_noise = x + noise
             x_plus_noise = x_plus_noise.detach()
 
