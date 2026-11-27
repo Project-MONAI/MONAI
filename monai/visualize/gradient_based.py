@@ -13,17 +13,159 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import partial
+from types import TracebackType
 from typing import Any
 
 import torch
 
-from monai.networks.utils import replace_modules_temp
 from monai.utils.module import optional_import
 from monai.visualize.class_activation_maps import ModelWithHooks
 
 trange, has_trange = optional_import("tqdm", name="trange")
 
 __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmoothGrad"]
+
+# activation modules for which a generalized guided backpropagation backward pass is defined.
+_GUIDED_ACTIVATIONS = (torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.SiLU, torch.nn.GELU)
+
+
+class _AutoGradActivation(torch.autograd.Function):
+    """
+    Autograd function implementing a generalized guided backpropagation rule (https://arxiv.org/abs/1412.6806)
+    for an arbitrary activation module.
+
+    The forward pass is delegated to ``module`` unchanged, so the original model outputs are preserved.
+    During the backward pass the incoming gradient is kept only where it is positive, and only where the
+    activation's local derivative is positive (i.e. where the activation is increasing). For ``torch.nn.ReLU``
+    this reduces to the original guided backpropagation gradient rule.
+    """
+
+    @staticmethod
+    def forward(ctx, x, module):
+        """Run the wrapped activation ``module`` on ``x``.
+
+        The forward pass is delegated to ``module`` unchanged so the original model outputs are preserved.
+        For in-place activation modules (e.g. ``LeakyReLU(inplace=True)``) the module is called on ``x``
+        directly so that aliasing is preserved for downstream users of the input. The pre-activation value
+        is saved (cloned) because an in-place call would otherwise overwrite ``x`` before the backward pass
+        recomputes the local derivative from the saved input.
+
+        Args:
+            ctx: autograd context used to save tensors for the backward pass.
+            x: input tensor to the activation module.
+            module: activation module to call.
+
+        Returns:
+            The output of ``module(x)``.
+        """
+        ctx.save_for_backward(x.clone())
+        ctx.module = module
+        with torch.no_grad():
+            return module(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Apply the generalized guided backpropagation rule to the incoming gradient.
+
+        The local derivative of the activation is recomputed from the saved pre-activation input, and the
+        incoming gradient is kept only where it is positive and only where the activation is increasing
+        (local derivative positive). For ``torch.nn.ReLU`` this reduces to the original guided backprop
+        gradient rule.
+
+        Args:
+            ctx: autograd context with the saved pre-activation input and the wrapped module.
+            grad_output: incoming gradient with respect to the module output.
+
+        Returns:
+            The gradient with respect to the module input, and ``None`` for the module argument.
+        """
+        (x,) = ctx.saved_tensors
+        with torch.enable_grad():
+            x_grad = x.detach().clone().requires_grad_(True)
+            y = ctx.module(x_grad.clone())
+            (local_derivative,) = torch.autograd.grad(y, x_grad, grad_outputs=torch.ones_like(y))
+        positive_grad = (grad_output > 0).type_as(grad_output)
+        positive_slope = (local_derivative > 0).type_as(local_derivative)
+        grad_input = grad_output * positive_grad * positive_slope
+        return grad_input, None
+
+
+class _GuidedActivation(torch.nn.Module):
+    """
+    Wraps an activation module so that its forward pass is unchanged while its backward pass follows the
+    generalized guided backpropagation rule (see ``_AutoGradActivation``).
+    """
+
+    def __init__(self, activation: torch.nn.Module) -> None:
+        """Create a guided wrapper around an activation module.
+
+        The wrapped module's forward pass is left unchanged, while its backward pass follows the
+        generalized guided backpropagation rule (see ``_AutoGradActivation``).
+
+        Args:
+            activation: activation module to wrap.
+        """
+        super().__init__()
+        self.activation = activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run the wrapped activation with the guided backpropagation backward rule.
+
+        Args:
+            x: input tensor.
+
+        Returns:
+            The activation output. The forward pass is unchanged; the backward pass applies the guided
+            rule (see ``_AutoGradActivation``).
+        """
+        out: torch.Tensor = _AutoGradActivation.apply(x, self.activation)
+        return out
+
+
+class _GuidedActivationsTemp:
+    """
+    Context manager that temporarily wraps the activation modules of ``model`` with ``_GuidedActivation``.
+    The original modules are restored when the context exits.
+    """
+
+    def __init__(
+        self, model: torch.nn.Module, activation_types: tuple[type[torch.nn.Module], ...] = _GUIDED_ACTIVATIONS
+    ) -> None:
+        """Create the temporary activation wrapper context manager.
+
+        Args:
+            model: model whose supported activation modules are temporarily wrapped.
+            activation_types: activation module types to wrap.
+        """
+        self.model = model
+        self.activation_types = tuple(activation_types)
+        self._replaced: list[tuple[torch.nn.Module, str, torch.nn.Module]] = []
+
+    def __enter__(self) -> _GuidedActivationsTemp:
+        """Wrap every matching activation binding of the model with ``_GuidedActivation``.
+
+        ``named_modules(remove_duplicate=False)`` is used so that shared module instances bound to
+        multiple names are each wrapped and restored independently.
+
+        Returns:
+            The context manager instance.
+        """
+        for name, module in list(self.model.named_modules(remove_duplicate=False)):
+            if not name or not isinstance(module, self.activation_types):
+                continue
+            parent_name, _, child_name = name.rpartition(".")
+            parent = self.model.get_submodule(parent_name) if parent_name else self.model
+            setattr(parent, child_name, _GuidedActivation(module))
+            self._replaced.append((parent, child_name, module))
+        return self
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        """Restore the original activation modules and clear the replacement bindings."""
+        for parent, child_name, module in self._replaced:
+            setattr(parent, child_name, module)
+        self._replaced.clear()
 
 
 class _AutoGradReLU(torch.autograd.Function):
@@ -152,7 +294,12 @@ class SmoothGrad(VanillaGrad):
 class GuidedBackpropGrad(VanillaGrad):
     """
     Based on Springenberg and Dosovitskiy et al. https://arxiv.org/abs/1412.6806,
-    compute gradient-based saliency maps by backpropagating positive gradients and inputs (see ``_AutoGradReLU``).
+    compute gradient-based saliency maps by backpropagating positive gradients and inputs.
+
+    The forward pass of the model is left unchanged. During the backward pass, supported activation modules
+    (``torch.nn.ReLU``, ``torch.nn.LeakyReLU``, ``torch.nn.SiLU`` and ``torch.nn.GELU``) are temporarily wrapped
+    so that only positive incoming gradients are propagated through regions where the activation's local
+    derivative is positive. For ``torch.nn.ReLU`` this reproduces the original guided backpropagation rule.
 
     See also:
 
@@ -161,7 +308,7 @@ class GuidedBackpropGrad(VanillaGrad):
     """
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
-        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with _GuidedActivationsTemp(self.model):
             return super().__call__(x, index, **kwargs)
 
 
@@ -171,5 +318,5 @@ class GuidedBackpropSmoothGrad(SmoothGrad):
     """
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs: Any) -> torch.Tensor:
-        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with _GuidedActivationsTemp(self.model):
             return super().__call__(x, index, **kwargs)
