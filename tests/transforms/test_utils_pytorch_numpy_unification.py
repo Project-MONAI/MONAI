@@ -51,10 +51,11 @@ class TestPytorchNumpyUnification(unittest.TestCase):
 
     @skip_if_quick
     def test_many_elements_quantile(self):  # pytorch#64947
-        for p in TEST_NDARRAYS:
-            for elements in (1000, 17_000_000):
+        for elements in (1000, 17_000_000):
+            data = np.random.randn(elements)
+            for p in TEST_NDARRAYS:
+                x = p(data)
                 for t in [*TEST_NDARRAYS, list]:
-                    x = p(np.random.randn(elements))
                     q = percentile(x, t([10, 50]))
                     if isinstance(x, torch.Tensor):
                         self.assertIsInstance(q, torch.Tensor)

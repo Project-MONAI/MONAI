@@ -75,7 +75,9 @@ def load_module(
     source = glob(path.join(module_dir, "**", "*.cpp"), recursive=True)
     if torch.cuda.is_available():
         source += glob(path.join(module_dir, "**", "*.cu"), recursive=True)
-        platform_str += f"_{torch.version.cuda}"
+        # `torch.version.cuda` is None on a ROCm build, which would make every ROCm
+        # toolkit version share a single cache entry. Key on whichever is populated.
+        platform_str += f"_{torch.version.cuda or f'hip{torch.version.hip}'}"
 
     # Constructing compilation argument list.
     define_args = [] if not defines else [f"-D {key}={defines[key]}" for key in defines]

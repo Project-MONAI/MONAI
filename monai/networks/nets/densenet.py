@@ -277,7 +277,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
         r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
     )
 
-    state_dict = load_state_dict_from_url(model_url, progress=progress)
+    state_dict = load_state_dict_from_url(model_url, progress=progress, weights_only=True)
     for key in list(state_dict.keys()):
         res = pattern.match(key)
         if res:

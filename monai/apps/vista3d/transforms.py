@@ -160,8 +160,6 @@ class VistaPostTransformd(MapTransform):
                     pred = pred.argmax(0).unsqueeze(0).float() + 1.0
                     pred[is_bk] = 0.0
                 else:
-                    # AsDiscrete will remove NaN
-                    # pred = monai.transforms.AsDiscrete(threshold=0.5)(pred)
                     pred[pred > 0] = 1.0
                 if "label_prompt" in data and data["label_prompt"] is not None:
                     pred += 0.5  # inplace mapping to avoid cloning pred

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections.abc import Sequence
 from enum import Enum
 
 import numpy as np
@@ -26,7 +27,7 @@ from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import get_boxmode
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
@@ -106,6 +107,41 @@ def _maybe_new_metatensor(img, dtype=None, device=None):
     )
 
 
+def _cancel_align_corners_scaling(
+    xform: torch.Tensor, in_spatial_size: Sequence[int], out_spatial_size: Sequence[int]
+) -> torch.Tensor:
+    """
+    Pre-compensate a voxel-space affine for the scalings applied again downstream when
+    ``align_corners=True`` and the compiled ``Resample`` path is used.
+
+    ``xform`` is already expressed in voxel space. However, ``Affine`` passes it through ``AffineGrid``,
+    which applies a ``d_out / (d_out - 1)`` scaling per spatial dimension, and the compiled ``Resample``
+    applies a ``(d_in - 1) / d_in`` scaling before ``grid_pull``. This function returns
+    ``T @ S_inv @ xform @ D_inv``, where ``S_inv`` and ``D_inv`` cancel those two scalings and ``T`` is a
+    translation by -0.5 voxel that re-centres the result, so that ``grid_pull`` receives the original
+    ``xform`` unchanged.
+
+    Dimensions are clamped to a minimum of 2 to avoid division by zero for singleton axes.
+
+    Args:
+        xform: homogeneous affine of shape ``(rank + 1, rank + 1)`` in voxel space.
+        in_spatial_size: spatial shape of the input image.
+        out_spatial_size: spatial shape of the resampled output.
+
+    Returns:
+        the compensated homogeneous affine, same shape, dtype and device as ``xform``.
+    """
+    rank = len(xform) - 1
+    eye = torch.eye(rank + 1, dtype=xform.dtype, device=xform.device)
+    s_inv, d_inv, translate = eye.clone(), eye.clone(), eye.clone()
+    for i in range(rank):
+        d_in, d_out = max(2, int(in_spatial_size[i])), max(2, int(out_spatial_size[i]))
+        s_inv[i, i] = d_in / (d_in - 1)
+        d_inv[i, i] = (d_out - 1) / d_out
+        translate[i, -1] = -0.5
+    return translate @ s_inv @ xform @ d_inv
+
+
 def spatial_resample(
     img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy, transform_info
 ) -> torch.Tensor:
@@ -117,7 +153,9 @@ def spatial_resample(
     Args:
         img: data to be resampled, assuming `img` is channel-first.
         dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
-        spatial_size: output spatial size, if the component is ``-1``, use the corresponding input spatial size.
+        spatial_size: output spatial size. Components set to ``-1`` or ``None`` use the corresponding input
+            spatial dimension. If the entire value is ``None``, the output size is computed automatically when
+            possible, otherwise the input spatial shape is used.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
             Interpolation mode to calculate output values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -135,14 +173,22 @@ def spatial_resample(
         dtype_pt: data `dtype` for resampling computation.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    Returns:
+        torch.Tensor: The resampled output tensor, with metadata preserved when metadata tracking is enabled.
+
+    Raises:
+        ValueError: If the affine or spatial dimensions are invalid, or if the output spatial size cannot be
+            computed.
     """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta())
     # ensure spatial rank is <= 3
-    spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+    max_rank = max(int(img.ndim) - 1, 1)
+    spatial_rank = min(get_spatial_ndim(img), max_rank, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-        spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
+        spatial_rank = min(len(ensure_tuple(spatial_size)), max_rank, 3)  # infer spatial rank based on spatial_size
     src_affine = to_affine_nd(spatial_rank, src_affine).to(torch.float64)
     dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
     dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
@@ -152,10 +198,13 @@ def spatial_resample(
     in_spatial_size = torch.tensor(original_spatial_shape[:spatial_rank])
     if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
         spatial_size = in_spatial_size
-    elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-        spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+    elif spatial_size is None:
+        if spatial_rank > 1:  # auto spatial size
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+        else:
+            spatial_size = in_spatial_size
     spatial_size = torch.tensor(
-        fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x >= 0)
+        fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size, lambda x: x is not None and x >= 0)
     )
     extra_info = {
         "dtype": str(dtype_pt)[6:],  # remove "torch": torch.float32 -> float32
@@ -203,6 +252,8 @@ def spatial_resample(
     if isinstance(mode, int) or _use_compiled:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
+        if align_corners and not isinstance(mode, int):
+            xform = _cancel_align_corners_scaling(xform, in_sp_size, spatial_size)
         affine_xform = monai.transforms.Affine(
             affine=xform,
             spatial_size=spatial_size,
@@ -382,7 +433,9 @@ def resize(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def rotate(
+    img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info, rotate_order="XYZ"
+):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -404,6 +457,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
             the output data type is always ``float32``.
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+        rotate_order: the order in which the axes are rotated about for 3D inputs, following the convention of
+            :py:func:`scipy.spatial.transform.Rotation.from_euler`. See :py:func:`monai.transforms.utils.create_rotate`.
+            Defaults to ``"XYZ"`` (the legacy behaviour). Ignored for 2D inputs.
 
     """
 
@@ -412,7 +468,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    transform = create_rotate(input_ndim, _angle)
+    transform = create_rotate(input_ndim, _angle, rotate_order=rotate_order)
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore

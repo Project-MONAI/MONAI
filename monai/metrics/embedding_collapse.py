@@ -51,8 +51,10 @@ class EmbeddingCollapseMetric(Metric):
     Args:
         reduction: how to aggregate individual scores into ``aggregate``.
             ``"max"`` returns the worst-case score (recommended for
-            safety-critical use). ``"mean"`` returns the average of
-            available scores. ``"none"`` omits the ``aggregate`` key.
+            safety-critical use), including the most collapsed class.
+            ``"mean"`` returns the average of available scores, where all
+            per-class scores contribute a single term. ``"none"`` omits the
+            ``aggregate`` key.
         include_indicators: optional list of indicator names to compute.
             If ``None``, all applicable indicators are computed.
             Valid names: ``"centroid_similarity"``, ``"effective_rank"``,
@@ -162,7 +164,8 @@ def compute_embedding_collapse(
           ``None`` if ``target_embeddings`` not provided.
         - ``separation``: silhouette-based inter-class separation score.
           ``None`` if sklearn unavailable or fewer than 2 classes.
-        - ``aggregate``: reduced score. Omitted when ``reduction="none"``.
+        - ``aggregate``: reduced over the global indicators plus the worst
+          ``per_class_rank_<cls>``. Omitted when ``reduction="none"``.
 
     Raises:
         ValueError: if inputs are invalid (shape, reduction, indicators).
@@ -180,6 +183,7 @@ def compute_embedding_collapse(
 
     inc = set(include_indicators) if include_indicators is not None else None
     scores: dict[str, torch.Tensor | None] = {}
+    per_class_scores: dict[str, torch.Tensor | None] = {}
 
     # -- Label-dependent indicators
     if labels is not None:
@@ -191,7 +195,8 @@ def compute_embedding_collapse(
             scores["centroid_similarity"] = _centroid_similarity(emb, lbl)
 
         if inc is None or "per_class_rank" in inc:
-            scores.update(_per_class_rank(emb, lbl))
+            per_class_scores = _per_class_rank(emb, lbl)
+            scores.update(per_class_scores)
 
         if inc is None or "separation" in inc:
             scores["separation"] = _separation(emb, lbl)
@@ -218,6 +223,11 @@ def compute_embedding_collapse(
     if reduction != "none":
         primary = {"centroid_similarity", "effective_rank_score", "domain_shift", "separation"}
         available = [v.to(device=emb.device) for k, v in scores.items() if k in primary and v is not None]
+        # Per-class collapse is reduced to its worst class before joining the pool, so that
+        # `mean` keeps one vote per indicator regardless of how many classes are present.
+        by_class = [v.to(device=emb.device) for v in per_class_scores.values() if v is not None]
+        if by_class:
+            available.append(torch.stack(by_class).max())
         if not available:
             scores["aggregate"] = None
         elif reduction == "max":
@@ -295,7 +305,10 @@ def _effective_rank_score(emb: torch.Tensor) -> torch.Tensor:
     probs = sv / sv_sum
     safe_probs = probs.clamp_min(torch.finfo(probs.dtype).tiny)
     eff_rank: torch.Tensor = torch.exp(-(probs * safe_probs.log()).sum())
-    max_rank: torch.Tensor = emb.new_tensor(float(min(emb.shape[0], emb.shape[1])))
+    # Mean-centering above forces the rows to sum to zero, a linear dependency, so
+    # rank(centered) <= min(N - 1, D). Normalizing by min(N, D) would impose a 1/N
+    # floor on the score whenever N <= D. No-op when N > D: both expressions equal D.
+    max_rank: torch.Tensor = emb.new_tensor(float(min(emb.shape[0] - 1, emb.shape[1])))
     return (emb.new_tensor(1.0) - eff_rank / max_rank).clamp(0.0, 1.0)
 
 

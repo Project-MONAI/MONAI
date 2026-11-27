@@ -13,6 +13,9 @@ on:
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
   group: deploy-${{ github.event.pull_request.number || github.ref }}
@@ -34,7 +37,7 @@ jobs:
   #     options: --gpus all
   #   runs-on: [self-hosted, linux, x64, integration]
   #   steps:
-  #   - uses: actions/checkout@v6
+  #   - uses: actions/checkout@v7
   #   - name: cache weekly timestamp
   #     id: pip-cache
   #     run: |
@@ -88,9 +91,9 @@ jobs:
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
-  #       python-version: ['3.10', '3.11', '3.12']
+  #       python-version: ['3.11', '3.12']
   #   steps:
-  #   - uses: actions/checkout@v6
+  #   - uses: actions/checkout@v7
   #     with:
   #       fetch-depth: 0
   #   - name: Set up Python ${{ matrix.python-version }}
@@ -133,13 +136,13 @@ jobs:
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     - name: Install CPU PyTorch
       run: |
-        python -m pip install torch==2.8.0 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+        python -m pip install torch==2.12.1 torchvision --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install the default branch no build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
@@ -156,16 +159,15 @@ jobs:
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)
       if: github.ref == 'refs/heads/dev'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         ref: dev
     - name: Quick test installed (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
         cd $GITHUB_WORKSPACE
-        rm -rf monai/
         ls -al .
-        python -m pip install -r requirements-min.txt
+        python -m pip install -e .[testing]
         python -m tests.min_tests
       env:
         QUICKTEST: True

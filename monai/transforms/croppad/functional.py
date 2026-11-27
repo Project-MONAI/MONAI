@@ -22,7 +22,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_spatial_ndim
 from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
@@ -132,7 +132,7 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
         mode: the padding mode.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
     """
-    ndim = len(img.shape) - 1
+    ndim = get_spatial_ndim(img)
     matrix_np = np.round(to_affine_nd(ndim, convert_to_numpy(translation_mat, wrap_sequence=True).copy()))
     matrix_np = to_affine_nd(len(spatial_size), matrix_np)
     cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))

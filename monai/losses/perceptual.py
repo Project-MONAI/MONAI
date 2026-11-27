@@ -16,6 +16,7 @@ import warnings
 import torch
 import torch.nn as nn
 
+from monai.networks.nets import LPIPS
 from monai.utils import optional_import
 from monai.utils.enums import StrEnum
 
@@ -24,7 +25,6 @@ HF_MONAI_MODELS = frozenset(
     ("medicalnet_resnet10_23datasets", "medicalnet_resnet50_23datasets", "radimagenet_resnet50")
 )
 
-LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
 
 
@@ -67,8 +67,9 @@ class PerceptualLoss(nn.Module):
         is_fake_3d: if True use 2.5D approach for a 3D perceptual loss.
         fake_3d_ratio: ratio of how many slices per axis are used in the 2.5D approach.
         cache_dir: path to cache directory to save the pretrained network weights.
-        pretrained: whether to load pretrained weights. This argument only works when using networks from
-            LIPIS or Torchvision. Defaults to ``True``.
+        pretrained: whether to load pretrained weights. For "alex", "vgg", and "squeeze", this controls
+            the LPIPS linear calibration weights; the feature network always uses ImageNet weights from
+            Torchvision. For "resnet50", this controls the feature network weights. Defaults to ``True``.
         pretrained_path: if `pretrained` is `True`, users can specify a weights file to be loaded
             via using this argument. This argument only works when ``"network_type"`` is "resnet50".
             Defaults to `None`.
@@ -112,7 +113,7 @@ class PerceptualLoss(nn.Module):
                 )
             if not channel_wise:
                 warnings.warn(
-                    "MedicalNet networks supp, ort channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
+                    "MedicalNet networks support channel-wise loss. Consider setting channel_wise=True.", stacklevel=2
                 )
 
         # Channel-wise only for MedicalNet
@@ -127,7 +128,8 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
             # raise a warning that this may change the default cache dir for all torch.hub calls
             warnings.warn(
-                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls."
+                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls.",
+                stacklevel=2,
             )
 
         self.spatial_dims = spatial_dims
@@ -150,8 +152,7 @@ class PerceptualLoss(nn.Module):
                 pretrained_state_dict_key=pretrained_state_dict_key,
             )
         else:
-            # VGG, AlexNet and SqueezeNet are independently handled by LPIPS.
-            self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type, verbose=False)
+            self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type)
 
         self.is_fake_3d = is_fake_3d
         self.fake_3d_ratio = fake_3d_ratio
@@ -311,8 +312,10 @@ def spatial_average_3d(x: torch.Tensor, keepdim: bool = True) -> torch.Tensor:
 
 
 def normalize_tensor(x: torch.Tensor, eps: float = 1e-10) -> torch.Tensor:
-    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True))
-    return x / (norm_factor + eps)
+    # Add eps inside the sqrt so the gradient stays finite when the norm is zero
+    # (e.g. identical input/target features), avoiding NaNs from SqrtBackward. See issue #8412.
+    norm_factor = torch.sqrt(torch.sum(x**2, dim=1, keepdim=True) + eps)
+    return x / norm_factor
 
 
 def medicalnet_intensity_normalisation(volume):

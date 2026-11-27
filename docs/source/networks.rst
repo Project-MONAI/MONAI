@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -129,6 +134,23 @@ Blocks
 .. autoclass:: TransformerBlock
     :members:
 
+`Hyena Mixer`
+~~~~~~~~~~~~~
+.. autoclass:: HyenaMixer
+    :members:
+
+`Hyena Transformer Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HyenaTransformerBlock
+    :members:
+
+`Depthwise FFT Convolution`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DepthwiseFFTConv2d
+    :members:
+.. autoclass:: DepthwiseFFTConv3d
+    :members:
+
 `UNETR Block`
 ~~~~~~~~~~~~~
 .. autoclass:: UnetrBasicBlock
@@ -141,6 +163,16 @@ Blocks
 `Residual Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ResidualSELayer
+    :members:
+
+`Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SpatialSELayer
+    :members:
+
+`Channel-Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSpatialSELayer
     :members:
 
 `Squeeze-and-Excitation Block`
@@ -326,6 +358,11 @@ Layers
 
 .. currentmodule:: monai.networks.layers
 
+`LayerNormNd`
+~~~~~~~~~~~~~
+.. autoclass:: LayerNormNd
+    :members:
+
 `ChannelPad`
 ~~~~~~~~~~~~
 .. autoclass:: ChannelPad
@@ -449,6 +486,31 @@ Nets
 ~~~~~~~
 .. autoclass:: AHNet
   :members:
+
+`ConvNeXt`
+~~~~~~~~~~
+.. autoclass:: ConvNeXt
+  :members:
+
+`ConvNeXtTiny`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtTiny
+
+`ConvNeXtSmall`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtSmall
+
+`ConvNeXtBase`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtBase
+
+`ConvNeXtLarge`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtLarge
+
+`ConvNeXtXLarge`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtXLarge
 
 `DenseNet`
 ~~~~~~~~~~
@@ -591,6 +653,11 @@ Nets
 .. autoclass:: SwinUNETR
     :members:
 
+`HyenaNDUNETR`
+~~~~~~~~~~~~~~
+.. autoclass:: HyenaNDUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -638,6 +705,11 @@ Nets
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
+  :members:
+
+`NaViT`
+~~~~~~~
+.. autoclass:: NaViT
   :members:
 
 `ViT`
@@ -710,6 +782,25 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
+`LPIPS`
+~~~~~~~
+.. autoclass:: LPIPS
+  :members:
+
+`LPIPSFeatures`
+~~~~~~~~~~~~~~~
+.. autoclass:: LPIPSFeatures
+  :members:
+
+`NetLinLayer`
+~~~~~~~~~~~~~
+.. autoclass:: NetLinLayer
+
+`ScalingLayer`
+~~~~~~~~~~~~~~
+.. autoclass:: ScalingLayer
+  :members:
+
 `MILModel`
 ~~~~~~~~~~
 .. autoclass:: MILModel
@@ -766,6 +857,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities

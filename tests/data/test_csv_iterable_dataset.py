@@ -247,6 +247,17 @@ class TestCSVIterableDataset(unittest.TestCase):
             for i in iters:
                 i.close()
 
+    def test_shuffle_no_duplicates(self):
+        """Shuffling a re-iterable stream source yields each item once per epoch."""
+        chunks = [
+            pd.DataFrame({"subject_id": ["s0", "s1"], "label": [0, 1]}),
+            pd.DataFrame({"subject_id": ["s2", "s3"], "label": [2, 3]}),
+        ]
+        dataset = CSVIterableDataset(src=[chunks], buffer_size=4, shuffle=True, seed=0)
+        items = [item["subject_id"] for item in dataset]
+        self.assertEqual(len(items), 4)
+        self.assertSetEqual(set(items), {"s0", "s1", "s2", "s3"})
+
 
 if __name__ == "__main__":
     unittest.main()

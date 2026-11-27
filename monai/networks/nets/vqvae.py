@@ -361,18 +361,22 @@ class VQVAE(nn.Module):
         else:
             downsample_parameters_tuple = downsample_parameters
 
+        # pyrefly: ignore [not-iterable]
         if not all(all(isinstance(value, int) for value in sub_item) for sub_item in downsample_parameters_tuple):
             raise ValueError("`downsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
         # check if downsample_parameters is a tuple of ints or a tuple of tuples of ints
+        # pyrefly: ignore [not-iterable]
         if not all(all(isinstance(value, int) for value in sub_item) for sub_item in upsample_parameters_tuple):
             raise ValueError("`upsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
         for parameter in downsample_parameters_tuple:
+            # pyrefly: ignore [bad-argument-type]
             if len(parameter) != 4:
                 raise ValueError("`downsample_parameters` should be a tuple of tuples with 4 integers.")
 
         for parameter in upsample_parameters_tuple:
+            # pyrefly: ignore [bad-argument-type]
             if len(parameter) != 5:
                 raise ValueError("`upsample_parameters` should be a tuple of tuples with 5 integers.")
 
@@ -396,6 +400,7 @@ class VQVAE(nn.Module):
             channels=channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
+            # pyrefly: ignore [bad-argument-type]
             downsample_parameters=downsample_parameters_tuple,
             dropout=dropout,
             act=act,
@@ -408,6 +413,7 @@ class VQVAE(nn.Module):
             channels=channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
+            # pyrefly: ignore [bad-argument-type]
             upsample_parameters=upsample_parameters_tuple,
             dropout=dropout,
             act=act,

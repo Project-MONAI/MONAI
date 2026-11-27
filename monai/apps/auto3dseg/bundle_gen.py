@@ -11,9 +11,12 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
+import ntpath
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -28,17 +31,20 @@ from urllib.parse import urlparse
 import torch
 
 from monai.apps import download_and_extract
-from monai.apps.utils import get_logger
+from monai.apps.utils import confined_path, get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import (
     _prepare_cmd_bcprun,
     _prepare_cmd_default,
     _prepare_cmd_torchrun,
+    _reject_non_algo_target,
     _run_cmd_bcprun,
     _run_cmd_torchrun,
     algo_to_json,
 )
+from monai.bundle.config_item import ConfigExpression
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.reference_resolver import ReferenceResolver
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
@@ -48,6 +54,176 @@ logger = get_logger(module_name=__name__)
 ALGO_HASH = MONAIEnvVars.algo_hash()
 
 __all__ = ["BundleAlgo", "BundleGen"]
+
+
+def _check_single_path_component(value: Any, what: str) -> None:
+    """
+    Require ``value`` to be one non-empty directory name with no path separators, drive or NUL character.
+
+    Args:
+        value: the name to check.
+        what: a description of the value, used in the error message.
+
+    Raises:
+        ValueError: if ``value`` is not a plain directory name.
+    """
+    name = str(value)
+    separators = {os.sep, "/"} | ({os.altsep} if os.altsep else set())
+    if (
+        not name
+        or name in (".", "..")
+        or "\x00" in name
+        or any(sep in name for sep in separators)
+        or os.path.isabs(name)
+        or ntpath.splitdrive(name)[0]
+    ):
+        raise ValueError(f"Invalid {what} {value!r}: expected a single directory name without path separators.")
+
+
+def _confined_join(root: str, name: str) -> str:
+    """
+    Join ``name`` to ``root`` and check that the resolved result stays inside ``root``.
+
+    Args:
+        root: the parent directory.
+        name: the child directory name.
+
+    Returns:
+        the joined path (``os.path.join(root, name)``, not resolved), so callers keep the path
+        they passed; containment is validated against the resolved path.
+
+    Raises:
+        ValueError: if the resolved path is not inside ``root``.
+    """
+    # Validate on the resolved path, but return the unresolved join so a caller's public path
+    # (e.g. BundleAlgo.output_path / get_output_path) keeps the spelling it was given. This is safe
+    # here because ``name`` is a validated single component and the only destructive caller
+    # (export_to_disk) rejects a symlinked destination before writing. Sinks that write directly to
+    # an attacker-influenced name (safe_extract_member, _safe_large_file_path) instead return the
+    # resolved path confined_path validated.
+    try:
+        confined_path(root, name)
+    except ValueError as e:
+        raise ValueError(f"Invalid path: {os.path.join(root, name)!r} is not inside {root!r}.") from e
+    return os.path.join(root, name)
+
+
+def _resolve_path_value(value: Any, parser: ConfigParser, what: str) -> str:
+    """
+    Resolve a config value that must be a path string, without evaluating it with ``eval``.
+
+    The config is read from an algorithm output directory, and ``import_bundle_algo_history`` can read one from
+    a work directory this process did not write. The value is therefore treated as data, and only these shapes
+    are accepted:
+
+    - a plain string, which is returned unchanged;
+    - a whole-value reference, ``@name``, where that entry holds a plain string;
+    - a ``$`` expression built only from string literals, ``+`` concatenation, ``str()`` with one argument, and
+      ``@name`` references to other entries, for example the ``$@bundle_root + '/model_fold' + str(@fold)``
+      used by the shipped templates.
+
+    Everything else raises ``ValueError``: any other call, attribute access, a subscript other than the internal
+    reference table, a comprehension, a ``_target_`` mapping, and a value that is not a string at all.
+
+    Three consequences are deliberate. A config that relied on a wider expression, for example
+    ``$os.path.join(@bundle_root, 'model')`` or an f-string, is now refused, so such a path has to be written out
+    in full. References are resolved one level deep only: if ``model_folds_dir`` is itself
+    ``$@bundle_root + '/model_folds'`` then ``$@model_folds_dir + '/fold_0'`` is refused, because the referenced
+    entry holds an expression rather than a plain value. An integer entry is accepted only inside ``str()``, as
+    in ``str(@fold)``, because a path fragment has to be a string.
+
+    Args:
+        value: the config value, as stored in the file.
+        parser: the parser that holds the other entries referenced with ``@``.
+        what: a description of the value, used in the error messages.
+
+    Returns:
+        the resolved path string.
+
+    Raises:
+        ValueError: if ``value`` is not a string, or is not one of the accepted shapes.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {what}: expected a string, got {type(value).__name__}.")
+    if value.startswith("@"):
+        resolved = _resolve_path_reference(value[1:], parser, what)
+        if not isinstance(resolved, str):
+            raise ValueError(f"Invalid {what}: reference {value!r} is not a plain string.")
+        return resolved
+    if not value.startswith(ConfigExpression.prefix):
+        return value
+
+    refs = {
+        ref: _resolve_path_reference(ref, parser, what, allow_integer=True)
+        for ref in ReferenceResolver.match_refs_pattern(value)
+    }
+    expression = ReferenceResolver.update_refs_pattern(value, refs)
+    try:
+        node = ast.parse(expression[len(ConfigExpression.prefix) :], mode="eval").body
+    except SyntaxError as e:
+        raise ValueError(f"Invalid {what} expression: {value!r}.") from e
+    resolved = _path_expression(node, refs, what)
+    if not isinstance(resolved, str):
+        raise ValueError(f"Invalid {what}: the expression does not resolve to a string.")
+    return resolved
+
+
+def _resolve_path_reference(ref: str, parser: ConfigParser, what: str, allow_integer: bool = False) -> str | int:
+    """Return the value of ``@ref``, refusing anything that would need evaluation itself.
+
+    A string is returned as is. A reference whose own value starts with ``$`` or ``@`` is refused, so references
+    are never resolved transitively. An integer is only returned when ``allow_integer`` is set, because the
+    templates use it through ``str()``, as in ``str(@fold)``; it is never concatenated directly.
+    """
+    try:
+        ref_value = parser[ref]
+    except (KeyError, IndexError) as e:
+        raise ValueError(f"Invalid {what}: reference @{ref} does not exist.") from e
+    if isinstance(ref_value, str):
+        if ref_value.startswith(("@", "$")):
+            raise ValueError(f"Invalid {what}: reference @{ref} is not a plain value.")
+        return ref_value
+    if allow_integer and isinstance(ref_value, int) and not isinstance(ref_value, bool):
+        return ref_value
+    raise ValueError(f"Invalid {what}: reference @{ref} is not a plain value.")
+
+
+def _path_expression(node: ast.AST, refs: dict[str, str | int], what: str) -> str | int:
+    """Evaluate the small expression grammar accepted by :func:`_resolve_path_value`.
+
+    The result is a string for every accepted path fragment. The single exception is a bare reference such as
+    ``@fold``, which returns the integer held in the config so that a surrounding ``str(...)`` can format it:
+    an expression like ``$@bundle_root + '/model_fold' + str(@fold)`` visits ``@fold`` here and turns it into
+    ``'0'``. :func:`_resolve_path_value` rejects a non-string result, so an integer never becomes the path.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _path_expression(node.left, refs, what)
+        right = _path_expression(node.right, refs, what)
+        if isinstance(left, str) and isinstance(right, str):
+            return left + right
+        raise ValueError(f"Invalid {what}: only strings can be concatenated.")
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "str"
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return str(_path_expression(node.args[0], refs, what))
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == ReferenceResolver._vars
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(node.slice.value, str)
+        and node.slice.value in refs
+    ):
+        return refs[node.slice.value]
+    raise ValueError(
+        f"Invalid {what}: only string literals, + concatenation, str() of a reference and @references are allowed."
+    )
 
 
 class BundleAlgo(Algo):
@@ -70,7 +246,31 @@ class BundleAlgo(Algo):
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
     ``export_to_disk``. Then created bundle keeps the same file structure as the template.
 
+    Note:
+        ``get_score`` reads ``ckpt_path`` from ``configs/hyper_parameters.yaml`` in the algorithm output directory
+        as data rather than evaluating it, because that directory can come from a work directory this process did
+        not write. Only a plain string, a reference to a plain entry, or a ``$`` expression made of string
+        literals, ``+``, ``str()`` and ``@references`` are accepted, as in
+        ``$@bundle_root + '/model_fold' + str(@fold)``. A saved config that needs anything else, for example a
+        call to ``os.path.join`` or a reference to another expression, raises ``ValueError`` instead of being
+        evaluated, so a score written by a template that builds its path that way cannot be read back.
+
     """
+
+    # Keys carried by ``state_dict``/``load_state_dict``. Declared once so that a partially initialized instance
+    # (for example one built without running ``__init__``) can still validate the keys of a restored state.
+    _STATE_KEYS = (
+        "template_path",
+        "data_stats_files",
+        "data_list_file",
+        "mlflow_tracking_uri",
+        "mlflow_experiment_name",
+        "output_path",
+        "name",
+        "best_metric",
+        "fill_records",
+        "device_setting",
+    )
 
     def __init__(self, template_path: PathLike | None = None):
         """
@@ -176,18 +376,37 @@ class BundleAlgo(Algo):
         Args:
             output_path: Path to export the 'scripts' and 'configs' directories.
             algo_name: the identifier of the algorithm (usually contains the name and extra info like fold ID).
+                It must be a single directory name: path separators, ``.`` and ``..`` are rejected.
             kwargs: other parameters, including: "copy_dirs=True/False" means whether to copy the template as output
                 instead of inplace operation, "fill_template=True/False" means whether to fill the placeholders
                 in the template. other parameters are for `fill_template_config` function.
 
+
+        Raises:
+            ValueError: if ``algo_name`` or the Algo ``name`` is not a single directory name, or the destination
+                does not resolve inside ``output_path``.
         """
         if kwargs.pop("copy_dirs", True):
-            self.output_path = os.path.join(output_path, algo_name)
+            _check_single_path_component(algo_name, "algo_name")
+            if self.name:  # an empty name copies the whole template_path
+                _check_single_path_component(self.name, "the Algo name")
+            source = os.path.join(str(self.template_path), self.name)
+            if not os.path.isdir(source):
+                raise ValueError(f"Algo template folder {source!r} does not exist.")
+            self.output_path = _confined_join(output_path, algo_name)
+            # Reject a symlinked destination before the destructive rmtree: _confined_join resolves
+            # the symlink, so a link pointing inside output_path would otherwise pass containment and
+            # the rmtree below would delete the link's target instead of the link.
+            if os.path.islink(os.path.join(output_path, algo_name)):
+                raise ValueError(
+                    f"Refusing to export to {os.path.join(output_path, algo_name)!r}: "
+                    "the destination is a symbolic link."
+                )
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
             # copy algorithm_templates/<Algo> to the working directory output_path
-            shutil.copytree(os.path.join(str(self.template_path), self.name), self.output_path)
+            shutil.copytree(source, self.output_path)
         else:
             self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):
@@ -226,7 +445,7 @@ class BundleAlgo(Algo):
 
             return (
                 _prepare_cmd_bcprun(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -234,11 +453,11 @@ class BundleAlgo(Algo):
                 "",
             )
         elif int(self.device_setting["n_devices"]) > 1:
-            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
+            return _prepare_cmd_torchrun(f"{shlex.quote(train_py)} run", config_file=config_files, **params), ""
         else:
             return (
                 _prepare_cmd_default(
-                    f"{train_py} run",
+                    f"{shlex.quote(train_py)} run",
                     cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
                     config_file=config_files,
                     **params,
@@ -274,7 +493,7 @@ class BundleAlgo(Algo):
                 cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
         else:
-            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
+            return run_cmd(shlex.split(cmd), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -302,11 +521,28 @@ class BundleAlgo(Algo):
     def get_score(self, *args, **kwargs):
         """
         Returns validation scores of the model trained by the current Algo.
+
+        The configuration is read from the algorithm output directory, which may belong to a work directory this
+        process did not create (``import_bundle_algo_history`` reads any work dir), so ``ckpt_path`` is resolved
+        as data rather than evaluated. See the class docstring for the syntax that is accepted, which is a
+        narrower set than ``eval`` would allow.
+
+        Args:
+            *args: unused, kept for compatibility with the ``Algo`` interface.
+            **kwargs: unused, kept for compatibility with the ``Algo`` interface.
+
+        Returns:
+            the best average Dice score recorded in ``progress.yaml``.
+
+        Raises:
+            ValueError: if ``ckpt_path`` in the saved configuration is not a plain path string.
         """
         config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
-        parser = ConfigParser()
+        parser = ConfigParser(globals=False)
         parser.read_config(config_yaml)
-        ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
+        # resolved as data, never with eval(): the file can come from a work directory this process
+        # did not write, and a `$` expression there must not be able to call or import anything
+        ckpt_path = _resolve_path_value(parser.get("ckpt_path", default=self.output_path), parser, "ckpt_path")
 
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
         # dict_file: a list of scores saved in the form of dict in progress.yaml
@@ -378,18 +614,7 @@ class BundleAlgo(Algo):
             template_path is excluded as it is determined dynamically at load time
             based on which path successfully imports the Algo class.
         """
-        return {
-            "template_path": self.template_path,
-            "data_stats_files": self.data_stats_files,
-            "data_list_file": self.data_list_file,
-            "mlflow_tracking_uri": self.mlflow_tracking_uri,
-            "mlflow_experiment_name": self.mlflow_experiment_name,
-            "output_path": self.output_path,
-            "name": self.name,
-            "best_metric": self.best_metric,
-            "fill_records": self.fill_records,
-            "device_setting": self.device_setting,
-        }
+        return {key: getattr(self, key) for key in self._STATE_KEYS}
 
     def load_state_dict(self, state: dict) -> None:
         """
@@ -397,9 +622,76 @@ class BundleAlgo(Algo):
 
         Args:
             state: A dictionary containing the state to restore.
+
+        Raises:
+            ValueError: if the state has unknown keys, or a ``device_setting`` that is malformed or that asks for
+                more devices than the restored ``CUDA_VISIBLE_DEVICES`` exposes.
         """
+        allowed = set(self._STATE_KEYS)
+        unknown = sorted(set(state) - allowed)
+        if unknown:
+            raise ValueError(
+                f"Unexpected keys in {type(self).__name__} state: {unknown}. Expected a subset of {sorted(allowed)}."
+            )
+        if "device_setting" in state:
+            state = dict(state)
+            restored = _validate_device_setting(state["device_setting"])
+            # merge into the current settings so fields missing from the saved state keep their defaults
+            merged = {**getattr(self, "device_setting", {}), **restored}
+            if "CUDA_VISIBLE_DEVICES" in restored:
+                visible = _count_visible_devices(restored["CUDA_VISIBLE_DEVICES"])
+                if "n_devices" in restored:
+                    if merged["n_devices"] > visible:
+                        raise ValueError(
+                            f'Value in `state["device_setting"]` asks for {merged["n_devices"]} devices but '
+                            f"CUDA_VISIBLE_DEVICES={restored['CUDA_VISIBLE_DEVICES']!r} exposes {visible}."
+                        )
+                else:
+                    # a state without n_devices must not keep the device count of this host
+                    merged["n_devices"] = visible
+            state["device_setting"] = merged
         for key, value in state.items():
             setattr(self, key, value)
+
+
+def _count_visible_devices(visible: str) -> int:
+    """Number of devices selected by a ``CUDA_VISIBLE_DEVICES`` value (a single MIG identifier counts as one)."""
+    return len([item for item in str(visible).split(",") if item.strip()])
+
+
+def _validate_device_setting(device_setting: Any) -> dict:
+    """
+    Check a restored ``device_setting`` dictionary before it is used to build training commands.
+
+    Args:
+        device_setting: the value restored from a saved state.
+
+    Returns:
+        a copy of ``device_setting`` with the numeric fields converted to ``int``.
+
+    Raises:
+        ValueError: if the value is not a dictionary, has unknown keys, or has malformed fields.
+    """
+    known = {"CUDA_VISIBLE_DEVICES", "n_devices", "NUM_NODES", "MN_START_METHOD", "CMD_PREFIX"}
+    if not isinstance(device_setting, dict):
+        raise ValueError(f"device_setting must be a dict, got {type(device_setting).__name__}.")
+    unknown = sorted(set(device_setting) - known)
+    if unknown:
+        raise ValueError(f"Unexpected keys in device_setting: {unknown}.")
+    checked = dict(device_setting)
+    for key in ("n_devices", "NUM_NODES"):
+        if key in checked:
+            value = checked[key]
+            if isinstance(value, bool) or not re.fullmatch(r"\d+", str(value)):
+                raise ValueError(f"device_setting[{key!r}] must be a non-negative integer, got {value!r}.")
+            checked[key] = int(value)
+    if "CUDA_VISIBLE_DEVICES" in checked and not re.fullmatch(r"[\w,./-]*", str(checked["CUDA_VISIBLE_DEVICES"])):
+        # device indices, GPU UUIDs and MIG identifiers (``MIG-GPU-<uuid>/<gi>/<ci>``) are all accepted
+        raise ValueError(f"device_setting['CUDA_VISIBLE_DEVICES'] is malformed: {checked['CUDA_VISIBLE_DEVICES']!r}.")
+    for key in ("MN_START_METHOD", "CMD_PREFIX"):
+        if key in checked and not isinstance(checked[key], str):
+            raise ValueError(f"device_setting[{key!r}] must be a string, got {type(checked[key]).__name__}.")
+    return checked
 
 
 # path to download the algo_templates
@@ -473,13 +765,72 @@ def _copy_algos_folder(folder, at_path):
     return algos_all
 
 
+def _algo_from_params(algo_name: Any, algo_params: Any) -> Algo:
+    """Instantiate one algorithm from an entry of the ``algos`` mapping, using literal values only.
+
+    The mapping is user input: ``AutoRunner`` reads it from ``input.yaml`` and ``BundleGen``/its CLI accept it
+    directly. Its values are therefore plain data, and they are handed to the ``Algo`` subclass as literals.
+    They are never passed through ``ConfigParser``, which would treat strings starting with ``$``, ``@`` or
+    ``%`` as configuration directives and evaluate them.
+
+    The class named by ``_target_`` is still imported, from ``template_path`` if the module is not installed,
+    so ``template_path`` must point to a directory you trust: importing a module runs its top-level code.
+    The directory is validated and added to ``sys.path`` here, and left there afterwards, because the
+    instantiated ``Algo`` may import further modules from its template when it is trained or exported.
+
+    Args:
+        algo_name: the key of the entry, used in error messages.
+        algo_params: the mapping with a ``_target_`` key naming an ``Algo`` subclass and optional keyword
+            arguments for its constructor, such as ``template_path``.
+
+    Returns:
+        the instantiated ``Algo``.
+
+    Raises:
+        ValueError: if the entry is not a mapping, has no ``_target_``, the target is not an ``Algo``
+            subclass, or ``template_path`` is not a directory.
+    """
+    if not isinstance(algo_params, dict):
+        raise ValueError(
+            f"Invalid algos entry {algo_name!r}: expected a dict with a '_target_' key, "
+            f"got {type(algo_params).__name__}."
+        )
+
+    params = dict(algo_params)
+    target = params.pop("_target_", None)
+    if target is None:
+        raise ValueError(f"Invalid algos entry {algo_name!r}: missing '_target_' key.")
+
+    template_path = params.get("template_path", ".")
+    if not isinstance(template_path, str):
+        raise ValueError(
+            f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: expected a string, "
+            f"got {type(template_path).__name__}."
+        )
+    # check the directory here: a bad sys.path entry only surfaces later, as a ModuleNotFoundError for the
+    # target class that says nothing about the path being wrong
+    if template_path and not os.path.isdir(template_path):
+        raise ValueError(f"Invalid template_path {template_path!r} for algos entry {algo_name!r}: not a directory.")
+    if template_path and template_path not in sys.path:
+        sys.path.append(template_path)
+
+    # the allowlist resolves the class and checks issubclass(..., Algo) before anything is instantiated
+    algo_cls: Any = _reject_non_algo_target(target, f"algos entry {algo_name!r}")
+    return algo_cls(**params)
+
+
 class BundleGen(AlgoGen):
     """
     This class generates a set of bundles according to the cross-validation folds, each of them can run independently.
 
     Args:
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
-        algos: If dictionary, it outlines the algorithm to use. If a list or a string, defines a subset of names of
+        algos: If dictionary, it outlines the algorithm to use. The values are treated as plain data: each entry
+            needs a ``_target_`` key naming an ``Algo`` subclass (a full module path or a monai component name)
+            and may pass further keyword arguments for its constructor (for example ``template_path``).
+            Configuration expressions (``$``, ``@``, ``%``) are not evaluated. The target class is imported
+            from ``template_path`` when the module is not installed, so that directory must be trusted.
+            If a list or a string, defines a subset of names of
             the algorithms to use, e.g. ('segresnet', 'dints') out of the full set of algorithm templates provided
             by templates_path_or_url. Defaults to None - to use all available algorithms.
         templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
@@ -491,7 +842,7 @@ class BundleGen(AlgoGen):
         mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
             the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
             the value is None.
-        mlfow_experiment_name: a string to specify the experiment name for MLflow server.
+        mlflow_experiment_name: a string to specify the experiment name for MLflow server.
     .. code-block:: bash
 
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"
@@ -534,12 +885,8 @@ class BundleGen(AlgoGen):
         self.algos: Any = []
         if isinstance(algos, dict):
             for algo_name, algo_params in sorted(algos.items()):
-                template_path = algo_params.get("template_path", ".")
-                if len(template_path) > 0 and template_path not in sys.path:
-                    sys.path.append(template_path)
-
                 try:
-                    onealgo = ConfigParser(algo_params).get_parsed_content()
+                    onealgo: Any = _algo_from_params(algo_name, algo_params)
                     onealgo.name = algo_name
                     self.algos.append(onealgo)
                 except RuntimeError as e:

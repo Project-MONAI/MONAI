@@ -193,7 +193,7 @@ def _matching_no_gt(
 
     Args:
         iou_thresholds: defined which IoU thresholds should be evaluated
-        dt_scores: predicted scores
+        pred_scores: predicted scores
         max_detections: maximum number of allowed detections per image.
             This functions uses this parameter to stay consistent with
             the actual matching function which needs this limit.

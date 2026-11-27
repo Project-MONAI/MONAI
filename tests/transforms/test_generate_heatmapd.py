@@ -21,6 +21,12 @@ from monai.data import MetaTensor
 from monai.transforms.post.dictionary import GenerateHeatmapd
 from tests.test_utils import assert_allclose
 
+
+def _peak_coord(channel: torch.Tensor) -> torch.Tensor:
+    idx = torch.argmax(channel)
+    return torch.stack(torch.unravel_index(idx, channel.shape))
+
+
 # Test cases for dictionary transforms with reference image
 # Only test with non-MetaTensor types to avoid affine conflicts
 TEST_CASES_WITH_REF = [
@@ -219,6 +225,102 @@ class TestGenerateHeatmapd(unittest.TestCase):
 
         # Heatmap should inherit affine from the reference image
         assert_allclose(heatmap.affine, image.affine, type_test=False)
+
+    def test_world_points_with_reference_affine_and_visibility(self):
+        affine = torch.diag(torch.tensor([2.0, 2.0, 2.0, 1.0]))
+        image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
+        image.meta["spatial_shape"] = (8, 8, 8)
+        points = torch.tensor(
+            [
+                [4.0, 6.0, 8.0],  # voxel coordinate [2, 3, 4]
+                [20.0, 0.0, 0.0],  # out of bounds after affine conversion
+                [float("nan"), 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+
+        transform = GenerateHeatmapd(
+            keys="points",
+            heatmap_keys="heatmap",
+            ref_image_keys="image",
+            coordinate_space="world",
+            visibility_keys="visible",
+            sigma=1.0,
+        )
+        result = transform({"points": points, "image": image})
+
+        heatmap = result["heatmap"]
+        self.assertIsInstance(heatmap, MetaTensor)
+        self.assertEqual(tuple(heatmap.shape), (3, 8, 8, 8))
+        assert_allclose(_peak_coord(heatmap[0]), torch.tensor([2, 3, 4]), type_test=False)
+        self.assertTrue(torch.equal(result["visible"], torch.tensor([True, False, False])))
+        self.assertGreater(heatmap[0].max(), 0.99)
+        self.assertEqual(float(heatmap[1].max()), 0.0)
+        self.assertEqual(float(heatmap[2].max()), 0.0)
+
+    def test_world_points_with_translated_rotated_affine(self):
+        affine = torch.tensor(
+            [[0.0, -2.0, 0.0, 10.0], [3.0, 0.0, 0.0, 20.0], [0.0, 0.0, 4.0, 30.0], [0.0, 0.0, 0.0, 1.0]],
+            dtype=torch.float32,
+        )
+        image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=affine)
+        image.meta["spatial_shape"] = (8, 8, 8)
+        voxel_point = torch.tensor([2.0, 3.0, 4.0], dtype=torch.float32)
+        world_point = affine[:3, :3] @ voxel_point + affine[:3, 3]
+
+        transform = GenerateHeatmapd(
+            keys="points",
+            heatmap_keys="heatmap",
+            ref_image_keys="image",
+            coordinate_space="world",
+            visibility_keys="visible",
+            sigma=1.0,
+        )
+        result = transform({"points": world_point[None], "image": image})
+
+        assert_allclose(_peak_coord(result["heatmap"][0]), voxel_point.to(torch.long), type_test=False)
+        self.assertTrue(torch.equal(result["visible"], torch.tensor([True])))
+
+    def test_world_metatensor_points_use_point_affine(self):
+        image = MetaTensor(torch.zeros((1, 8, 8, 8), dtype=torch.float32), affine=torch.eye(4))
+        image.meta["spatial_shape"] = (8, 8, 8)
+        points_affine = torch.diag(torch.tensor([2.0, 2.0, 2.0, 1.0]))
+        points = MetaTensor(torch.tensor([[1.0, 2.0, 3.0]], dtype=torch.float32), affine=points_affine)
+
+        transform = GenerateHeatmapd(
+            keys="points",
+            heatmap_keys="heatmap",
+            ref_image_keys="image",
+            coordinate_space="world",
+            visibility_keys="visible",
+            sigma=1.0,
+        )
+        result = transform({"points": points, "image": image})
+
+        assert_allclose(_peak_coord(result["heatmap"][0]), torch.tensor([2, 4, 6]), type_test=False)
+        self.assertIsInstance(result["visible"], torch.Tensor)
+        self.assertNotIsInstance(result["visible"], MetaTensor)
+        self.assertTrue(bool(result["visible"][0]))
+
+    def test_world_points_require_reference_affine(self):
+        transform = GenerateHeatmapd(
+            keys="points", heatmap_keys="heatmap", spatial_shape=(8, 8, 8), coordinate_space="world"
+        )
+        with self.assertRaisesRegex(ValueError, "reference|affine|ref_image_keys"):
+            transform({"points": torch.zeros((1, 3), dtype=torch.float32)})
+
+    def test_invalid_coordinate_space_raises(self):
+        with self.assertRaisesRegex(ValueError, "coordinate_space"):
+            GenerateHeatmapd(keys="points", heatmap_keys="heatmap", spatial_shape=(8, 8), coordinate_space="scanner")
+
+    def test_visibility_key_length_mismatch_raises(self):
+        with self.assertRaises(ValueError):
+            GenerateHeatmapd(
+                keys=["pts1", "pts2"],
+                heatmap_keys=["hm1", "hm2"],
+                visibility_keys=["visible1", "visible2", "visible3"],
+                spatial_shape=(8, 8),
+            )
 
 
 if __name__ == "__main__":

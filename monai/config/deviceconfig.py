@@ -23,8 +23,6 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils.deprecate_utils import deprecated
-from monai.utils.enums import IgniteInfo as _IgniteInfo
 from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
@@ -47,8 +45,20 @@ __all__ = [
     "print_debug_info",
     "USE_COMPILED",
     "USE_META_DICT",
-    "IgniteInfo",
 ]
+
+USER = getpass.getuser()
+HOST = platform.node()
+
+
+def fprint(*args, **kwargs):
+    """
+    Print with flushing, replacing the username and hostname values with placeholders for better anonymization.
+    """
+    kwargs["flush"] = True
+    content = " ".join(map(str, args))
+    content = content.replace(USER, "<user>").replace(HOST, "<host>")
+    print(content, **kwargs)
 
 
 def get_config_values():
@@ -100,17 +110,21 @@ def print_config(file=sys.stdout):
         file: `print()` text stream file. Defaults to `sys.stdout`.
     """
     for k, v in get_config_values().items():
-        print(f"{k} version: {v}", file=file, flush=True)
-    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
-    print(f"MONAI rev id: {monai.__revision_id__}")
-    username = getpass.getuser()
-    masked_file_path = re.sub(username, "<username>", monai.__file__)
-    print(f"MONAI __file__: {masked_file_path}", file=file, flush=True)
-    print("\nOptional dependencies:", file=file, flush=True)
+        fprint(f"{k} version: {v}", file=file)
+    fprint(f"MONAI flags: {HAS_EXT=}, {USE_COMPILED=}, {USE_META_DICT=}", file=file)
+    fprint(f"MONAI rev id: {monai.__revision_id__}", file=file)
+    fprint(f"MONAI __file__: {monai.__file__}", file=file)
+
+    if HAS_EXT:
+        fprint(f"monai._C.max_compute_capability: {monai._C.max_compute_capability()}", file=file)
+        fprint(f"monai._C.compiled_with_cuda: {monai._C.compiled_with_cuda()}", file=file)
+        fprint(f"monai._C.monai_torch_version: {monai._C.monai_torch_version()}", file=file)
+
+    fprint("\nOptional dependencies:", file=file)
     for k, v in get_optional_config_values().items():
-        print(f"{k} version: {v}", file=file, flush=True)
-    print("\nFor details about installing the optional dependencies, please visit:", file=file, flush=True)
-    print(
+        fprint(f"{k} version: {v}", file=file)
+    fprint("\nFor details about installing the optional dependencies, please visit:", file=file)
+    fprint(
         "    https://monai.readthedocs.io/en/latest/installation.html#installing-the-recommended-dependencies\n",
         file=file,
         flush=True,
@@ -191,13 +205,20 @@ def print_system_info(file: TextIO = sys.stdout) -> None:
         file: `print()` text stream file. Defaults to `sys.stdout`.
     """
     if not has_psutil:
-        print("`psutil` required for `print_system_info`", file=file, flush=True)
+        fprint("`psutil` required for `print_system_info`", file=file)
     else:
         for k, v in get_system_info().items():
-            print(f"{k}: {v}", file=file, flush=True)
+            fprint(f"{k}: {v}", file=file)
 
 
 def get_gpu_info() -> OrderedDict:
+    """
+    Collect GPU and toolkit version details.
+
+    Returns:
+        Device information. The toolkit version is under ``HIP version`` on a ROCm build of PyTorch and under
+        ``CUDA version`` otherwise, and either is present only when ``Has CUDA`` is true.
+    """
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()
@@ -206,7 +227,12 @@ def get_gpu_info() -> OrderedDict:
     _dict_append(output, "Has CUDA", lambda: bool(torch.cuda.is_available()))
 
     if output["Has CUDA"]:
-        _dict_append(output, "CUDA version", lambda: torch.version.cuda)
+        # On a ROCm build `torch.version.cuda` is None and `torch.version.hip` carries the toolkit
+        # version. Reporting "CUDA version: None" is misleading, so the key name switches with the build.
+        if torch.version.hip:
+            _dict_append(output, "HIP version", lambda: torch.version.hip)
+        else:
+            _dict_append(output, "CUDA version", lambda: torch.version.cuda)
     cudnn_ver = torch.backends.cudnn.version()
     _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
     _dict_append(output, "NVIDIA_TF32_OVERRIDE", os.environ.get("NVIDIA_TF32_OVERRIDE"))
@@ -239,7 +265,7 @@ def print_gpu_info(file: TextIO = sys.stdout) -> None:
         file: `print()` text stream file. Defaults to `sys.stdout`.
     """
     for k, v in get_gpu_info().items():
-        print(f"{k}: {v}", file=file, flush=True)
+        fprint(f"{k}: {v}", file=file)
 
 
 def print_debug_info(file: TextIO = sys.stdout) -> None:
@@ -249,25 +275,18 @@ def print_debug_info(file: TextIO = sys.stdout) -> None:
     Args:
         file: `print()` text stream file. Defaults to `sys.stdout`.
     """
-    print("================================", file=file, flush=True)
-    print("Printing MONAI config...", file=file, flush=True)
-    print("================================", file=file, flush=True)
+    fprint("================================", file=file)
+    fprint("Printing MONAI config...", file=file)
+    fprint("================================", file=file)
     print_config(file)
-    print("\n================================", file=file, flush=True)
-    print("Printing system config...")
-    print("================================", file=file, flush=True)
+    fprint("\n================================", file=file)
+    fprint("Printing system config...", file=file)
+    fprint("================================", file=file)
     print_system_info(file)
-    print("\n================================", file=file, flush=True)
-    print("Printing GPU config...")
-    print("================================", file=file, flush=True)
+    fprint("\n================================", file=file)
+    fprint("Printing GPU config...", file=file)
+    fprint("================================", file=file)
     print_gpu_info(file)
-
-
-@deprecated(since="1.4.0", removed="1.6.0", msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
-class IgniteInfo:
-    """Deprecated Import of IgniteInfo enum, which was moved to `monai.utils.enums.IgniteInfo`."""
-
-    OPT_IMPORT_VERSION = _IgniteInfo.OPT_IMPORT_VERSION
 
 
 if __name__ == "__main__":

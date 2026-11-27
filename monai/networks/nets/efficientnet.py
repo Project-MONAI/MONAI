@@ -793,7 +793,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool, adv_prop: bool
     else:
         # load state dict from url
         model_url = url_map[arch]
-        pretrain_state_dict = model_zoo.load_url(model_url, progress=progress)
+        pretrain_state_dict = model_zoo.load_url(model_url, progress=progress, weights_only=True)
         model_state_dict = model.state_dict()
 
         pattern = re.compile(r"(.+)\.\d+(\.\d+\..+)")
