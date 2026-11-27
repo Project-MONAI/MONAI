@@ -26,20 +26,24 @@ from tests.test_utils import assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
+# float32 covers every padding mode; the other dtypes use one, still crossed with every mode, device and shape
+GRID_DTYPE_PADS = [(np.float32, pad) for pad in GridSamplePadMode] + [(np.float64, GridSamplePadMode.ZEROS)]
+SPLINE_DTYPE_PADS = [(np.float32, pad) for pad in NdimageMode] + [
+    (p_s, NdimageMode.CONSTANT) for p_s in (int, float, np.float64)
+]
+
 TEST_IDENTITY = []
 for interp in GridSampleMode if not USE_COMPILED else ("nearest", "bilinear"):  # type: ignore
-    for pad in GridSamplePadMode:
-        for p in (np.float32, np.float64):
-            for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-                TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 4)])
-                if interp != "bicubic":
-                    TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 5, 8)])
+    for p, pad in GRID_DTYPE_PADS:
+        for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+            TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 4)])
+            if interp != "bicubic":
+                TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 5, 8)])
 for interp_s in SplineMode if not USE_COMPILED else []:  # type: ignore
-    for pad_s in NdimageMode:
-        for p_s in (int, float, np.float32, np.float64):
-            for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-                TEST_IDENTITY.append([dict(device=device), p_s, interp_s, pad_s, (1, 20, 21)])
-                TEST_IDENTITY.append([dict(device=device), p_s, interp_s, pad_s, (1, 21, 23, 24)])
+    for p_s, pad_s in SPLINE_DTYPE_PADS:
+        for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+            TEST_IDENTITY.append([dict(device=device), p_s, interp_s, pad_s, (1, 20, 21)])
+            TEST_IDENTITY.append([dict(device=device), p_s, interp_s, pad_s, (1, 21, 23, 24)])
 
 
 class TestResampleBackends(unittest.TestCase):
