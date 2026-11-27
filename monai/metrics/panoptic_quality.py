@@ -244,38 +244,44 @@ def _get_id_list(gt: torch.Tensor) -> list[torch.Tensor]:
     return id_list
 
 
+def _id_tensor(id_list: list[torch.Tensor], device: torch.device) -> torch.Tensor:
+    return torch.stack([torch.as_tensor(i, device=device) for i in id_list]).long()
+
+
 def _get_pairwise_iou(
     pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"
 ) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
-    pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float, device=device)
-    true_masks: list[torch.Tensor] = []
-    pred_masks: list[torch.Tensor] = []
+    num_true = len(true_id_list) - 1
+    num_pred = len(pred_id_list) - 1
+    pairwise_iou = torch.zeros([num_true, num_pred], dtype=torch.float, device=device)
+    if num_true == 0 or num_pred == 0:
+        return pairwise_iou, true_id_list, pred_id_list
 
-    for t in true_id_list[1:]:
-        t_mask = torch.as_tensor(gt == t, device=device).int()
-        true_masks.append(t_mask)
+    gt_flat = gt.reshape(-1).long()
+    pred_flat = pred.reshape(-1).long().to(gt_flat.device)
+    # ids are contiguous after `remap_instance_id`; otherwise (`remap=False`) map each id to its
+    # position in the id list so it indexes the matching row/column
+    if int(true_id_list[-1]) != num_true:
+        gt_flat = torch.searchsorted(_id_tensor(true_id_list, gt_flat.device), gt_flat)
+    if int(pred_id_list[-1]) != num_pred:
+        pred_flat = torch.searchsorted(_id_tensor(pred_id_list, pred_flat.device), pred_flat)
 
-    for p in pred_id_list[1:]:
-        p_mask = torch.as_tensor(pred == p, device=device).int()
-        pred_masks.append(p_mask)
+    # count all pairwise intersections in one bincount
+    stride = num_pred + 1
+    joint = gt_flat * stride + pred_flat
+    intersection = torch.bincount(joint, minlength=(num_true + 1) * stride).reshape(num_true + 1, stride)
+    true_area = torch.bincount(gt_flat, minlength=num_true + 1)
+    pred_area = torch.bincount(pred_flat, minlength=num_pred + 1)
 
-    for true_id in range(1, len(true_id_list)):
-        t_mask = true_masks[true_id - 1]
-        pred_true_overlap = pred[t_mask > 0]
-        pred_true_overlap_id = list(pred_true_overlap.unique())
-        for pred_id in pred_true_overlap_id:
-            if pred_id == 0:
-                continue
-            p_mask = pred_masks[pred_id - 1]
-            total = (t_mask + p_mask).sum()
-            inter = (t_mask * p_mask).sum()
-            iou = inter / (total - inter)
-            pairwise_iou[true_id - 1, pred_id - 1] = iou
+    # keep counts integral through the union, as the per-pair loop did
+    inter = intersection[1:, 1:]  # drop background row/column
+    union = true_area[1:, None] + pred_area[None, 1:] - inter
+    pairwise_iou = torch.where(inter > 0, inter / union.clamp_min(1), pairwise_iou.to(inter.device))
 
-    return pairwise_iou, true_id_list, pred_id_list
+    return pairwise_iou.to(device), true_id_list, pred_id_list
 
 
 def _get_paired_iou(
