@@ -36,13 +36,9 @@ for p in TEST_NDARRAYS:
     image = p(np.random.rand(1, 10, 10))
     hover_map = p(np.random.rand(2, 10, 10))
 
-    TESTS.append([params, image, hover_map, (1, 10, 10)])
-
-    params.update({"markers_key": None})
-    TESTS.append([params, image, hover_map, (1, 10, 10)])
-
-    params.update({"mask_key": None, "markers_key": None})
-    TESTS.append([params, image, hover_map, (1, 10, 10)])
+    TESTS.append([dict(params), image, hover_map, (1, 10, 10)])
+    TESTS.append([{**params, "markers_key": None}, image, hover_map, (1, 10, 10)])
+    TESTS.append([{**params, "mask_key": None, "markers_key": None}, image, hover_map, (1, 10, 10)])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
