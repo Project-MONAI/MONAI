@@ -11,8 +11,7 @@
 
 from __future__ import annotations
 
-import os
-import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -63,9 +62,9 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
         self.assertEqual(data[0]["class_name"], "AbdomenCT")
         self.assertEqual(data[0]["label"], 0)
-        shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
-        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
-            MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
+                MedNISTDataset(root_dir=empty_dir, transform=transform, section="test", download=False)
 
 
 if __name__ == "__main__":
