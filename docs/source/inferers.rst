@@ -25,6 +25,12 @@ Inferers
     :members:
     :special-members: __call__
 
+`MCDropoutInferer`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: MCDropoutInferer
+    :members:
+    :special-members: __call__
+
 `SlidingWindowInferer`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SlidingWindowInferer

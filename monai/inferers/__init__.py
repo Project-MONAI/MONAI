@@ -17,6 +17,7 @@ from .inferer import (
     DiffusionInferer,
     Inferer,
     LatentDiffusionInferer,
+    MCDropoutInferer,
     PatchInferer,
     SaliencyInferer,
     SimpleInferer,
