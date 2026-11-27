@@ -312,7 +312,7 @@ class BundleWorkflow(ABC):
             properties_path = Path(properties_path)
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
-            with open(properties_path) as json_file:
+            with open(properties_path, encoding="utf-8") as json_file:
                 try:
                     properties = json.load(json_file)
                     self.properties: dict = {}

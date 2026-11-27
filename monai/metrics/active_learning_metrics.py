@@ -79,8 +79,6 @@ class LabelQualityScore(Metric):
     with uncertainty
     Args:
         include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
-        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
-        dimensions
         scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
 
     """

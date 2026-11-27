@@ -18,9 +18,17 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import DataLoader, GridPatchDataset, PatchIter, PatchIterd, iter_patch
-from monai.transforms import RandShiftIntensity, RandShiftIntensityd
+from monai.transforms import Compose, Lambda, RandLambda, RandShiftIntensity, RandShiftIntensityd
 from monai.utils import set_determinism
 from tests.test_utils import TEST_NDARRAYS, assert_allclose, get_arange_img
+
+
+def _mul10(x):
+    return np.array(x * 10)
+
+
+def _add1(x):
+    return x + 1
 
 
 def identity_generator(x):
@@ -178,13 +186,9 @@ class TestGridPatchDataset(unittest.TestCase):
             )
 
     def test_set_data(self):
-        from monai.transforms import Compose, Lambda, RandLambda
-
         images = [np.arange(2, 18, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
 
-        transform = Compose(
-            [Lambda(func=lambda x: np.array(x * 10)), RandLambda(func=lambda x: x + 1)], map_items=False
-        )
+        transform = Compose([Lambda(func=_mul10), RandLambda(func=_add1)], map_items=False)
         patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
         dataset = GridPatchDataset(
             data=images,

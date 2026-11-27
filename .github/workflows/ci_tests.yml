@@ -24,25 +24,25 @@ concurrency:
 # Supported versions of Python and PyTorch are listed here for use below and as documentation
 env:
   # supported versions of Python
-  PYTHON_VER1: '3.10'
-  PYTHON_VER2: '3.11'
-  PYTHON_VER3: '3.12'
-  PYTHON_VER4: '3.13'
-  # PYTHON_VER5: '3.14'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
+  PYTHON_VER1: '3.11'
+  PYTHON_VER2: '3.12'
+  PYTHON_VER3: '3.13'
+  PYTHON_VER4: '3.14'
+  # PYTHON_VER5: '3.15'  # TODO: not compatible with Torchscript, re-enable once Torchscript removed from MONAI
   # supported versions of PyTorch
-  PYTORCH_VER1: '2.8.0'
-  PYTORCH_VER2: '2.9.1'
-  PYTORCH_VER3: '2.10.0'
-  PYTORCH_VER4: '2.11.0'
-  TORCHVISION_VER1: '0.23.0'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
+  PYTORCH_VER1: '2.12.1'
+  PYTORCH_VER2: '2.13.0'
+  PYTORCH_VER3: '2.14.1'
+  PYTORCH_VER4: '2.15.0'
+  TORCHVISION_VER1: '0.27.1'  # used for testing with lowest PyTorch version (PYTORCH_VER1), update as needed
 
-  # versions of PyTorch/Torchvision to use for full-dep Windows tests, needed to get around a gloo bug
-  WIN_FULLDEP_VER: '2.11.0'
-  WIN_FULLDEP_VISION_VER: '0.26.0'
+  TQDM_DISABLE: 1  # squelch TQDM output to reduce log file size
 
   PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
-# These jobs run the CICD tests, type checking, and testing packaging. These use the minimum supported versions of
+  PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"  # forces CPU PyTorch installation, should be faster
+
+# These jobs run the CI tests, type checking, and testing packaging. These use the minimum supported versions of
 # Python and PyTorch in many places using the above environment variables but also hard coded where necessary.
 # When support is dropped for a version it is important to update these as appropriate.
 
@@ -133,33 +133,35 @@ jobs:
         # Base test cases are to test on all three OSes with the lowest versions of Python and PyTorch, other cases are
         # added below as special cases to cover other Python and PyTorch versions under Ubuntu
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ['3.10']
-        pytorch-version: ['2.8.0']
+        python-version: ['3.11']
+        pytorch-version: ['2.12.1']
         include:
         # Test Python versions under Ubuntu with lowest PyTorch version supported
         - os: ubuntu-latest
-          pytorch-version: '2.8.0'
-          python-version: '3.11'
-        - os: ubuntu-latest
-          pytorch-version: '2.8.0'
+          pytorch-version: '2.12.1'
           python-version: '3.12'
         - os: ubuntu-latest
-          pytorch-version: '2.8.0'
+          pytorch-version: '2.12.1'
           python-version: '3.13'
-        # - os: ubuntu-latest
-        #   pytorch-version: '2.9.1'
-        #   python-version: '3.14'
+        - os: ubuntu-latest
+          pytorch-version: '2.12.1'
+          python-version: '3.14'
 
         # Test PyTorch versions under Ubuntu with lowest Python version supported
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.9.1'
+          python-version: '3.11'
+          pytorch-version: '2.13.0'
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.10.0'
+          python-version: '3.11'
+          pytorch-version: '2.14.1'
         - os: ubuntu-latest
-          python-version: '3.10'
-          pytorch-version: '2.11.0'
+          python-version: '3.11'
+          pytorch-version: '2.15.0'
+
+        # Test newer Python with latest PyTorch under Ubuntu
+        - os: ubuntu-latest
+          python-version: '3.12'
+          pytorch-version: '2.15.0'
 
     timeout-minutes: 40
     steps:
@@ -207,15 +209,28 @@ jobs:
         NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
   full-dep:  # Test with full dependencies installed for different OS runners
+    # Keep the existing check names for branch protection.
+    name: >-
+      full-dep (${{ matrix.os }}${{ matrix.python-version &&
+      format(', {0}, {1}', matrix.python-version, matrix.pytorch-version) || '' }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest]  # macOS-latest is very slow (#8864), testing install only
+        include:
+        - os: windows-latest
+        - os: ubuntu-latest
+        - os: macOS-latest  # macOS-latest is very slow (#8864), testing install only
+        - os: ubuntu-latest
+          python-version: '3.12'
+          pytorch-version: '2.15.0'
+          torchvision-version: '0.29.2'
     timeout-minutes: 120
     needs: test_skip
     env:
       QUICKTEST: True
+      PYTORCH_VERSION: ${{ matrix.pytorch-version }}
+      TORCHVISION_VERSION: ${{ matrix.torchvision-version }}
     steps:
     - name: Clean unused tools
       if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
@@ -234,27 +249,21 @@ jobs:
         disk-root: "D:"
     - uses: actions/checkout@v7
       if: needs.test_skip.outputs.skip == 0
-    - name: Set up Python ${{ env.PYTHON_VER1 }}
+    - name: Set up Python ${{ matrix.python-version || env.PYTHON_VER1 }}
       if: needs.test_skip.outputs.skip == 0
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ env.PYTHON_VER1 }}
+        python-version: ${{ matrix.python-version || env.PYTHON_VER1 }}
         cache: 'pip'
     - name: Prepare pip wheel
       if: needs.test_skip.outputs.skip == 0
       run: |
         which python
         python -m pip install --upgrade pip wheel
-    - if: runner.os == 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch cpu from pytorch.org (Windows only)
+    - if: needs.test_skip.outputs.skip == 0
+      name: Install PyTorch
       run: |
-        python -m pip install torch==${WIN_FULLDEP_VER} torchvision==${WIN_FULLDEP_VISION_VER}+cpu --index-url https://download.pytorch.org/whl/cpu
-      shell: bash
-    - if: runner.os != 'windows' && needs.test_skip.outputs.skip == 0
-      name: Install torch gpu
-      run: |
-        # install the lowest version of PyTorch supported
-        python -m pip install torch==${PYTORCH_VER1} torchvision==${TORCHVISION_VER1}
+        python -m pip install "torch==${PYTORCH_VERSION:-$PYTORCH_VER1}" "torchvision==${TORCHVISION_VERSION:-$TORCHVISION_VER1}"
       shell: bash
     - if: runner.os == 'Linux' && needs.test_skip.outputs.skip == 0
       name: Install itk pre-release (Linux only)
@@ -278,6 +287,22 @@ jobs:
         nvidia-smi || true
         python monai/config/check_env.py --env --monai
       shell: bash
+    - name: Verify resolved PyTorch versions
+      if: matrix.pytorch-version && needs.test_skip.outputs.skip == 0
+      shell: bash
+      run: |
+        INSTALLED_PACKAGES=$(python -m pip list --format=columns)
+        ACTUAL_PYTORCH_VER=$(awk '$1 == "torch" {print $2}' <<< "$INSTALLED_PACKAGES")
+        ACTUAL_TORCHVISION_VER=$(awk '$1 == "torchvision" {print $2}' <<< "$INSTALLED_PACKAGES")
+
+        # CPU wheels can include a local version suffix such as +cpu.
+        if [[ "${ACTUAL_PYTORCH_VER%%+*}" != "$PYTORCH_VERSION" ||
+              "${ACTUAL_TORCHVISION_VER%%+*}" != "$TORCHVISION_VERSION" ]]; then
+            echo "Mismatched PyTorch/Torchvision versions:"
+            echo "  PyTorch version actual=$ACTUAL_PYTORCH_VER, expected=$PYTORCH_VERSION"
+            echo "  Torchvision version actual=$ACTUAL_TORCHVISION_VER, expected=$TORCHVISION_VERSION"
+            exit 1
+        fi
     - if: runner.os != 'macOS' && needs.test_skip.outputs.skip == 0
       name: Run full tests
       run: |
@@ -297,7 +322,7 @@ jobs:
     #   (1) the HyenaND operators import only torch + einops + omegaconf at runtime, so
     #       skipping the (still batteries-included: datasets/lightning/wandb) core deps
     #       keeps this job lean; and
-    #   (2) nvsubquadratic pins torch>=2.10,<2.11, which would otherwise upgrade/clash
+    #   (2) nvsubquadratic 0.2.0 pins torch>=2.14.0,<2.15.0, which would otherwise upgrade/clash
     #       with the torch this job (and MONAI's matrix) installs.
     # CUDA-required Hyena tests skip cleanly here; the GPU surface is covered by
     # ``.github/workflows/pythonapp-hyena-gpu.yml``.
@@ -324,7 +349,7 @@ jobs:
         python -m pip install --upgrade pip wheel tomli pytest
         # need a specific version of torch for nvsubquadratic
         python monai/config/print_dependencies.py build-system | \
-          xargs -d '\n' pip install --no-build-isolation torch==2.10.0 torchvision==0.25.0
+          xargs -d '\n' pip install --no-build-isolation
         # # nvsubquadratic runtime imports need only torch + einops + omegaconf; install
         # # the package itself without its core dependency tree (see job comment above).
         python -m pip install --no-build-isolation omegaconf

@@ -11,13 +11,25 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from monai.data import load_decathlon_datalist
+from monai.data import load_decathlon_datalist, load_decathlon_properties
+
+NON_ASCII_TEXT = "Lungenknoten ≥ 3 mm, Größe, 肺結節"
+_builtin_open = builtins.open
+
+
+def _open_with_cp1252_default(file, mode="r", *args, **kwargs):
+    """``open`` as on a system whose default encoding is cp1252 (e.g. Windows)."""
+    if "b" not in mode:
+        kwargs.setdefault("encoding", "cp1252")
+    return _builtin_open(file, mode, *args, **kwargs)
 
 
 class TestLoadDecathlonDatalist(unittest.TestCase):
@@ -128,6 +140,21 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[1]["mask"], os.path.join(tempdir, "mask31.txt"))
             self.assertEqual(result[0]["mask"], "spleen mask")
+
+    def test_utf8_file(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            test_data = {
+                "name": NON_ASCII_TEXT,
+                "description": NON_ASCII_TEXT,
+                "training": [{"image": "größe_1.nii.gz", "label": "größe_1.nii.gz"}],
+            }
+            file_path = Path(tempdir) / "test_data.json"
+            file_path.write_bytes(json.dumps(test_data, ensure_ascii=False).encode("utf-8"))
+            with mock.patch("builtins.open", _open_with_cp1252_default):
+                result = load_decathlon_datalist(file_path, True, "training")
+                properties = load_decathlon_properties(file_path, ["name", "description"])
+            self.assertEqual(result[0]["image"], os.path.join(tempdir, "größe_1.nii.gz"))
+            self.assertEqual(properties, {"name": NON_ASCII_TEXT, "description": NON_ASCII_TEXT})
 
 
 if __name__ == "__main__":
