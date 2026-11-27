@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import warnings
+from enum import Enum
 
 import numpy as np
 import torch
@@ -20,7 +21,17 @@ import monai
 from monai.config import NdarrayOrTensor
 from monai.data.utils import AFFINE_TOL
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import LazyAttr, TraceKeys, convert_to_numpy, convert_to_tensor, look_up_option
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    LazyAttr,
+    NdimageMode,
+    TraceKeys,
+    convert_to_numpy,
+    convert_to_tensor,
+    look_up_option,
+)
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -89,25 +100,97 @@ def affine_from_pending(pending_item):
     return pending_item
 
 
+def _lazy_interp_mode(mode):
+    """
+    Convert an interpolation mode recorded by a spatial transform into one usable by the lazy resampler
+    (:py:class:`monai.transforms.SpatialResample`).
+
+    ``"nearest-exact"`` is mapped to grid-sample ``"nearest"``, which samples at the same (half-pixel aligned)
+    source locations; results can differ only for source locations exactly halfway between two voxels, where
+    grid-sample rounds half to even and ``torch.nn.functional.interpolate`` rounds half up.
+
+    Args:
+        mode: the interpolation mode recorded in a pending operation's ``extra_info``, e.g. a
+            :py:class:`monai.utils.GridSampleMode` or :py:class:`monai.utils.InterpolateMode` value, its string
+            form, or a spline interpolation order (``0``-``5``).
+
+    Returns:
+        A grid-sample mode string or a spline order supported by the lazy resampler, or ``None`` if ``mode`` is
+        unset or has no equivalent (e.g. ``"area"``), in which case the resampler's default mode is used.
+    """
+    if isinstance(mode, Enum):
+        mode = mode.value
+    if isinstance(mode, (int, np.integer)) and not isinstance(mode, bool):
+        return int(mode) if int(mode) in range(6) else None  # spline order
+    if not isinstance(mode, str):
+        return None
+    if mode in {m.value for m in GridSampleMode}:
+        return mode
+    if mode == InterpolateMode.NEAREST_EXACT:
+        return GridSampleMode.NEAREST.value
+    if mode.endswith("linear"):  # linear, bilinear, trilinear
+        return GridSampleMode.BILINEAR.value
+    return None
+
+
+def _lazy_padding_mode(padding_mode):
+    """
+    Convert a padding mode recorded by a spatial transform into one usable by the lazy resampler
+    (:py:class:`monai.transforms.SpatialResample`).
+
+    Args:
+        padding_mode: the padding mode recorded in a pending operation's ``extra_info``, e.g. a
+            :py:class:`monai.utils.GridSamplePadMode` or :py:class:`monai.utils.NdimageMode` value or its string form.
+
+    Returns:
+        ``padding_mode`` as a string if it is a supported grid-sample or ndimage padding mode, otherwise ``None``,
+        in which case the resampler's default padding mode is used.
+    """
+    if isinstance(padding_mode, Enum):
+        padding_mode = padding_mode.value
+    valid_modes = {*(m.value for m in GridSamplePadMode), *(m.value for m in NdimageMode)}
+    if isinstance(padding_mode, str) and padding_mode in valid_modes:
+        return padding_mode
+    return None
+
+
 def kwargs_from_pending(pending_item):
     """Extract kwargs from a pending transform item.
 
     When ``pending_item`` is a dict, ``align_corners`` is also extracted from its ``extra_info`` entry
     (if present and boolean) so the lazy pipeline preserves the original transform's alignment.
+    Likewise, if the interpolation/padding modes are not set explicitly on the pending item, the ``mode``
+    and ``padding_mode`` recorded in ``extra_info`` by the spatial transform (e.g. ``Spacing(mode="nearest")``)
+    are used, so that lazy resampling honours the mode requested by the user.
+
+    Args:
+        pending_item: a pending operation, typically a dict pushed by a lazy transform (see
+            :py:meth:`monai.data.MetaTensor.push_pending_operation`). Non-dict items (e.g. a bare affine
+            matrix) carry no kwargs.
+
+    Returns:
+        A dict of resampling kwargs keyed by :py:class:`monai.utils.LazyAttr` values. For a dict
+        ``pending_item`` it always contains ``LazyAttr.INTERP_MODE`` and ``LazyAttr.PADDING_MODE`` (``None`` if
+        unset or unsupported), plus ``LazyAttr.SHAPE``, ``LazyAttr.DTYPE`` and ``LazyAttr.ALIGN_CORNERS`` when
+        available. An empty dict is returned for non-dict items.
     """
     if not isinstance(pending_item, dict):
         return {}
-    ret = {
-        LazyAttr.INTERP_MODE: pending_item.get(LazyAttr.INTERP_MODE, None),  # interpolation mode
-        LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, None),  # padding mode
-    }
+    extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
+    extra_info = extra_info if isinstance(extra_info, dict) else {}
+    interp_mode = pending_item.get(LazyAttr.INTERP_MODE, None)
+    if interp_mode is None:
+        interp_mode = _lazy_interp_mode(extra_info.get("mode"))
+    padding_mode = pending_item.get(LazyAttr.PADDING_MODE, None)
+    if padding_mode is None:
+        padding_mode = _lazy_padding_mode(extra_info.get("padding_mode"))
+    ret = {LazyAttr.INTERP_MODE: interp_mode, LazyAttr.PADDING_MODE: padding_mode}
     if LazyAttr.SHAPE in pending_item:
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
     # Extract align_corners from extra_info if available
-    extra_info = pending_item.get(TraceKeys.EXTRA_INFO)
-    if isinstance(extra_info, dict) and "align_corners" in extra_info:
+    if "align_corners" in extra_info:
         align_corners_val = extra_info["align_corners"]
         if isinstance(align_corners_val, bool):
             ret[LazyAttr.ALIGN_CORNERS] = align_corners_val
