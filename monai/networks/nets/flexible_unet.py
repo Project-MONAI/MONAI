@@ -61,9 +61,13 @@ class FlexUNetEncoderRegister:
                 "or implement all interfaces specified by it."
             )
 
+        # pyrefly: ignore [missing-attribute]
         name_string_list = name.get_encoder_names()
+        # pyrefly: ignore [missing-attribute]
         feature_number_list = name.num_outputs()
+        # pyrefly: ignore [missing-attribute]
         feature_channel_list = name.num_channels_per_output()
+        # pyrefly: ignore [missing-attribute]
         parameter_list = name.get_encoder_parameters()
 
         assert len(name_string_list) == len(feature_number_list) == len(feature_channel_list) == len(parameter_list)

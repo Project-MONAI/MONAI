@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .absolute_volume_difference import AbsoluteVolumeDifferenceMetric, compute_absolute_volume_difference
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
 from .average_precision import AveragePrecisionMetric, compute_average_precision
 from .calibration import CalibrationErrorMetric, CalibrationReduction, calibration_binning

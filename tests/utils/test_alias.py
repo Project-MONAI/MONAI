@@ -23,7 +23,10 @@ TESTS_PATH = Path(__file__).parents[1]
 
 
 class TestModuleAlias(unittest.TestCase):
-    """check that 'import monai.xx.file_name' returns a module"""
+    """
+    Check that 'import monai.xx.file_name' returns a module. Note that this test will fail if a module has the same name
+    as a member of that module (or any other) which is imported in a `__init__.py` file.
+    """
 
     def test_files(self):
         src_dir = os.path.dirname(TESTS_PATH)

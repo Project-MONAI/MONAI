@@ -122,15 +122,15 @@ def write_metrics_reports(
 
             # add the average value of all classes to v
             if class_labels is None:
-                class_labels = ["class" + str(i) for i in range(v.shape[1])]
+                labels = ["class" + str(i) for i in range(v.shape[1])]
             else:
-                class_labels = [str(i) for i in class_labels]  # ensure to have a list of str
+                labels = [str(i) for i in class_labels]  # ensure to have a list of str
 
-            class_labels += ["mean"]
+            labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
-                f.write(f"filename{deli}{deli.join(class_labels)}\n")
+                f.write(f"filename{deli}{deli.join(labels)}\n")
                 for i, b in enumerate(v):
                     f.write(
                         f"{images[i] if images is not None else str(i)}{deli}"
@@ -164,7 +164,7 @@ def write_metrics_reports(
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
-                        f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
+                        f.write(f"{labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
 
 
 def from_engine(keys: KeysCollection, first: bool = False) -> Callable:

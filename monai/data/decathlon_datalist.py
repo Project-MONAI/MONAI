@@ -152,7 +152,7 @@ def load_decathlon_datalist(
     data_list_file_path = Path(data_list_file_path)
     if not data_list_file_path.is_file():
         raise ValueError(f"Data list file {data_list_file_path} does not exist.")
-    with open(data_list_file_path) as json_file:
+    with open(data_list_file_path, encoding="utf-8") as json_file:
         json_data = json.load(json_file)
     if data_list_key not in json_data:
         raise ValueError(f'Data list {data_list_key} not specified in "{data_list_file_path}".')
@@ -182,7 +182,7 @@ def load_decathlon_properties(data_property_file_path: PathLike, property_keys: 
     data_property_file_path = Path(data_property_file_path)
     if not data_property_file_path.is_file():
         raise ValueError(f"Data property file {data_property_file_path} does not exist.")
-    with open(data_property_file_path) as json_file:
+    with open(data_property_file_path, encoding="utf-8") as json_file:
         json_data = json.load(json_file)
 
     properties = {}
@@ -281,7 +281,7 @@ def create_cross_validation_datalist(
     val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
     ret = {train_key: train_list, val_key: val_list}
     if isinstance(filename, (str, Path)):
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             json.dump(ret, f, indent=4)
 
     return ret

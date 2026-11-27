@@ -107,41 +107,41 @@ class TestnnUNetV2RunnerSecurity(unittest.TestCase):
         self.good_yml2 = os.path.join(test_path, "good2.yml")
         self.inject_yml = os.path.join(test_path, "test.yml")
 
-        good_yml_content1 = """
+        good_yml_content1 = f"""
             dataset_name_or_id: Dataset123
-            dataroot: ./data
-            datalist: ./lists/task4.json
-            work_dir: ./work
-            nnunet_raw: ./nnUNet_raw
-            nnunet_preprocessed: ./nnUNet_preprocessed
-            nnunet_results: ./nnUNet_results
+            dataroot: {test_path}/data
+            datalist: {test_path}/lists/task4.json
+            work_dir: {test_path}/work
+            nnunet_raw: {test_path}/nnUNet_raw
+            nnunet_preprocessed: {test_path}/nnUNet_preprocessed
+            nnunet_results: {test_path}/nnUNet_results
         """
 
         with open(self.good_yml1, "w") as o:
             o.write(dedent(good_yml_content1))
 
-        good_yml_content2 = """
+        good_yml_content2 = f"""
             dataset_name_or_id: 123
-            dataroot: ./data
-            datalist: ./lists/task4.json
-            work_dir: ./work
-            nnunet_raw: ./nnUNet_raw
-            nnunet_preprocessed: ./nnUNet_preprocessed
-            nnunet_results: ./nnUNet_results
+            dataroot: {test_path}/data
+            datalist: {test_path}/lists/task4.json
+            work_dir: {test_path}/work
+            nnunet_raw: {test_path}/nnUNet_raw
+            nnunet_preprocessed: {test_path}/nnUNet_preprocessed
+            nnunet_results: {test_path}/nnUNet_results
         """
 
         with open(self.good_yml2, "w") as o:
             o.write(dedent(good_yml_content2))
 
         # define a config file with code-injecting dataset name
-        injecting_yml_content = """
-            dataset_name_or_id: '4 & echo "This is exploited" > "./test.txt" & rem'
-            dataroot: ./data
-            datalist: ./lists/task4.json
-            work_dir: ./work
-            nnunet_raw: ./nnUNet_raw
-            nnunet_preprocessed: ./nnUNet_preprocessed
-            nnunet_results: ./nnUNet_results
+        injecting_yml_content = f"""
+            dataset_name_or_id: '4 & echo "This is exploited" > "{test_path}/test.txt" & rem'
+            dataroot: {test_path}/data
+            datalist: {test_path}/lists/task4.json
+            work_dir: {test_path}/work
+            nnunet_raw: {test_path}/nnUNet_raw
+            nnunet_preprocessed: {test_path}/nnUNet_preprocessed
+            nnunet_results: {test_path}/nnUNet_results
         """
 
         with open(self.inject_yml, "w") as o:

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .compare_sources import SKIP_EXTS, files_considered_equal, sources_equal
 from .component_store import ComponentStore
 from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
@@ -89,6 +90,7 @@ from .misc import (
     is_sqrt,
     issequenceiterable,
     list_to_dict,
+    path_to_sqlite_uri,
     path_to_uri,
     pprint_edges,
     progress_bar,
@@ -137,6 +139,7 @@ from .profiling import (
     torch_profiler_time_cpu_gpu,
     torch_profiler_time_end_to_end,
 )
+from .safeeval import SAFE_TYPES, safe_eval
 from .state_cacher import StateCacher
 from .tf32 import detect_default_tf32, has_ampere_or_later
 from .type_conversion import (

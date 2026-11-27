@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import create_ignore_mask, do_metric_reduction
 from monai.utils import MetricReduction, Weight, deprecated_arg, look_up_option
 
 from .metric import CumulativeIterationMetric
@@ -41,6 +41,11 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             Old versions computed `mean` when `mean_batch` was provided due to bug in reduction.
         weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground truth volume into a weight factor. Defaults to ``"square"``.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score. When ignoring a valid class index, that channel
+            is removed from the computation and the output shape becomes [B, C-1]. For federated or aggregated
+            settings, ensure all clients use the same ignore_index to keep score values comparable.
+        epsilon: small constant added to the denominator for numerical stability.
 
     Raises:
         ValueError: When the `reduction` is not one of MetricReduction enum.
@@ -51,11 +56,15 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         include_background: bool = True,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         weight_type: Weight | str = Weight.SQUARE,
+        ignore_index: int | None = None,
+        epsilon: float = 1e-8,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = look_up_option(reduction, MetricReduction)
         self.weight_type = look_up_option(weight_type, Weight)
+        self.ignore_index = ignore_index
+        self.epsilon = float(epsilon)
         self.sum_over_classes = self.reduction in {
             MetricReduction.SUM,
             MetricReduction.MEAN,
@@ -71,6 +80,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred (torch.Tensor): Binarized segmentation model output. It must be in one-hot format and in the NCHW[D] format,
                 where N is the batch dimension, C is the channel dimension, and the remaining are the spatial dimensions.
             y (torch.Tensor): Binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
+        Note:
+            The ignore_index for this computation is taken from self.ignore_index if set during initialization.
 
         Returns:
             torch.Tensor: Generalized Dice Score averaged across batch and class
@@ -84,6 +95,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             include_background=self.include_background,
             weight_type=self.weight_type,
             sum_over_classes=self.sum_over_classes,
+            ignore_index=self.ignore_index,
+            epsilon=self.epsilon,
         )
 
     @deprecated_arg(
@@ -118,6 +131,8 @@ def compute_generalized_dice(
     include_background: bool = True,
     weight_type: Weight | str = Weight.SQUARE,
     sum_over_classes: bool = False,
+    ignore_index: int | None = None,
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Computes the Generalized Dice Score and returns a tensor with its per image values.
@@ -131,7 +146,12 @@ def compute_generalized_dice(
             predicted output. Defaults to True.
         weight_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to
             transform ground truth volume into a weight factor. Defaults to ``"square"``.
-        sum_over_labels (bool): Whether to sum the numerator and denominator across all labels before the final computation.
+        sum_over_classes (bool): Whether to sum the numerator and denominator across all classes before the final computation.
+        ignore_index: single integer class index (or sentinel value) to ignore from the metric computation.
+            Voxels with this label are excluded from the score. When ignoring a valid class index, that channel
+            is removed from the computation and the output shape becomes [B, C-1]. For federated or aggregated
+            settings, ensure all clients use the same ignore_index to keep score values comparable.
+        epsilon: small constant added to the denominator for numerical stability.
 
     Returns:
         torch.Tensor: Per batch and per class Generalized Dice Score, i.e., with the shape [batch_size, num_classes].
@@ -147,52 +167,77 @@ def compute_generalized_dice(
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred - {y_pred.shape} - and y - {y.shape} - should have the same shapes.")
 
-    # Ignore background, if needed
+    # Apply ignore_index masking
+    mask = create_ignore_mask(y, ignore_index)
+    if mask is not None:
+        y_pred = y_pred * mask
+        y = y * mask
+
+    n_channels = y_pred.shape[1]
+    channels_to_use = list(range(n_channels))
+
     if not include_background:
-        y_pred, y = ignore_background(y_pred=y_pred, y=y)
+        channels_to_use.pop(0)
+
+    if ignore_index is not None and 0 <= ignore_index < n_channels:
+        # If background was 0 and we ignore class 2, we need the correct absolute index
+        if ignore_index in channels_to_use:
+            channels_to_use.remove(ignore_index)
+
+    if not channels_to_use:
+        return torch.zeros(y_pred.shape[0], 1, device=y_pred.device)
 
     # Reducing only spatial dimensions (not batch nor channels), compute the intersection and non-weighted denominator
     reduce_axis = list(range(2, y_pred.dim()))
-    intersection = torch.sum(y * y_pred, dim=reduce_axis)
-    y_o = torch.sum(y, dim=reduce_axis)
-    y_pred_o = torch.sum(y_pred, dim=reduce_axis)
+    intersection = torch.sum(y[:, channels_to_use, ...] * y_pred[:, channels_to_use, ...], dim=reduce_axis)
+    y_o = torch.sum(y[:, channels_to_use, ...], dim=reduce_axis)
+    y_pred_o = torch.sum(y_pred[:, channels_to_use, ...], dim=reduce_axis)
+
     denominator = y_o + y_pred_o
 
     # Set the class weights
+    # Set the class weights (computed from scored channels only)
     weight_type = look_up_option(weight_type, Weight)
+    y_o_float = y_o.float()
+
     if weight_type == Weight.SIMPLE:
-        w = torch.reciprocal(y_o.float())
+        w = torch.reciprocal(y_o_float)
     elif weight_type == Weight.SQUARE:
-        w = torch.reciprocal(y_o.float() * y_o.float())
+        w = torch.reciprocal(y_o_float * y_o_float)
     else:
-        w = torch.ones_like(y_o.float())
+        w = torch.ones_like(y_o_float)
 
     # Replace infinite values for non-appearing classes by the maximum weight
-    for b in w:
-        infs = torch.isinf(b)
-        b[infs] = 0
-        b[infs] = torch.max(b)
+    for b_idx in range(w.shape[0]):
+        batch_w = w[b_idx]
+        infs = torch.isinf(batch_w)
+        if infs.any():
+            batch_w[infs] = 0
+            max_w = torch.max(batch_w)
+            batch_w[infs] = max_w if max_w > 0 else 1.0
 
-    # Compute the weighted numerator and denominator, summing along the class axis when sum_over_classes is True
     if sum_over_classes:
-        numer = 2.0 * (intersection * w).sum(dim=1, keepdim=True)
-        denom = (denominator * w).sum(dim=1, keepdim=True)
-        y_pred_o = y_pred_o.sum(dim=-1, keepdim=True)
+        intersection = (intersection * w).sum(dim=1, keepdim=True)
+        denominator = (denominator * w).sum(dim=1, keepdim=True)
+        numer = 2.0 * intersection
+        denom = denominator
     else:
         numer = 2.0 * (intersection * w)
         denom = denominator * w
-        y_pred_o = y_pred_o
 
     # Compute the score
     generalized_dice_score = numer / denom
 
-    # Handle zero division. Where denom == 0 and the prediction volume is 0, score is 1.
-    # Where denom == 0 but the prediction volume is not 0, score is 0
+    # Handle zero division exactly, matching the previous behavior.
     denom_zeros = denom == 0
-    generalized_dice_score[denom_zeros] = torch.where(
-        (y_pred_o == 0)[denom_zeros],
-        torch.tensor(1.0, device=generalized_dice_score.device),
-        torch.tensor(0.0, device=generalized_dice_score.device),
-    )
+    if denom_zeros.any():
+        if sum_over_classes:
+            generalized_dice_score[denom_zeros] = 1.0
+        else:
+            generalized_dice_score[denom_zeros] = torch.where(
+                (y_pred_o * w)[denom_zeros] == 0,
+                torch.ones_like(generalized_dice_score[denom_zeros]),
+                torch.zeros_like(generalized_dice_score[denom_zeros]),
+            )
 
     return generalized_dice_score

@@ -15,6 +15,8 @@ import json
 import os
 import tempfile
 import unittest
+import warnings
+from pathlib import Path
 from unittest.case import skipIf, skipUnless
 from unittest.mock import patch
 
@@ -24,8 +26,8 @@ from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
-from monai.bundle import ConfigParser, create_workflow, load
-from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
+from monai.bundle import ConfigParser, create_workflow, load, run
+from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download, download_large_files
 from monai.utils import optional_import
 from tests.test_utils import (
     assert_allclose,
@@ -95,6 +97,15 @@ TEST_CASE_10 = [
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
 
+
+# (source, repo) pairs covering every `source` accepted by `load()`/`download()`. `repo` only
+# matters for sources that read it ("github", "huggingface_hub", "ngc_private"); it's unused
+# otherwise but keeps the call shape realistic for each source.
+TEST_CASE_SOURCE_GITHUB = ["github", "attacker/repo"]
+TEST_CASE_SOURCE_MONAIHOSTING = ["monaihosting", None]
+TEST_CASE_SOURCE_NGC = ["ngc", None]
+TEST_CASE_SOURCE_HUGGINGFACE_HUB = ["huggingface_hub", "attacker/repo"]
+
 TEST_CASE_NGC_1 = [
     "spleen_ct_segmentation",
     "0.3.7",
@@ -156,7 +167,7 @@ class TestDownload(unittest.TestCase):
                     file_path = os.path.join(tempdir, "test_bundle", file)
                     self.assertTrue(os.path.exists(file_path))
                     if file == "network.json":
-                        self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+                        self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
 
     @parameterized.expand([TEST_CASE_3])
     @skip_if_quick
@@ -174,8 +185,8 @@ class TestDownload(unittest.TestCase):
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
-                if file == "network.json":
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+                    if file == "network.json":
+                        self.assertTrue(check_hash(filepath=file_path, val=hash_val, hash_type="md5"))
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
@@ -304,6 +315,56 @@ class TestDownload(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as tempdir:
                     download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
                     mock_logger.warning.assert_not_called()
+
+
+class TestNgcPathTraversal(unittest.TestCase):
+    """The NGC modelFiles manifest is server-controlled; a ``../`` path must not escape the bundle dir."""
+
+    def test_ngc_manifest_traversal_rejected(self):
+        from monai.bundle.scripts import _download_from_ngc
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "ESCAPED")
+            evil = os.path.join("..", "ESCAPED")  # resolves to tempdir/ESCAPED, one level above the bundle dir
+            with patch("monai.bundle.scripts._get_all_download_files", return_value=[evil]):
+                with patch("monai.bundle.scripts.download_url") as mock_dl:
+                    download_path = Path(tempdir) / "bundle"
+                    with self.assertRaises(ValueError):
+                        _download_from_ngc(
+                            download_path=download_path,
+                            filename="spleen",
+                            version="0.1",
+                            remove_prefix=None,
+                            progress=False,
+                        )
+                    mock_dl.assert_not_called()
+            self.assertFalse(os.path.exists(marker))
+
+    def test_ngc_manifest_nested_path_allowed(self):
+        from monai.bundle.scripts import _download_from_ngc
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            captured = {}
+
+            def _fake_download_url(url, filepath, hash_val=None, progress=True):
+                captured["filepath"] = filepath
+
+            with patch("monai.bundle.scripts._get_all_download_files", return_value=["configs/model.pt"]):
+                with patch("monai.bundle.scripts.download_url", side_effect=_fake_download_url):
+                    download_path = Path(tempdir) / "bundle"
+                    _download_from_ngc(
+                        download_path=download_path,
+                        filename="spleen",
+                        version="0.1",
+                        remove_prefix=None,
+                        progress=False,
+                    )
+            dest = Path(captured["filepath"]).resolve()
+            # remove_prefix=None keeps the monai_ prefix, so the model dir is download_path/monai_spleen.
+            model_dir = (download_path / "monai_spleen").resolve()
+            self.assertTrue(dest.is_relative_to(model_dir))
+            self.assertEqual(dest, model_dir / "configs" / "model.pt")
+            self.assertTrue(dest.parent.is_dir())
 
 
 @skip_if_no_cuda
@@ -435,6 +496,15 @@ class TestLoad(unittest.TestCase):
 
 
 class TestDownloadLargefiles(unittest.TestCase):
+
+    def test_large_files_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            large_files_path = os.path.join(tempdir, "large_files.yaml")
+            with open(large_files_path, "w") as f:
+                f.write("large_files:\n" "  - path: ../evil.pt\n" "    url: https://example.com/evil.pt\n")
+            with self.assertRaises(ValueError):
+                download_large_files(bundle_path=tempdir)
+
     @parameterized.expand([TEST_CASE_10])
     @skip_if_quick
     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):
@@ -459,7 +529,7 @@ class TestDownloadLargefiles(unittest.TestCase):
                 command_line_tests(cmd)
                 for file in ["model.pt", "model.ts"]:
                     file_path = os.path.join(tempdir, bundle_name, f"models/{file}")
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val[file]))
+                    self.assertTrue(check_hash(filepath=file_path, val=hash_val[file], hash_type="md5"))
 
 
 @skip_if_windows
@@ -474,7 +544,7 @@ class TestNgcBundleDownload(unittest.TestCase):
                 )
                 full_file_path = os.path.join(tempdir, download_name, file_path)
                 self.assertTrue(os.path.exists(full_file_path))
-                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
+                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val, hash_type="md5"))
 
                 model = load(
                     name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
@@ -486,6 +556,72 @@ class TestNgcBundleDownload(unittest.TestCase):
                     rtol=1e-4,
                     type_test=False,
                 )
+
+
+class TestLoadWarnsOnConfigExecution(unittest.TestCase):
+    """Regression tests for GHSA-873f-pvrv-4x83: `load()`/`create_workflow()` parse and execute a
+    bundle's own config (arbitrary `_target_`/`$`-expression content) whenever `model` is `None`.
+    There is no opt-in flag -- MONAI has no way to establish whether a bundle is actually
+    trustworthy, so a flag would only teach callers to always pass it and ignore the risk. Instead,
+    a `UserWarning` is raised every time this happens, in both `load()` (via `create_workflow()`)
+    and `run()` (also via `create_workflow()`)."""
+
+    def _stage_malicious_bundle(self, tempdir: str, marker: str) -> str:
+        name = "evil_bundle"
+        bundle_root = os.path.join(tempdir, name)
+        os.makedirs(os.path.join(bundle_root, "configs"))
+        os.makedirs(os.path.join(bundle_root, "models"))
+        torch.save({"state_dict": {}}, os.path.join(bundle_root, "models", "model.pt"))
+        # writes the marker directly via `pathlib` instead of shelling out through `os.system` --
+        # `!r` yields a Python-source-safe literal (handling spaces and Windows backslashes alike)
+        # with no shell involved to reintroduce quoting/splitting issues.
+        payload = f"$__import__('pathlib').Path({marker!r}).write_text('pwned')"
+        # included under both keys so the payload runs whether the config is consumed via
+        # `network_def` (the `load()` tests) or via `initialize` (the `run()` test).
+        malicious_config = {"network_def": payload, "initialize": [payload]}
+        with open(os.path.join(bundle_root, "configs", "train.json"), "w") as f:
+            json.dump(malicious_config, f)
+        return name
+
+    @parameterized.expand(
+        [TEST_CASE_SOURCE_GITHUB, TEST_CASE_SOURCE_MONAIHOSTING, TEST_CASE_SOURCE_NGC, TEST_CASE_SOURCE_HUGGINGFACE_HUB]
+    )
+    def test_default_warns_and_executes_config(self, source, repo):
+        # `source`/`repo` only steer where `download()` would fetch from -- irrelevant here since
+        # the bundle is already staged on disk, so `load()` never calls `download()`. Parameterized
+        # anyway to confirm the warning fires the same way regardless of `source`.
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
+                with self.assertRaises(AttributeError):
+                    # the malicious config is missing metadata.json and returns a plain `int` for
+                    # `network_def`, so the workflow construction fails after the payload has already
+                    # run -- this mirrors the advisory's own PoC, where the failure happens *after* RCE.
+                    load(name=name, bundle_dir=tempdir, source=source, repo=repo)
+            self.assertTrue(os.path.exists(marker))
+
+    def test_explicit_model_skips_config_parsing(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            model = nets.UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2,))
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                load(name=name, model=model, bundle_dir=tempdir, source="github", repo="attacker/repo")
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_warns_on_config_execution(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            marker = os.path.join(tempdir, "PWNED")
+            name = self._stage_malicious_bundle(tempdir, marker)
+            config_file = os.path.join(tempdir, name, "configs", "train.json")
+            with self.assertWarnsRegex(UserWarning, r"GHSA-873f-pvrv-4x83"):
+                with self.assertRaises(ValueError):
+                    # no "run" ID is defined, so `workflow.run()` fails after `initialize()` has
+                    # already evaluated the payload above.
+                    run(config_file=config_file)
+            self.assertTrue(os.path.exists(marker))
 
 
 if __name__ == "__main__":

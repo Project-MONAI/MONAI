@@ -109,24 +109,40 @@ class Warp(nn.Module):
             self._padding_mode = self._padding_mode_native
 
         self.ref_grid = None
+        self._ref_grid_params: tuple[bool, int | None] | None = None
         self.jitter = jitter
 
     def get_reference_grid(self, ddf: torch.Tensor, jitter: bool = False, seed: int = 0) -> torch.Tensor:
+        """Return a reference grid matching the displacement field and generation parameters.
+
+        Args:
+            ddf: Dense displacement field defining the grid shape, device, and dtype.
+            jitter: Whether to add deterministic random offsets to the grid.
+            seed: Random seed used when ``jitter`` is enabled.
+
+        Returns:
+            The cached or newly generated reference grid.
+        """
+        ref_grid_params = (jitter, seed if jitter else None)
         if (
             self.ref_grid is not None
-            and self.ref_grid.shape[0] == ddf.shape[0]
-            and self.ref_grid.shape[1:] == ddf.shape[2:]
+            and self.ref_grid.shape == ddf.shape
+            and self.ref_grid.device == ddf.device
+            and self.ref_grid.dtype == ddf.dtype
+            and self._ref_grid_params == ref_grid_params
         ):
             return self.ref_grid  # type: ignore
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
-        self.ref_grid = grid.to(ddf)
+        grid = grid.to(ddf)
         if jitter:
             # Define reference grid on non-integer values
-            with torch.random.fork_rng(enabled=seed):
+            with torch.random.fork_rng():
                 torch.random.manual_seed(seed)
                 grid += torch.rand_like(grid)
+        self.ref_grid = grid
+        self._ref_grid_params = ref_grid_params
         self.ref_grid.requires_grad = False
         return self.ref_grid
 
@@ -155,7 +171,10 @@ class Warp(nn.Module):
 
         if not _use_compiled:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
-                grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
+                # guard against a singleton spatial dim (e.g. a single-slice volume), where
+                # ``dim - 1 == 0`` would divide by zero; clamp the denominator to 1 so the lone
+                # voxel maps to -1, matching ``monai.networks.utils.normalize_transform``.
+                grid[..., i] = grid[..., i] * 2 / max(dim - 1, 1) - 1
             index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(

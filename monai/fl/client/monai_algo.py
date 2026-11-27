@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
@@ -32,6 +33,26 @@ from monai.utils import min_version, require_pkg
 from monai.utils.enums import DataStatsKeys
 
 logger = get_logger(__name__)
+
+
+def _warn_provisioned_config_execution(bundle_root: str) -> None:
+    """
+    Warn that the bundle under ``bundle_root`` is about to be executed.
+
+    In federated learning the whole app directory -- configs included -- is provisioned by the FL
+    system, and the aggregation server dispatches `initialize`/`train` tasks that the client runs
+    on its own, so there is no per-round human interaction to catch a poisoned config.
+    """
+    warnings.warn(
+        f"executing the bundle config under {bundle_root}, which is provisioned by the FL system: "
+        'any `"_target_"` value in it is resolved to an importable callable and invoked with no '
+        'allow list, and any `"$"`-prefixed value is passed to Python `eval()`. A malicious or '
+        "compromised aggregation server therefore gets code execution on this client, without any "
+        "per-round human interaction. Only join a federation whose server and app-provisioning "
+        "channel you trust (see "
+        "https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6pr-233j-x5cw).",
+        stacklevel=3,
+    )
 
 
 def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
@@ -86,6 +107,15 @@ class MonaiAlgoStats(ClientAlgoStats):
     """
     Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
+    Security note: the bundle under `bundle_root` is provisioned by the FL system -- `initialize()`
+    resolves it against `extra[ExtraItems.APP_ROOT]`, which the aggregation server supplies -- and
+    executing it runs whatever its config contains: any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to
+    Python `eval()`. A malicious or compromised server therefore gets code execution on this client,
+    with no per-round human interaction. Executing a config raises a warning -- once per call site,
+    as Python's default warning filter suppresses repeats
+    (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6pr-233j-x5cw).
+
     Args:
         bundle_root: directory path of the bundle.
         config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
@@ -135,18 +165,29 @@ class MonaiAlgoStats(ClientAlgoStats):
         Args:
             extra: Dict with additional information that should be provided by FL system,
                 i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
-                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
+                `{ExtraItems.LOGGING_FILE}` defaults to False here, and an explicit `None` is
+                treated the same way, so the bundle's own "configs/logging.conf" is not applied:
+                it is provisioned by the FL system and `logging.config.fileConfig` runs the INI's
+                `class=`/`args=` fields through `eval()`
+                (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
+                Set it to a logging config file path to opt back in to configuring logging.
 
         """
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
-        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, False)
+        if logging_file is None:
+            # `ConfigWorkflow` reads `None` as "fall back to the bundle's own configs/logging.conf",
+            # the FL-provisioned file this default exists to keep away from `fileConfig`. Passing the
+            # key explicitly as `None` has to mean the same as leaving it out.
+            logging_file = False
         self.logger.info(f"Initializing {self.client_name} ...")
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+        _warn_provisioned_config_execution(self.bundle_root)
 
         if self.workflow is None:
             config_train_files = self._add_config_files(self.config_train_filename)
@@ -251,6 +292,7 @@ class MonaiAlgoStats(ClientAlgoStats):
             dataroot=self.workflow.dataset_dir,  # type: ignore
             hist_bins=hist_bins,
             hist_range=hist_range,
+            # pyrefly: ignore [bad-argument-type]
             output_path=output_path,
             histogram_only=self.histogram_only,
         )
@@ -311,6 +353,15 @@ class MonaiAlgoStats(ClientAlgoStats):
 class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+
+    Security note: the bundle under `bundle_root` is provisioned by the FL system -- `initialize()`
+    resolves it against `extra[ExtraItems.APP_ROOT]`, which the aggregation server supplies -- and
+    executing it runs whatever its config contains: any `"_target_"` value is resolved to an
+    importable callable and invoked with no allow list, and any `"$"`-prefixed value is passed to
+    Python `eval()`. A malicious or compromised server therefore gets code execution on this client,
+    with no per-round human interaction. Executing a config raises a warning -- once per call site,
+    as Python's default warning filter suppresses repeats
+    (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-x6pr-233j-x5cw).
 
     Args:
         bundle_root: directory path of the bundle.
@@ -415,19 +466,30 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         Args:
             extra: Dict with additional information that should be provided by FL system,
                 i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
-                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
+                `{ExtraItems.LOGGING_FILE}` defaults to False here, and an explicit `None` is
+                treated the same way, so the bundle's own "configs/logging.conf" is not applied:
+                it is provisioned by the FL system and `logging.config.fileConfig` runs the INI's
+                `class=`/`args=` fields through `eval()`
+                (see https://github.com/Project-MONAI/MONAI/security/advisories/GHSA-wvpx-5qmp-46g3).
+                Set it to a logging config file path to opt back in to configuring logging.
 
         """
         self._set_cuda_device()
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
-        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, False)
+        if logging_file is None:
+            # `ConfigWorkflow` reads `None` as "fall back to the bundle's own configs/logging.conf",
+            # the FL-provisioned file this default exists to keep away from `fileConfig`. Passing the
+            # key explicitly as `None` has to mean the same as leaving it out.
+            logging_file = False
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.logger.info(f"Initializing {self.client_name} ...")
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+        _warn_provisioned_config_execution(self.bundle_root)
 
         if self.train_workflow is None and self.config_train_filename is not None:
             config_train_files = self._add_config_files(self.config_train_filename)

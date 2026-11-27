@@ -22,10 +22,6 @@ from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
-from monai.utils import optional_import
-
-# Lazy import to avoid dependency
-se1, flag = optional_import("squeeze_and_excitation")
 
 __all__ = ["Quicknat"]
 
@@ -43,7 +39,28 @@ class SkipConnectionWithIdx(SkipConnection):
     """
 
     def forward(self, input, indices):  # type: ignore[override]
-        return super().forward(input), indices
+        """Combine the input with the indexed submodule output.
+
+        Args:
+            input: input tensor for the skip connection and submodule.
+            indices: pooling indices to preserve for the following decoder.
+
+        Returns:
+            A tuple containing the combined tensor and the original indices.
+
+        Raises:
+            NotImplementedError: if the configured skip mode is unsupported.
+        """
+        submodule_output, _ = self.submodule(input, indices)
+        if self.mode == "cat":
+            output = torch.cat([input, submodule_output], dim=self.dim)
+        elif self.mode == "add":
+            output = torch.add(input, submodule_output)
+        elif self.mode == "mul":
+            output = torch.mul(input, submodule_output)
+        else:
+            raise NotImplementedError(f"Unsupported mode {self.mode}.")
+        return output, indices
 
 
 class SequentialWithIdx(nn.Sequential):
@@ -107,15 +124,15 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     Every convolutional layer is preceded by a batch-normalization layer and a Rectifier Linear Unit (ReLU) layer.
     The first two convolutional layers are followed by a concatenation layer that concatenates
     the input feature map with outputs of the current and previous convolutional blocks.
-    Kernel size of two convolutional layers kept small to limit number of paramters.
+    Kernel size of two convolutional layers kept small to limit number of parameters.
     Appropriate padding is provided so that the size of feature maps before and after convolution remains constant.
     The output channels for each convolution layer is set to 64, which acts as a bottle- neck for feature map selectivity.
     The input channel size is variable, depending on the number of dense connections.
     The third convolutional layer is also preceded by a batch normalization and ReLU,
     but has a 1 * 1 kernel size to compress the feature map size to 64.
     Args:
-        in_channles: variable depending on depth of the network
-        seLayer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
+        in_channels: variable depending on depth of the network
+        se_layer: Squeeze and Excite block to be included, defaults to None, valid options are {'NONE', 'CSE', 'SSE', 'CSSE'},
         dropout_layer: Dropout block to be included, defaults to None.
     :return: forward passed tensor
     """
@@ -322,11 +339,15 @@ class Quicknat(nn.Module):
         num_filters: number of output channels for each convolutional layer in a Dense Block.
         kernel_size: size of the kernel of each convolutional layer in a Dense Block.
         kernel_c: convolution kernel size of classifier block kernel.
-        stride_convolution: convolution stride. Defaults to 1.
+        stride_conv: convolution stride. Defaults to 1.
         pool: kernel size of the pooling layer,
         stride_pool: stride for the pooling layer.
-        se_block: Squeeze and Excite block type to be included, defaults to None. Valid options : NONE, CSE, SSE, CSSE,
-        droup_out: dropout ratio. Defaults to no dropout.
+        se_block: Squeeze and Excite block type to include. Use ``None`` or ``"None"`` to disable it; valid enabled values are ``"CSE"``, ``"SSE"``, and ``"CSSE"``.
+            ``"SSE"`` and ``"CSSE"`` now use :py:class:`monai.networks.blocks.SpatialSELayer` and
+            :py:class:`monai.networks.blocks.ChannelSpatialSELayer` instead of the external
+            ``squeeze_and_excitation`` package, so weights saved with that package for these two options
+            have different ``state_dict`` keys and will not load with ``strict=True``.
+        drop_out: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         adn_ordering: a string representing the ordering of activation (A), normalization (N), and dropout (D).
@@ -358,7 +379,7 @@ class Quicknat(nn.Module):
         pool: int = 2,
         stride_pool: int = 2,
         # Valid options : NONE, CSE, SSE, CSSE
-        se_block: str = "None",
+        se_block: str | None = "None",
         drop_out: float = 0,
         act: tuple | str = Act.PRELU,
         norm: tuple | str = Norm.INSTANCE,
@@ -413,19 +434,14 @@ class Quicknat(nn.Module):
         Args:
             n_filters: encoding half of the layer
             se_block_type: defaults to None. Valid options are None, CSE, SSE, CSSE
-        Returns: Appropriate SEBlock. SSE and CSSE not implemented in Monai yet.
+        Returns: Appropriate SEBlock, or None when ``se_block_type`` is None or "None".
         """
         if se_block_type == "CSE":
             return se.ChannelSELayer(2, n_filters)
-        # not implemented in squeeze_and_excitation in monai use other squeeze_and_excitation import:
-        elif se_block_type == "SSE" or se_block_type == "CSSE":
-            # Throw error if squeeze_and_excitation is not installed
-            if not flag:
-                raise ImportError("Please install squeeze_and_excitation locally to use SpatialSELayer")
-            if se_block_type == "SSE":
-                return se1.SpatialSELayer(n_filters)
-            else:
-                return se1.ChannelSpatialSELayer(n_filters)
+        elif se_block_type == "SSE":
+            return se.SpatialSELayer(2, n_filters)
+        elif se_block_type == "CSSE":
+            return se.ChannelSpatialSELayer(2, n_filters)
         else:
             return None
 

@@ -134,7 +134,8 @@ class SoftclDiceLoss(_Loss):
         Args:
             iter_: Number of iterations for skeletonization. Must be a non-negative integer. Defaults to 3.
             smooth_nr: a small constant added to the numerator to avoid zero. Defaults to 1.0.
-            smooth_dr: a small constant added to the denominator to avoid nan. Defaults to 1.0.
+            smooth_dr: a small constant added to the denominator of the individual precision /
+                sensitivity ratios and the internal Dice denominator to avoid nan. Defaults to 1.0.
             smooth: a small constant added to the denominator of the harmonic mean to avoid nan. Defaults to 1e-4.
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed

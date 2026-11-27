@@ -135,6 +135,16 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
 
         self.assertIsNone(loss.bin_centers)
 
+    def test_b_spline_num_bins_must_allow_padding(self):
+        """Verify B-spline bin counts leave room for boundary padding."""
+        with self.assertRaisesRegex(ValueError, "num_bins must be greater than 4"):
+            GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=4)
+
+    def test_gaussian_num_bins_must_allow_spacing(self):
+        """Verify Gaussian bin counts allow a finite bin-centre spacing."""
+        with self.assertRaisesRegex(ValueError, "Gaussian kernel requires num_bins >= 2, got 1"):
+            GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=1)
+
     @parameterized.expand(
         [
             (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims
@@ -162,6 +172,364 @@ class TestGlobalMutualInformationLossIll(unittest.TestCase):
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         with self.assertRaisesRegex(expected_exception, expected_message):
             GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
+
+    @parameterized.expand(
+        [
+            (1, 0.5, "num_bins >= 2"),
+            (23, 0.0, "finite, positive sigma_ratio"),
+            (23, -0.5, "finite, positive sigma_ratio"),
+            (23, float("nan"), "finite, positive sigma_ratio"),
+            (23, float("inf"), "finite, positive sigma_ratio"),
+            (23, float("-inf"), "finite, positive sigma_ratio"),
+        ]
+    )
+    def test_ill_gaussian_parameters(self, num_bins, sigma_ratio, expected_message):
+        """Verify invalid Gaussian parameters fail during construction.
+
+        Args:
+            num_bins: number of histogram bins to test.
+            sigma_ratio: Gaussian kernel width ratio to test.
+            expected_message: text expected in the validation error.
+        """
+        with self.assertRaisesRegex(ValueError, expected_message):
+            GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=num_bins, sigma_ratio=sigma_ratio)
+
+
+class TestGlobalMutualInformationLossHalfPrecision(unittest.TestCase):
+    """Test stable Gaussian mutual information in reduced-precision modes."""
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_gaussian_weights_with_many_bins_are_finite(self, dtype):
+        """Verify many-bin Parzen outputs remain finite and preserve metadata.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        image = torch.zeros((1, 1, 2), dtype=dtype)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256)
+
+        weight, probability = loss.parzen_windowing_gaussian(image)
+
+        self.assertTrue(torch.isfinite(weight).all())
+        self.assertTrue(torch.isfinite(probability).all())
+        self.assertEqual(weight.dtype, image.dtype)
+        self.assertEqual(probability.dtype, image.dtype)
+        self.assertEqual(weight.device, image.device)
+        self.assertEqual(probability.device, image.device)
+        torch.testing.assert_close(
+            weight.float().sum(dim=-1), torch.ones_like(weight[..., 0], dtype=torch.float32), rtol=0.0, atol=5e-3
+        )
+        torch.testing.assert_close(
+            probability.float().sum(dim=-1),
+            torch.ones_like(probability[..., 0], dtype=torch.float32),
+            rtol=0.0,
+            atol=5e-3,
+        )
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_module_cast_with_many_bins_remains_finite(self, dtype):
+        """Verify module dtype conversion cannot overflow Gaussian parameters.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        image = torch.linspace(0.0, 1.0, 64, dtype=dtype).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.flip(image.detach(), dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256).to(dtype=dtype)
+
+        weight, probability = loss.parzen_windowing_gaussian(image)
+        result = loss(image, target)
+
+        self.assertTrue(torch.isfinite(weight).all())
+        self.assertTrue(torch.isfinite(probability).all())
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(image.grad)
+        self.assertTrue(torch.isfinite(image.grad).all())
+
+    def test_float16_default_dtype_with_many_bins_remains_finite(self):
+        """Verify construction under a float16 default keeps Gaussian parameters finite."""
+        original_dtype = torch.get_default_dtype()
+        try:
+            torch.set_default_dtype(torch.float16)
+            image = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+            target = torch.flip(image.detach(), dims=(-1,))
+            loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=256)
+
+            weight, probability = loss.parzen_windowing_gaussian(image)
+            result = loss(image, target)
+
+            self.assertTrue(torch.isfinite(weight).all())
+            self.assertTrue(torch.isfinite(probability).all())
+            self.assertTrue(torch.isfinite(result))
+            result.backward()
+            self.assertIsNotNone(image.grad)
+            self.assertTrue(torch.isfinite(image.grad).all())
+        finally:
+            torch.set_default_dtype(original_dtype)
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_nonconstant_images_match_float32(self, dtype):
+        """Verify nonconstant reduced-precision loss tracks float32.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        pred_float = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8)
+        target_float = torch.flip(pred_float, dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        expected = loss(pred_float, target_float)
+        pred = pred_float.to(dtype=dtype).requires_grad_()
+        target = target_float.to(dtype=dtype)
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, dtype)
+        torch.testing.assert_close(result.float(), expected, rtol=1e-2, atol=1e-2)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_weak_mutual_information_matches_float32(self, dtype):
+        """Verify weak reduced-precision mutual information tracks float32.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        generator = torch.Generator().manual_seed(19)
+        pred_float = torch.rand((1, 1, 4096), generator=generator)
+        target_float = torch.rand((1, 1, 4096), generator=generator)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian", num_bins=8)
+        expected = loss(pred_float, target_float)
+        pred = pred_float.to(dtype=dtype).requires_grad_()
+        target = target_float.to(dtype=dtype)
+
+        result = loss(pred, target)
+
+        self.assertEqual(result.dtype, dtype)
+        torch.testing.assert_close(result.float(), expected, rtol=1e-2, atol=1e-6)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    @parameterized.expand([(torch.float16,), (torch.bfloat16,)])
+    def test_half_precision_large_constant_volume_is_finite(self, dtype):
+        """Verify reduced-precision loss and gradients remain finite.
+
+        Args:
+            dtype: reduced-precision floating-point dtype to test.
+        """
+        pred = torch.zeros((1, 1, 48, 48, 48), dtype=dtype, requires_grad=True)
+        target = torch.zeros_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
+        self.assertEqual(result.device, pred.device)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertEqual(pred.grad.dtype, pred.dtype)
+        self.assertEqual(pred.grad.device, pred.device)
+
+    def test_cpu_float16_autocast_nonconstant_images_match_float32(self):
+        """Verify nonconstant CPU autocast loss matches float32."""
+        pred = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.flip(pred.detach(), dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        expected = loss(pred, target).detach()
+
+        with torch.autocast(device_type="cpu", dtype=torch.float16):
+            result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
+        torch.testing.assert_close(result, expected)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_cpu_float16_autocast_large_volume_is_finite(self):
+        """Verify CPU float16 autocast avoids histogram accumulation overflow."""
+        pred = torch.zeros((1, 1, 48, 48, 48), requires_grad=True)
+        target = torch.zeros_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+
+        with torch.autocast(device_type="cpu", dtype=torch.float16):
+            result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertEqual(result.dtype, pred.dtype)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertEqual(pred.grad.dtype, pred.dtype)
+        self.assertEqual(pred.grad.device, pred.device)
+
+
+class TestGlobalMutualInformationLossBSpline(unittest.TestCase):
+    """Test B-spline mutual information on degenerate intensity ranges."""
+
+    @parameterized.expand(["prediction", "target"])
+    def test_b_spline_single_constant_input_is_finite(self, constant_input):
+        """Verify either independently constant input yields finite gradients.
+
+        Args:
+            constant_input: Which input (``"prediction"`` or ``"target"``)
+                is held constant.
+        """
+        varying = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8)
+        if constant_input == "prediction":
+            pred = torch.zeros_like(varying, requires_grad=True)
+            target = varying
+        else:
+            pred = varying.clone().requires_grad_()
+            target = torch.ones_like(varying)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_b_spline_constant_half_precision_images_are_finite(self):
+        """Verify constant float16 inputs survive overflow-sized bin distances."""
+        pred = torch.zeros((1, 1, 8, 8), dtype=torch.float16, requires_grad=True)
+        target = torch.ones_like(pred)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertAlmostEqual(result.item(), 0.0, places=6)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_b_spline_integer_target_is_supported(self):
+        """Verify integer targets do not fail floating-point range validation."""
+        pred = torch.linspace(0.0, 1.0, 64).reshape(1, 1, 8, 8).requires_grad_()
+        target = torch.arange(64, dtype=torch.int64).reshape(1, 1, 8, 8)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_b_spline_float16_small_range_preserves_signal(self):
+        """Verify a small nonzero float16 range retains loss and gradient signal."""
+        values = torch.linspace(0.0, 5e-4, 64, dtype=torch.float16).reshape(1, 1, 8, 8)
+        pred = values.clone().requires_grad_()
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
+
+        result = loss(pred, values)
+
+        self.assertTrue(torch.isfinite(result))
+        self.assertLess(result.item(), -1.0)
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+        self.assertGreater(torch.count_nonzero(pred.grad).item(), 0)
+
+    @parameterized.expand(
+        [
+            ("float16_tiny", torch.float16, torch.finfo(torch.float16).tiny / 2),
+            ("bfloat16_tiny", torch.bfloat16, torch.finfo(torch.bfloat16).tiny / 2),
+            ("float32_tiny", torch.float32, torch.finfo(torch.float32).tiny / 2),
+            ("float16_large", torch.float16, 65000.0),
+        ]
+    )
+    def test_b_spline_nonzero_ranges_are_finite(self, case_name, dtype, maximum):
+        """Verify extreme nonzero ranges yield finite loss and gradients.
+
+        Args:
+            case_name: Descriptive label for the parameterized range case.
+            dtype: Tensor dtype used for the prediction and target.
+            maximum: Nonzero upper endpoint of the tested intensity range.
+        """
+        values = torch.tensor([0.0, maximum, maximum, 0.0], dtype=dtype).reshape(1, 1, 2, 2)
+        pred = values.clone().requires_grad_()
+        target = torch.flip(values, dims=(-1,))
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=64)
+
+        result = loss(pred, target)
+
+        self.assertTrue(torch.isfinite(result))
+        result.backward()
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all())
+
+    def test_b_spline_batch_samples_are_independent(self):
+        """Verify each sample is binned from its own intensity range, not the batch's.
+
+        A per-sample loss must not change when other images with a different intensity range share the batch.
+        """
+        generator = torch.Generator().manual_seed(0)
+        pred_a = torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        target_a = 0.8 * pred_a + 0.2 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        pred_b = 10 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        target_b = 0.8 * pred_b + 2 * torch.rand(1, 1, 32, 32, generator=generator, dtype=torch.float64)
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline", reduction="none")
+
+        alone = torch.cat([loss(pred_a, target_a).flatten(), loss(pred_b, target_b).flatten()])
+        batched = loss(torch.cat([pred_a, pred_b]), torch.cat([target_a, target_b])).flatten()
+
+        np.testing.assert_allclose(batched.numpy(), alone.numpy(), rtol=1e-6)
+
+
+class TestGlobalMutualInformationLossBuffers(unittest.TestCase):
+    def test_gaussian_kernel_registers_buffers(self):
+        """Verify gaussian kernel registers preterm and bin_centers as non-trainable, non-persistent buffers."""
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        self.assertIn("preterm", loss._buffers)
+        self.assertIn("bin_centers", loss._buffers)
+        self.assertFalse(loss.preterm.requires_grad)
+        self.assertFalse(loss.bin_centers.requires_grad)
+        self.assertEqual(loss.bin_centers.ndim, 3)
+        state = loss.state_dict()
+        self.assertNotIn("preterm", state)
+        self.assertNotIn("bin_centers", state)
+
+    def test_bspline_kernel_has_no_gaussian_buffers(self):
+        """Verify b-spline kernel does not populate gaussian-specific buffers."""
+        loss = GlobalMutualInformationLoss(kernel_type="b-spline")
+        self.assertIsNone(loss.preterm)
+        self.assertIsNone(loss.bin_centers)
+        state = loss.state_dict()
+        self.assertNotIn("preterm", state)
+        self.assertNotIn("bin_centers", state)
+
+    def test_gaussian_kernel_forward_correct(self):
+        """Verify gaussian kernel forward pass returns a scalar loss tensor."""
+        pred = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        target = torch.rand(2, 1, 8, 8, dtype=torch.float32)
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        result = loss(pred, target)
+        self.assertEqual(result.shape, torch.Size([]))
+
+    def test_gaussian_buffers_move_with_module(self):
+        """Verify preterm and bin_centers buffers move to the target device with the module."""
+        loss = GlobalMutualInformationLoss(kernel_type="gaussian")
+        self.assertEqual(loss.preterm.device.type, "cpu")
+        self.assertEqual(loss.bin_centers.device.type, "cpu")
+        if not torch.cuda.is_available():
+            self.skipTest("CUDA not available")
+        loss = loss.cuda()
+        self.assertEqual(loss.preterm.device.type, "cuda")
+        self.assertEqual(loss.bin_centers.device.type, "cuda")
+        pred = torch.rand(2, 1, 8, 8, device="cuda")
+        target = torch.rand(2, 1, 8, 8, device="cuda")
+        result = loss(pred, target)
+        self.assertEqual(result.device.type, "cuda")
 
 
 if __name__ == "__main__":

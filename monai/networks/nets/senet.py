@@ -38,12 +38,12 @@ __all__ = [
 ]
 
 SE_NET_MODELS = {
-    "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
-    "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
-    "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
-    "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
-    "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
-    "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
+    "senet154": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/senet154-c7b49a05.pth",
+    "se_resnet50": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/se_resnet50-ce0d4300.pth",
+    "se_resnet101": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/se_resnet101-7e38fcc6.pth",
+    "se_resnet152": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/se_resnet152-d17c99b7.pth",
+    "se_resnext50_32x4d": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/se_resnext50_32x4d-a260b3a4.pth",
+    "se_resnext101_32x4d": "https://huggingface.co/datasets/MONAI/testing_data/resolve/main/se_resnext101_32x4d-3b2fe3d8.pth",
 }
 
 
@@ -304,7 +304,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
         download_url(model_url["url"], filepath=model_url["filename"])
         state_dict = torch.load(model_url["filename"], map_location=None, weights_only=True)
     else:
-        state_dict = load_state_dict_from_url(model_url, progress=progress)
+        state_dict = load_state_dict_from_url(model_url, progress=progress, weights_only=True)
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv.match(key):
