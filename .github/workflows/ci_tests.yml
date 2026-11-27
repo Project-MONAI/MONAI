@@ -371,7 +371,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
-      INDEX_URL: "https://download.pytorch.org/whl/cpu"
     steps:
     - name: Clean unused tools
       run: |
@@ -393,7 +392,7 @@ jobs:
         python -m pip install --user --upgrade pip setuptools wheel twine packaging tomli
         # install the latest pytorch for testing
         python monai/config/print_dependencies.py build-system all testing | \
-            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1} --extra-index-url $INDEX_URL
+            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1}
     - name: Check packages
       run: |
         python -m pip uninstall -y monai
