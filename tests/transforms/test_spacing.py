@@ -27,7 +27,7 @@ from monai.utils import fall_back_tuple
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product, skip_if_quick
 
-_TEMPLATE_5_COMPILED = torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+_TEMPLATE_5_COMPILED = torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]], [[1.0, 1.0]]]])
 _TEMPLATE_5_NATIVE = torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
 
 

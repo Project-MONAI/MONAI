@@ -1,5 +1,5 @@
 
-# What's new in 1.6.1 🎉🎉
+# What's new in 1.6.1
 
 This is primarily a security release with fixes for vulnerabilities identified through security alerts and tools.
 

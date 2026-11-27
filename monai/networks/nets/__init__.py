@@ -19,6 +19,25 @@ from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
 from .controlnet import ControlNet
+from .convnext import (
+    ConvNeXt,
+    Convnext,
+    Convnext_base,
+    Convnext_large,
+    Convnext_small,
+    Convnext_tiny,
+    Convnext_xlarge,
+    ConvNeXtBase,
+    ConvNeXtLarge,
+    ConvNeXtSmall,
+    ConvNeXtTiny,
+    ConvNeXtXLarge,
+    convnext_base,
+    convnext_large,
+    convnext_small,
+    convnext_tiny,
+    convnext_xlarge,
+)
 from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
@@ -78,6 +97,7 @@ from .milmodel import MILModel
 from .navit import NaViT
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
+from .perceptual import LPIPS, LPIPSFeatures, NetLinLayer, ScalingLayer
 from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet

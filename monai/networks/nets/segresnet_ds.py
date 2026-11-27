@@ -250,6 +250,11 @@ class SegResNetDS(nn.Module):
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
+        upsample_mode: upsampling method used in the decoder path. Defaults to ``"deconv"``.
+            Supported values: ``"deconv"`` (transposed convolution), ``"deconvgroup"``
+            (group transposed convolution), ``"nontrainable"`` (interpolation-based, e.g.
+            :py:class:`torch.nn.Upsample`), and ``"pixelshuffle"``.
+            See also: :py:class:`monai.utils.enums.UpsampleMode`.
         resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.
@@ -458,6 +463,11 @@ class SegResNetDS2(SegResNetDS):
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
+        upsample_mode: upsampling method used in the decoder path. Defaults to ``"deconv"``.
+            Supported values: ``"deconv"`` (transposed convolution), ``"deconvgroup"``
+            (group transposed convolution), ``"nontrainable"`` (interpolation-based, e.g.
+            :py:class:`torch.nn.Upsample`), and ``"pixelshuffle"``.
+            See also: :py:class:`monai.utils.enums.UpsampleMode`.
         resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
                     image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.

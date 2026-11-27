@@ -21,7 +21,7 @@ green=""
 red=""
 noColor=""
 
-if [[ -t 1 ]] # stdout is a terminal
+if [[ -t 1 ]] && tput setaf 1 > /dev/null 2>&1 # stdout is a terminal that supports colors
 then
     separator=$'--------------------------------------------------------------------------------\n'
     blue="$(tput bold; tput setaf 4)"
@@ -736,7 +736,6 @@ fi
 # fi
 
 # unit tests
-# TODO: temp skip test_perceptual_loss, revert after #8652 merged
 # TODO: temp skip test_auto3dseg_ensemble, revert after #8737 resolved
 if [ $doUnitTests = true ]
 then
@@ -746,7 +745,7 @@ then
     if (("$testTimeout" > 0)); then
         timeoutArg="--timeout $testTimeout"
     fi
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_perceptual_loss|test_auto3dseg_ensemble).*(?<!_dist)$" $timeoutArg  # excluding integration/dist/perceptual_loss tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration|test_auto3dseg_ensemble).*(?<!_dist)$" $timeoutArg
 fi
 
 # distributed test only
