@@ -23,8 +23,9 @@ from .inferer import (
     SliceInferer,
     SlidingWindowInferer,
     SlidingWindowInfererAdapt,
+    SlidingWindowInfererReduced,
     VQVAETransformerInferer,
 )
 from .merger import AvgMerger, Merger, ZarrAvgMerger
 from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
-from .utils import sliding_window_inference
+from .utils import sliding_window_inference, sliding_window_inference_with_reduction
