@@ -861,6 +861,7 @@ class CropForegroundd(Cropd):
         end_coord_key: str | None = "foreground_end_coord",
         allow_missing_keys: bool = False,
         lazy: bool = False,
+        keep_largest_component: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -889,6 +890,9 @@ class CropForegroundd(Cropd):
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+            keep_largest_component: if `True`, keep only the largest connected component of the foreground mask
+                before computing the bounding box, dropping smaller disconnected foreground regions (for example,
+                isolated text/marker annotations next to the anatomy of interest). Default to `False`.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -901,6 +905,7 @@ class CropForegroundd(Cropd):
             channel_indices=channel_indices,
             margin=margin,
             allow_smaller=allow_smaller,
+            keep_largest_component=keep_largest_component,
             k_divisible=k_divisible,
             lazy=lazy,
             **pad_kwargs,
