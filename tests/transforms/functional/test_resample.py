@@ -16,6 +16,8 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
+from monai.transforms import CenterSpatialCropd, Compose, Flipd, SpatialPadd
 from monai.transforms.lazy.functional import resample
 from monai.utils import convert_to_tensor
 from tests.test_utils import assert_allclose, get_arange_img
@@ -44,6 +46,26 @@ class TestResampleFunction(unittest.TestCase):
         out = resample(img, matrix, {"lazy_resample_mode": "auto", "lazy_dtype": torch.float})
         out_1 = resample(img, matrix, {"lazy_resample_mode": "other value", "lazy_dtype": torch.float})
         self.assertIs(out.dtype, out_1.dtype)  # testing dtype in different lazy_resample_mode
+
+    @parameterized.expand(
+        [
+            ["flip", lambda: Flipd("img", spatial_axis=0)],
+            ["crop", lambda: CenterSpatialCropd("img", (5, 4))],
+            ["pad", lambda: SpatialPadd("img", (12, 12))],
+        ]
+    )
+    def test_lazy_crop_pad_keeps_affine_rank(self, _, make_transform):
+        """A 2D image with a 4x4 affine keeps its out-of-plane spacing and origin on the lazy crop/pad path."""
+        affine = torch.diag(torch.tensor([1.5, 0.8, 2.0, 1.0], dtype=torch.float64))
+        affine[:3, 3] = torch.tensor([3.0, -2.0, 1.0], dtype=torch.float64)
+        img = MetaTensor(torch.rand(1, 10, 8), affine=affine)
+
+        eager = Compose([make_transform()], lazy=False)({"img": img.clone()})["img"]
+        lazy = Compose([make_transform()], lazy=True)({"img": img.clone()})["img"]
+
+        self.assertEqual(lazy.affine.shape, (4, 4))
+        assert_allclose(lazy.affine, eager.affine, type_test=False)
+        assert_allclose(lazy, eager, type_test=False)
 
 
 if __name__ == "__main__":

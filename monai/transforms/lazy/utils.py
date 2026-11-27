@@ -193,6 +193,11 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
     init_affine = monai.data.to_affine_nd(ndim, img.affine)
+    # The crop/pad shortcut below writes the affine directly, so compose at the image's own affine rank: a 2D image
+    # with a 4x4 affine must keep its out-of-plane spacing and origin, as the eager transforms do.
+    full_rank = len(img.affine) - 1
+    full_xform = monai.data.to_affine_nd(full_rank, matrix)
+    full_dst_affine = img.affine @ monai.utils.convert_to_dst_type(full_xform, img.affine)[0]
     spatial_size = kwargs.get(LazyAttr.SHAPE, None)
     out_spatial_size = img.peek_pending_shape() if spatial_size is None else spatial_size
     out_spatial_size = convert_to_numpy(out_spatial_size, wrap_sequence=True)
@@ -225,13 +230,13 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             and len(in_shape) == len(out_spatial_size)
             and allclose(convert_to_numpy(in_shape, wrap_sequence=True), out_spatial_size)
         ):
-            img.affine = call_kwargs["dst_affine"]
+            img.affine = full_dst_affine
             img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
             return img
         # pyrefly: ignore [bad-argument-type, implicit-import]
         img = monai.transforms.crop_or_pad_nd(img, matrix_np, out_spatial_size, mode=call_kwargs["padding_mode"])
         img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
-        img.affine = call_kwargs["dst_affine"]
+        img.affine = full_dst_affine
         return img
 
     # pyrefly: ignore [bad-argument-type, implicit-import]
