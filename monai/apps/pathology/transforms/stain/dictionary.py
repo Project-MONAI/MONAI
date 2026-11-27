@@ -18,13 +18,99 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
+from typing import Any
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Randomizable
 
-from .array import ExtractHEStains, NormalizeHEStains
+from .array import ExtractHEStains, HEDJitter, NormalizeHEStains
+
+__all__ = [
+    "HEDJitterd",
+    "HEDJitterD",
+    "HEDJitterDict",
+    "ExtractHEStainsd",
+    "ExtractHEStainsD",
+    "ExtractHEStainsDict",
+    "NormalizeHEStainsd",
+    "NormalizeHEStainsD",
+    "NormalizeHEStainsDict",
+]
+
+
+class HEDJitterd(Randomizable, MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.HEDJitter`.
+    Sample new stain factors on each call and share them across all specified keys.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        theta: jitter range factor. Defaults to 0.0.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(self, keys: KeysCollection, theta: float = 0.0, allow_missing_keys: bool = False) -> None:
+        """Initialize the selected keys and wrapped stain transform.
+
+        Args:
+            keys: dictionary keys containing uint8 RGB images to transform.
+            theta: half-width of the uniform scale and offset sampling intervals.
+            allow_missing_keys: whether to skip keys absent from the input mapping.
+
+        Raises:
+            ValueError: if ``keys`` is empty.
+            TypeError: if any key is not hashable.
+            AssertionError: if ``theta`` is not a number.
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.hedjitter = HEDJitter(theta=theta)
+
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> HEDJitterd:
+        """Set the random state of this wrapper and its array transform.
+
+        Args:
+            seed: seed used to create a random state; takes precedence over ``state``.
+            state: NumPy random state to use when ``seed`` is not supplied.
+
+        Returns:
+            This transform, allowing calls to be chained.
+
+        Raises:
+            TypeError: if ``state`` is supplied without a seed and is not a NumPy RandomState.
+        """
+        super().set_random_state(seed, state)
+        self.hedjitter.set_random_state(seed, state)
+        return self
+
+    def randomize(self, data: Any = None) -> None:
+        """Sample one set of stain factors to share across the selected keys.
+
+        Args:
+            data: unused; accepted for compatibility with ``Randomizable``.
+        """
+        self.hedjitter.randomize()
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        """Apply the same sampled stain factors to each selected RGB image.
+
+        Args:
+            data: mapping containing uint8 RGB images at the configured keys.
+
+        Returns:
+            A new dictionary with transformed images and unchanged unselected entries.
+
+        Raises:
+            KeyError: if a configured key is absent and ``allow_missing_keys`` is False.
+            TypeError: if an image at a selected key is not a NumPy array.
+        """
+        d = dict(data)
+        self.randomize()
+        for key in self.key_iterator(d):
+            d[key] = self.hedjitter(d[key], randomize=False)
+        return d
 
 
 class ExtractHEStainsd(MapTransform):
@@ -111,3 +197,4 @@ class NormalizeHEStainsd(MapTransform):
 
 ExtractHEStainsDict = ExtractHEStainsD = ExtractHEStainsd
 NormalizeHEStainsDict = NormalizeHEStainsD = NormalizeHEStainsd
+HEDJitterDict = HEDJitterD = HEDJitterd

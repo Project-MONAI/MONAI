@@ -107,12 +107,16 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.array
+.. autoclass:: HEDJitter
+    :members:
 .. autoclass:: ExtractHEStains
     :members:
 .. autoclass:: NormalizeHEStains
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.dictionary
+.. autoclass:: HEDJitterd
+    :members:
 .. autoclass:: ExtractHEStainsd
     :members:
 .. autoclass:: NormalizeHEStainsd

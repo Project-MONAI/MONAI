@@ -59,11 +59,14 @@ from .post.dictionary import (
     Watershedd,
     WatershedDict,
 )
-from .stain.array import ExtractHEStains, NormalizeHEStains
+from .stain.array import ExtractHEStains, HEDJitter, NormalizeHEStains
 from .stain.dictionary import (
     ExtractHEStainsd,
     ExtractHEStainsD,
     ExtractHEStainsDict,
+    HEDJitterD,
+    HEDJitterd,
+    HEDJitterDict,
     NormalizeHEStainsd,
     NormalizeHEStainsD,
     NormalizeHEStainsDict,
