@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import FBetaScore
+from monai.metrics.f_beta_score import get_f_beta_score
 from tests.test_utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -74,6 +75,22 @@ class TestFBetaScore(unittest.TestCase):
         metric = FBetaScore()
         with self.assertRaises(ValueError):
             metric(y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1]]), y=torch.Tensor([1, 1, 1]))
+
+    def test_bool_inputs_match_float_inputs(self):
+        """Bool masks (e.g. ``pred > 0.5``) must give the same counts and score as their float equivalents."""
+        generator = torch.Generator().manual_seed(0)
+        y_pred = torch.rand(2, 3, 8, 8, generator=generator) > 0.5
+        y = torch.rand(2, 3, 8, 8, generator=generator) > 0.5
+
+        for include_background in (True, False):
+            expected = get_f_beta_score(y_pred.float(), y.float(), include_background=include_background)
+            result = get_f_beta_score(y_pred, y, include_background=include_background)
+            assert_allclose(result, expected, type_test=False)
+            self.assertTrue(bool((result[..., 0] > 0).all()))  # true positives are counted
+
+        metric = FBetaScore()
+        metric(y_pred=y, y=y)
+        assert_allclose(metric.aggregate()[0], torch.Tensor([1.0]), atol=1e-7, rtol=1e-7)
 
 
 if __name__ == "__main__":
