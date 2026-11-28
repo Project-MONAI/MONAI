@@ -5,6 +5,7 @@
 - [Installation Guide](#installation-guide)
 	- [Table of Contents](#table-of-contents)
 	- [GPU-enabled installation (CUDA and CuPy)](#gpu-enabled-installation-cuda-and-cupy)
+	- [GPU-enabled installation (AMD ROCm)](#gpu-enabled-installation-amd-rocm)
 	- [From PyPI](#from-pypi)
 		- [Milestone release](#milestone-release)
 		- [Weekly preview release](#weekly-preview-release)
@@ -64,6 +65,53 @@ your CUDA toolkit.
 
 ---
 
+## GPU-enabled installation (AMD ROCm)
+
+On AMD GPUs MONAI runs on the [ROCm](https://rocm.docs.amd.com/) build of PyTorch. The ROCm packages are
+served from AMD's package indexes rather than PyPI, so the index URLs are given on the command line.
+
+1. Install the ROCm SDK with the ROCm builds of PyTorch and Torchvision, naming the architecture of your GPU
+   (`gfx942` for the MI300 series, `gfx950` for the MI350 series), then unpack the SDK's development files:
+
+   ```bash
+   pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ \
+       "rocm[libraries,devel,device-gfx950]==10.0.*" "torch[device-gfx950]" "torchvision[device-gfx950]"
+   rocm-sdk init
+   ```
+
+1. Install MONAI with the AMD extras, adding AMD's extensions index for the same ROCm series:
+
+   ```bash
+   pip install --extra-index-url https://pypi.amd.com/rocm-10.0.0/simple/ 'monai[all_amd]'
+   ```
+
+Three extras are provided for ROCm:
+
+- `hipcim` installs [hipCIM](https://rocm.docs.amd.com/projects/hipCIM/en/latest/) (`amd-hipcim`), the ROCm
+  build of cuCIM.
+- `amd_cupy` installs `amd-cupy`, the ROCm build of CuPy.
+- `all_amd` is the counterpart of `all`: the optional dependencies that do not need NVIDIA hardware, together
+  with `hipcim` and `amd_cupy`.
+
+`amd-hipcim` provides the same `cucim` module as `cucim-cu12`/`cucim-cu13`, and `amd-cupy` the same `cupy`
+module as `cupy-cuda13x`, so MONAI code using either works unchanged. For the same reason only one of each
+pair can be installed in an environment: do not combine the AMD extras with `all`, `cucim`, `cupy` or
+`nvimgcodec`.
+
+A few points to be aware of:
+
+- `amd-cupy` and `amd-hipcim` are currently released for ROCm 10.0. Keep the ROCm SDK on that series, as the
+  `==10.0.*` pin above does.
+- Install Torchvision from the ROCm index in the first step. If it is left to the second step, `pip` takes
+  the PyPI build, which is not built for ROCm.
+- `amd-cupy` and `amd-hipcim` are served from AMD's extensions index, so the `--extra-index-url` option is
+  required in the second step.
+- `amd-hipcim` is currently released for CPython 3.12 on x86_64 Linux.
+- `Dockerfile.rocm` in the repository root sets up a complete environment, including the compiler and library
+  paths needed to build the C++/HIP extensions.
+
+---
+
 ## From PyPI
 
 ### Milestone release
@@ -77,10 +125,10 @@ pip install monai
 MONAI supports the extras syntax such as `pip install 'monai[nibabel]'`. The options are
 
 ```text
-clearml, cucim, cupy, einops, fire, gdown, h5py, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, matplotlib, metrics_reloaded, mlflow, nibabel, nni, nvimgcodec, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
+amd_cupy, clearml, cucim, cupy, einops, fire, gdown, h5py, hipcim, huggingface_hub, hyena, ignite, imagecodecs, itk, jsonschema, lmdb, matplotlib, metrics_reloaded, mlflow, nibabel, nni, nvimgcodec, onnx, openslide, optuna, pandas, pillow, polygraphy, psutil, pyamg, pybind11, pydicom, pynrrd, pynvml, pyyaml, requests, segment_anything, scipy, skimage, tensorboard, tensorboardX, tifffile, torchio, torchvision, tqdm, transformers, zarr
 ```
 
-which correspond to the packages: `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `nvidia-nvimgcodec-cu13`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
+which correspond to the packages: `amd-cupy`, `clearml`, `cucim` (`cucim-cu12` or `cucim-cu13`), `cupy-cuda13x`, `einops`, `fire`, `gdown`, `h5py`, `amd-hipcim`, `huggingface_hub`, `nvsubquadratic`, `omegaconf`, `pytorch-ignite`, `imagecodecs`, `itk`, `jsonschema`, `lmdb`, `matplotlib`, `MetricsReloaded`, `mlflow`, `nibabel`, `nni`, `filelock`, `nvidia-nvimgcodec-cu13`, `onnx`, `onnxruntime`, `onnx_graphsurgeon`, `onnxscript`, `openslide-python`, `openslide-bin`, `optuna`, `pandas`, `pillow`, `polygraphy`, `psutil`, `pyamg`, `pybind11`, `pydicom`, `pynrrd`, `nvidia-ml-py`, `pyyaml`, `requests`, `segment_anything`, `scipy`, `scikit-image`, `tensorboard`, `tensorboardX`, `tifffile`, `torchio`, `torchvision`, `tqdm`, `transformers`, `zarr`.
 
 The AlexNet, VGG, and SqueezeNet options in `PerceptualLoss` require `torchvision`
 (`pip install "monai[torchvision]"`). The external `lpips` package is no longer required.
@@ -94,6 +142,7 @@ The existing `monai[lpips]` extra is retained as an alias for `monai[torchvision
 
 Almost all of these can be installed together with the `all` option. For development on MONAI, this should be accompanied by `testing` which will install the testing static checking packages. Cupy and `nvimgcodec` are omitted from `all` since the choice between
 Cuda 12 and 13 versions of the libraries can't be resolved when installing and must be manually installed.
+On AMD ROCm use `all_amd` in place of `all`, see [GPU-enabled installation (AMD ROCm)](#gpu-enabled-installation-amd-rocm).
 
 The `nvimgcodec` extra installs GPU-accelerated DICOM decoding for `NvImgCodecPydicomReader`
 (`pip install 'monai[nvimgcodec]'`). It is Linux-only in the extra definition; CUDA 13 is the
