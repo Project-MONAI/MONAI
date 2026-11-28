@@ -95,6 +95,26 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertRaises(DeprecatedError, foo3)
 
+    def test_except1_message(self):
+        """Bare `@deprecated()` must not claim a version in the error message."""
+
+        @deprecated(version_val=self.test_version)
+        def foo3():
+            pass
+
+        with self.assertRaises(DeprecatedError) as cm:
+            foo3()
+        self.assertIn("was removed.", str(cm.exception))
+        self.assertNotIn("version None", str(cm.exception))
+
+        @deprecated(removed=self.prev_version, version_val=self.test_version)
+        def foo4():
+            pass
+
+        with self.assertRaises(DeprecatedError) as cm:
+            foo4()
+        self.assertIn(f"was removed in version {self.prev_version}.", str(cm.exception))
+
     def test_except2(self):
         """Test deprecated decorator raises exception with `removed` set in the past."""
 
@@ -192,6 +212,26 @@ class TestDeprecated(unittest.TestCase):
             pass
 
         self.assertRaises(DeprecatedError, lambda: afoo3(1, b=2))
+
+    def test_arg_except1_message(self):
+        """Bare `@deprecated_arg()` must not claim a version in the error message."""
+
+        @deprecated_arg("b", version_val=self.test_version)
+        def afoo3(a, b=None):
+            pass
+
+        with self.assertRaises(DeprecatedError) as cm:
+            afoo3(1, b=2)
+        self.assertIn("was removed.", str(cm.exception))
+        self.assertNotIn("version None", str(cm.exception))
+
+        @deprecated_arg("b", removed=self.prev_version, version_val=self.test_version)
+        def afoo4(a, b=None):
+            pass
+
+        with self.assertRaises(DeprecatedError) as cm:
+            afoo4(1, b=2)
+        self.assertIn(f"was removed in version {self.prev_version}.", str(cm.exception))
 
     def test_arg_except2(self):
         """Test deprecated_arg decorator raises exception with `removed` set in the past."""
