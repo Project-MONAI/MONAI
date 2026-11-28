@@ -21,6 +21,8 @@ from unittest.mock import patch
 from monai.apps import create_temp_dir
 from monai.utils import MONAIEnvVars
 
+from parameterized import parameterized
+
 MONAI_DATA_DIRECTORY = "MONAI_DATA_DIRECTORY"
 
 
@@ -28,7 +30,7 @@ class TestCreateTempDir(unittest.TestCase):
     def test_basic_use(self):
         """Test basic usage which should create a new random temporary directory."""
 
-        data_dir = os.environ.pop(MONAI_DATA_DIRECTORY, None)  # ignore the environment variable if present
+        data_dir = os.environ.pop(MONAI_DATA_DIRECTORY, None)  # don't let environment variable interfere with testing
         test_dir = None
         try:
             with patch("atexit.register") as mock_reg:
@@ -44,58 +46,40 @@ class TestCreateTempDir(unittest.TestCase):
                 shutil.rmtree(test_dir, ignore_errors=True)
 
     def test_data_dir(self):
-        """Test using a mocked MONAI_DATA_DIRECTORY, which should be returned by the function."""
-        with patch("monai.utils.MONAIEnvVars.data_dir") as data_dir, tempfile.TemporaryDirectory() as fake_data_dir:
-            data_dir.return_value = fake_data_dir
+        """Test using a mocked MONAIEnvVars.data_dir(), which should be returned by the function."""
+        with (
+            patch("atexit.register") as mock_reg,
+            patch("monai.utils.MONAIEnvVars.data_dir") as data_dir,
+            tempfile.TemporaryDirectory() as temp_dir,
+        ):
+            data_dir.return_value = selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
 
-            self.assertEqual(fake_data_dir, MONAIEnvVars.data_dir())
+            self.assertEqual(selected_dir, MONAIEnvVars.data_dir())
 
             test_dir = create_temp_dir()
 
+            mock_reg.assert_not_called()
             self.assertTrue(os.path.isdir(test_dir))
-            self.assertEqual(test_dir, fake_data_dir)
+            self.assertEqual(test_dir, selected_dir)
 
-    def test_given_dir(self):
-        """Test giving a directory to the function, ensuring it creates the directory."""
-        with tempfile.TemporaryDirectory() as temp_dir:
+    @parameterized.expand([(False, False), (True, False), (False, True)])
+    def test_given_dir(self, as_path, delete_on_finalise):
+        """
+        Test giving a directory to the function as string or Path, ensuring it creates the directory. If
+        `delete_on_finalise` is True, check the call to rmtree was registered, otherwise check atexit was not called.
+        """
+        with patch("atexit.register") as mock_reg, tempfile.TemporaryDirectory() as temp_dir:
             selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
 
-            test_dir = create_temp_dir(selected_dir)
+            test_dir = create_temp_dir(Path(selected_dir) if as_path else selected_dir, delete_on_finalise)
 
             self.assertTrue(os.path.isdir(selected_dir))
             self.assertEqual(test_dir, selected_dir)
 
-    def test_given_dir_path(self):
-        """Test giving a directory as a Path object to the function, ensuring it creates the directory."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
-
-            test_dir = create_temp_dir(Path(selected_dir))
-
-            self.assertTrue(os.path.isdir(selected_dir))
-            self.assertEqual(test_dir, selected_dir)
-
-    def test_finalisation(self):
-        """Test the temporary directory is deleted by finalisation."""
-        self.finaliser = None
-
-        def _register(func, /, *args, **kwargs):
-            self.finaliser = (func, args, kwargs)
-
-        with patch("atexit.register", new=_register), tempfile.TemporaryDirectory() as temp_dir:
-            selected_dir = f"{temp_dir}{os.path.sep}test_inner_dir"
-            test_dir = create_temp_dir(selected_dir, True)
-
-            self.assertTrue(os.path.isdir(selected_dir))
-            self.assertIsNotNone(self.finaliser)
-
-            with open(test_dir + "/test_file", "w") as o:
-                o.write("Test file data")
-
-            func, args, kwargs = self.finaliser
-            func(*args, **kwargs)
-
-            self.assertFalse(os.path.exists(selected_dir))
+            if delete_on_finalise:
+                mock_reg.assert_called_once_with(shutil.rmtree, selected_dir, ignore_errors=True)
+            else:
+                mock_reg.assert_not_called()
 
 
 if __name__ == "__main__":

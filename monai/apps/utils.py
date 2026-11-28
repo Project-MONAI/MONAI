@@ -443,11 +443,11 @@ def create_temp_dir(directory: PathLike | None = None, delete_on_finalise: bool 
     which is created if it doesn't exist already. If `directory` is None, the value of the environment variable
     `MONAI_DATA_DIRECTORY` is used instead, if this is not present then a random temporary directory is chosen. If
     `delete_on_finalise` is True, or a random temp directory was created, the directory and its contents will be deleted
-    when the process exits.
+    when the process exits. This will not delete the `MONAI_DATA_DIRECTORY` in any situation.
 
     Args:
         directory: path to desired temporary directory, or None to use MONAI_DATA_DIRECTORY or choose a random one.
-        delete_on_finalise: if True, the directory and its contents will be deleted when the process exits.
+        delete_on_finalise: if True, the given or chosen directory and contents will be deleted when the process exits.
 
     Returns:
         The path to the existing or new temporary directory, if `directory` is given this will be returned, otherwise it
@@ -456,9 +456,10 @@ def create_temp_dir(directory: PathLike | None = None, delete_on_finalise: bool 
     """
     if directory is None:
         directory = MONAIEnvVars.data_dir()
-        if directory is None:
+        delete_on_finalise = directory is None  # override argument so MONAI data directory isn't deleted by accident
+
+        if directory is None:  # choose a temporary directory which will be deleted on exit
             directory = tempfile.mkdtemp()
-            delete_on_finalise = True
     else:
         directory = str(directory)  # convert Path if given
 
