@@ -254,6 +254,8 @@ class ShiftIntensity(Transform):
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
+        if isinstance(offset, np.generic) or (isinstance(offset, torch.Tensor) and offset.ndim == 0):
+            offset = offset.item()  # Preserve scalar types for exact integer shifts and finite-value checks.
         if (
             self.safe
             and not img.is_floating_point()
