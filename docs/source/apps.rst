@@ -51,6 +51,8 @@ Applications
 
 .. autofunction:: download_and_extract
 
+.. autofunction:: create_temp_dir
+
 `Deepgrow`
 ----------
 
