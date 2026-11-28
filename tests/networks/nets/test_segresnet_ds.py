@@ -128,6 +128,14 @@ class TestSegResNetDS(unittest.TestCase):
             for i in range(dsdepth):
                 self.assertEqual(result[i].shape, expected_shapes[i], msg=str(input_param))
 
+    def test_args_not_modified_in_place(self):
+        norm = ("group", {"num_groups": 4})
+        act = ("relu", {})
+        SegResNetDS(spatial_dims=3, init_filters=8, norm=norm, act=act)
+        SegResNetDS2(spatial_dims=3, init_filters=8, norm=norm, act=act)
+        self.assertEqual(norm, ("group", {"num_groups": 4}))
+        self.assertEqual(act, ("relu", {}))
+
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             SegResNetDS(spatial_dims=4)
