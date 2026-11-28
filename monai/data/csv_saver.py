@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import codecs
 import os
 import warnings
 from collections import OrderedDict
@@ -31,6 +32,10 @@ class CSVSaver:
     the cached data into CSV file. If no metadata provided, use index from 0 to save data.
     Note that this saver can't support multi-processing because it reads / writes single
     CSV file and can't guarantee the data order in multi-processing situation.
+    The saver assumes it is the only writer while active; concurrent external modifications
+    to the output file are unsupported.
+    Output files are encoded as UTF-8. Appending to an existing file that is not valid
+    UTF-8 raises a ``ValueError`` instead of mixing encodings.
 
     """
 
@@ -62,18 +67,45 @@ class CSVSaver:
         if self._filepath.exists() and overwrite:
             os.remove(self._filepath)
 
+        self._validated_file: tuple[int, ...] | None = None
         self.flush = flush
         self.delimiter = delimiter
         self._data_index = 0
 
+    @staticmethod
+    def _file_fingerprint(file_stat: os.stat_result) -> tuple[int, ...]:
+        return (file_stat.st_dev, file_stat.st_ino, file_stat.st_size, file_stat.st_mtime_ns, file_stat.st_ctime_ns)
+
+    def _validate_utf8_file(self) -> None:
+        file_stat = self._filepath.stat()
+        fingerprint = self._file_fingerprint(file_stat)
+        if self._validated_file == fingerprint:
+            return
+
+        try:
+            decoder = codecs.getincrementaldecoder("utf-8")("strict")
+            with open(self._filepath, "rb") as existing:
+                for chunk in iter(lambda: existing.read(1024 * 1024), b""):
+                    decoder.decode(chunk)
+            decoder.decode(b"", final=True)
+        except UnicodeDecodeError as error:
+            raise ValueError(f"{self._filepath} is not valid UTF-8; convert it to UTF-8 before appending.") from error
+        self._validated_file = fingerprint
+
     def finalize(self) -> None:
         """
-        Writes the cached dict to a csv
+        Write the cached dict to a CSV file.
+
+        Raises:
+            ValueError: If appending to an existing file that is not valid UTF-8.
+                The existing file is left unchanged and the cache is preserved.
 
         """
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
-        with open(self._filepath, "a") as f:
+        if self._filepath.exists():
+            self._validate_utf8_file()
+        with open(self._filepath, "a", encoding="utf-8") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
@@ -81,6 +113,7 @@ class CSVSaver:
                 f.write("\n")
         # clear cache content after writing
         self.reset_cache()
+        self._validated_file = self._file_fingerprint(self._filepath.stat())
 
     def save(self, data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
@@ -104,6 +137,10 @@ class CSVSaver:
         Args:
             batch_data: target batch data content that save into cache.
             meta_data: every key-value in the meta_data is corresponding to 1 batch of data.
+
+        Raises:
+            ValueError: If ``flush`` is True and appending to an existing file that
+                is not valid UTF-8. The exception is propagated from ``finalize``.
 
         """
         for i, data in enumerate(batch_data):  # save a batch of files

@@ -68,6 +68,7 @@ def write_metrics_reports(
     1. if `metrics` dict is not None, write overall metrics into file, every line is a metric name and value pair.
     2. if `metric_details` dict is not None,  write raw metric data of every image into file, every line for 1 image.
     3. if `summary_ops` is not None, compute summary based on operations on `metric_details` and write to file.
+    All output files are encoded as UTF-8.
 
     Args:
         save_dir: directory to save all the metrics reports.
@@ -106,7 +107,7 @@ def write_metrics_reports(
         os.makedirs(save_dir)
 
     if metrics is not None and len(metrics) > 0:
-        with open(os.path.join(save_dir, "metrics.csv"), "w") as f:
+        with open(os.path.join(save_dir, "metrics.csv"), "w", encoding="utf-8") as f:
             for k, v in metrics.items():
                 f.write(f"{k}{deli}{str(v)}\n")
     if metric_details is not None and len(metric_details) > 0:
@@ -129,7 +130,7 @@ def write_metrics_reports(
             labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
-            with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
+            with open(os.path.join(save_dir, f"{k}_raw.csv"), "w", encoding="utf-8") as f:
                 f.write(f"filename{deli}{deli.join(labels)}\n")
                 for i, b in enumerate(v):
                     f.write(
@@ -161,7 +162,7 @@ def write_metrics_reports(
                     threshold = int(op.split("percentile")[0])
                     return supported_ops["90percentile"]((d, threshold))  # type: ignore
 
-                with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
+                with open(os.path.join(save_dir, f"{k}_summary.csv"), "w", encoding="utf-8") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
                         f.write(f"{labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
