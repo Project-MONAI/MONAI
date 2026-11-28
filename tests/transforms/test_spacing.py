@@ -388,6 +388,15 @@ class TestSpacingCase(unittest.TestCase):
         assert_allclose(np.sign(res.affine[:3, :3].cpu().numpy()), np.sign(expected.affine[:3, :3]), type_test=False)
         assert_allclose(res.affine, expected.affine, type_test=False, atol=0.3)
 
+    def test_recompute_affine_diagonal_sheared(self):
+        # a small pixdim shrinks the off-axis terms of the voxel mapping; a sheared input must still
+        # get the orthogonal destination grid
+        affine = torch.tensor([[1.0, 0.04, 0], [0, 1.0, 0], [0, 0, 1]], dtype=torch.float64)
+        img = MetaTensor(torch.rand(1, 2, 2), affine=affine)
+        expected = Spacing(pixdim=0.02, diagonal=True)(img)
+        res = Spacing(pixdim=0.02, diagonal=True, recompute_affine=True)(img)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=1e-6)
+
     def test_property_no_change(self):
         affine = torch.tensor(
             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"

@@ -545,7 +545,8 @@ class Spacing(InvertibleTransform, LazyTransform):
             # output voxel -> input voxel; with diagonal=True the output axes can be flipped or permuted
             g = np.linalg.solve(affine_, new_affine)[:sr, :sr]
             src = np.abs(g).argmax(axis=0)  # input axis behind each output axis
-            off_axis = g.copy()
+            # compare axis directions, since g scales with pixdim
+            off_axis = g / np.linalg.norm(g, axis=0, keepdims=True)
             off_axis[src, np.arange(sr)] = 0
             if len(set(src)) == sr and np.allclose(off_axis, 0, atol=AFFINE_TOL):
                 # scale the input extent onto the actual output shape, then map it back to the input axes
