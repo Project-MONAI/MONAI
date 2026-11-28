@@ -185,7 +185,7 @@ jobs:
       if: needs.test_skip.outputs.skip == 0
       run: |
         which python
-        python -m pip install --upgrade pip wheel tomli
+        python -m pip install --upgrade pip wheel
     - name: Install the minimum dependencies
       if: needs.test_skip.outputs.skip == 0
       run: |
@@ -371,7 +371,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       QUICKTEST: True
-      INDEX_URL: "https://download.pytorch.org/whl/cpu"
     steps:
     - name: Clean unused tools
       run: |
@@ -393,7 +392,7 @@ jobs:
         python -m pip install --user --upgrade pip setuptools wheel twine packaging tomli
         # install the latest pytorch for testing
         python monai/config/print_dependencies.py build-system all testing | \
-            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1} --extra-index-url $INDEX_URL
+            xargs -d '\n' pip install --no-build-isolation torch==${PYTORCH_VER1}
     - name: Check packages
       run: |
         python -m pip uninstall -y monai
@@ -422,7 +421,7 @@ jobs:
       working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from wheel
-        python -m pip install --no-build-isolation monai*.whl --extra-index-url $INDEX_URL
+        python -m pip install --no-build-isolation monai*.whl
         python -m monai.config
         python -m pip uninstall -y monai
         rm monai*.whl
@@ -431,12 +430,12 @@ jobs:
       run: |
         for name in *.tar.gz; do break; done
         echo $name
-        python -m pip install --no-build-isolation ${name}[all] --extra-index-url $INDEX_URL
+        python -m pip install --no-build-isolation ${name}[all]
         python -m monai.config
         python -m pip uninstall -y monai
     - name: Install using uv
       working-directory: ${{ steps.root.outputs.pwd }}
       run: |
         pip install uv
-        uv pip install --system --no-build-isolation .[all] --extra-index-url $INDEX_URL
+        uv pip install --system --no-build-isolation .[all] --extra-index-url $PIP_EXTRA_INDEX_URL
         python -m monai.config
