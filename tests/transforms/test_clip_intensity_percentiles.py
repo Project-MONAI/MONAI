@@ -107,6 +107,23 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
             expected = clip(c, lower, upper)
             assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
+    @parameterized.expand([[p, dtype] for p in TEST_NDARRAYS for dtype in (torch.uint8, torch.int16)])
+    def test_hard_clipping_integer_input(self, p, dtype):
+        # integer images (e.g. uint8 PNG or int16 CT) are clipped at their percentiles and keep their dtype
+        im = torch.arange(100, dtype=dtype).reshape(1, 10, 10)
+        result = ClipIntensityPercentiles(upper=95, lower=5)(p(im))
+        self.assertEqual(convert_to_tensor(result).dtype, dtype)
+        assert_allclose(result, torch.clamp(im, 4, 94), type_test=False)
+
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_soft_clipping_integer_input(self, p):
+        # the output keeps the integer dtype of the input, so compare with the floating point result cast back
+        im = torch.arange(100, dtype=torch.int16).reshape(1, 10, 10)
+        soft_clipper = ClipIntensityPercentiles(upper=95, lower=5, sharpness_factor=1.0)
+        result = soft_clipper(p(im))
+        expected = soft_clipper(im.float()).to(torch.int16)
+        assert_allclose(result, expected, type_test=False)
+
     def test_ill_sharpness_factor(self):
         with self.assertRaises(ValueError):
             ClipIntensityPercentiles(upper=95, lower=5, sharpness_factor=0.0)

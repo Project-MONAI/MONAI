@@ -120,19 +120,35 @@ def percentile(
             https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Returns:
-        Resulting value (scalar)
+        Resulting value (scalar). As with `np.percentile`, integer inputs give a floating point result (float64),
+        so interpolated percentiles are not truncated to the input dtype, and floating point inputs keep their dtype.
     """
     q_np = convert_data_type(q, output_type=np.ndarray, wrap_sequence=True)[0]
     if ((q_np < 0) | (q_np > 100)).any():
         raise ValueError(f"q values must be in [0, 100], got values: {q}.")
     result: NdarrayOrTensor | float | int
     if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
-        _x = convert_data_type(x, output_type=np.ndarray)[0]
+        # `.numpy()` does not support bfloat16, compute in float32 and cast back below
+        _x = convert_data_type(
+            x.float() if isinstance(x, torch.Tensor) and x.dtype == torch.bfloat16 else x, output_type=np.ndarray
+        )[0]
+        is_floating = np.issubdtype(_x.dtype, np.floating)
+        if _x.dtype == np.bool_:
+            _x = _x.astype(np.float64)  # `np.percentile` cannot interpolate between boolean values
         result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
-        result = convert_to_dst_type(result, x)[0]
+        # keep the floating point dtype of the result for non-floating inputs, otherwise it would be truncated
+        out_dtype = None if is_floating else np.asarray(result).dtype
+        result = convert_to_dst_type(result, x, dtype=out_dtype)[0]
     else:
-        q = convert_to_dst_type(q_np / 100.0, x)[0]
-        result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
+        # `torch.quantile` only supports float32 and float64 inputs
+        if x.dtype in (torch.float32, torch.float64):
+            _xt = x
+        else:
+            _xt = x.to(torch.float32 if x.is_floating_point() else torch.float64)
+        q = convert_to_dst_type(q_np / 100.0, _xt)[0]
+        result = torch.quantile(_xt, q, dim=dim, keepdim=keepdim)
+        if x.is_floating_point():
+            result = result.to(x.dtype)  # e.g. float16 inputs give float16 results, as with `np.percentile`
     return result
 
 
