@@ -52,7 +52,7 @@ __all__ = [
     "extractall",
     "download_and_extract",
     "get_logger",
-    "SUPPORTED_HASH_TYPES"
+    "SUPPORTED_HASH_TYPES",
 ]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"

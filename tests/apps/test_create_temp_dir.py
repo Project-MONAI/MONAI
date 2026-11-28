@@ -18,10 +18,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from parameterized import parameterized
+
 from monai.apps import create_temp_dir
 from monai.utils import MONAIEnvVars
-
-from parameterized import parameterized
 
 MONAI_DATA_DIRECTORY = "MONAI_DATA_DIRECTORY"
 
