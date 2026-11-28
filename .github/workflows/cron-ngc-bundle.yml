@@ -7,6 +7,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
   group: bundle-tests-${{ github.event.pull_request.number || github.ref }}
@@ -18,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         cache: pip
     - name: Install CPU PyTorch
       run: |
@@ -29,8 +32,8 @@ jobs:
     - name: Install dependencies
       run: |
         rm -rf /github/home/.cache/torch/hub/bundle/
-        python -m pip install --no-build-isolation --upgrade pip wheel wheel-stub
-        python -m pip install --no-build-isolation -r requirements-dev.txt
+        python -m pip install -U pip wheel wheel-stub
+        python -m pip install .[all,testing]
     - name: Loading Bundles
       run: |
         # clean up temporary files

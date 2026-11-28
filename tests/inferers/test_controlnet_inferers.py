@@ -1501,6 +1501,56 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
                 seg=input_seg,
             )
 
+    @skipUnless(has_einops, "Requires einops")
+    def test_sample_spade_label_nc_mismatch(self):
+        """Check that mismatched SPADE ``label_nc`` values raise an error reporting both values."""
+        stage_1 = SPADEAutoencoderKL(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=(4, 4),
+            latent_channels=3,
+            attention_levels=[False, False],
+            num_res_blocks=1,
+            norm_num_groups=4,
+            label_nc=5,
+        )
+        stage_2 = SPADEDiffusionModelUNet(
+            spatial_dims=2,
+            in_channels=3,
+            out_channels=3,
+            channels=[4, 4],
+            norm_num_groups=4,
+            attention_levels=[False, False],
+            num_res_blocks=1,
+            num_head_channels=4,
+            label_nc=3,
+        )
+        controlnet = ControlNet(
+            spatial_dims=2,
+            in_channels=3,
+            channels=[4, 4],
+            attention_levels=[False, False],
+            num_res_blocks=1,
+            norm_num_groups=4,
+            num_head_channels=4,
+            conditioning_embedding_num_channels=[16],
+            conditioning_embedding_in_channels=1,
+        )
+        scheduler = DDPMScheduler(num_train_timesteps=10)
+        inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
+        scheduler.set_timesteps(num_inference_steps=10)
+        with self.assertRaisesRegex(ValueError, "number of semantic labels .* Got 5 and 3"):
+            inferer.sample(
+                input_noise=torch.randn(1, 3, 4, 4),
+                autoencoder_model=stage_1,
+                diffusion_model=stage_2,
+                scheduler=scheduler,
+                seg=torch.randn(1, 5, 8, 8),
+                controlnet=controlnet,
+                cn_cond=torch.randn(1, 1, 8, 8),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,7 +22,8 @@ from torch.nn.modules.loss import _Loss
 
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
-from monai.losses.utils import compute_tp_fp_fn
+from monai.losses.utils import compute_tp_fp_fn, mask_loss_inputs
+from monai.metrics.utils import create_ignore_mask
 from monai.networks import one_hot
 from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option
 
@@ -67,6 +68,7 @@ class DiceLoss(_Loss):
         batch: bool = False,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         soft_label: bool = False,
+        ignore_index: int | None = None,
     ) -> None:
         """
         Args:
@@ -100,6 +102,10 @@ class DiceLoss(_Loss):
                 The value/values should be no less than 0. Defaults to None.
             soft_label: whether the target contains non-binary values (soft labels) or not.
                 If True a soft label formulation of the loss will be used.
+            ignore_index: single integer class index (or sentinel value) to ignore from the loss computation.
+                Voxels with this label are excluded from the loss, which is useful for padding, unlabeled regions,
+                or boundary artifacts. For federated or aggregated settings, ensure all clients use the same
+                ignore_index to keep loss values comparable.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -122,6 +128,7 @@ class DiceLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.ignore_index = ignore_index
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
@@ -163,10 +170,15 @@ class DiceLoss(_Loss):
         if self.other_act is not None:
             input = self.other_act(input)
 
+        original_target = target
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.", stacklevel=2)
             else:
+                if self.ignore_index is not None:
+                    if self.ignore_index < 0 or self.ignore_index >= n_pred_ch:
+                        target = torch.where(target == self.ignore_index, torch.zeros_like(target), target)
                 target = one_hot(target, num_classes=n_pred_ch)
 
         if not self.include_background:
@@ -177,8 +189,12 @@ class DiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
+        mask = create_ignore_mask(original_target, self.ignore_index)
+
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+
+        input, target = mask_loss_inputs(input, target, self.ignore_index, mask=mask)
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()

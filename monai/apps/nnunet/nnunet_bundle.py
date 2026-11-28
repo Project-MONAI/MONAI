@@ -10,9 +10,12 @@
 # limitations under the License.
 from __future__ import annotations
 
+import inspect
 import os
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
+from pydoc import locate
 from typing import Any
 
 import numpy as np
@@ -32,7 +35,59 @@ __all__ = [
     "convert_nnunet_to_monai_bundle",
     "convert_monai_bundle_to_nnunet",
     "ModelnnUNetWrapper",
+    "DEFAULT_NNUNET_NETWORK_MODULES",
 ]
+
+#: Modules that nnUNet plans may reference for the network class and its imported keyword arguments.
+DEFAULT_NNUNET_NETWORK_MODULES: tuple[str, ...] = ("dynamic_network_architectures", "torch.nn")
+
+
+def _in_allowed_modules(dotted_name: str, allowed_modules: Sequence[str]) -> bool:
+    return any(dotted_name == m or dotted_name.startswith(m + ".") for m in allowed_modules)
+
+
+def _check_nnunet_network_spec(
+    class_name: Any, init_kwargs: Any, kwargs_requiring_import: Any, allowed_modules: Sequence[str] | None = None
+) -> None:
+    """
+    Check the network specification read from an nnUNet ``plans.json`` before nnUNet resolves and builds it.
+
+    nnUNet imports ``network_class_name`` and every keyword argument listed in ``_kw_requires_import`` by dotted
+    name and calls them, so each of these names must be under one of ``allowed_modules`` and, if it can be
+    imported, must refer to a ``torch.nn.Module`` subclass. The module prefix is checked before anything is
+    imported.
+
+    Args:
+        class_name: the ``network_class_name`` from the plans.
+        init_kwargs: the ``arch_kwargs`` from the plans.
+        kwargs_requiring_import: the ``_kw_requires_import`` names from the plans.
+        allowed_modules: dotted module prefixes that may be referenced. Defaults to
+            ``DEFAULT_NNUNET_NETWORK_MODULES``. Add the module of a custom architecture here to load it.
+
+    Raises:
+        ValueError: if a name is outside ``allowed_modules`` or does not resolve to a ``torch.nn.Module`` subclass.
+    """
+    allowed = tuple(DEFAULT_NNUNET_NETWORK_MODULES if allowed_modules is None else allowed_modules)
+    hint = "Pass the module in `allowed_network_modules` if this architecture is trusted."
+
+    def _check(name: Any, what: str) -> None:
+        if not isinstance(name, str) or not _in_allowed_modules(name, allowed):
+            raise ValueError(f"Refusing to load {what} {name!r} from nnUNet plans: not in {list(allowed)}. {hint}")
+        resolved = locate(name)
+        # an unresolved name is left to nnUNet, which only searches inside dynamic_network_architectures for it
+        if resolved is not None and not (isinstance(resolved, type) and issubclass(resolved, torch.nn.Module)):
+            raise ValueError(f"Refusing to load {what} {name!r} from nnUNet plans: not a torch.nn.Module subclass.")
+
+    _check(class_name, "network class")
+    init_kwargs = init_kwargs or {}
+    if not isinstance(init_kwargs, dict):
+        raise ValueError(
+            f"Invalid network arguments in nnUNet plans: expected a dict, got {type(init_kwargs).__name__}."
+        )
+    for key in kwargs_requiring_import or ():
+        value = init_kwargs.get(key)
+        if value is not None:
+            _check(value, f"network argument {key!r}")
 
 
 def get_nnunet_trainer(
@@ -152,6 +207,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
         The folder path where the model and related files are stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
+    allowed_network_modules : Sequence[str], optional
+        Module prefixes that the plans may reference for the network class and imported network arguments,
+        by default ``DEFAULT_NNUNET_NETWORK_MODULES``.
 
     Attributes
     ----------
@@ -166,7 +224,13 @@ class ModelnnUNetWrapper(torch.nn.Module):
     restoring network architecture, and setting up the predictor for inference.
     """
 
-    def __init__(self, predictor: object, model_folder: str | Path, model_name: str = "model.pt"):  # type: ignore
+    def __init__(
+        self,
+        predictor: object,
+        model_folder: str | Path,
+        model_name: str = "model.pt",
+        allowed_network_modules: Sequence[str] | None = None,
+    ):  # type: ignore
         super().__init__()
         self.predictor = predictor
 
@@ -216,14 +280,31 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 f"Unable to locate trainer class {trainer_name} in nnunetv2.training.nnUNetTrainer. "
                 f"Please place it there (in any .py file)!"
             )
-        network = trainer_class.build_network_architecture(
+        _check_nnunet_network_spec(
             configuration_manager.network_arch_class_name,
             configuration_manager.network_arch_init_kwargs,
             configuration_manager.network_arch_init_kwargs_req_import,
-            num_input_channels,
-            plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
-            enable_deep_supervision=False,
+            allowed_network_modules,
         )
+        num_output_channels = plans_manager.get_label_manager(dataset_json).num_segmentation_heads
+        # nnunetv2 >= 2.7 trainers take the plans and configuration managers, not the unpacked architecture arguments
+        if "plans_manager" in inspect.signature(trainer_class.build_network_architecture).parameters:
+            network = trainer_class.build_network_architecture(
+                plans_manager,
+                configuration_manager,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision=False,
+            )
+        else:
+            network = trainer_class.build_network_architecture(
+                configuration_manager.network_arch_class_name,
+                configuration_manager.network_arch_init_kwargs,
+                configuration_manager.network_arch_init_kwargs_req_import,
+                num_input_channels,
+                num_output_channels,
+                enable_deep_supervision=False,
+            )
 
         predictor.plans_manager = plans_manager  # type: ignore
         predictor.configuration_manager = configuration_manager  # type: ignore
@@ -294,7 +375,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
         return MetaTensor(out_tensor, meta=x.meta)
 
 
-def get_nnunet_monai_predictor(model_folder: str | Path, model_name: str = "model.pt") -> ModelnnUNetWrapper:
+def get_nnunet_monai_predictor(
+    model_folder: str | Path, model_name: str = "model.pt", allowed_network_modules: Sequence[str] | None = None
+) -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
     The model folder should contain the following files, created during training:
@@ -325,6 +408,9 @@ def get_nnunet_monai_predictor(model_folder: str | Path, model_name: str = "mode
         The folder where the model is stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
+    allowed_network_modules : Sequence[str], optional
+        Module prefixes that ``plans.json`` may reference for the network class and imported network arguments,
+        by default ``DEFAULT_NNUNET_NETWORK_MODULES``. Extend it to load a trusted custom architecture.
 
     Returns
     -------
@@ -344,7 +430,7 @@ def get_nnunet_monai_predictor(model_folder: str | Path, model_name: str = "mode
         allow_tqdm=True,
     )
     # initializes the network architecture, loads the checkpoint
-    wrapper = ModelnnUNetWrapper(predictor, model_folder, model_name)
+    wrapper = ModelnnUNetWrapper(predictor, model_folder, model_name, allowed_network_modules)
     return wrapper
 
 
@@ -428,6 +514,7 @@ def get_network_from_nnunet_plans(
     configuration: str,
     model_ckpt: str | None = None,
     model_key_in_ckpt: str = "model",
+    allowed_network_modules: Sequence[str] | None = None,
 ) -> torch.nn.Module | Any:
     """
     Load and initialize a nnUNet network based on nnUNet plans and configuration.
@@ -444,6 +531,9 @@ def get_network_from_nnunet_plans(
         Path to the model checkpoint file. If None, the network is returned without loading weights (default is None).
     model_key_in_ckpt : str, optional
         The key in the checkpoint file that contains the model state dictionary (default is "model").
+    allowed_network_modules : Sequence[str], optional
+        Module prefixes that ``plans_file`` may reference for the network class and imported network arguments,
+        by default ``DEFAULT_NNUNET_NETWORK_MODULES``. Extend it to load a trusted custom architecture.
 
     Returns
     -------
@@ -465,6 +555,12 @@ def get_network_from_nnunet_plans(
 
     enable_deep_supervision = True
 
+    _check_nnunet_network_spec(
+        configuration_manager.network_arch_class_name,
+        configuration_manager.network_arch_init_kwargs,
+        configuration_manager.network_arch_init_kwargs_req_import,
+        allowed_network_modules,
+    )
     network = get_network_from_plans(
         configuration_manager.network_arch_class_name,
         configuration_manager.network_arch_init_kwargs,

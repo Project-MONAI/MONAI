@@ -58,6 +58,10 @@ class TestDownloadAndExtract(unittest.TestCase):
         with self.assertRaises(HashCheckError):
             download_url(self.url, filepath, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
 
+        # test the warning is raised if no hash_type is given
+        with self.assertWarns(FutureWarning):
+            download_url(self.url, filepath, hash_val=self.hash_val)
+
     @skip_if_quick
     def test_extractall_hash_mismatch(self):
         """extractall should raise HashCheckError when hash is incorrect."""
@@ -69,6 +73,10 @@ class TestDownloadAndExtract(unittest.TestCase):
 
         with self.assertRaises(HashCheckError):
             extractall(filepath, output_dir, hash_val="0" * len(self.hash_val), hash_type=self.hash_type)
+
+        # test the warning is raised if no hash_type is given
+        with self.assertWarns(FutureWarning):
+            extractall(filepath, output_dir, hash_val=self.hash_val)
 
     @skip_if_quick
     @parameterized.expand([("icon", "tar"), ("favicon", "zip")])

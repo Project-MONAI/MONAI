@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import copy
 import datetime
 import functools
@@ -20,6 +21,7 @@ import json
 import operator
 import os
 import queue
+import shutil
 import ssl
 import subprocess
 import sys
@@ -69,6 +71,10 @@ warnings.filterwarnings("ignore", message="Accessing.*__warningregistry__")
 
 MODULE_PATH = Path(__file__).resolve().parents[1]
 
+TESTS_PATH = MODULE_PATH / "tests"
+
+TESTING_DATA_PATH = TESTS_PATH / "testing_data"
+
 DOWNLOAD_EXCEPTS: tuple[type, ...] = (ContentTooShortError, HTTPError, ConnectionError)
 if has_req:
     DOWNLOAD_EXCEPTS += (http_error,)
@@ -92,7 +98,7 @@ DOWNLOAD_FAIL_MSGS = (
 def testing_data_config(*keys):
     """get _test_data_config[keys0][keys1]...[keysN]"""
     if not _test_data_config:
-        with open(f"{MODULE_PATH}/tests/testing_data/data_config.json") as c:
+        with open(f"{TESTING_DATA_PATH}/data_config.json") as c:
             _config = json.load(c)
             for k, v in _config.items():
                 _test_data_config[k] = v
@@ -360,7 +366,8 @@ def make_nifti_image(
 ):
     """
     Create a temporary nifti image on the disk and return the image name.
-    User is responsible for deleting the temporary file when done with it.
+    If `dir` is not given, a temporary directory is created to hold the image and removed at
+    interpreter exit. If `dir` is given, the caller owns it.
     """
     if isinstance(array, torch.Tensor):
         array, *_ = convert_data_type(array, np.ndarray)
@@ -373,6 +380,7 @@ def make_nifti_image(
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
         dir = tempfile.mkdtemp()
+        atexit.register(shutil.rmtree, dir, ignore_errors=True)
     else:
         os.makedirs(dir, exist_ok=True)
 

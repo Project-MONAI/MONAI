@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias, cast  # pyrefly: ignore [missing-module-attribute]
 
 import numpy as np
 import torch
@@ -1104,6 +1104,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         self.cropper.set_random_state(seed, state)
         return self
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self,
         label: torch.Tensor | None = None,
@@ -1266,6 +1267,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper.set_random_state(seed, state)
         return self
 
+    # pyrefly: ignore [bad-override]
     def randomize(
         self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
     ) -> None:

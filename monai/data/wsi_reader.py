@@ -319,6 +319,7 @@ class BaseWSIReader(ImageReader):
         }
         return metadata
 
+    # pyrefly: ignore [bad-override]
     def get_data(
         self,
         wsi,

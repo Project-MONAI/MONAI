@@ -64,6 +64,52 @@ class TestFullyConnectedNet(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))[0]
             self.assertEqual(result.shape, expected_shape)
 
+    def test_vfc_reparameterize_eval_returns_mu(self):
+        """A VFC latent code is deterministic at eval (equals mu) and stochastic at train.
+
+        Regression test for the #8413 reparameterize bug, which returned ``mu + std``
+        at inference instead of ``mu``.
+        """
+        net = VarFullyConnectedNet(
+            in_channels=10,
+            out_channels=10,
+            latent_size=30,
+            encode_channels=(15, 20, 25),
+            decode_channels=(15, 20, 25),
+            use_mean_at_inference=True,
+        ).to(device)
+        data = torch.randn(3, 10).to(device)
+
+        with eval_mode(net):
+            _, mu1, _, z1 = net(data)
+            _, _, _, z2 = net(data)
+        self.assertTrue(torch.allclose(z1, mu1))
+        self.assertTrue(torch.allclose(z1, z2))
+
+        net.train()
+        with torch.no_grad():
+            _, mu_t, _, zt1 = net(data)
+            _, _, _, zt2 = net(data)
+        self.assertFalse(torch.allclose(zt1, mu_t))
+        self.assertFalse(torch.allclose(zt1, zt2))
+
+    def test_vfc_reparameterize_default_keeps_original_behaviour(self):
+        """By default, eval returns ``mu + std`` (deterministic) for backward compatibility.
+
+        The default must preserve the pre-#8413 behaviour: at inference the standard
+        deviation is added to the mean without random noise.
+        """
+        net = VarFullyConnectedNet(
+            in_channels=10, out_channels=10, latent_size=30, encode_channels=(15, 20, 25), decode_channels=(15, 20, 25)
+        ).to(device)
+        data = torch.randn(3, 10).to(device)
+
+        with eval_mode(net):
+            _, mu1, _, z1 = net(data)
+            _, _, _, z2 = net(data)
+        self.assertFalse(torch.allclose(z1, mu1))
+        self.assertTrue(torch.allclose(z1, z2))
+
 
 if __name__ == "__main__":
     unittest.main()

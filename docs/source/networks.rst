@@ -99,6 +99,11 @@ Blocks
 .. autoclass:: DenseBlock
    :members:
 
+`MedNeXtBlock`
+~~~~~~~~~~~~~~
+.. autoclass:: MedNeXtBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -158,6 +163,16 @@ Blocks
 `Residual Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ResidualSELayer
+    :members:
+
+`Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SpatialSELayer
+    :members:
+
+`Channel-Spatial Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSpatialSELayer
     :members:
 
 `Squeeze-and-Excitation Block`
@@ -343,6 +358,11 @@ Layers
 
 .. currentmodule:: monai.networks.layers
 
+`LayerNormNd`
+~~~~~~~~~~~~~
+.. autoclass:: LayerNormNd
+    :members:
+
 `ChannelPad`
 ~~~~~~~~~~~~
 .. autoclass:: ChannelPad
@@ -466,6 +486,31 @@ Nets
 ~~~~~~~
 .. autoclass:: AHNet
   :members:
+
+`ConvNeXt`
+~~~~~~~~~~
+.. autoclass:: ConvNeXt
+  :members:
+
+`ConvNeXtTiny`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtTiny
+
+`ConvNeXtSmall`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtSmall
+
+`ConvNeXtBase`
+~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtBase
+
+`ConvNeXtLarge`
+~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtLarge
+
+`ConvNeXtXLarge`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ConvNeXtXLarge
 
 `DenseNet`
 ~~~~~~~~~~
@@ -662,6 +707,11 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
+`NaViT`
+~~~~~~~
+.. autoclass:: NaViT
+  :members:
+
 `ViT`
 ~~~~~
 .. autoclass:: ViT
@@ -732,6 +782,25 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
+`LPIPS`
+~~~~~~~
+.. autoclass:: LPIPS
+  :members:
+
+`LPIPSFeatures`
+~~~~~~~~~~~~~~~
+.. autoclass:: LPIPSFeatures
+  :members:
+
+`NetLinLayer`
+~~~~~~~~~~~~~
+.. autoclass:: NetLinLayer
+
+`ScalingLayer`
+~~~~~~~~~~~~~~
+.. autoclass:: ScalingLayer
+  :members:
+
 `MILModel`
 ~~~~~~~~~~
 .. autoclass:: MILModel
@@ -788,6 +857,11 @@ Nets
    :members:
 
 .. autoclass:: VoxelMorph
+   :members:
+
+`MedNeXt`
+~~~~~~~~~~~~
+.. autoclass:: MedNeXt
    :members:
 
 Utilities

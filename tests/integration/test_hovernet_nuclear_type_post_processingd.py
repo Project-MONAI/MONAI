@@ -66,6 +66,18 @@ class TestHoVerNetNuclearTypePostProcessingd(unittest.TestCase):
         else:
             assert_allclose(outputs["type_map"], expected[2], type_test=False)
 
+    def test_existing_type_map_key(self):
+        """Check that an existing ``type_map_key`` raises an error naming that key."""
+        input = {
+            HoVerNetBranch.NP.value: image.astype(float),
+            HoVerNetBranch.HV.value: ComputeHoVerMaps()(image.astype(int)),
+            HoVerNetBranch.NC.value: image,
+        }
+        outputs = HoVerNetInstanceMapPostProcessingd()(input)
+        outputs["custom_type_map"] = image
+        with self.assertRaisesRegex(ValueError, r"\['custom_type_map'\] already exists"):
+            HoVerNetNuclearTypePostProcessingd(type_map_key="custom_type_map")(outputs)
+
 
 if __name__ == "__main__":
     unittest.main()

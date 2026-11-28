@@ -12,14 +12,25 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
+from importlib.machinery import PathFinder
 
 import numpy as np
 
-from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
+from monai.data import (
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    NvImgCodecPydicomReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.transforms import LoadImage, LoadImaged
-from monai.utils import MetaKeys
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.test_utils import SkipIfNoModule
 
 
@@ -30,9 +41,75 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
-            inst = LoadImaged("image", reader=r)
+        optional_readers = {
+            "NibabelReader": "nibabel",
+            "PILReader": "PIL",
+            "ITKReader": "itk",
+            "NrrdReader": "nrrd",
+            "PydicomReader": "pydicom",
+        }
+        for r, module in optional_readers.items():
+            with self.subTest(reader=r):
+                _, has_module = optional_import(module, allow_namespace_pkg=module in ("itk", "nrrd"))
+                if has_module:
+                    inst = LoadImaged("image", reader=r)
+                    self.assertIsInstance(inst, LoadImaged)
+                else:
+                    with self.assertRaises(OptionalImportError):
+                        LoadImaged("image", reader=r)
+
+        inst = LoadImaged("image", reader="NumpyReader")
+        self.assertIsInstance(inst, LoadImaged)
+        inst = LoadImaged("image", reader=None)
+        self.assertIsInstance(inst, LoadImaged)
+
+        _, has_pydicom = optional_import("pydicom")
+        if has_pydicom:
+            inst = LoadImaged("image", reader="NvImgCodecPydicomReader")
             self.assertIsInstance(inst, LoadImaged)
+
+    def test_nvimgcodec_not_imported_on_monai_import(self):
+        """Verify importing MONAI does not eagerly load the optional NVIDIA package."""
+        nvidia_spec = PathFinder.find_spec("nvidia")
+        if nvidia_spec is None or nvidia_spec.submodule_search_locations is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        nvimgcodec_spec = PathFinder.find_spec("nvimgcodec", nvidia_spec.submodule_search_locations)
+        if nvimgcodec_spec is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        code = (
+            "import warnings;warnings.filterwarnings('ignore'); "
+            "import monai, sys; print('nvidia.nvimgcodec' in sys.modules)"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
+        self.assertEqual(result.stderr, "")
+
+    def test_nvimgcodec_not_imported_on_loadimage_init(self):
+        """Verify initializing LoadImage does not eagerly load nvimgcodec."""
+        nvidia_spec = PathFinder.find_spec("nvidia")
+        if nvidia_spec is None or nvidia_spec.submodule_search_locations is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        nvimgcodec_spec = PathFinder.find_spec("nvimgcodec", nvidia_spec.submodule_search_locations)
+        if nvimgcodec_spec is None:
+            self.skipTest("nvidia.nvimgcodec is not installed")
+
+        code = (
+            "import warnings;warnings.filterwarnings('ignore');"
+            "import monai, sys; "
+            "from monai.transforms import LoadImage; "
+            "LoadImage(); "
+            "print('nvidia.nvimgcodec' in sys.modules)"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
+        self.assertEqual(result.stderr, "")
 
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("cupy")
@@ -61,6 +138,9 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = PydicomReader()
         self.assertIsInstance(inst, PydicomReader)
+
+        inst = NvImgCodecPydicomReader()
+        self.assertIsInstance(inst, NvImgCodecPydicomReader)
 
         inst = NumpyReader()
         self.assertIsInstance(inst, NumpyReader)

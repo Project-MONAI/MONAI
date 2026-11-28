@@ -250,8 +250,10 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                     self.offset_limits = None
                 elif isinstance(offset_limits, tuple):
                     if isinstance(offset_limits[0], int):
+                        # pyrefly: ignore [bad-assignment]
                         self.offset_limits = (offset_limits, offset_limits)
                     elif isinstance(offset_limits[0], tuple):
+                        # pyrefly: ignore [bad-assignment]
                         self.offset_limits = offset_limits
                     else:
                         raise ValueError(
@@ -304,7 +306,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             )
         )
         # convert locations to mask_location
-        mask_locations = np.round((patch_locations + patch_size_0 // 2) / float(mask_ratio))
+        mask_locations = np.round((patch_locations + patch_size_0 // 2) / float(mask_ratio)).astype(int)
 
         # fill out samples with location and metadata
         sample[WSIPatchKeys.SIZE.value] = patch_size

@@ -37,7 +37,6 @@ from monai.apps.detection.transforms.array import (
     StandardizeEmptyBox,
     ZoomBox,
 )
-from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
@@ -259,7 +258,6 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
-        remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
         image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -348,7 +346,6 @@ class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
-        remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
         image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -851,6 +848,10 @@ class BoxToMaskd(MapTransform):
         2) do transforms, e.g., rotation or cropping, on images and box_masks together;
         3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
 
+    Boxes are assumed to be in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D): box axis 0 maps to image
+    spatial dim 0 (``H``), box axis 1 maps to image spatial dim 1 (``W``).
+
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
@@ -938,6 +939,9 @@ class MaskToBoxd(MapTransform):
         1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
         2) do transforms, e.g., rotation or cropping, on images and box_masks together;
         3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
+
+    Output boxes are in ``StandardMode`` with ``0 <= xmin < xmax <= H``,
+    ``0 <= ymin < ymax <= W`` (``z`` similarly for 3D).
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
@@ -1154,10 +1158,13 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             # As along as the cropped patch contains a box, it is considered as a foreground patch.
             # Positions within extended_boxes are crop centers for foreground patches
             extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
-            mask_img = convert_box_to_mask(
-                extended_boxes_np, np.ones(extended_boxes_np.shape[0]), image_size, bg_label=0, ellipse_mask=False
-            )
-            mask_img = np.amax(mask_img, axis=0, keepdims=True)[0:1, ...]
+            spatial_dims = len(image_size)
+            mask_img = np.zeros((1,) + tuple(image_size), dtype=np.int16)
+            for b in range(extended_boxes_np.shape[0]):
+                slicing = (0,) + tuple(
+                    slice(extended_boxes_np[b, d], extended_boxes_np[b, d + spatial_dims]) for d in range(spatial_dims)
+                )
+                mask_img[slicing] = 1
             fg_indices_, bg_indices_ = map_binary_to_indices(mask_img, thresh_image, self.image_threshold)
         else:
             fg_indices_ = fg_indices

@@ -93,8 +93,10 @@ def _apply_transform(
     data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
     if isinstance(data, tuple) and unpack_parameters:
+        # pyrefly: ignore [not-callable]
         return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
 
+    # pyrefly: ignore [not-callable]
     return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
 
 
