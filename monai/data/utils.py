@@ -1285,7 +1285,8 @@ def partition_dataset_classes(
     Args:
         data: input dataset to split, expect a list of data.
         classes: a list of labels to help split the data, the length must match the length of data.
-        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1]. If rounding the partition sizes
+            leaves some items over, they are added to the partitions that were rounded down the most.
         num_partitions: expected number of the partitions to evenly split, only works when no `ratios`.
         shuffle: whether to shuffle the original dataset before splitting.
         seed: random seed to shuffle the dataset, only works when `shuffle` is True.

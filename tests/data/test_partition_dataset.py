@@ -123,10 +123,106 @@ TEST_CASES_ROUNDING = [
 ]
 
 
-class TestPartitionDataset(unittest.TestCase):
+TEST_CASE_9 = [
+    {
+        "data": list(range(10)),
+        "ratios": [1, 1, 1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]],
+]
 
+TEST_CASE_10 = [
+    {
+        "data": list(range(63)),
+        "ratios": [0.8, 0.1, 0.1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [list(range(51)), list(range(51, 57)), list(range(57, 63))],
+]
+
+TEST_CASE_11 = [
+    {
+        "data": list(range(32)),
+        "ratios": [1, 1, 1, 1, 1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [list(range(7)), list(range(7, 14)), list(range(14, 20)), list(range(20, 26)), list(range(26, 32))],
+]
+
+TEST_CASE_12 = [
+    {
+        "data": [1, 2, 3, 4, 5],
+        "ratios": [0.6, 0.2, 0.2],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[1, 2, 3], [4], [5]],
+]
+
+TEST_CASE_13 = [
+    {
+        "data": list(range(10)),
+        "ratios": [1, 1, 1, 0],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], []],
+]
+
+
+TEST_CASE_14 = [
+    {
+        "data": list(range(52)),
+        "ratios": [3, 1, 3, 8],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    # the largest rounding deficit is in the second partition, not the first,
+    # so the leftover item goes there rather than to partition 0
+    [list(range(10)), list(range(10, 14)), list(range(14, 24)), list(range(24, 52))],
+]
+
+
+class TestPartitionDataset(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+            TEST_CASE_9,
+            TEST_CASE_10,
+            TEST_CASE_11,
+            TEST_CASE_12,
+            TEST_CASE_13,
+            TEST_CASE_14,
+        ]
     )
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset(**input_param), result)
