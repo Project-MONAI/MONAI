@@ -157,15 +157,18 @@ class SegResEncoder(nn.Module):
         if spatial_dims not in (1, 2, 3):
             raise ValueError("`spatial_dims` can only be 1, 2 or 3.")
 
-        # ensure normalization has affine trainable parameters (if not specified)
-        norm = split_args(norm)
+        # ensure normalization has affine trainable parameters (if not specified);
+        # copy the keyword arguments so that the caller's dict is not modified in place
+        norm_name, norm_args = split_args(norm)
+        norm = (norm_name, dict(norm_args))
         if has_option(Norm[norm[0], spatial_dims], "affine"):
-            norm[1].setdefault("affine", True)  # type: ignore
+            norm[1].setdefault("affine", True)
 
         # ensure activation is inplace (if not specified)
-        act = split_args(act)
+        act_name, act_args = split_args(act)
+        act = (act_name, dict(act_args))
         if has_option(Act[act[0]], "inplace"):
-            act[1].setdefault("inplace", True)  # type: ignore
+            act[1].setdefault("inplace", True)
 
         filters = init_filters  # base number of features
 
@@ -312,15 +315,18 @@ class SegResNetDS(nn.Module):
             elif not all(r > 0 for r in resolution):
                 raise ValueError("resolution must be positive")
 
-        # ensure normalization had affine trainable parameters (if not specified)
-        norm = split_args(norm)
+        # ensure normalization had affine trainable parameters (if not specified);
+        # copy the keyword arguments so that the caller's dict is not modified in place
+        norm_name, norm_args = split_args(norm)
+        norm = (norm_name, dict(norm_args))
         if has_option(Norm[norm[0], spatial_dims], "affine"):
-            norm[1].setdefault("affine", True)  # type: ignore
+            norm[1].setdefault("affine", True)
 
         # ensure activation is inplace (if not specified)
-        act = split_args(act)
+        act_name, act_args = split_args(act)
+        act = (act_name, dict(act_args))
         if has_option(Act[act[0]], "inplace"):
-            act[1].setdefault("inplace", True)  # type: ignore
+            act[1].setdefault("inplace", True)
 
         anisotropic_scales = None
         if resolution:
