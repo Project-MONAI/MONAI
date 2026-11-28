@@ -223,6 +223,8 @@ TEST_INVERSE = [
     for params in dict_product(d=TEST_DEVICES, recompute=[False, True], align=[False, True], scale_extent=[False, True])
 ]
 
+TEST_RECOMPUTE = [[*params["d"], params["align"]] for params in dict_product(d=TEST_DEVICES, align=[False, True])]
+
 
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
@@ -325,6 +327,75 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img_out.applied_operations, [])
         self.assertEqual(img_out.shape, img_t.shape)
         self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
+
+    @parameterized.expand(TEST_RECOMPUTE)
+    def test_recompute_affine_keeps_geometry(self, device, align):
+        # non-unit spacing, a flipped axis and a non-zero origin
+        affine = torch.tensor(
+            [[-1.2, 0, 0, 90], [0, 0.9, 0, -120], [0, 0, 1.5, 30], [0, 0, 0, 1]], dtype=torch.float64, device="cpu"
+        )
+        in_shape = (32, 36, 28)
+        # smooth, asymmetric image so that a misplaced or flipped grid shows up in the voxel values
+        grid = torch.meshgrid(*[torch.linspace(0, 1, s) for s in in_shape], indexing="ij")
+        img_t = (2 * grid[0] + torch.cos(2 * grid[1]) + grid[2] ** 2)[None].to(device)
+        img = MetaTensor(img_t, affine=affine, meta={"fname": "somewhere"})
+
+        expected = Spacing(pixdim=1.0, align_corners=align)(img)
+        tr = Spacing(pixdim=1.0, recompute_affine=True, align_corners=align)
+        res = tr(img)
+        out_shape = np.asarray(res.shape[1:])
+        self.assertEqual(tuple(out_shape), tuple(expected.shape[1:]))
+
+        # pixdim follows from the input spacing and the actual shape change
+        in_pixdim = np.array([1.2, 0.9, 1.5])
+        if align:
+            expected_pixdim = in_pixdim * (np.asarray(in_shape) - 1) / (out_shape - 1)
+        else:
+            expected_pixdim = in_pixdim * np.asarray(in_shape) / out_shape
+        assert_allclose(res.pixdim, expected_pixdim, type_test=False, rtol=1e-4)
+        # orientation and origin stay close to the analytic output affine (only quantization differs)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=0.3)
+        assert_allclose(np.sign(np.diag(res.affine.cpu().numpy())), [-1, 1, 1, 1], type_test=False)
+
+        # inverse brings the voxel values back onto the input grid
+        inv = tr.inverse(res)
+        self.assertEqual(inv.shape, img_t.shape)
+        assert_allclose(inv.affine, affine, type_test=False, atol=1e-4)
+        assert_allclose(inv[0, 3:-3, 3:-3, 3:-3], img_t[0, 3:-3, 3:-3, 3:-3], type_test=False, atol=0.1)
+
+    @parameterized.expand(
+        [
+            ("flip_x_2", [[-1.0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (2, 3, 4)),
+            ("flip_x_5", [[-1.0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (5, 3, 4)),
+            ("permute_flip", [[0, -1.0, 0, 5], [1.0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (5, 6, 4)),
+        ]
+    )
+    def test_recompute_affine_diagonal(self, _, affine, shape):
+        # with diagonal=True the output grid follows the world axes, so flipped or permuted input axes are
+        # reoriented in the data and the recomputed affine has to describe that grid
+        affine = torch.tensor(affine, dtype=torch.float64)
+        img = MetaTensor(torch.arange(np.prod(shape), dtype=torch.float32).reshape(1, *shape), affine=affine)
+        pixdim = np.linalg.norm(affine[:3, :3].numpy(), axis=0)
+        expected = Spacing(pixdim=pixdim, diagonal=True)(img)
+        res = Spacing(pixdim=pixdim, diagonal=True, recompute_affine=True)(img)
+        # no spacing change, so the recomputed affine is the analytic one
+        assert_allclose(res, expected, type_test=False)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=1e-6)
+
+        # with a spacing change only the quantization differs from the analytic affine
+        expected = Spacing(pixdim=0.4, diagonal=True)(img)
+        res = Spacing(pixdim=0.4, diagonal=True, recompute_affine=True)(img)
+        assert_allclose(np.sign(res.affine[:3, :3].cpu().numpy()), np.sign(expected.affine[:3, :3]), type_test=False)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=0.3)
+
+    def test_recompute_affine_diagonal_sheared(self):
+        # a small pixdim shrinks the off-axis terms of the voxel mapping; a sheared input must still
+        # get the orthogonal destination grid
+        affine = torch.tensor([[1.0, 0.04, 0], [0, 1.0, 0], [0, 0, 1]], dtype=torch.float64)
+        img = MetaTensor(torch.rand(1, 2, 2), affine=affine)
+        expected = Spacing(pixdim=0.02, diagonal=True)(img)
+        res = Spacing(pixdim=0.02, diagonal=True, recompute_affine=True)(img)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=1e-6)
 
     def test_property_no_change(self):
         affine = torch.tensor(

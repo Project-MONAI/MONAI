@@ -542,8 +542,25 @@ class Spacing(InvertibleTransform, LazyTransform):
             if lazy_:
                 raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
             ac = align_corners if align_corners is not None else self.sp_resample.align_corners
-            a = scale_affine(original_spatial_shape, actual_shape, align_corners=ac)
-            data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
+            # output voxel -> input voxel; with diagonal=True the output axes can be flipped or permuted
+            g = np.linalg.solve(affine_, new_affine)[:sr, :sr]
+            src = np.abs(g).argmax(axis=0)  # input axis behind each output axis
+            # compare axis directions, since g scales with pixdim
+            off_axis = g / np.linalg.norm(g, axis=0, keepdims=True)
+            off_axis[src, np.arange(sr)] = 0
+            if len(set(src)) == sr and np.allclose(off_axis, 0, atol=AFFINE_TOL):
+                # scale the input extent onto the actual output shape, then map it back to the input axes
+                a = scale_affine([original_spatial_shape[k] for k in src], actual_shape, align_corners=ac)
+                p = np.eye(sr + 1)
+                p[:sr, :sr] = 0
+                for i, k in enumerate(src):
+                    p[k, i] = np.sign(g[k, i])
+                    p[k, -1] = 0 if g[k, i] > 0 else original_spatial_shape[k] - 1
+                new_affine = affine_ @ p @ a
+            else:
+                # the output grid is not aligned with the input axes (diagonal=True with a rotated input)
+                new_affine = new_affine @ scale_affine(list(output_shape), actual_shape, align_corners=ac)
+            data_array.affine = convert_to_dst_type(new_affine, affine_)[0]  # type: ignore
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
