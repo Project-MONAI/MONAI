@@ -184,6 +184,13 @@ class TestDiceLoss(unittest.TestCase):
         result = DiceLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
+    @parameterized.expand([([0], 0.0), ([2], 0.999995)])
+    def test_single_foreground_weight(self, weight, expected_val):
+        prediction = torch.full((1, 2, 1, 2), 0.5)
+        target = torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]])
+        result = DiceLoss(include_background=False, weight=weight)(prediction, target)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
+
     def test_ill_shape(self):
         loss = DiceLoss()
         with self.assertRaisesRegex(AssertionError, ""):
