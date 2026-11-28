@@ -363,6 +363,31 @@ class TestSpacingCase(unittest.TestCase):
         assert_allclose(inv.affine, affine, type_test=False, atol=1e-4)
         assert_allclose(inv[0, 3:-3, 3:-3, 3:-3], img_t[0, 3:-3, 3:-3, 3:-3], type_test=False, atol=0.1)
 
+    @parameterized.expand(
+        [
+            ("flip_x_2", [[-1.0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (2, 3, 4)),
+            ("flip_x_5", [[-1.0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (5, 3, 4)),
+            ("permute_flip", [[0, -1.0, 0, 5], [1.0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], (5, 6, 4)),
+        ]
+    )
+    def test_recompute_affine_diagonal(self, _, affine, shape):
+        # with diagonal=True the output grid follows the world axes, so flipped or permuted input axes are
+        # reoriented in the data and the recomputed affine has to describe that grid
+        affine = torch.tensor(affine, dtype=torch.float64)
+        img = MetaTensor(torch.arange(np.prod(shape), dtype=torch.float32).reshape(1, *shape), affine=affine)
+        pixdim = np.linalg.norm(affine[:3, :3].numpy(), axis=0)
+        expected = Spacing(pixdim=pixdim, diagonal=True)(img)
+        res = Spacing(pixdim=pixdim, diagonal=True, recompute_affine=True)(img)
+        # no spacing change, so the recomputed affine is the analytic one
+        assert_allclose(res, expected, type_test=False)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=1e-6)
+
+        # with a spacing change only the quantization differs from the analytic affine
+        expected = Spacing(pixdim=0.4, diagonal=True)(img)
+        res = Spacing(pixdim=0.4, diagonal=True, recompute_affine=True)(img)
+        assert_allclose(np.sign(res.affine[:3, :3].cpu().numpy()), np.sign(expected.affine[:3, :3]), type_test=False)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=0.3)
+
     def test_property_no_change(self):
         affine = torch.tensor(
             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
