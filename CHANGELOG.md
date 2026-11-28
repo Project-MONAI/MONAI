@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Fixed
 * `Quicknat` no longer depends on the unpublished `squeeze_and_excitation` package for `se_block="SSE"` and `"CSSE"`. Checkpoints saved with that package for these two options use different `state_dict` keys and will not load strictly. (#9276)
 * `ChannelSELayer` raises `ValueError` instead of `ZeroDivisionError` when `r=0`.
+* `Spacing` and `Spacingd` with `recompute_affine=True` compose the recomputed scaling with the input affine again, so the output keeps the input spacing, orientation and origin. Since 1.2.0 the output affine was replaced by the bare scaling matrix.
 
 ## [1.6.2] - 2026-11-18
 ### Addressed Security Advisories

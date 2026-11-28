@@ -543,7 +543,7 @@ class Spacing(InvertibleTransform, LazyTransform):
                 raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
             ac = align_corners if align_corners is not None else self.sp_resample.align_corners
             a = scale_affine(original_spatial_shape, actual_shape, align_corners=ac)
-            data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
+            data_array.affine = convert_to_dst_type(affine_ @ a, affine_)[0]  # type: ignore
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

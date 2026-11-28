@@ -223,6 +223,8 @@ TEST_INVERSE = [
     for params in dict_product(d=TEST_DEVICES, recompute=[False, True], align=[False, True], scale_extent=[False, True])
 ]
 
+TEST_RECOMPUTE = [[*params["d"], params["align"]] for params in dict_product(d=TEST_DEVICES, align=[False, True])]
+
 
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
@@ -325,6 +327,41 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img_out.applied_operations, [])
         self.assertEqual(img_out.shape, img_t.shape)
         self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
+
+    @parameterized.expand(TEST_RECOMPUTE)
+    def test_recompute_affine_keeps_geometry(self, device, align):
+        # non-unit spacing, a flipped axis and a non-zero origin
+        affine = torch.tensor(
+            [[-1.2, 0, 0, 90], [0, 0.9, 0, -120], [0, 0, 1.5, 30], [0, 0, 0, 1]], dtype=torch.float64, device="cpu"
+        )
+        in_shape = (32, 36, 28)
+        # smooth, asymmetric image so that a misplaced or flipped grid shows up in the voxel values
+        grid = torch.meshgrid(*[torch.linspace(0, 1, s) for s in in_shape], indexing="ij")
+        img_t = (2 * grid[0] + torch.cos(2 * grid[1]) + grid[2] ** 2)[None].to(device)
+        img = MetaTensor(img_t, affine=affine, meta={"fname": "somewhere"})
+
+        expected = Spacing(pixdim=1.0, align_corners=align)(img)
+        tr = Spacing(pixdim=1.0, recompute_affine=True, align_corners=align)
+        res = tr(img)
+        out_shape = np.asarray(res.shape[1:])
+        self.assertEqual(tuple(out_shape), tuple(expected.shape[1:]))
+
+        # pixdim follows from the input spacing and the actual shape change
+        in_pixdim = np.array([1.2, 0.9, 1.5])
+        if align:
+            expected_pixdim = in_pixdim * (np.asarray(in_shape) - 1) / (out_shape - 1)
+        else:
+            expected_pixdim = in_pixdim * np.asarray(in_shape) / out_shape
+        assert_allclose(res.pixdim, expected_pixdim, type_test=False, rtol=1e-4)
+        # orientation and origin stay close to the analytic output affine (only quantization differs)
+        assert_allclose(res.affine, expected.affine, type_test=False, atol=0.3)
+        assert_allclose(np.sign(np.diag(res.affine.cpu().numpy())), [-1, 1, 1, 1], type_test=False)
+
+        # inverse brings the voxel values back onto the input grid
+        inv = tr.inverse(res)
+        self.assertEqual(inv.shape, img_t.shape)
+        assert_allclose(inv.affine, affine, type_test=False, atol=1e-4)
+        assert_allclose(inv[0, 3:-3, 3:-3, 3:-3], img_t[0, 3:-3, 3:-3, 3:-3], type_test=False, atol=0.1)
 
     def test_property_no_change(self):
         affine = torch.tensor(
