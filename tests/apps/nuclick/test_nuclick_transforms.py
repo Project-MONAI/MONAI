@@ -65,6 +65,21 @@ LABEL_3 = np.array([[[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]]], d
 
 LABEL_4 = np.array([[[4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4]]], dtype=np.uint8)
 
+# target nucleus (1), a 9-pixel neighbor (2) and a 1-pixel fragment of another neighbor (3)
+LABEL_5 = np.array(
+    [
+        [
+            [1, 1, 0, 0, 0, 0],
+            [1, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 2, 2, 2],
+            [0, 0, 0, 2, 2, 2],
+            [3, 0, 0, 2, 2, 2],
+        ]
+    ],
+    dtype=np.uint8,
+)
+
 IL_IMAGE_1 = np.array(
     [
         [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
@@ -89,6 +104,19 @@ IL_IMAGE_2 = np.array(
 
 IL_LABEL_2 = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]], dtype=np.uint8)
 
+# two 16-pixel blobs in one 10x10 patch
+PRED_2 = np.zeros((1, 10, 10), dtype=np.float32)
+PRED_2[0, 1:5, 1:5] = 1.0
+PRED_2[0, 6:10, 6:10] = 1.0
+
+# click inside the first blob
+NUC_POINTS_2 = np.zeros((1, 1, 10, 10), dtype=np.float32)
+NUC_POINTS_2[0, 0, 2, 2] = 1.0
+
+# click outside both blobs
+NUC_POINTS_3 = np.zeros((1, 1, 10, 10), dtype=np.float32)
+NUC_POINTS_3[0, 0, 0, 9] = 1.0
+
 PRED_1 = np.array(
     [[[1, 1, 1, 1, 1], [2, 0, 0, 0, 2], [3, 0, 0, 0, 3], [4, 0, 0, 0, 4], [5, 5, 5, 5, 5]]], dtype=np.float32
 )
@@ -112,6 +140,7 @@ DATA_EXTRACT_2 = {"image": IL_IMAGE_2, "label": IL_LABEL_2, "centroid": (1, 1)}
 
 DATA_SPLIT_1 = {"label": LABEL_3, "mask_value": 1}
 DATA_SPLIT_2 = {"label": LABEL_4, "mask_value": 4}
+DATA_SPLIT_3 = {"label": LABEL_5, "mask_value": 1}
 
 DATA_GUIDANCE_1 = {"image": IL_IMAGE_1, "label": IL_LABEL_1, "others": IL_OTHERS_1, "centroid": (2, 2)}
 
@@ -125,12 +154,39 @@ DATA_LABEL_FILTER_1 = {
     "img_width": 6,
 }
 
+DATA_LABEL_FILTER_2 = {
+    "pred": PRED_2,
+    "nuc_points": NUC_POINTS_2,
+    "bounding_boxes": [[0, 0, 10, 10]],
+    "img_height": 10,
+    "img_width": 10,
+}
+
 # Result Definitions
 EXTRACT_RESULT_TC1 = np.array([[[0, 0, 0], [0, 0, 0], [0, 0, 1]]], dtype=np.uint8)
 EXTRACT_RESULT_TC2 = np.array([[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
 
 SPLIT_RESULT_TC1 = np.array([[[1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
 SPLIT_RESULT_TC2 = np.array([[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]], dtype=np.uint8)
+
+SPLIT_OTHERS_ALL = np.array(
+    [
+        [
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 1, 1],
+            [0, 0, 0, 1, 1, 1],
+            [2, 0, 0, 1, 1, 1],
+        ]
+    ],
+    dtype=np.uint8,
+)
+SPLIT_OTHERS_NO_FRAGMENT = SPLIT_OTHERS_ALL * (SPLIT_OTHERS_ALL == 1)
+
+LABEL_FILTER_BOTH_BLOBS = (PRED_2[0] > 0).astype(np.uint8)
+LABEL_FILTER_CLICKED_BLOB = np.zeros((10, 10), dtype=np.uint8)
+LABEL_FILTER_CLICKED_BLOB[1:5, 1:5] = 1
 
 # Test Case Definitions
 FILTER_IMAGE_TEST_CASE_1 = [{"keys": "image", "min_size": 1}, DATA_FILTER_1, [3, 3, 3]]
@@ -155,6 +211,12 @@ EXTRACT_KW_TEST_CASE_1 = [
 SPLIT_TEST_CASE_1 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 1}, DATA_SPLIT_1, SPLIT_RESULT_TC1]
 SPLIT_TEST_CASE_2 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 3}, DATA_SPLIT_2, SPLIT_RESULT_TC2]
 
+SPLIT_OTHERS_TEST_CASE_1 = [{"keys": ["label"]}, DATA_SPLIT_3, SPLIT_OTHERS_ALL]
+SPLIT_OTHERS_TEST_CASE_2 = [{"keys": ["label"], "min_area": 1}, DATA_SPLIT_3, SPLIT_OTHERS_ALL]
+SPLIT_OTHERS_TEST_CASE_3 = [{"keys": ["label"], "min_area": 2}, DATA_SPLIT_3, SPLIT_OTHERS_NO_FRAGMENT]
+SPLIT_OTHERS_TEST_CASE_4 = [{"keys": ["label"], "min_area": 9}, DATA_SPLIT_3, SPLIT_OTHERS_NO_FRAGMENT]
+SPLIT_OTHERS_TEST_CASE_5 = [{"keys": ["label"], "min_area": 10}, DATA_SPLIT_3, np.zeros_like(SPLIT_OTHERS_ALL)]
+
 GUIDANCE_TEST_CASE_1 = [{"image": "image", "label": "label", "others": "others"}, DATA_GUIDANCE_1, [5, 5, 5]]
 GUIDANCE_TEST_CASE_2 = [
     {"image": "image", "label": "label", "others": "others", "gaussian": True, "use_distance": True},
@@ -170,6 +232,18 @@ CLICK_TEST_CASE_2 = [
 ]
 
 LABEL_FILTER_TEST_CASE_1 = [{"keys": ["pred"]}, DATA_LABEL_FILTER_1, [6, 6]]
+
+LABEL_FILTER_RESULT_TEST_CASE_1 = [{"keys": ["pred"]}, DATA_LABEL_FILTER_2, LABEL_FILTER_BOTH_BLOBS]
+LABEL_FILTER_RESULT_TEST_CASE_2 = [
+    {"keys": ["pred"], "do_reconstruction": True},
+    DATA_LABEL_FILTER_2,
+    LABEL_FILTER_CLICKED_BLOB,
+]
+LABEL_FILTER_RESULT_TEST_CASE_3 = [
+    {"keys": ["pred"], "do_reconstruction": True},
+    {**DATA_LABEL_FILTER_2, "nuc_points": NUC_POINTS_2[:, 0]},
+    LABEL_FILTER_CLICKED_BLOB,
+]
 
 LABEL_GUIDANCE_TEST_CASE_1 = [{"keys": ["image"], "source": "label"}, DATA_GUIDANCE_1, [4, 5, 5]]
 
@@ -214,6 +288,20 @@ class TestSplitLabelsd(unittest.TestCase):
         result = SplitLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
 
+    @parameterized.expand(
+        [
+            SPLIT_OTHERS_TEST_CASE_1,
+            SPLIT_OTHERS_TEST_CASE_2,
+            SPLIT_OTHERS_TEST_CASE_3,
+            SPLIT_OTHERS_TEST_CASE_4,
+            SPLIT_OTHERS_TEST_CASE_5,
+        ]
+    )
+    def test_min_area(self, arguments, input_data, expected_others):
+        result = SplitLabeld(**arguments)(input_data)
+        np.testing.assert_equal(result["label"], (LABEL_5 == 1).astype(np.uint8))
+        np.testing.assert_equal(result["others"], expected_others)
+
 
 class TestGuidanceSignal(unittest.TestCase):
 
@@ -237,6 +325,19 @@ class TestPostFilterLabel(unittest.TestCase):
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["pred"].shape, expected_shape)
+
+    @parameterized.expand(
+        [LABEL_FILTER_RESULT_TEST_CASE_1, LABEL_FILTER_RESULT_TEST_CASE_2, LABEL_FILTER_RESULT_TEST_CASE_3]
+    )
+    def test_correct_results(self, arguments, input_data, expected_result):
+        result = PostFilterLabeld(**arguments)(input_data)
+        np.testing.assert_equal(result["pred"], expected_result)
+
+    def test_reconstruction_click_outside_mask(self):
+        data = {**DATA_LABEL_FILTER_2, "nuc_points": NUC_POINTS_3}
+        with self.assertWarns(UserWarning):
+            result = PostFilterLabeld(keys=["pred"], do_reconstruction=True)(data)
+        np.testing.assert_equal(result["pred"], LABEL_FILTER_BOTH_BLOBS)
 
 
 class TestAddLabelAsGuidance(unittest.TestCase):
