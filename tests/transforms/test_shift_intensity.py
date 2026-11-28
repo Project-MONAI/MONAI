@@ -45,6 +45,30 @@ class TestShiftIntensity(NumpyImageTestCase2D):
             result, torch.tensor([-(2**60 + 2), torch.iinfo(torch.int64).min], dtype=torch.int64)
         )
 
+    def test_safe_int64_numpy_and_tensor_scalar_offsets_preserve_precision(self):
+        """Preserve large int64 values for NumPy and zero-dimensional tensor offsets."""
+        image = torch.tensor([2**60 + 1, torch.iinfo(torch.int64).max], dtype=torch.int64)
+        offsets = (1, np.int64(1), torch.tensor(1), np.float64(1.0), torch.tensor(1.0))
+        expected = torch.tensor([2**60 + 2, torch.iinfo(torch.int64).max], dtype=torch.int64)
+        for offset in offsets:
+            with self.subTest(offset_type=type(offset).__name__):
+                result = ShiftIntensity(offset=offset, safe=True)(image)
+                torch.testing.assert_close(result, expected)
+
+    def test_safe_integer_nonfinite_tensor_offsets_rejected(self):
+        """Reject non-finite NumPy and scalar tensor offsets for integer images."""
+        image = torch.tensor([1, 2], dtype=torch.int64)
+        for offset in (
+            np.float32("nan"),
+            np.float32("inf"),
+            torch.tensor(float("nan")),
+            torch.tensor(float("inf")),
+            torch.tensor(float("-inf")),
+        ):
+            with self.subTest(offset_type=type(offset).__name__, offset=str(offset)):
+                with self.assertRaisesRegex(ValueError, "finite offsets"):
+                    ShiftIntensity(offset=offset, safe=True)(image)
+
     def test_safe_int64_offset_beyond_scalar_range(self):
         image = torch.tensor([2**62], dtype=torch.int64)
         result = ShiftIntensity(offset=float(-3 * 2**62), safe=True)(image)
