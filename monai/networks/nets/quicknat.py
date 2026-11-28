@@ -22,10 +22,6 @@ from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
-from monai.utils import optional_import
-
-# Lazy import to avoid dependency
-se1, flag = optional_import("squeeze_and_excitation")
 
 __all__ = ["Quicknat"]
 
@@ -347,6 +343,10 @@ class Quicknat(nn.Module):
         pool: kernel size of the pooling layer,
         stride_pool: stride for the pooling layer.
         se_block: Squeeze and Excite block type to include. Use ``None`` or ``"None"`` to disable it; valid enabled values are ``"CSE"``, ``"SSE"``, and ``"CSSE"``.
+            ``"SSE"`` and ``"CSSE"`` now use :py:class:`monai.networks.blocks.SpatialSELayer` and
+            :py:class:`monai.networks.blocks.ChannelSpatialSELayer` instead of the external
+            ``squeeze_and_excitation`` package, so weights saved with that package for these two options
+            have different ``state_dict`` keys and will not load with ``strict=True``.
         drop_out: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
@@ -434,19 +434,14 @@ class Quicknat(nn.Module):
         Args:
             n_filters: encoding half of the layer
             se_block_type: defaults to None. Valid options are None, CSE, SSE, CSSE
-        Returns: Appropriate SEBlock. SSE and CSSE not implemented in Monai yet.
+        Returns: Appropriate SEBlock, or None when ``se_block_type`` is None or "None".
         """
         if se_block_type == "CSE":
             return se.ChannelSELayer(2, n_filters)
-        # not implemented in squeeze_and_excitation in monai use other squeeze_and_excitation import:
-        elif se_block_type == "SSE" or se_block_type == "CSSE":
-            # Throw error if squeeze_and_excitation is not installed
-            if not flag:
-                raise ImportError("Please install squeeze_and_excitation locally to use SpatialSELayer")
-            if se_block_type == "SSE":
-                return se1.SpatialSELayer(n_filters)
-            else:
-                return se1.ChannelSpatialSELayer(n_filters)
+        elif se_block_type == "SSE":
+            return se.SpatialSELayer(2, n_filters)
+        elif se_block_type == "CSSE":
+            return se.ChannelSpatialSELayer(2, n_filters)
         else:
             return None
 
